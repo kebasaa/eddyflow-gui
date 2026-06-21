@@ -2419,7 +2419,7 @@ void AdvStatisticalOptions::reset()
     // WidgetUtils::resetComboToItem(randomMethodCombo, 0)
     ecProject_->setRandomErrorMethod(ecProject_->defaultSettings.randomError.ru_method);
 
-    timelagMaxSpin->setValue(ecProject_->defaultSettings.randomError.its_tlag_max);
+    timelagMaxSpin->setValue(ecProject_->defaultSettings.projectGeneral.its_tlag_max);
     securityCoeffSpin->setValue(ecProject_->defaultSettings.randomError.its_sec_factor);
 
     // restore modified flag
