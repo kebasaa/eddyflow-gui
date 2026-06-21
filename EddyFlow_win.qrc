@@ -191,6 +191,8 @@
     <qresource prefix="/css">
         <file alias="macstyle">css/EddyFlow-mac.qss</file>
         <file alias="winstyle">css/EddyFlow-win.qss</file>
+        <file alias="macstyle_dark">css/EddyFlow-mac-dark.qss</file>
+        <file alias="winstyle_dark">css/EddyFlow-win-dark.qss</file>
     </qresource>
     <qresource prefix="/docs">
         <file alias="thanks">ACKNOWLEDGEMENTS</file>

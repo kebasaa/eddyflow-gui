@@ -30,6 +30,9 @@
 #include <QDebug>
 #include <QFile>
 #include <QFontDatabase>
+#include <QGuiApplication>
+#include <QPalette>
+#include <QStyleHints>
 #include <QtGlobal>
 #include <QTextCodec>
 #include <QTextStream>
@@ -217,12 +220,22 @@ int main(int argc, char *argv[])
     MyStyle myStyle(app.style()->objectName());
     QApplication::setStyle(&myStyle);
 
+    bool isDark = false;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    isDark = (QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark);
+#else
+    isDark = (QGuiApplication::palette().color(QPalette::Window).lightness() < 128);
+#endif
+
 #if defined(Q_OS_WIN)
-    FileUtils::loadStyleSheetFile(QStringLiteral(":/css/winstyle"));
+    FileUtils::loadStyleSheetFile(isDark ? QStringLiteral(":/css/winstyle_dark")
+                                         : QStringLiteral(":/css/winstyle"));
 #elif defined(Q_OS_MACOS)
-    FileUtils::loadStyleSheetFile(QStringLiteral(":/css/macstyle"));
+    FileUtils::loadStyleSheetFile(isDark ? QStringLiteral(":/css/macstyle_dark")
+                                         : QStringLiteral(":/css/macstyle"));
 #elif defined(Q_OS_LINUX)
-    FileUtils::loadStyleSheetFile(QStringLiteral(":/css/linstyle"));
+    FileUtils::loadStyleSheetFile(isDark ? QStringLiteral(":/css/linstyle_dark")
+                                         : QStringLiteral(":/css/linstyle"));
 #endif
 
     QString appEnvPath = FileUtils::setupEnv();
