@@ -307,8 +307,6 @@ private:
     int versionLabelWidth_;
     int currentProjectLabelWidth_;
 
-    QTimer* notificationTimer_;
-
     // flags
     bool newFlag_;
     bool modifiedFlag_;

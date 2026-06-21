@@ -90,7 +90,6 @@ MainWindow::MainWindow(const QString& filename,
     ecProject_(nullptr),
     currEcProjectFilename_(filename),
     appEnvPath_(appEnvPath),
-    notificationTimer_(nullptr),
     newFlag_(true),
     modifiedFlag_(false),
     openingFlag_(false),
@@ -251,15 +250,6 @@ MainWindow::MainWindow(const QString& filename,
 
     QTimer::singleShot(0, this, SLOT(showAutoUpdateDialog()));
 
-    // notify every 24 hrs from the last start
-    notificationTimer_ = new QTimer(this);
-    connect(notificationTimer_, &QTimer::timeout,
-            this, &MainWindow::showAutoUpdateDialog);
-    notificationTimer_->start(1000 * 60 * 60 * 24);
-
-    // NOTE: for testing only
-//    notificationTimer_->start(5000);
-
     // NOTE: for testing only
 //    QStringList list;
 //    Process::getProcessIdsByProcessName(QStringLiteral("EddyFlow_debug"), list);
@@ -268,11 +258,6 @@ MainWindow::MainWindow(const QString& filename,
 
 MainWindow::~MainWindow()
 {
-    if (notificationTimer_)
-    {
-        delete notificationTimer_;
-    }
-
     if (aboutDialog)
     {
         delete aboutDialog;

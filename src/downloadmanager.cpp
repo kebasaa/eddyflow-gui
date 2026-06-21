@@ -68,6 +68,7 @@ void DownloadManager::get(const QUrl &url)
     QNetworkRequest request;
     request.setUrl(url);
     request.setRawHeader("User-Agent", Defs::EP_USER_AGENT.toLatin1());
+    request.setRawHeader("Accept", "application/vnd.github.v3+json");
 
     reply = manager.get(request);
 

@@ -27,6 +27,8 @@
 
 #include <QDebug>
 #include <QDesktopServices>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLabel>
 #include <QGridLayout>
 #include <QPushButton>
@@ -128,16 +130,10 @@ void UpdateDialog::close()
 
 void UpdateDialog::getNewVersion(const QString& version)
 {
-    msgLabel->setText(tr("<p><b>A newer version of %1 (version %2) is available from %3.<br />"
-                         "Do you want to upgrade your copy?</b></p>"
-                         "<p>If you have the <b>SMARTFlux<sup>&reg;</sup> System</b>, we also "
-                         "recommend that you <br />"
-                         "<a href=\"https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/SMARTFlux_Software_Update.html\">"
-                         "check for updates</a> to the embedded SMARTFlux firmware.</p>"
-                         "<p>%1 can automatically check for new and updated "
-                         "versions using <br />its Software Update Notification feature.<br />"
-                         "The new version does not overwrite previously installed versions."
-                         "</p>").arg(Defs::APP_NAME, version, Defs::ORG_NAME));
+    msgLabel->setText(tr("<p><b>A newer version of %1 (version %2) is available.<br />"
+                         "Do you want to open the releases page to download it?</b></p>"
+                         "<p>The new version does not overwrite previously installed versions.</p>"
+                         ).arg(Defs::APP_NAME, version));
     msgLabel->setOpenExternalLinks(true);
     okButton->setVisible(false);
     yesButton->setVisible(true);
@@ -189,7 +185,7 @@ bool UpdateDialog::hasNewVersion()
 
 void UpdateDialog::showDownloadPage()
 {
-    QDesktopServices::openUrl(QUrl(QStringLiteral("http://infoenv.licor.com/EddyFlowDownloads.html")));
+    QDesktopServices::openUrl(QUrl(QStringLiteral("https://github.com/kebasaa/eddyflow-gui/releases")));
     close();
 }
 
@@ -200,8 +196,18 @@ void UpdateDialog::downloadTimeout()
 
 void UpdateDialog::useDownloadResults()
 {
-    QByteArray versionNr = updateManager->getVersionNr();
-    QString newVersion(QLatin1String(versionNr.trimmed().constData()));
+    QByteArray data = updateManager->getVersionNr();
+
+    QString newVersion;
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
+    if (parseError.error == QJsonParseError::NoError && doc.isObject())
+    {
+        QString tag = doc.object().value(QStringLiteral("tag_name")).toString();
+        if (tag.startsWith(QLatin1Char('v')))
+            tag.remove(0, 1);
+        newVersion = tag.trimmed();
+    }
 
     if (!newVersion.isEmpty())
     {
