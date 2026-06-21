@@ -101,26 +101,15 @@ public:
     inline ExitStatus processExit() const { return processExit_; }
     bool isRunning() const { return (process_->state() == QProcess::Running); }
 
-#if 0
-    static unsigned int getProcessIdsByProcessName(const QString &processName, QStringList &listOfPids);
-#endif
-
 private slots:
     void processError(QProcess::ProcessError error);
     void processFinished(int exitCode, QProcess::ExitStatus exitStatus);
-    void processPause_2();
-    void bufferFreezerOutput();
 
 private:
     QProcess* process_;
     QString fullPath_;
     ExitStatus processExit_;
     qint64 processPid_;
-    QString winPid_;
-    QProcess* freezerUtility_;
-    QByteArray rxBuffer_;
-
-    void parseFreezerPid(const QByteArray& data);
 
 signals:
     void readyReadStdOut();

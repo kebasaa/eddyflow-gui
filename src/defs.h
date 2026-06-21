@@ -249,11 +249,6 @@ namespace Defs
 
     // helper tools
     const auto COMPRESSOR_BIN        = QStringLiteral("7z%1").arg(EXEC_FILE_EXT);
-#if defined(Q_OS_WIN)
-    const auto FREEZER_BIN           = QStringLiteral("pausep%1").arg(EXEC_FILE_EXT);
-#elif defined(Q_OS_MACOS) || defined(Q_OS_LINUX)
-    const auto FREEZER_BIN           = QStringLiteral("kill");
-#endif
 
     // auxiliary ini files
     const auto RS_INI = QStringLiteral("rssetup.%1").arg(AUX_FILE_EXT);

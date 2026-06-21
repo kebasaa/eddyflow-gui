@@ -29,11 +29,10 @@
 #include <QDebug>
 #include <QDir>
 #include <QFileInfo>
-#include <QTimer>
 
 #if defined(Q_OS_WIN)
 #include <windows.h>
-#include <psapi.h>
+#include <tlhelp32.h>
 #endif
 
 
@@ -42,10 +41,7 @@ Process::Process(QObject* parent, const QString &fullPath) :
     process_(nullptr),
     fullPath_(fullPath),
     processExit_(ExitStatus::Success),
-    processPid_(0),
-    winPid_(QString()),
-    freezerUtility_(nullptr),
-    rxBuffer_(QByteArray())
+    processPid_(0)
 {
     process_ = new QProcess(this);
     connect(process_, &QProcess::readyReadStandardOutput,
@@ -53,7 +49,6 @@ Process::Process(QObject* parent, const QString &fullPath) :
     connect(process_, &QProcess::readyReadStandardError,
              this, &Process::readyReadStdErr);
 
-    freezerUtility_ = new QProcess(this);
 }
 
 Process::~Process()
@@ -207,68 +202,45 @@ bool Process::zipContainsFiletype(const QString& fileName, const QString& filePa
     return dataList.contains(filePattern.mid(1).toLatin1());
 }
 
+#if defined(Q_OS_WIN)
+static void suspendResumeProcessThreads(DWORD pid, bool suspend)
+{
+    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (snap == INVALID_HANDLE_VALUE) return;
+    THREADENTRY32 te;
+    te.dwSize = sizeof(THREADENTRY32);
+    if (Thread32First(snap, &te)) {
+        do {
+            if (te.th32OwnerProcessID == pid) {
+                HANDLE t = OpenThread(THREAD_SUSPEND_RESUME, FALSE, te.th32ThreadID);
+                if (t) { suspend ? SuspendThread(t) : ResumeThread(t); CloseHandle(t); }
+            }
+        } while (Thread32Next(snap, &te));
+    }
+    CloseHandle(snap);
+}
+#endif
+
 void Process::processPause(Defs::CurrRunStatus mode)
 {
     Q_UNUSED(mode)
-
-    // file path of the utility to pause the engine
-    QString fp;
-
-    // arguments
-    QStringList args;
-
 #if defined(Q_OS_WIN)
-    // On Windows we pause using a third-party utility, namely 'pausep.exe'.
-    // Pausing the engine requires two runs of it,
-    // one for detecting the pid with no args and one for tha actual pausing.
-
-    fp = qApp->applicationDirPath() + QLatin1Char('/') + Defs::BIN_FILE_DIR + QLatin1Char('/') + Defs::FREEZER_BIN;
-    connect(freezerUtility_, &QProcess::readyReadStandardOutput,
-             this, &Process::bufferFreezerOutput);
-
+    suspendResumeProcessThreads(static_cast<DWORD>(processPid_), true);
 #elif defined(Q_OS_MACOS) || defined(Q_OS_LINUX)
-    // on mac anc linux we use the standard kill
-    // calling, 'kill -STOP processPid_'
-
-    fp = QStringLiteral("kill");
-
-    args << QStringLiteral("-STOP");
-    args << QString::number(processPid_);
+    QProcess::startDetached(QStringLiteral("kill"),
+                            {QStringLiteral("-STOP"), QString::number(processPid_)});
 #endif
-
-    freezerUtility_->setWorkingDirectory(qApp->applicationDirPath() + QLatin1Char('/') + Defs::BIN_FILE_DIR);
-    freezerUtility_->start(fp, args);
 }
 
 void Process::processResume(Defs::CurrRunStatus mode)
 {
     Q_UNUSED(mode)
-
-    // file path of the utility to resume the engine
-    QString fp;
-
-    // arguments
-    QStringList args;
-
 #if defined(Q_OS_WIN)
-    // file path of the utility to resume the engine
-    fp = qApp->applicationDirPath() + QLatin1Char('/') + Defs::BIN_FILE_DIR + QLatin1Char('/') + Defs::FREEZER_BIN;
-
-    args << winPid_;
-    args << QStringLiteral("/r");
-
+    suspendResumeProcessThreads(static_cast<DWORD>(processPid_), false);
 #elif defined(Q_OS_MACOS) || defined(Q_OS_LINUX)
-    // on mac anc linux we use the standard kill
-    // calling, 'kill -CONT processPid_'
-
-    fp = QStringLiteral("kill");
-
-    args << QStringLiteral("-CONT");
-    args << QString::number(processPid_);
+    QProcess::startDetached(QStringLiteral("kill"),
+                            {QStringLiteral("-CONT"), QString::number(processPid_)});
 #endif
-
-    freezerUtility_->setWorkingDirectory(qApp->applicationDirPath() + QLatin1Char('/') + Defs::BIN_FILE_DIR);
-    freezerUtility_->start(fp, args);
 }
 
 void Process::processStop()
@@ -363,158 +335,4 @@ void Process::setEnv(const QStringList &envList)
     process_->setProcessEnvironment(env);
 }
 
-// analyze the pausep output
-void Process::bufferFreezerOutput()
-{
-#if defined(Q_OS_WIN)
-    QByteArray data = freezerUtility_->readAllStandardOutput();
-
-    rxBuffer_.append(data);
-    QByteArray line(rxBuffer_);
-    QByteArrayList lineList(line.split('\n'));
-
-    // newline found
-    if (lineList.at(0) != rxBuffer_)
-    {
-        for (int i = 0; i < lineList.size(); ++i)
-        {
-            parseFreezerPid(lineList.at(i));
-        }
-
-        if (lineList.last().endsWith('\n'))
-            rxBuffer_.resize(0);
-        else
-            rxBuffer_ = lineList.last();
-    }
-#endif
-}
-
-// detect the engine pid under Windows
-void Process::parseFreezerPid(const QByteArray& data)
-{
-#if defined(Q_OS_WIN)
-    QByteArray cleanLine;
-    cleanLine.append(data.simplified());
-
-    if (cleanLine.contains(Defs::ENGINE_RP.toLatin1()))
-    {
-        QByteArrayList columnList(cleanLine.split(' '));
-        QByteArray col = columnList.at(1);
-        const char* colData = col.constData();
-        winPid_ = QString::fromUtf8(colData);
-
-        freezerUtility_->kill();
-
-        disconnect(freezerUtility_, &QProcess::readyReadStandardOutput,
-                 this, &Process::bufferFreezerOutput);
-        QTimer::singleShot(1000, this, SLOT(processPause_2()));
-    }
-#endif
-    Q_UNUSED(data)
-}
-
-// Second run of 'pausep.exe' on Windows
-void Process::processPause_2()
-{
-#if defined(Q_OS_WIN)
-    // file path of the program
-    QString fp(qApp->applicationDirPath() + QLatin1Char('/') + Defs::BIN_FILE_DIR + QLatin1Char('/') + Defs::FREEZER_BIN);
-
-    QStringList args;
-    args << winPid_;
-
-    freezerUtility_->setWorkingDirectory(qApp->applicationDirPath() + QLatin1Char('/') + Defs::BIN_FILE_DIR);
-    freezerUtility_->start(fp, args);
-#endif
-}
-
-#if 0
-// from http://www.qtcentre.org/threads/44489-Get-Process-ID-for-a-running-application
-unsigned int Process::getProcessIdsByProcessName(const QString& processName, QStringList &listOfPids)
-{
-    // Clear content of returned list of PIDS
-    listOfPids.clear();
-
-#if defined(Q_OS_WIN)
-    // Get the list of process identifiers.
-    DWORD aProcesses[1024], cbNeeded, cProcesses;
-    unsigned int i;
-
-    if (!EnumProcesses(aProcesses, sizeof(aProcesses), &cbNeeded))
-    {
-        return 0;
-    }
-
-    // Calculate how many process identifiers were returned.
-    cProcesses = cbNeeded / sizeof(DWORD);
-
-    // Search for a matching name for each process
-    for (i = 0; i < cProcesses; i++)
-    {
-        if (aProcesses[i] != 0)
-        {
-            char szProcessName[MAX_PATH] = {0};
-
-            DWORD processID = aProcesses[i];
-
-            // Get a handle to the process.
-            HANDLE hProcess = OpenProcess( PROCESS_QUERY_INFORMATION |
-                PROCESS_VM_READ,
-                FALSE, processID);
-
-            // Get the process name
-            if (NULL != hProcess)
-            {
-                HMODULE hMod;
-                DWORD cbNeeded;
-
-                if (EnumProcessModules(hProcess, &hMod, sizeof(hMod), &cbNeeded))
-                {
-                    GetModuleBaseNameA(hProcess, hMod, szProcessName, sizeof(szProcessName)/sizeof(char));
-                }
-
-                // Release the handle to the process.
-                CloseHandle(hProcess);
-
-                QByteArray ba = processName.toLocal8Bit();
-                const char *processName_str = ba.data();
-
-                if (*szProcessName != 0 && strcmp(processName_str, szProcessName) == 0)
-                {
-                    listOfPids.append(QString::number(processID));
-                }
-            }
-        }
-    }
-
-    return listOfPids.count();
-
-#else
-
-    // Run pgrep, which looks through the currently running processses and lists the process IDs
-    // which match the selection criteria to stdout.
-    QProcess process;
-    process.start(QStringLiteral("pgrep"),  QStringList() << processName);
-    process.waitForReadyRead();
-
-    QByteArray bytes = process.readAllStandardOutput();
-
-    process.terminate();
-    process.waitForFinished();
-    process.kill();
-
-    // Output is something like "2472\n2323" for multiple instances
-    if (bytes.isEmpty())
-        return 0;
-
-    // Remove trailing CR
-    if (bytes.endsWith("\n"))
-        bytes.resize(bytes.size() - 1);
-
-    listOfPids = QString(QLatin1String(bytes)).split(QStringLiteral("\n"));
-    return listOfPids.count();
-
-#endif
-}
-#endif
 

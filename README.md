@@ -108,7 +108,6 @@ To successfully run EddyFlow, the program installation folder must contain the
 following command line utilities under the 'bin' sub-directory:
 
 - 7-zip
-- pausep
 
 ### 7-zip
 
@@ -119,17 +118,6 @@ The console application consists of two files:
 - 7z.exe
 
 License: [LGPL](https://www.7-zip.org/license.txt).
-
-### pausep
-
-Pausep it's a Win32 process suspend/resume tool, available on
-[Code Project](http://www.codeproject.com/Articles/2964/Win-process-suspend-resume-tool).
-
-It consists of one file:
-- pausep.exe
-
-License: Code Project Open License,
-[CPOL](http://www.codeproject.com/info/cpol10.aspx).
 
 ## Using EddyFlow sample data
 
