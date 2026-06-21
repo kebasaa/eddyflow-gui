@@ -80,7 +80,6 @@ private:
     ConfigState* configState_;
 
     ClickLabel *appLogoLabel;
-    ClickLabel *toviLabel;
     ClickLabel *feedbackLabel;
     QToolButton *newButton;
     QToolButton *openButton;
@@ -103,7 +102,6 @@ private slots:
     void helpItemRequested(QListWidgetItem* item);
     void supportItemRequested(QListWidgetItem* item);
     void updateRecentList();
-    void openToviHomepage();
     void onlineHelpTrigger_1();
 
 signals:

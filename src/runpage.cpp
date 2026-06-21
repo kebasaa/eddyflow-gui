@@ -120,12 +120,6 @@ RunPage::RunPage(QWidget *parent, EcProject *ecProject, ConfigState* config)
     clearErrorEditButton->setProperty("mdButton", true);
     clearErrorEditButton->setMaximumWidth(clearErrorEditButton->sizeHint().width());
 
-    toviLabel = new ClickLabel;
-    toviLabel->setProperty("toviLabel", true);
-    toviLabel->setProperty("toviThinLabel", false);
-    toviLabel->setStyleSheet(QStringLiteral("ClickLabel {margin-left: -15px; }"));
-    connect(toviLabel, &ClickLabel::clicked,
-            this, &RunPage::openToviHomepage);
 
     auto progressLayout = new QGridLayout;
     progressLayout->addWidget(runModeIcon_, 0, 0, 1, 1);
@@ -142,7 +136,6 @@ RunPage::RunPage(QWidget *parent, EcProject *ecProject, ConfigState* config)
     progressLayout->addWidget(pauseResumeLabel_, 9, 1);
     progressLayout->addWidget(clearErrorEditButton, 9, 2, Qt::AlignRight);
     progressLayout->addWidget(open_output_dir, 10, 1);
-    progressLayout->addWidget(toviLabel, 11, 1, Qt::AlignLeft);
     progressLayout->setColumnStretch(2, 2);
     progressLayout->setRowStretch(8, 2);
     progressLayout->setRowStretch(12, 2);
@@ -1590,26 +1583,8 @@ void RunPage::openOutputDir()
     QDesktopServices::openUrl(QUrl::fromLocalFile(ecProject_->generalOutPath()));
 }
 
-void RunPage::openToviHomepage()
-{
-    QDesktopServices::openUrl(QUrl(QStringLiteral("https://tovi.io/?utm_source=EddyFlow%20Software&utm_medium=Tovi%20Ads&utm_campaign=EP_Tovi_ads")));
-}
-
 void RunPage::updateRunPage(bool small)
 {
-    QList<WidgetUtils::PropertyList> toviAdProp;
-
-    if (small)
-    {
-        toviAdProp << WidgetUtils::PropertyList("toviLabel", false)
-                   << WidgetUtils::PropertyList("toviThinLabel", true);
-    }
-    else
-    {
-        toviAdProp << WidgetUtils::PropertyList("toviLabel", true)
-                   << WidgetUtils::PropertyList("toviThinLabel", false);
-    }
-
-    WidgetUtils::updatePropertyListAndStyle(toviLabel, toviAdProp);
+    Q_UNUSED(small)
 }
 

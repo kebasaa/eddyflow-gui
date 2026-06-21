@@ -73,7 +73,6 @@ private slots:
     void updateElapsedTime();
     void updateMiniProgress();
     void openOutputDir();
-    void openToviHomepage();
 
 private:
     bool filterData(const QByteArray &data);
@@ -103,7 +102,6 @@ private:
     QLabel* timeEstimateLabels_;
     QLabel* pauseResumeLabel_;
     QPushButton* open_output_dir;
-    ClickLabel *toviLabel;
 
     EcProject* ecProject_;
     ConfigState* configState_;

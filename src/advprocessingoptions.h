@@ -134,8 +134,6 @@ private slots:
     void onlineHelpTrigger_4();
     void onlineHelpTrigger_11();
 
-    void openToviHomepage();
-
 private:
     enum class DetrendMethod {
         BlockAverage,

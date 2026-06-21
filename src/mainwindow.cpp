@@ -1346,15 +1346,6 @@ void MainWindow::createToolBars()
     viewToolBar->setIconSize(QSize(42, 40));
     runToolBar->setIconSize(QSize(32, 40));
 
-    // to add small licor logo right aligned
-    auto spacer = new QWidget;
-    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    auto licorLogo = new ClickLabel;
-    licorLogo->setObjectName(QStringLiteral("licorLogo"));
-
-    runToolBar->addWidget(spacer);
-    runToolBar->addWidget(licorLogo);
-    connect(licorLogo, &ClickLabel::clicked, this, &MainWindow::openLicorSite);
 }
 
 void MainWindow::createStatusBar()
@@ -4270,11 +4261,6 @@ bool MainWindow::testForPreviousData()
     }
 
     return test;
-}
-
-void MainWindow::openLicorSite() const
-{
-    QDesktopServices::openUrl(QUrl(QStringLiteral("http://www.licor.com/env/")));
 }
 
 void MainWindow::checkInternetConnection()

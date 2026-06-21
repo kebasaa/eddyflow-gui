@@ -53,11 +53,6 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     connect(appLogoLabel, &ClickLabel::clicked,
             this, &WidgetUtils::openAppWebsite);
 
-    toviLabel = new ClickLabel;
-    toviLabel->setProperty("toviLabel", true);
-    toviLabel->setProperty("toviWideLabel", false);
-    connect(toviLabel, &ClickLabel::clicked,
-            this, &WelcomePage::openToviHomepage);
 
     newButton = new QToolButton;
     newButton->setText(tr("New Project"));
@@ -166,9 +161,6 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     newsListWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     newsListWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
-    auto rssItem_1 = new QListWidgetItem(QIcon(QStringLiteral(":/icons/ep")), tr("Introducing Tovi") + Defs::TRADEMARK_SYMBOL
-                                                                                 + tr(" – Powerful software for processing EddyFlow outputs"), newsListWidget);
-    rssItem_1->setData(Qt::UserRole, QStringLiteral("https://tovi.io/?utm_source=EddyFlow%20Software&utm_medium=Tovi%20Ads&utm_campaign=EP_Tovi_ads"));
 
     auto rssItem_2 = new QListWidgetItem(QIcon(QStringLiteral(":/icons/article")), tr("New Trace Gas Analyzers – high performance in an entirely new, portable design"), newsListWidget);
     rssItem_2->setData(Qt::UserRole, QStringLiteral("https://www.licor.com/env/products/trace_gas/"));
@@ -282,7 +274,6 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     mainLayout_->addWidget(smartfluxBar_, 0, 0, 1, -1);
     mainLayout_->addWidget(smartfluxBarPlaceholder_, 0, 0, 1, -1, Qt::AlignHCenter);
     mainLayout_->addWidget(appLogoLabel, 1, 0, 1, -1, Qt::AlignHCenter | Qt::AlignVCenter);
-    mainLayout_->addWidget(toviLabel, 2, 0, 1, 1, Qt::AlignHCenter);
     mainLayout_->addWidget(welcomeTab, 3, 0, 1, -1, Qt::AlignHCenter);
     mainLayout_->setRowStretch(0, 0);
     mainLayout_->setRowStretch(1, 1);
@@ -400,30 +391,19 @@ void WelcomePage::updateRecentList()
 void WelcomePage::updateWelcomePage(bool small)
 {
     QList<WidgetUtils::PropertyList> appLogoProp;
-    QList<WidgetUtils::PropertyList> toviAdProp;
 
     if (small)
     {
         appLogoProp << WidgetUtils::PropertyList("applogoLabel", false)
                     << WidgetUtils::PropertyList("applogoSmallLabel", true);
-        toviAdProp << WidgetUtils::PropertyList("toviLabel", false)
-                   << WidgetUtils::PropertyList("toviWideLabel", true);
     }
     else
     {
         appLogoProp << WidgetUtils::PropertyList("applogoLabel", true)
                     << WidgetUtils::PropertyList("applogoSmallLabel", false);
-        toviAdProp << WidgetUtils::PropertyList("toviLabel", true)
-                   << WidgetUtils::PropertyList("toviWideLabel", false);
     }
 
     WidgetUtils::updatePropertyListAndStyle(appLogoLabel, appLogoProp);
-    WidgetUtils::updatePropertyListAndStyle(toviLabel, toviAdProp);
-}
-
-void WelcomePage::openToviHomepage()
-{
-    QDesktopServices::openUrl(QUrl(QStringLiteral("https://tovi.io/?utm_source=EddyFlow%20Software&utm_medium=Tovi%20Ads&utm_campaign=EP_Tovi_ads")));
 }
 
 void WelcomePage::updateSmartfluxBar()

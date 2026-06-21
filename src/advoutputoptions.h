@@ -107,8 +107,6 @@ private slots:
 
     void onClickerrorFormatLabel();
 
-    void openToviHomepage();
-
 private:
     bool areAllCheckedVars();
     void setVarsAvailable(bool ok);

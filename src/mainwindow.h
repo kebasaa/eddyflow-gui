@@ -162,7 +162,6 @@ private slots:
     void showAutoUpdateResults();
     void showUpdateDialog();
 
-    void openLicorSite() const;
 
     void checkInternetConnection();
     void updateInfoMessages();
