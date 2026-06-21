@@ -1,24 +1,26 @@
 /***************************************************************************
   updatedialog.cpp
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "updatedialog.h"
@@ -31,7 +33,6 @@
 #include <QTimer>
 #include <QUrl>
 
-#include "dbghelper.h"
 #include "defs.h"
 #include "downloadmanager.h"
 #include "stringutils.h"
@@ -131,7 +132,7 @@ void UpdateDialog::getNewVersion(const QString& version)
                          "Do you want to upgrade your copy?</b></p>"
                          "<p>If you have the <b>SMARTFlux<sup>&reg;</sup> System</b>, we also "
                          "recommend that you <br />"
-                         "<a href=\"http://www.licor.com/env/help/eddypro/topics_eddypro/SMARTFlux_Software_Update.html\">"
+                         "<a href=\"https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/SMARTFlux_Software_Update.html\">"
                          "check for updates</a> to the embedded SMARTFlux firmware.</p>"
                          "<p>%1 can automatically check for new and updated "
                          "versions using <br />its Software Update Notification feature.<br />"
@@ -188,7 +189,7 @@ bool UpdateDialog::hasNewVersion()
 
 void UpdateDialog::showDownloadPage()
 {
-    QDesktopServices::openUrl(QUrl(QStringLiteral("http://infoenv.licor.com/EddyProDownloads.html")));
+    QDesktopServices::openUrl(QUrl(QStringLiteral("http://infoenv.licor.com/EddyFlowDownloads.html")));
     close();
 }
 

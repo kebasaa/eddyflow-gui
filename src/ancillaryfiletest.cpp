@@ -1,23 +1,25 @@
 /***************************************************************************
   ancillaryfiletest.cpp
   -------------------
-  Copyright (C) 2014-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2014-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "ancillaryfiletest.h"
@@ -34,12 +36,11 @@
 
 #include <algorithm>
 
-#include "dbghelper.h"
 #include "stringutils.h"
 #include "container_helpers.h"
 #include "widget_utils.h"
 
-const auto helpPage = QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Assessment_Tests.html");
+const auto helpPage = QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Assessment_Tests.html");
 
 AncillaryFileTest::AncillaryFileTest(FileType type,
                                      QWidget *parent) :
@@ -168,7 +169,7 @@ bool AncillaryFileTest::testFile()
             tr("<b>The selected file does not match the expected "
                "formatting or scientific content. "
                "<p>If you would like to upload a different file or choose an alternate method, please click <i>Cancel</i>. "
-               "If you click <i>Continue</i>, EddyPro will probably not use the file and will resort to the default method.</p>"
+               "If you click <i>Continue</i>, EddyFlow will probably not use the file and will resort to the default method.</p>"
                "<p>More information about the testing performed "
                "can be found in the help.</b>&nbsp;"
                "<a href=\"%1\"><img src=\"qrc:/icons/qm-enabled\"></img></a>").arg(helpPage);
@@ -215,11 +216,11 @@ bool AncillaryFileTest::parseFile(const QString& filename, LineList *lines)
     if (line.isNull()) { return false; }
 
     const auto space = QLatin1Char(' ');
-    *lines << line.split(space, QString::SkipEmptyParts);
+    *lines << line.split(space, Qt::SkipEmptyParts);
     while (!line.isNull())
     {
         line = in.readLine();
-        *lines << line.split(space, QString::SkipEmptyParts);
+        *lines << line.split(space, Qt::SkipEmptyParts);
     }
 
     file.close();
@@ -1069,7 +1070,8 @@ void AncillaryFileTest::saveResults()
     if (!filename.isEmpty())
     {
         QSaveFile file(filename);
-        file.open(QIODevice::WriteOnly | QIODevice::Text);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+            return;
 
         QTextStream out(&file);
 
@@ -1097,3 +1099,4 @@ void AncillaryFileTest::saveResults()
         file.commit();
     }
 }
+

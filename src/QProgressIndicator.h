@@ -23,7 +23,7 @@
 /// \version     1.0.2
 /// \date        2009-2010
 /// \author      Morgan Leborgne
-/// \note        Modified for EddyPro by Antonio Forgione
+/// \note        Modified for EddyFlow by Antonio Forgione
 /// \sa http://qt-apps.org/content/show.php/QProgressIndicator?content=115762
 /// \bug
 /// \deprecated

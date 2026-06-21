@@ -1,24 +1,26 @@
 /***************************************************************************
   irga_delegate.cpp
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "irga_delegate.h"
@@ -31,7 +33,6 @@
 #include <QLabel>
 #include <QLineEdit>
 
-#include "dbghelper.h"
 #include "defs.h"
 #include "irga_desc.h"
 #include "irga_model.h"
@@ -259,17 +260,17 @@ void IrgaDelegate::setEditorData(QWidget* editor,
     {
         case IrgaModel::MANUFACTURER:
         case IrgaModel::MODEL:
-              combo = static_cast<QComboBox*>(editor);
+              combo = dynamic_cast<QComboBox*>(editor);
               if (!combo) { return; }
               combo->setCurrentIndex(combo->findText(value.toString()));
               break;
         case IrgaModel::SWVERSION:
-              ledit = static_cast<QLineEdit*>(editor);
+              ledit = dynamic_cast<QLineEdit*>(editor);
               if (!ledit) { return; }
               ledit->setText(value.toString());
               break;
         case IrgaModel::ID:
-            ledit = static_cast<QLineEdit*>(editor);
+            ledit = dynamic_cast<QLineEdit*>(editor);
             if (!ledit) { return; }
             ledit->setText(value.toString());
             break;
@@ -283,12 +284,12 @@ void IrgaDelegate::setEditorData(QWidget* editor,
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_10()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_11())
             {
-                label = static_cast<QLabel*>(editor);
+                label = dynamic_cast<QLabel*>(editor);
                 if (!label) { return; }
             }
             else
             {
-                dspin = static_cast<QDoubleSpinBox*>(editor);
+                dspin = dynamic_cast<QDoubleSpinBox*>(editor);
                 if (!dspin) { return; }
                 dspin->setValue(value.toReal());
             }
@@ -298,12 +299,12 @@ void IrgaDelegate::setEditorData(QWidget* editor,
         case IrgaModel::TUBEFLOWRATE:
             if (IrgaDesc::isOpenPathModel(currentModel))
             {
-                label = static_cast<QLabel*>(editor);
+                label = dynamic_cast<QLabel*>(editor);
                 if (!label) { return; }
             }
             else
             {
-                dspin = static_cast<QDoubleSpinBox*>(editor);
+                dspin = dynamic_cast<QDoubleSpinBox*>(editor);
                 if (!dspin) { return; }
                 dspin->setValue(value.toReal());
             }
@@ -311,7 +312,7 @@ void IrgaDelegate::setEditorData(QWidget* editor,
         case IrgaModel::TUBENSEPARATION:
         case IrgaModel::TUBEESEPARATION:
         case IrgaModel::TUBEVSEPARATION:
-            dspin = static_cast<QDoubleSpinBox*>(editor);
+            dspin = dynamic_cast<QDoubleSpinBox*>(editor);
             if (!dspin) { return; }
             dspin->setValue(value.toReal());
             break;
@@ -322,12 +323,12 @@ void IrgaDelegate::setEditorData(QWidget* editor,
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_10()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_11())
             {
-                label = static_cast<QLabel*>(editor);
+                label = dynamic_cast<QLabel*>(editor);
                 if (!label) { return; }
             }
             else
             {
-                dspin = static_cast<QDoubleSpinBox*>(editor);
+                dspin = dynamic_cast<QDoubleSpinBox*>(editor);
                 if (!dspin) { return; }
                 dspin->setValue(value.toReal());
             }
@@ -355,19 +356,19 @@ void IrgaDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
     {
         case IrgaModel::MANUFACTURER:
         case IrgaModel::MODEL:
-            combo = static_cast<QComboBox*>(editor);
+            combo = dynamic_cast<QComboBox*>(editor);
             if (!combo) { return; }
             value = combo->currentText();
             model->setData(index, value);
             break;
         case IrgaModel::SWVERSION:
-            ledit = static_cast<QLineEdit*>(editor);
+            ledit = dynamic_cast<QLineEdit*>(editor);
             if (!ledit) { return; }
             value = ledit->text();
             model->setData(index, value);
             break;
         case IrgaModel::ID:
-            ledit = static_cast<QLineEdit*>(editor);
+            ledit = dynamic_cast<QLineEdit*>(editor);
             if (!ledit) { return; }
             value = ledit->text();
             model->setData(index, value);
@@ -382,12 +383,12 @@ void IrgaDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_10()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_11())
             {
-                label = static_cast<QLabel*>(editor);
+                label = dynamic_cast<QLabel*>(editor);
                 if (!label) { return; }
             }
             else
             {
-                dspin = static_cast<QDoubleSpinBox*>(editor);
+                dspin = dynamic_cast<QDoubleSpinBox*>(editor);
                 if (!dspin) { return; }
                 value = dspin->value();
                 model->setData(index, value);
@@ -398,12 +399,12 @@ void IrgaDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
         case IrgaModel::TUBEFLOWRATE:
             if (IrgaDesc::isOpenPathModel(currentModel))
             {
-                label = static_cast<QLabel*>(editor);
+                label = dynamic_cast<QLabel*>(editor);
                 if (!label) { return; }
             }
             else
             {
-                dspin = static_cast<QDoubleSpinBox*>(editor);
+                dspin = dynamic_cast<QDoubleSpinBox*>(editor);
                 if (!dspin) { return; }
                 value = dspin->value();
                 model->setData(index, value);
@@ -412,7 +413,7 @@ void IrgaDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
         case IrgaModel::TUBENSEPARATION:
         case IrgaModel::TUBEESEPARATION:
         case IrgaModel::TUBEVSEPARATION:
-            dspin = static_cast<QDoubleSpinBox*>(editor);
+            dspin = dynamic_cast<QDoubleSpinBox*>(editor);
             if (!dspin) { return; }
             value = dspin->value();
             model->setData(index, value);
@@ -424,12 +425,12 @@ void IrgaDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_10()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_11())
             {
-                label = static_cast<QLabel*>(editor);
+                label = dynamic_cast<QLabel*>(editor);
                 if (!label) { return; }
             }
             else
             {
-                dspin = static_cast<QDoubleSpinBox*>(editor);
+                dspin = dynamic_cast<QDoubleSpinBox*>(editor);
                 if (!dspin) { return; }
                 value = dspin->value();
                 model->setData(index, value);
@@ -468,7 +469,7 @@ bool IrgaDelegate::eventFilter(QObject* editor, QEvent* event)
 {
     QComboBox* combo = qobject_cast<QComboBox *>(editor);
     QEvent::Type eventType = event->type();
-    int eventKey = static_cast<const QKeyEvent*>(event)->key();
+    int eventKey = dynamic_cast<const QKeyEvent*>(event)->key();
     if (combo
         && (eventType == QEvent::MouseButtonRelease
             || (eventType == QEvent::KeyPress && (eventKey == Qt::Key_Space
@@ -492,3 +493,4 @@ bool IrgaDelegate::eventFilter(QObject* editor, QEvent* event)
         return QObject::eventFilter(editor, event);
     }
 }
+

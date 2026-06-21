@@ -1,24 +1,26 @@
 /***************************************************************************
   welcomepage.cpp
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "welcomepage.h"
@@ -34,7 +36,6 @@
 #include <QUrl>
 
 #include "clicklabel.h"
-#include "dbghelper.h"
 #include "defs.h"
 #include "ecproject.h"
 #include "smartfluxbar.h"
@@ -79,7 +80,7 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     mainButtonsLayout->addWidget(openButton);
     mainButtonsLayout->addStretch(12);
     mainButtonsLayout->setContentsMargins(0, 0, 0, 0);
-    mainButtonsLayout->setMargin(0);
+    mainButtonsLayout->setContentsMargins(0,0,0,0);
 
     auto recentListTitle = new QLabel(tr("Recent Projects"));
     recentListTitle->setProperty("openRecentGroupTitle", true);
@@ -94,7 +95,7 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
 
     updateRecentList();
 
-    QString smartfluxTooltip = QStringLiteral("Use EddyPro in "
+    QString smartfluxTooltip = QStringLiteral("Use EddyFlow in "
                                "'SMARTFlux configuration' mode. <br>"
                                "This is an interface to customize "
                                "advanced processing options and create "
@@ -138,7 +139,7 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     smartfluxLabelContainerLayout->addWidget(questionMark_1);
     smartfluxLabelContainerLayout->addStretch();
     smartfluxLabelContainerLayout->setContentsMargins(0, 0, 0, 0);
-    smartfluxLabelContainerLayout->setMargin(0);
+    smartfluxLabelContainerLayout->setContentsMargins(0,0,0,0);
 
     auto projectsLayout = new QGridLayout;
     projectsLayout->addLayout(smartfluxLabelContainerLayout, 0, 1, 1, 1, Qt::AlignBottom);
@@ -166,8 +167,8 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     newsListWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
     auto rssItem_1 = new QListWidgetItem(QIcon(QStringLiteral(":/icons/ep")), tr("Introducing Tovi") + Defs::TRADEMARK_SYMBOL
-                                                                                 + tr(" – Powerful software for processing EddyPro outputs"), newsListWidget);
-    rssItem_1->setData(Qt::UserRole, QStringLiteral("https://tovi.io/?utm_source=EddyPro%20Software&utm_medium=Tovi%20Ads&utm_campaign=EP_Tovi_ads"));
+                                                                                 + tr(" – Powerful software for processing EddyFlow outputs"), newsListWidget);
+    rssItem_1->setData(Qt::UserRole, QStringLiteral("https://tovi.io/?utm_source=EddyFlow%20Software&utm_medium=Tovi%20Ads&utm_campaign=EP_Tovi_ads"));
 
     auto rssItem_2 = new QListWidgetItem(QIcon(QStringLiteral(":/icons/article")), tr("New Trace Gas Analyzers – high performance in an entirely new, portable design"), newsListWidget);
     rssItem_2->setData(Qt::UserRole, QStringLiteral("https://www.licor.com/env/products/trace_gas/"));
@@ -207,11 +208,11 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     helpTitle->setProperty("groupTitle3", true);
 
     auto item_1 = new QListWidgetItem(tr("%1 Help").arg(Defs::APP_NAME));
-    item_1->setData(Qt::UserRole, QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/EddyPro_Home.html"));
+    item_1->setData(Qt::UserRole, QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/EddyFlow_Home.html"));
     auto item_2 = new QListWidgetItem(tr("Getting started (PDF)"));
     item_2->setData(Qt::UserRole, QStringLiteral("https://boxenterprise.net/s/qmhucid6g0hdvd3d13tk"));
     auto item_3 = new QListWidgetItem(tr("Video tutorials"));
-    item_3->setData(Qt::UserRole, QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Video_Library.html"));
+    item_3->setData(Qt::UserRole, QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Video_Library.html"));
     auto item_4 = new QListWidgetItem(tr("Printable manual (PDF)"));
     item_4->setData(Qt::UserRole, QStringLiteral("https://boxenterprise.net/s/1ium2zmwm6hl36yz9bu4"));
     auto item_5 = new QListWidgetItem(tr("Download sample data files"));
@@ -231,11 +232,11 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     supportTitle->setProperty("groupTitle3", true);
 
     auto item_6 = new QListWidgetItem(tr("Forum"));
-    item_6->setData(Qt::UserRole, QStringLiteral("http://www.licor.com/env/forum/?forum=eddypro"));
+    item_6->setData(Qt::UserRole, QStringLiteral("https://keba_saa.github.io/eddyflow-documentation"));
     auto item_7 = new QListWidgetItem(tr("Eddy Covariance Glossary"));
-    item_7->setData(Qt::UserRole, QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Glossary.html"));
-    auto item_8 = new QListWidgetItem(tr("LI-COR Newsline (EddyPro related articles and technical tips)"));
-    item_8->setData(Qt::UserRole, QStringLiteral("http://www.licor.com/env/newsline/tag/eddypro/"));
+    item_7->setData(Qt::UserRole, QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Glossary.html"));
+    auto item_8 = new QListWidgetItem(tr("LI-COR Newsline (EddyFlow related articles and technical tips)"));
+    item_8->setData(Qt::UserRole, QStringLiteral("http://www.licor.com/env/newsline/tag/EddyFlow/"));
     auto item_9 = new QListWidgetItem(tr("Features request"));
     item_9->setData(Qt::UserRole, QStringLiteral("http://www.licor.com/env/forum/?topic=feature-requests"));
     auto item_10 = new QListWidgetItem(tr("Check for updates"));
@@ -422,7 +423,7 @@ void WelcomePage::updateWelcomePage(bool small)
 
 void WelcomePage::openToviHomepage()
 {
-    QDesktopServices::openUrl(QUrl(QStringLiteral("https://tovi.io/?utm_source=EddyPro%20Software&utm_medium=Tovi%20Ads&utm_campaign=EP_Tovi_ads")));
+    QDesktopServices::openUrl(QUrl(QStringLiteral("https://tovi.io/?utm_source=EddyFlow%20Software&utm_medium=Tovi%20Ads&utm_campaign=EP_Tovi_ads")));
 }
 
 void WelcomePage::updateSmartfluxBar()
@@ -449,5 +450,6 @@ void WelcomePage::createQuestionMark()
 
 void WelcomePage::onlineHelpTrigger_1()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/smartfluxSettings.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/smartfluxSettings.html")));
 }
+

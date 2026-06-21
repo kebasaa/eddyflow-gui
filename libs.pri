@@ -1,45 +1,50 @@
 # define libraries to build and link
+# QUAZIP_LIB_DIR and QUAZIP_LIB_NAME can be passed on the qmake command line
+
 CONFIG(debug, debug|release) {
     win32 {
-        # quazip
-        LIBS += -lquazipd
+        # quazip 1.x for Qt6 (debug)
+        !isEmpty(QUAZIP_LIB_DIR): LIBS += -L$$QUAZIP_LIB_DIR
+        !isEmpty(QUAZIP_LIB_NAME): LIBS += -l$$QUAZIP_LIB_NAME
+        else: LIBS += -lquazip1-qt6
 
         QMAKE_PRE_LINK += $$_PRO_FILE_PWD_/scripts/build/win-pre-link-debug.cmd
     }
     macx {
-        # quazip
-        # working but each build delete the install name in the executable, so it requires run install_name_tool after each build
-        LIBS += -L$$OUT_PWD/../../libs/mac/build-quazip-0.7.3-qt-5.10.1-clang-9.1.0-x86_64 -lquazip_debug
+        # quazip 1.x for Qt6 (debug)
+        LIBS += -L$$OUT_PWD/../../libs/mac/quazip-1.x -lquazip1-qt6_debug
 
         # linking
-        QMAKE_PRE_LINK += $$_PRO_FILE_PWD_/scripts/build/mac-pre-link.sh debug
+        QMAKE_PRE_LINK += $$_PRO_FILE_PWD_/scripts/build/mac-pre-link.sh debug $$OUT_PWD
         QMAKE_POST_LINK += $$_PRO_FILE_PWD_/scripts/build/mac-post-link.sh debug
     }
     linux {
-        # quazip
-        LIBS += -L$$OUT_PWD/../../libs/centos/build-quazip-0.7.3-qt-5.10.1-centos-gcc-4.8.5-x86_64/quazip -lquazip_debug
+        # quazip 1.x for Qt6 (debug)
+        LIBS += -L$$OUT_PWD/../../libs/linux/quazip-1.x -lquazip1-qt6_debug
 
         # linking
         QMAKE_PRE_LINK += $$_PRO_FILE_PWD_/scripts/build/lin-pre-link.sh debug
     }
 } else {
     win32 {
-        # quazip
-        LIBS += -lquazip
+        # quazip 1.x for Qt6 (release)
+        !isEmpty(QUAZIP_LIB_DIR): LIBS += -L$$QUAZIP_LIB_DIR
+        !isEmpty(QUAZIP_LIB_NAME): LIBS += -l$$QUAZIP_LIB_NAME
+        else: LIBS += -lquazip1-qt6
 
         QMAKE_PRE_LINK += $$_PRO_FILE_PWD_/scripts/build/win-pre-link-release.cmd
     }
     macx {
-        # quazip
-        LIBS += -L$$OUT_PWD/../../libs/mac/build-quazip-0.7.3-qt-5.10.1-clang-9.1.0-x86_64 -lquazip
+        # quazip 1.x for Qt6 (release)
+        LIBS += -L$$OUT_PWD/../../libs/mac/quazip-1.x -lquazip1-qt6
 
         # linking
         QMAKE_PRE_LINK += $$_PRO_FILE_PWD_/scripts/build/mac-pre-link.sh release
         QMAKE_POST_LINK += $$_PRO_FILE_PWD_/scripts/build/mac-post-link.sh release
     }
     linux {
-        # quazip
-        LIBS += -L$$OUT_PWD/../../libs/centos/build-quazip-0.7.3-qt-5.10.1-centos-gcc-4.8.5-x86_64/quazip -lquazip
+        # quazip 1.x for Qt6 (release)
+        LIBS += -L$$OUT_PWD/../../libs/linux/quazip-1.x -lquazip1-qt6
 
         # linking
         QMAKE_PRE_LINK += $$_PRO_FILE_PWD_/scripts/build/lin-pre-link.sh release

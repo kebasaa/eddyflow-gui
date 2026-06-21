@@ -1,24 +1,26 @@
 /***************************************************************************
   mainwindow.cpp
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "mainwindow.h"
@@ -57,7 +59,6 @@
 #include "clicklabel.h"
 #include "customsplashscreen.h"
 #include "detectdaterangedialog.h"
-#include "dbghelper.h"
 #include "dlproject.h"
 #include "ecproject.h"
 #include "globalsettings.h"
@@ -261,8 +262,8 @@ MainWindow::MainWindow(const QString& filename,
 
     // NOTE: for testing only
 //    QStringList list;
-//    Process::getProcessIdsByProcessName(QStringLiteral("eddypro_debug"), list);
-//    qDebug() << "eddypro_debug" << list;
+//    Process::getProcessIdsByProcessName(QStringLiteral("EddyFlow_debug"), list);
+//    qDebug() << "EddyFlow_debug" << list;
 }
 
 MainWindow::~MainWindow()
@@ -828,7 +829,7 @@ bool MainWindow::alertChangesWhileRunning()
         WidgetUtils::warning(this,
                              tr("Changes During Run"),
                              tr("You can not save changes "
-                                "while EddyPro is running. "),
+                                "while EddyFlow is running. "),
                              tr("Wait until run has finished "
                                 "before saving."),
                              QStringLiteral("saveDuringRunMessage"));
@@ -843,8 +844,8 @@ bool MainWindow::continueBeforeClose()
     if (currentStatus() != Defs::CurrStatus::Ready)
     {
         if (WidgetUtils::yesNoQuestion(this,
-                                  tr("Close EddyPro"),
-                                  tr("EddyPro is processing (running or in pause)."),
+                                  tr("Close EddyFlow"),
+                                  tr("EddyFlow is processing (running or in pause)."),
                                   tr("Do you want to stop the computations "
                                      "before proceeding?"),
                                   QStringLiteral("stopMessage")))
@@ -1070,7 +1071,7 @@ void MainWindow::createActions()
                                       "can be examined (e.g., to create a "
                                       "time series of canopy heights at the "
                                       "site) and can also be provided to "
-                                      "EddyPro as a dynamic metadata file. (%1)")
+                                      "EddyFlow as a dynamic metadata file. (%1)")
                                       .arg((runRetrieverAction->shortcut().toString())));
 
     stopAction = new QAction(this);
@@ -1129,10 +1130,10 @@ void MainWindow::createActions()
     toggleOfflineHelpAct->setCheckable(true);
 
     appWebpageAction = new QAction(this);
-    appWebpageAction->setText(tr("EddyPro Web Page"));
+    appWebpageAction->setText(tr("EddyFlow Web Page"));
 
     forumWebpageAction = new QAction(this);
-    forumWebpageAction->setText(tr("EddyPro Forum"));
+    forumWebpageAction->setText(tr("EddyFlow Forum"));
 
     checkUpdateAction = new QAction(this);
     checkUpdateAction->setText(tr("Check for Updates..."));
@@ -1642,7 +1643,7 @@ void MainWindow::viewInfoOutput(bool on)
 
 void MainWindow::showHelp()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/EddyPro_Home.html"), QUrl::StrictMode));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/EddyFlow_Home.html"), QUrl::StrictMode));
 }
 
 void MainWindow::showPdfHelp()
@@ -2552,7 +2553,7 @@ void MainWindow::showGuidedModeMessages_2()
     if (!doFix && runAdvancedAvailable_ && !configState_.project.smartfluxMode)
     {
         intro = tr("You are ready to run in <span style=\"color: #52893c; \">Express Mode</span> using express default settings or <span style=\"color: #2986f5; \">Advanced Mode</span> using Advanced Settings.<br />"
-                    "Please note that running in <span style=\"color: #52893c; \">Express Mode</span> means EddyPro will ignore all your entries in the Advanced Settings pages. In this case, your settings will not be overridden. You will be able to retrieve them at any time, but they will not be used for the computations.");
+                    "Please note that running in <span style=\"color: #52893c; \">Express Mode</span> means EddyFlow will ignore all your entries in the Advanced Settings pages. In this case, your settings will not be overridden. You will be able to retrieve them at any time, but they will not be used for the computations.");
         msg = tr("<ul>");
         doFix = false;
     }
@@ -2695,7 +2696,7 @@ void MainWindow::showGuidedModeMessages_3()
     if (!doFix && runExpressAvailable_)
     {
         intro = tr("You are ready to run in <span style=\"color: #52893c; \">Express Mode</span> using express default settings or <span style=\"color: #2986f5; \">Advanced Mode</span> using Advanced Settings.<br />"
-                   "Please note that running in <span style=\"color: #52893c; \">Express Mode</span> means EddyPro will ignore all your entries in the Advanced Settings pages. In this case, your settings will not be overridden. You will be able to retrieve them at any time, but they will not be used for the computations.");
+                   "Please note that running in <span style=\"color: #52893c; \">Express Mode</span> means EddyFlow will ignore all your entries in the Advanced Settings pages. In this case, your settings will not be overridden. You will be able to retrieve them at any time, but they will not be used for the computations.");
         msg = tr("<ul>");
         doFix = false;
     }
@@ -3014,7 +3015,7 @@ int MainWindow::testBeforeRunningPassed(int step)
                 int ret = QMessageBox::warning(QApplication::activeWindow(),
                               tr("No Previous Results Available"),
                               tr("It is not possible to use results from any previous run. "
-                                 "EddyPro will start the processing from the raw files."),
+                                 "EddyFlow will start the processing from the raw files."),
                               QMessageBox::Ok | QMessageBox::Cancel, QMessageBox::Ok);
 
                 switch (ret)
@@ -3061,7 +3062,7 @@ int MainWindow::testBeforeRunningPassed(int step)
                 int ret = QMessageBox::warning(QApplication::activeWindow(),
                               tr("No Previous Results Available"),
                               tr("It is not possible to use results from any previous run. "
-                                 "EddyPro will start the processing from the raw files."),
+                                 "EddyFlow will start the processing from the raw files."),
                               QMessageBox::Ok | QMessageBox::Cancel, QMessageBox::Ok);
 
                 switch (ret)
@@ -3248,7 +3249,7 @@ void MainWindow::getRunExpress()
         runExpressDialog.setType(InfoMessage::Type::RUN_EXPRESS);
         runExpressDialog.setIcon(QPixmap(QStringLiteral(":/icons/msg-question")));
         runExpressDialog.setMessage(tr("Note that running in Express Mode means "
-                                      "EddyPro will ignore all your entries in "
+                                      "EddyFlow will ignore all your entries in "
                                       "the Advanced Settings pages. <br />"
                                       "Your settings will not be overridden "
                                       "and you will be able to retrieve them "
@@ -3339,7 +3340,7 @@ void MainWindow::getRunAdvanced()
         runAdvancedDialog.setIcon(QPixmap(QStringLiteral(":/icons/msg-question")));
         runAdvancedDialog.setMessage(tr("Running in Advanced mode means you "
                                        "run using the <br />"
-                                       "advanced settings of EddyPro"));
+                                       "advanced settings of EddyFlow"));
         runAdvancedDialog.refresh();
 
         if (runAdvancedDialog.exec() == QMessageBox::Cancel)
@@ -3742,7 +3743,7 @@ void MainWindow::displayExitMsg(Process::ExitStatus exitReason)
     WidgetUtils::removeContextHelpButton(&msgBox);
 
     msgBox.setTextFormat(Qt::RichText);
-    msgBox.setWindowTitle(tr("EddyPro Results"));
+    msgBox.setWindowTitle(tr("EddyFlow Results"));
 
     auto openOutDirButton = new QPushButton(tr("Open the output folder"));
     auto questionMark_1 = new QPushButton;
@@ -3768,7 +3769,7 @@ void MainWindow::displayExitMsg(Process::ExitStatus exitReason)
         msgBox.setEscapeButton(QMessageBox::Ok);
         break;
     case Process::ExitStatus::FailureToStart:
-        msgBox.setText(tr("<h3>Engine (eddypro_rp) not found</h3>"));
+        msgBox.setText(tr("<h3>Engine (EddyFlow_rp) not found</h3>"));
         msgBox.setStandardButtons(QMessageBox::Ok);
         msgBox.setDefaultButton(QMessageBox::Ok);
         msgBox.setEscapeButton(QMessageBox::Ok);
@@ -3830,7 +3831,7 @@ void MainWindow::displayExitMsg(Process::ExitStatus exitReason)
                           "processing settings, these results may be fully "
                           "valid for analysis. You can remove the temporary "
                           "extension \".tmp\" and use them. However, the "
-                          "format of these files does not allow EddyPro to "
+                          "format of these files does not allow EddyFlow to "
                           "use them in subsequent runs.</p>"));
         msgBox.setStandardButtons(QMessageBox::Ok);
         msgBox.setDefaultButton(QMessageBox::Ok);
@@ -3870,7 +3871,7 @@ void MainWindow::displayExitMsg2(Process::ExitStatus exitReason)
     WidgetUtils::removeContextHelpButton(&msgBox);
 
     msgBox.setTextFormat(Qt::RichText);
-    msgBox.setWindowTitle(tr("EddyPro Results"));
+    msgBox.setWindowTitle(tr("EddyFlow Results"));
 
     auto questionMark_1 = new QPushButton;
     auto pixmap_2x = QPixmap(QStringLiteral(":/icons/qm-enabled"));
@@ -3891,7 +3892,7 @@ void MainWindow::displayExitMsg2(Process::ExitStatus exitReason)
         runAdvancedStep_2();
         break;
     case Process::ExitStatus::FailureToStart:
-        msgBox.setText(tr("<h3>Engine (eddypro_fcc) not found!</h3>"));
+        msgBox.setText(tr("<h3>Engine (EddyFlow_fcc) not found!</h3>"));
         msgBox.setStandardButtons(QMessageBox::Ok);
         msgBox.setDefaultButton(QMessageBox::Ok);
         msgBox.setEscapeButton(QMessageBox::Ok);
@@ -3953,7 +3954,7 @@ void MainWindow::displayExitMsg2(Process::ExitStatus exitReason)
                           "processing settings, these results may be fully "
                           "valid for analysis. You can remove the temporary "
                           "extension \".tmp\" and use them. However, the "
-                          "format of these files does not allow EddyPro to "
+                          "format of these files does not allow EddyFlow to "
                           "use them in subsequent runs.</p>"));
         msgBox.setStandardButtons(QMessageBox::Ok);
         msgBox.setDefaultButton(QMessageBox::Ok);
@@ -3979,7 +3980,7 @@ void MainWindow::displayExitMsg2(Process::ExitStatus exitReason)
 
 void MainWindow::onlineHelpTrigger_1()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Error_Codes.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Error_Codes.html")));
 }
 
 // qt5
@@ -4017,7 +4018,7 @@ bool MainWindow::okToStopRun()
 {
     return WidgetUtils::yesNoQuestion(this,
                                 tr("Stop Data Processing"),
-                                tr("EddyPro is processing (running or in pause)."),
+                                tr("EddyFlow is processing (running or in pause)."),
                                 tr("Do you really want to "
                                    "stop the computations?"),
                                 QStringLiteral("stopMessage"));
@@ -4135,7 +4136,7 @@ void MainWindow::updateSpectraPaths()
         }
         else
         {
-            ecProject_->setSpectraFullSpectra(ecProject_->generalOutPath() + QStringLiteral("/eddypro_full_cospectra"));
+            ecProject_->setSpectraFullSpectra(ecProject_->generalOutPath() + QStringLiteral("/EddyFlow_full_cospectra"));
         }
 
         fileSaveSilently();
@@ -4385,9 +4386,9 @@ bool MainWindow::queryEcProjectImport(const QString& filename)
            "and updated to a new version. "
            "If you proceed, you will "
            "lose your file and the "
-           "compatibility with previous versions of EddyPro "
+           "compatibility with previous versions of EddyFlow "
            "but you will have a smooth "
-           "transition to the new EddyPro version. "
+           "transition to the new EddyFlow version. "
            "If you are unsure, "
            "select 'No' and create a backup copy of your "
            "project file before proceeding.</p>"),
@@ -4408,3 +4409,4 @@ bool MainWindow::queryDlProjectImport()
            "<p>To cancel the import operation, simply close "
            "without pushing 'Ok'.</p>"));
 }
+

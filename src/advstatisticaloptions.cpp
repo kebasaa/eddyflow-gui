@@ -1,24 +1,26 @@
 /***************************************************************************
   advstatisticaloptions.cpp
   -------------------
-  Copyright (C) 2007-2011 Eco2s team. Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011,  Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "advstatisticaloptions.h"
@@ -38,7 +40,6 @@
 #include <QUrl>
 
 #include "clicklabel.h"
-#include "dbghelper.h"
 #include "ecproject.h"
 #include "splitter.h"
 #include "widget_utils.h"
@@ -139,7 +140,7 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
 //    upScrollArea->setWidgetResizable(true);
 
     randomErrorCheckBox = new QCheckBox(tr("Random uncertainty estimation"));
-    randomErrorCheckBox->setToolTip(tr("<b>Random uncertainty estimation:</b> Check this box to instruct EddyPro to calculate flux random uncertainty due to sampling error. Select the preferred method and adjust settings to adapt to the specificity of your site/setup."));
+    randomErrorCheckBox->setToolTip(tr("<b>Random uncertainty estimation:</b> Check this box to instruct EddyFlow to calculate flux random uncertainty due to sampling error. Select the preferred method and adjust settings to adapt to the specificity of your site/setup."));
     randomErrorCheckBox->setProperty("paddedCheckbox", true);
 
     randomMethodLabel = new ClickLabel(tr("Method :"));
@@ -279,9 +280,9 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     connect(nonSteadyCheckBox, &QCheckBox::toggled,
             this, &AdvStatisticalOptions::updateTestNs);
 
-    connect(despikingRadioGroup, SIGNAL(buttonClicked(int)),
+    connect(despikingRadioGroup, SIGNAL(idClicked(int)),
             this, SLOT(despikingRadioClicked(int)));
-    connect(despikingRadioGroup, SIGNAL(buttonClicked(int)),
+    connect(despikingRadioGroup, SIGNAL(idClicked(int)),
             this, SLOT(updateDespikingMethod(int)));
     connect(despSpin_1, SIGNAL(valueChanged(int)),
             this, SLOT(updateParamSrNumSpk(int)));
@@ -592,7 +593,7 @@ void AdvStatisticalOptions::createTabWidget()
     despSpin_8->setToolTip(despLabel_8->toolTip());
 
     despFilterCheckBox = new QCheckBox;
-    despFilterCheckBox->setToolTip(tr("<b>Replace spikes with linear interpolation:</b> Check this option to instruct EddyPro to replace spikes with linear interpolation of neighboring data points."));
+    despFilterCheckBox->setToolTip(tr("<b>Replace spikes with linear interpolation:</b> Check this option to instruct EddyFlow to replace spikes with linear interpolation of neighboring data points."));
     despFilterCheckBox->setText(tr("Replace spikes with linear interpolation"));
 
     spikeGraphLabel = new QLabel;
@@ -929,7 +930,7 @@ void AdvStatisticalOptions::createTabWidget()
 
     absLimFilterCheckBox = new QCheckBox;
     absLimFilterCheckBox->setText(tr("Filter outranged values"));
-    absLimFilterCheckBox->setToolTip(tr("<b>Filter outranged values:</b> Check this option to instruct EddyPro to eliminate values outside the plausibility range. When values are eliminated, all other variables are preserved and a lag is avoided by replacing the value with EddyPro\'s error code."));
+    absLimFilterCheckBox->setToolTip(tr("<b>Filter outranged values:</b> Check this option to instruct EddyFlow to eliminate values outside the plausibility range. When values are eliminated, all other variables are preserved and a lag is avoided by replacing the value with EddyFlow\'s error code."));
 
     absLimGraphLabel = new QLabel;
     absLimGraphLabel->setPixmap(QPixmap(QStringLiteral(":/icons/range")));
@@ -2416,7 +2417,7 @@ void AdvStatisticalOptions::reset()
 
     // NOTE: hack to prevent side effect setting from calling
     // WidgetUtils::resetComboToItem(randomMethodCombo, 0)
-    ecProject_->setRandomErrorMethod(ecProject_->defaultSettings.randomError.method);
+    ecProject_->setRandomErrorMethod(ecProject_->defaultSettings.randomError.ru_method);
 
     timelagMaxSpin->setValue(ecProject_->defaultSettings.randomError.its_tlag_max);
     securityCoeffSpin->setValue(ecProject_->defaultSettings.randomError.its_sec_factor);
@@ -2796,57 +2797,57 @@ void AdvStatisticalOptions::createQuestionMark()
 
 void AdvStatisticalOptions::onlineHelpTrigger_1()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_2()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_3()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_4()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_5()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_6()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_7()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_8()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_9()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_10()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_11()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Random_Uncertainty_Estimation.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Random_Uncertainty_Estimation.html")));
 }
 
 void AdvStatisticalOptions::updateRandomErrorArea(bool b)
@@ -3218,3 +3219,4 @@ void AdvStatisticalOptions::updateDespikingMethod(int b)
 {
     ecProject_->setScreenParamDespikeVm(b);
 }
+

@@ -1,22 +1,26 @@
 /***************************************************************************
   advprocessingoptions.h
   -------------------
-  Copyright (C) 2007-2011 Eco2s team. Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  All rights reserved.
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This program is free software: you can redistribute it and/or modify
+  This file is part of EddyFlow®.
+
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  This program is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program. If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #ifndef ADVPROCESSINGOPTIONS_H
@@ -51,7 +55,6 @@ class QSpinBox;
 class QStackedWidget;
 class QTabWidget;
 
-class CalibrationDialog;
 class ClickLabel;
 struct ConfigState;
 class CustomResetLineEdit;
@@ -60,10 +63,6 @@ class EcProject;
 class PlanarFitSettingsDialog;
 class RichTextCheckBox;
 class TimeLagSettingsDialog;
-
-#include "calibration.h"
-#include "calibrationapi.h"
-#include "calibrationinfo.h"
 
 /// \class AdvlProcessingOptions
 /// \brief Class representing the 'Settings' tab in the 'RawProcess' page
@@ -80,7 +79,6 @@ public:
 
     PlanarFitSettingsDialog* getPlanarFitSettingsDialog() { return pfDialog_; }
     TimeLagSettingsDialog* getTimeLagSettingsDialog() { return tlDialog_; }
-    CalibrationDialog* getCalibrationDialog() { return calibDialog_; }
 
 public slots:
     void reset();
@@ -129,17 +127,12 @@ private slots:
 
     void showPfSettingsDialog();
     void showTlSettingsDialog();
-    void showCalibDialog();
 
     void updateTooltip(int i);
 
     void onlineHelpTrigger_1();
     void onlineHelpTrigger_4();
     void onlineHelpTrigger_11();
-
-    void fetchCalibration();
-    void parseCalibrationInfo(const QByteArray &data);
-    void parseCalibrationFile();
 
     void openToviHomepage();
 
@@ -153,13 +146,10 @@ private:
 
     void createPfSettingsDialog();
     void createTlSettingsDialog();
-    void createCalibDialog();
     void createBurbaParamItems();
     void createQuestionMark();
     bool requestBurbaSettingsReset();
     void setBurbaDefaultValues();
-
-    void computeInverseCoefficients(Calibration &cal);
 
     QLabel* windOffsetLabel;
     ClickLabel* uLabel;
@@ -245,14 +235,6 @@ private:
     CustomResetLineEdit* mNightSpar3;
     CustomResetLineEdit* mNightSpar4;
 
-    QRadioButton* noDriftCorrectionRadio;
-    QRadioButton* linearDriftCorrectionRadio;
-    QRadioButton* rssiDriftCorrectionRadio;
-    QButtonGroup* driftCorrectionRadioGroup;
-    QPushButton* retrieveCalibrationButton;
-    QPushButton* editCalibrationButton;
-    QLineEdit* serialNumberEdit;
-
     QPushButton* questionMark_1;
     QPushButton* questionMark_4;
     QPushButton* questionMark_11;
@@ -263,14 +245,8 @@ private:
 
     PlanarFitSettingsDialog* pfDialog_{};
     TimeLagSettingsDialog* tlDialog_{};
-    CalibrationDialog* calibDialog_{};
 
     DetrendMethod previousDetrendMethod_{DetrendMethod::BlockAverage};
-
-    CalibrationAPI* calibration_api_;
-    CalibrationInfo calibration_info_;
-    QString calibration_file_;
-    Calibration calibration_;
 };
 
 #endif // ADVPROCESSINGOPTIONS_H

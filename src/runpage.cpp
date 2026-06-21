@@ -1,23 +1,25 @@
 /***************************************************************************
   runpage.cpp
   -------------------
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "runpage.h"
@@ -38,7 +40,6 @@
 #include "QProgressIndicator.h"
 
 #include "clicklabel.h"
-#include "dbghelper.h"
 #include "ecproject.h"
 #include "smartfluxbar.h"
 #include "widget_utils.h"
@@ -587,7 +588,6 @@ void RunPage::parseEngineOutput(const QByteArray &data)
     static int totalAveragingPeriods = 0;
     static int processingTimeMSec = 0;
     static int meanProcessingTimeMSec = 0;
-    static int elapsedTimeMSec = 0;
     static int estimatedTimeToCompletionMSec = 0;
 
     static qint64 previous_elapsed_time = 0;
@@ -612,7 +612,7 @@ void RunPage::parseEngineOutput(const QByteArray &data)
 #endif
 
     // start preamble
-    if (cleanLine.contains(QByteArrayLiteral("Executing EddyPro")))
+    if (cleanLine.contains(QByteArrayLiteral("Executing EddyFlow")))
     {
         total_elapsed_update_timer_->start();
 
@@ -629,7 +629,6 @@ void RunPage::parseEngineOutput(const QByteArray &data)
         totalAveragingPeriods = 0;
         processingTimeMSec = 0;
         meanProcessingTimeMSec = 0;
-        elapsedTimeMSec = 0;
         estimatedTimeToCompletionMSec = 0;
 
         resetProgressSoft();
@@ -647,9 +646,9 @@ void RunPage::parseEngineOutput(const QByteArray &data)
             << "procTimeMSec, " <<"meanProcTimeMSec, "
             << "elapsedMSec, " << "elapsedMSec_Str, "
             << "ETC, " << "ETC_Str";
-        endl(out);
-        out << "Executing EddyPro";
-        endl(out);
+        Qt::endl(out);
+        out << "Executing EddyFlow";
+        Qt::endl(out);
         elapsedTimeMSecStr = QTime(0, 0).addMSecs(static_cast<int>(overall_progress_timer_.elapsed()))
                                     .toString(QStringLiteral("hh:mm:ss.zzz"));
         out << averagingPeriodIndex << " "
@@ -659,11 +658,11 @@ void RunPage::parseEngineOutput(const QByteArray &data)
             << elapsedTimeMSecStr << " "
             << "x "
             << "x ";
-        endl(out);
+        Qt::endl(out);
 #endif
         return;
     }
-    if (cleanLine.contains(QByteArrayLiteral("Reading EddyPro project file")))
+    if (cleanLine.contains(QByteArrayLiteral("Reading EddyFlow project file")))
     {
         main_progress_bar->setValue(++progressValue_);
         return;
@@ -704,7 +703,7 @@ void RunPage::parseEngineOutput(const QByteArray &data)
 
 #ifdef QT_DEBUG
         out << "Creating master time series";
-        endl(out);
+        Qt::endl(out);
         elapsedTimeMSecStr = QTime(0, 0).addMSecs(static_cast<int>(overall_progress_timer_.elapsed()))
                                     .toString(QStringLiteral("hh:mm:ss.zzz"));
         out << averagingPeriodIndex << " "
@@ -714,7 +713,7 @@ void RunPage::parseEngineOutput(const QByteArray &data)
             << elapsedTimeMSecStr << " "
             << "x "
             << "x ";
-        endl(out);
+        Qt::endl(out);
 #endif
         return;
     }
@@ -731,7 +730,6 @@ void RunPage::parseEngineOutput(const QByteArray &data)
         totalAveragingPeriods = 0;
         processingTimeMSec = 0;
         meanProcessingTimeMSec = 0;
-        elapsedTimeMSec = 0;
         estimatedTimeToCompletionMSec = 0;
         resetProgressSoft();
         main_progress_bar->setValue(++progressValue_);
@@ -795,16 +793,16 @@ void RunPage::parseEngineOutput(const QByteArray &data)
                                 .toString(QStringLiteral("hh:mm:ss.zzz"));
 #ifdef QT_DEBUG
         out << "Planar-fit ETC computation";
-        endl(out);
+        Qt::endl(out);
         out << "averagingPeriodIndex " << averagingPeriodIndex << " totalRuns " << totalAveragingPeriods;
-        endl(out);
+        Qt::endl(out);
         out << "current_step_elapsed_time " << current_step_elapsed_time;
         out << " processingTimeMSec " << processingTimeMSec;
         out << " previous_elapsed_time " << previous_elapsed_time;
-        endl(out);
+        Qt::endl(out);
         out << "estimatedTimeToCompletionMSec " << estimatedTimeToCompletionMSec;
         out << " estimatedTimeToCompletionMSecStr " << estimatedTimeToCompletionMSecStr;
-        endl(out);
+        Qt::endl(out);
 #endif
         previous_elapsed_time = current_step_elapsed_time;
 
@@ -842,7 +840,6 @@ void RunPage::parseEngineOutput(const QByteArray &data)
         totalAveragingPeriods = 0;
         processingTimeMSec = 0;
         meanProcessingTimeMSec = 0;
-        elapsedTimeMSec = 0;
         estimatedTimeToCompletionMSec = 0;
         resetProgressSoft();
         main_progress_bar->setValue(++progressValue_);
@@ -900,16 +897,16 @@ void RunPage::parseEngineOutput(const QByteArray &data)
                             .toString(QStringLiteral("hh:mm:ss.zzz"));
 #ifdef QT_DEBUG
         out << "Time-lag ETC computation";
-        endl(out);
+        Qt::endl(out);
         out << "averagingPeriodIndex " << averagingPeriodIndex << " totalRuns " << totalAveragingPeriods;
-        endl(out);
+        Qt::endl(out);
         out << "current_step_elapsed_time " << current_step_elapsed_time;
         out << " processingTimeMSec " << processingTimeMSec;
         out << " previous_elapsed_time " << previous_elapsed_time;
-        endl(out);
+        Qt::endl(out);
         out << "estimatedTimeToCompletionMSec " << estimatedTimeToCompletionMSec;
         out << " estimatedTimeToCompletionMSecStr " << estimatedTimeToCompletionMSecStr;
-        endl(out);
+        Qt::endl(out);
 #endif
         previous_elapsed_time = current_step_elapsed_time;
 
@@ -940,7 +937,6 @@ void RunPage::parseEngineOutput(const QByteArray &data)
         totalAveragingPeriods = 0;
         processingTimeMSec = 0;
         meanProcessingTimeMSec = 0;
-        elapsedTimeMSec = 0;
         estimatedTimeToCompletionMSec = 0;
         resetProgressSoft();
         main_progress_bar->setValue(++progressValue_);
@@ -949,7 +945,7 @@ void RunPage::parseEngineOutput(const QByteArray &data)
 
 #ifdef QT_DEBUG
         out << "Start raw data processing";
-        endl(out);
+        Qt::endl(out);
         elapsedTimeMSecStr = QTime(0, 0).addMSecs(static_cast<int>(overall_progress_timer_.elapsed()))
                                     .toString(QStringLiteral("hh:mm:ss.zzz"));
         out << averagingPeriodIndex << " "
@@ -959,7 +955,7 @@ void RunPage::parseEngineOutput(const QByteArray &data)
             << elapsedTimeMSecStr << " "
             << "x "
             << "x ";
-        endl(out);
+        Qt::endl(out);
 #endif
         return;
     }
@@ -994,7 +990,7 @@ void RunPage::parseEngineOutput(const QByteArray &data)
 
 #ifdef QT_DEBUG
         out << ">> Processing new flux averaging period";
-        endl(out);
+        Qt::endl(out);
         elapsedTimeMSecStr = QTime(0, 0).addMSecs(static_cast<int>(overall_progress_timer_.elapsed()))
                                     .toString(QStringLiteral("hh:mm:ss.zzz"));
         out << averagingPeriodIndex << " "
@@ -1004,7 +1000,7 @@ void RunPage::parseEngineOutput(const QByteArray &data)
             << elapsedTimeMSecStr << " "
             << "x "
             << "x ";
-        endl(out);
+        Qt::endl(out);
 #endif
 
         currentFileList.clear();
@@ -1037,7 +1033,7 @@ void RunPage::parseEngineOutput(const QByteArray &data)
 
 #ifdef QT_DEBUG
         out << "Skipping to next averaging period";
-        endl(out);
+        Qt::endl(out);
 #endif
         return;
     }
@@ -1225,8 +1221,8 @@ void RunPage::parseEngineOutput(const QByteArray &data)
 
 #ifdef QT_DEBUG
         out << "Flux averaging period processing time";
-        endl(out);
-        elapsedTimeMSec = averagingPeriodIndex * meanProcessingTimeMSec;
+        Qt::endl(out);
+        int elapsedTimeMSec = averagingPeriodIndex * meanProcessingTimeMSec;
         elapsedTimeMSecStr = QTime(0, 0).addMSecs(elapsedTimeMSec)
                                 .toString(QStringLiteral("hh:mm:ss.zzz"));
         out << averagingPeriodIndex << " "
@@ -1236,7 +1232,7 @@ void RunPage::parseEngineOutput(const QByteArray &data)
             << elapsedTimeMSecStr << " "
             << estimatedTimeToCompletionMSec << " "
             << estimatedTimeToCompletionMSecStr;
-        endl(out);
+        Qt::endl(out);
 #endif
 
         main_progress_bar->setValue(++progressValue_);
@@ -1283,7 +1279,7 @@ void RunPage::parseEngineOutput(const QByteArray &data)
         main_progress_bar->setValue(++progressValue_);
         return;
     }
-    if (cleanLine.contains(QByteArrayLiteral("Initializing retrieval of EddyPro-RP results")))
+    if (cleanLine.contains(QByteArrayLiteral("Initializing retrieval of EddyFlow-RP results")))
     {
         main_progress_bar->setValue(++progressValue_);
         return;
@@ -1378,7 +1374,7 @@ void RunPage::parseEngineOutput(const QByteArray &data)
 
 #ifdef QT_DEBUG
         out << "Raw data processing terminated";
-        endl(out);
+        Qt::endl(out);
         elapsedTimeMSecStr = QTime(0, 0).addMSecs(static_cast<int>(overall_progress_timer_.elapsed()))
                                     .toString(QStringLiteral("hh:mm:ss.zzz"));
         out << averagingPeriodIndex << " "
@@ -1388,7 +1384,7 @@ void RunPage::parseEngineOutput(const QByteArray &data)
             << elapsedTimeMSecStr << " "
             << "x "
             << "x ";
-        endl(out);
+        Qt::endl(out);
 #endif
         return;
     }
@@ -1428,7 +1424,7 @@ void RunPage::parseEngineOutput(const QByteArray &data)
 
 #ifdef QT_DEBUG
         out << "Closing RP output files";
-        endl(out);
+        Qt::endl(out);
         elapsedTimeMSecStr = QTime(0, 0).addMSecs(static_cast<int>(overall_progress_timer_.elapsed()))
                                     .toString(QStringLiteral("hh:mm:ss.zzz"));
         out << averagingPeriodIndex << " "
@@ -1438,7 +1434,7 @@ void RunPage::parseEngineOutput(const QByteArray &data)
             << elapsedTimeMSecStr << " "
             << "x "
             << "x ";
-        endl(out);
+        Qt::endl(out);
 #endif
         return;
     }
@@ -1596,7 +1592,7 @@ void RunPage::openOutputDir()
 
 void RunPage::openToviHomepage()
 {
-    QDesktopServices::openUrl(QUrl(QStringLiteral("https://tovi.io/?utm_source=EddyPro%20Software&utm_medium=Tovi%20Ads&utm_campaign=EP_Tovi_ads")));
+    QDesktopServices::openUrl(QUrl(QStringLiteral("https://tovi.io/?utm_source=EddyFlow%20Software&utm_medium=Tovi%20Ads&utm_campaign=EP_Tovi_ads")));
 }
 
 void RunPage::updateRunPage(bool small)
@@ -1616,3 +1612,4 @@ void RunPage::updateRunPage(bool small)
 
     WidgetUtils::updatePropertyListAndStyle(toviLabel, toviAdProp);
 }
+

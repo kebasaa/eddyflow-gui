@@ -13,7 +13,7 @@ fi
 DEBUG_OR_RELEASE=$1
 
 # set environment only if necessary
-# (if called by win-build-eddypro.sh it is already partially inherited
+# (if called by win-build-EddyFlow.sh it is already partially inherited
 MINGW_PATH="/c/qt/5.4.1/tools/mingw482_32/bin"
 CMAKE_PATH="/c/program files (x86)/cmake/bin"
 prepend_path()

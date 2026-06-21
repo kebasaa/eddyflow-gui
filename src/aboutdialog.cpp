@@ -1,24 +1,26 @@
 /***************************************************************************
   aboutdialog.cpp
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "aboutdialog.h"
@@ -94,7 +96,7 @@ AboutDialog::AboutDialog(QWidget* parent)
            "<div style=\"text-indent: 20px;\">Phone: 1-402-467-3576</div>"
            "<div style=\"text-indent: 20px;\">Toll Free: 800-447-3576</div>"
            "<div style=\"text-indent: 20px;\">Fax: 1-402-467-2819</div>"
-           "<div style=\"text-indent: 20px;\">Email: <a href=\"mailto:envsupport@licor.com?subject=EddyPro %3\">envsupport@licor.com</a></div>"
+           "<div style=\"text-indent: 20px;\">Email: <a href=\"mailto:envsupport@licor.com?subject=EddyFlow %3\">envsupport@licor.com</a></div>"
            "<div style=\"text-indent: 20px;\">Website: <a href=\"http://www.licor.com\">http://www.licor.com</a></div>"
            ).arg(Defs::APP_NAME, Defs::CURRENT_COPYRIGHT_YEAR, Defs::APP_VERSION_STR)
         );
@@ -223,10 +225,11 @@ AboutDialog::AboutDialog(QWidget* parent)
 
     auto licenseEdit = new QTextEdit;
     QFile licenseFile(QStringLiteral(":/docs/license"));
-    licenseFile.open(QIODevice::ReadOnly | QIODevice::Text);
-    licenseEdit->setText(QLatin1String(licenseFile.readAll()));
+    if (licenseFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        licenseEdit->setText(QLatin1String(licenseFile.readAll()));
+        licenseFile.close();
+    }
     licenseEdit->setReadOnly(true);
-    licenseFile.close();
 
     auto licenseLayout = new QVBoxLayout;
     licenseLayout->addWidget(licenseLabel);
@@ -245,10 +248,11 @@ AboutDialog::AboutDialog(QWidget* parent)
 
     auto changelogEdit = new QTextEdit;
     QFile changelogFile(QStringLiteral(":/docs/changelog"));
-    changelogFile.open(QIODevice::ReadOnly | QIODevice::Text);
-    changelogEdit->setText(QLatin1String(changelogFile.readAll()));
+    if (changelogFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        changelogEdit->setText(QLatin1String(changelogFile.readAll()));
+        changelogFile.close();
+    }
     changelogEdit->setReadOnly(true);
-    changelogFile.close();
 
     auto changelogLayout = new QVBoxLayout;
     changelogLayout->addWidget(changelogLabel);

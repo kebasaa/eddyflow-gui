@@ -1,36 +1,38 @@
 /***************************************************************************
   ecprojectstate.h
-  -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  ----------------
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2026, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026-    , ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
- ***************************************************************************/
-
+****************************************************************************/
 #ifndef ECPROJECTSTATE_H
 #define ECPROJECTSTATE_H
 
-#include "angle_item.h"
-#include "calibration.h"
-#include "defs.h"
+#include <QList>
 
-/// \struct GeneralProjectState
-/// \brief Structure representing general information for the INI
-/// processing file
+#include "angle_item.h"
+#include "defs.h"
+#include "sector_item.h"
+
+/// \struct ProjectGeneralState
+/// \brief General information for the INI processing file
 struct ProjectGeneralState
 {
     QString sw_version = Defs::APP_VERSION_STR;
@@ -41,7 +43,6 @@ struct ProjectGeneralState
     bool run_fcc = false;
     QString file_name = QString();
     QString project_title = QString();
-//    QString project_id = QString();
     QString project_id = QStringLiteral("gerardo");
     Defs::RawFileType file_type = Defs::RawFileType::GHG;
     QString file_prototype = QString();
@@ -71,9 +72,9 @@ struct ProjectGeneralState
     int col_ts = -1;
     qreal gas_mw = -1.0;
     qreal gas_diff = -1.0;
-    int out_ghg_eu = 0;
-    int out_amflux = 0;
     int out_rich = 1;
+    int fluxnet_standardize_biomet = 1;
+    int fluxnet_err_label = 1;
     bool make_dataset = false;
     int subset = 0;
     QString start_date = QString();
@@ -104,11 +105,14 @@ struct ProjectGeneralState
     int hf_correct_ghg_ba = 1;
     int hf_correct_ghg_zoh = 1;
     int sonic_output_rate = -1;
+    int ru_method = 0;
+    int its_method = 1;
+    qreal its_tlag_max = 10.0;
+    qreal its_sec_factor = 20.0;
 };
 
 /// \struct SpectraSettingsState
-/// \brief Structure representing spectral settings information for the INI
-/// processing file
+/// \brief Spectral settings information for the INI processing file
 struct SpectraSettingsState
 {
     int sa_mode = 1;
@@ -161,8 +165,7 @@ struct SpectraSettingsState
 };
 
 /// \struct ScreenGeneralState
-/// \brief Structure representing raw processing general information for the INI
-/// processing file
+/// \brief Raw processing general information for the INI processing file
 struct ScreenGeneralState
 {
     QString data_path = QString();
@@ -212,8 +215,7 @@ struct ScreenGeneralState
 };
 
 /// \struct ScreenSettingState
-/// \brief Structure representing raw processing settings information for the INI
-/// processing file
+/// \brief Raw processing settings information for the INI processing file
 struct ScreenSettingState
 {
     int max_lack = 10;
@@ -316,8 +318,7 @@ struct ScreenSettingState
 };
 
 /// \struct ScreenTestState
-/// \brief Structure representing tests information for the INI
-/// processing file
+/// \brief Tests information for the INI processing file
 struct ScreenTestState
 {
     int test_sr = 1;
@@ -332,8 +333,7 @@ struct ScreenTestState
 };
 
 /// \struct ScreenParamState
-/// \brief Structure representing tests parameters information for the INI
-/// processing file
+/// \brief Tests parameters information for the INI processing file
 struct ScreenParamState
 {
     int sr_num_spk = 3;
@@ -400,7 +400,7 @@ struct ScreenParamState
 };
 
 /// \struct ScreenTiltState
-/// \brief Structure representing ...
+/// \brief Tilt correction settings
 struct ScreenTiltState
 {
     QString start_date = QString();
@@ -445,7 +445,7 @@ struct TimelagOptState
 
 struct RandomErrorState
 {
-    int method = 0;
+    int ru_method = 0;
     int its_method = 1;
     qreal its_tlag_max = 10.0;
     qreal its_sec_factor = 20.0;
@@ -465,9 +465,16 @@ struct BiometState
     int col_ppfd = -1;
 };
 
+/// \struct WindFilterState
+/// \brief Wind direction filter state (sector exclusion)
+struct WindFilterState
+{
+    int apply = 0;
+    QList<SectorItem> sectors = QList<SectorItem>();
+};
+
 /// \struct EcProjectState
-/// \brief Container structure representing information for the INI
-/// processing file
+/// \brief Container for all INI processing file state
 struct EcProjectState
 {
     ProjectGeneralState projectGeneral;
@@ -480,7 +487,7 @@ struct EcProjectState
     TimelagOptState timelagOpt;
     RandomErrorState randomError;
     BiometState biomParam;
-    Calibration driftCorr;
+    WindFilterState windFilter;
 };
 
 #endif // ECPROJECTSTATE_H

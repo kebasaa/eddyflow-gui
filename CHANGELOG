@@ -1,3 +1,49 @@
+7.0.4 (2026-06-20)
+
+    GUI
+    - Fix creation of log file directory at startup
+    - Fix time-lag dialog double popup during file uploading
+	- Add: Fluxnet output settings
+    - Add: visual tool for wind directions filtering settings to specify up to
+      16 sectors
+    - Add: random uncertainty estimation method after Mahrt (1998)
+    - Add: new supported anemometers: Metek uSonic-3 Class A MP
+      and Metek uSonic-3 Cage MP
+    - Change: move random uncertainty settings from
+      [RawProcess_RandomUncertainty_Settings] to [Project] managing backward
+      compatibility
+    - Remove: obsolete GHG-Europe and AmeriFlux outputs
+    - Remove: previous data results setting
+    Engine
+    - Add: new output file conforming FLUXNET and AmeriFlux's FP-In Standards
+      forlabels, units and format FLUXNET output features a large amount of
+      new output variables, including many intermediate results, statistics on all
+      high-frequency variables, covariances between all high-frequency variables,
+      biomet mean values and metadata, as well as results of new implementations
+      (see below)
+    - Add: new data filtering tool allowing user to eliminate raw records
+      corresponding to istantaneous wind directions from specified sectors
+      (up to 16 sectors)
+    - Add: new Stationarity test after Mahrt (1998)
+    - Add: new Random Uncertainty estimation method after Mahrt (1998)
+    - Add: new QC test named KID (Kurtosis Index on Differenced variable) test
+      (Vitale et al., in preparation)
+    - Add: new test to identify period of repeated data and drop-outs
+      (Vitale et al., in preparation)
+    - Add: new supported anemometers:  Metek uSonic-3 Class A MP and
+      Metek uSonic-3 Cage MP
+    - Add: computation of wind direction variance
+    - Add: ET is now treated as a first-class flux (results only available in
+      FLUXNET output)
+    - Refine: improve computation of statistical moments which is now fully
+      robust to presence of missing data
+    - Refine: more accurate computation of mean wind direction
+    - Refine: Potential Radiation is now computed used timestamp of END of
+      period instead of START
+    - Remove: obsolete GHG-Europe and AmeriFlux outputs
+    - Fix: minor fixes to Random Error and Footprint settings
+
+
 6.2.2 (2018-05-11)
 
     Engine
@@ -34,10 +80,10 @@
     - Refine: AoA correction policy. Now Nakai et al. 2006 is applied only to
       R3 family and R2. Nakai and Shimoyama 2012 is applied to WindMaster and
       WindMaster Pro. The combination of "w-boost" and AoA correction for
-      the WindMaster/Pro is handled automatically by EddyPro. Effectively,
+      the WindMaster/Pro is handled automatically by EddyFlow. Effectively,
       the user as the options of (1) applying or not the w-boost correction
       alone for WindMaster/Pro; (2) applying or not Nakai's AoA corrections.
-      However, EddyPro controls that both corrections are applicable to the
+      However, EddyFlow controls that both corrections are applicable to the
       current anemometer and overrides user's settings (and output
       corresponding warnings) if necessary.
     - Refine: now planar fit settings are not read if planar-fit file is used.
@@ -103,7 +149,7 @@
 
     Engine
     - Add: support for new LI-7500RS and LI-7200RS instruments.
-    - Refine: introduced a mechanism to allow user to ask EddyPro to select
+    - Refine: introduced a mechanism to allow user to ask EddyFlow to select
       the most appropriate AoA correction method, based on sonic anemometer
       model and serial number. User can also force a selection, or de-select
       the correction completely.
@@ -113,7 +159,7 @@
       available, FLUXNET biomet output file reports -9999.
     - Fix: detection of EndIndex in the list of binned spectra files when a
       subperiod is selected, which coincides with the period covered by
-      available spectra files. The bug caused EddyPro not to create ensemble
+      available spectra files. The bug caused EddyFlow not to create ensemble
       averaged spectra/cospectra, nor to perform the spectral assessment.
     - Fix: SplitCount function, that caused biomet files not to be properly
       read (and engine to crash) when only one biomet variable is present in
@@ -216,7 +262,7 @@
       automatically set equal to the flux averaging interval if user set it
       larger than that.
     - Refine: now GHG-Europe output complies with new specifications of
-      AmeriFlux and European Carbon databases. EddyPro creates two files
+      AmeriFlux and European Carbon databases. EddyFlow creates two files
       - one for EC-results and one for biomet results - that can be directly
       submitted to the databases.
     - Refine: now RP writes path of essentials file on stdout so that GUI can
@@ -267,7 +313,7 @@
     Engine
     - Fix: bug causing the engine to hang before run completion,
       if no averaging period could be processed completely. The bug
-      was unlikely to affect EddyPro-desktop users, but could at
+      was unlikely to affect EddyFlow-desktop users, but could at
       times show up in SmartFlux.
 
     GUI
@@ -286,12 +332,12 @@
     - Added: Analytic spectra correction after Massman (2000, 2001).
     - Added: Now biomet outputs are provided also for periods when
       corresponding high-frequency data are not available or are corrupted.
-    - Added: eddypro_rp now edits .eddypro file, so that eddypro_fcc can be
-      launched when eddypro_rp completes, without further interventions.
+    - Added: EddyFlow_rp now edits .eddypro file, so that EddyFlow_fcc can be
+      launched when EddyFlow_rp completes, without further interventions.
       This improves portability and facilitate usages from command line and
       automation.
     - Added: option to run engine with command-line specificied .eddypro
-      file (full path). See help for usage (run "$eddypro_rp -h")
+      file (full path). See help for usage (run "$EddyFlow_rp -h")
     - Fixed: bug causing off-season uptake correction to switch to
       'simple linear' and stick there, if radiation measurements were
       missing for just one half-hour.
@@ -308,7 +354,7 @@
     - Fixed: functioning of metadata retriever, that got broken after
       refactoring for 5.0.
     - Fixed: bug in footprint model of Kormann and Meixner 2001, as implemented
-      in 'eddypro_fcc' (no corresponding bug in 'eddypro_rp')
+      in 'EddyFlow_fcc' (no corresponding bug in 'EddyFlow_rp')
     - Fixed: missing exception could cause timelag optimization to associate a
       timelag instances to first RH class, which were erroneous. The problem
       would occur if, for a given period, not enough H2O data were available.
@@ -326,7 +372,7 @@
       shall be made publicly available in the form of a corrigendum to the
       paper. Thanks a lot to Johannes Laubach for suggesting the change,
       demonstrating its foundation and verifying the new implementation in
-      EddyPro.
+      EddyFlow.
     - Refinement: minimum timelag searching window for H2O in timelag optimizer
       reduced from +/-0.7s to +/-0.3s, which fits better to short-tube set-ups.
     - Refinement: refined format of GHG-Europe output file after
@@ -404,7 +450,7 @@
     Engine
     - Fixed: bug causing ignoring next raw file when current file is shorter
         than expected.
-    - Fixed: bug causing 'full co-spectra' files not to be read in 'eddypro_fcc'.
+    - Fixed: bug causing 'full co-spectra' files not to be read in 'EddyFlow_fcc'.
 
 5.1.0 (2014-01-31)
 
@@ -438,7 +484,7 @@
 
 5.0.0 (2013-12-09)
 For a complete list of new features see:
-http://www.licor.com/env/help/eddypro/topics_eddypro/Whats_New.html
+http://www.licor.com/env/support/EddyFlow/topics_EddyFlow/Whats_New.html
 
     Introduced support to the package creation for SMARTFlux systems.
 
@@ -489,7 +535,7 @@ http://www.licor.com/env/help/eddypro/topics_eddypro/Whats_New.html
 
 4.2.0 (2013-08-22)
     For a complete list of new features see:
-    http://envsupport.licor.com/help/EddyPro4/Default.htm#Whats_New.htm
+    http://envsupport.licor.com/help/EddyFlow4/Default.htm#Whats_New.htm
 
     Engine
     - Fixed: use of "Flags" (set in the "Basic Settings" page) for filtering out individual
@@ -539,7 +585,7 @@ http://www.licor.com/env/help/eddypro/topics_eddypro/Whats_New.html
     - Refinement: Extended automatic definition of time lag plausibility windows (min/max)
         for both open and closed path instruments.
     - Refinement: extended range of accepted ambient pressures, now the minimum
-        value accepted by EddyPro is 40 kPa, which replaces the former value of 80 kPa.
+        value accepted by EddyFlow is 40 kPa, which replaces the former value of 80 kPa.
 
     GUI
     - Fixed: behavior of North alignment for Generic anemometer in the Metadata editor.
@@ -579,7 +625,7 @@ http://www.licor.com/env/help/eddypro/topics_eddypro/Whats_New.html
 
 4.1.0 (2012-11-01)
       For a complete list of new features see:
-      http://envsupport.licor.com/help/EddyPro4/Default.htm#Whats_New.htm
+      http://envsupport.licor.com/help/EddyFlow4/Default.htm#Whats_New.htm
 
     - New features
       - A new spectral correction scheme based on Fratini et al. (2012),
@@ -590,7 +636,7 @@ http://www.licor.com/env/help/eddypro/topics_eddypro/Whats_New.html
     - Improvements
       - Usage of "previous results" to dramatically reduce program execution time.
       - Binary SLT files containing more than 6 variables can now be processed with
-        EddyPro.
+        EddyFlow.
       - Usage of external biomet data files, not anymore limited to 18,000 data records.
         In version 4.1, biomet files can contain any number of data records.
       - Express processing uses the new angle-of-attack correction algorithm from
@@ -620,13 +666,13 @@ http://www.licor.com/env/help/eddypro/topics_eddypro/Whats_New.html
           LI-7000 or an LI-6262), the effects are likely to be relevant and we thus
           recommend to recalculate fluxes using version 4.1.
         - Who is not affected
-          All users who ran EddyPro in "Express mode", or those who did not use the
+          All users who ran EddyFlow in "Express mode", or those who did not use the
           "Automatic timelag optimization" option are not affected by this bug.
         - Note
           We recommend using the "Automatic timelag optimization" procedure especially for
           closed-path setups featuring medium and long (> 3-4 m) sampling lines. The bug
           notified here was fixed and the correct procedure is available in this release
-          (EddyPro 4.1).
+          (EddyFlow 4.1).
 
       - Calculation of average CH4 mole fractions and mixing ratios from LI-7700
         - Bug description
@@ -642,7 +688,7 @@ http://www.licor.com/env/help/eddypro/topics_eddypro/Whats_New.html
         fixed and this maximum value was increased to 18,000.
       - Fixed bug that caused the calculation of maximal wind speed to fail in case of
         existence of any raw data records with at least one wind components set to -9999
-        (EddyPro's internal error code). Most often this bug resulted in a maximal wind
+        (EddyFlow's internal error code). Most often this bug resulted in a maximal wind
         speed of 17318.7 m/s, that was the result of wind speed calculated from 3 wind
         components set to -9999. This bug had no affect on flux results.
       - Fixed bug that caused the cross-wind correction of sonic temperature to be
@@ -650,7 +696,7 @@ http://www.licor.com/env/help/eddypro/topics_eddypro/Whats_New.html
         set to -9999. This bug resulted in implausible values for sonic temperature and
         thus either in fluxes set to -9999, or to extremely spiky fluxes. Note that for
         most anemometers the cross-wind correction is applied in the firmware, so there
-        is no need to apply it at processing time with EddyPro.
+        is no need to apply it at processing time with EddyFlow.
       - Fixed bug that caused the header of the "full output" file to be erroneous when
         using the option "Use standard output format".
       - Fixed bug that caused the night-time/daytime indication in the "full output" file
@@ -762,7 +808,7 @@ http://www.licor.com/env/help/eddypro/topics_eddypro/Whats_New.html
       - Introduced detection of very implausible values in the raw
         files, and their substitution with error codes.
       - Error codes in raw files (-9999) are no longer modified
-        during conversions of raw units into EddyPro units
+        during conversions of raw units into EddyFlow units
       - Better handling of situation when all GHG files have invalid
         metadata or are corrupted.
       - Better handling of the computations exit codes
@@ -818,4 +864,4 @@ http://www.licor.com/env/help/eddypro/topics_eddypro/Whats_New.html
     - Updated the manual.
 
 2.0.0 (2011-04-05)
-    - First public release of EddyPro (Express version only).
+    - First public release of EddyFlow (Express version only).

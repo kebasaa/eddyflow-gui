@@ -1,23 +1,25 @@
 /***************************************************************************
   advmenudelegate.cpp
   -------------------
-  Copyright (C) 2014-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2014-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "advmenudelegate.h"
@@ -82,7 +84,7 @@ void AdvMenuDelegate::paint(QPainter *painter, const QStyleOptionViewItem &optio
 
     painter->setFont(font);
 
-    auto text_width = fm.width(text);
+    auto text_width = fm.horizontalAdvance(text);
 
     // manage text wrapping, centering the item text
     if (text_width <= 185)
@@ -102,3 +104,4 @@ void AdvMenuDelegate::paint(QPainter *painter, const QStyleOptionViewItem &optio
 
     painter->restore();
 }
+

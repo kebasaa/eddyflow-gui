@@ -2,23 +2,25 @@
 /***************************************************************************
   widget_utils.cpp
   -------------------
-  Copyright (C) 2014-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2014-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "widget_utils.h"
@@ -35,6 +37,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMouseEvent>
+#include <QPointingDevice>
 #include <QProcess>
 #include <QProgressBar>
 #include <QPushButton>
@@ -47,10 +50,7 @@
 
 #include <memory>
 
-#include "QScienceSpinBox.h"
-
 #include "configstate.h"
-#include "dbghelper.h"
 #include "defs.h"
 #include "docchooser.h"
 #include "fileutils.h"
@@ -228,10 +228,11 @@ void WidgetUtils::showCalendarOf(QWidget* widget)
 {
     QCoreApplication::postEvent(widget,
                                 new QMouseEvent(QEvent::MouseButtonPress,
-                                                QPoint(100.0, 10.0),
+                                                QPointF(100.0, 10.0),
                                                 Qt::LeftButton,
                                                 Qt::NoButton,
-                                                Qt::NoModifier));
+                                                Qt::NoModifier,
+                                                QPointingDevice::primaryPointingDevice()));
 }
 
 // Append a horizontal rule <hr> to QTextEdit.
@@ -468,26 +469,26 @@ void WidgetUtils::showHelp(const QUrl& url)
             auto htmlHelpPath = qApp->applicationDirPath();
             auto localUrlString = QString();
 
-            if (url.toString().contains(QStringLiteral("EddyPro_Home")))
+            if (url.toString().contains(QStringLiteral("EddyFlow_Home")))
             {
-                 htmlHelpPath = htmlHelpPath + QStringLiteral("/docs/help/topics_eddypro/EddyPro_Home.html");
+                 htmlHelpPath = htmlHelpPath + QStringLiteral("/docs/help/topics_EddyFlow/EddyFlow_Home.html");
             }
             else if (url.toString().contains(QStringLiteral("qmhucid6g0hdvd3d13tk")))
             {
-                 htmlHelpPath = htmlHelpPath + QStringLiteral("/docs/EddyPro_QuickStart_12756.pdf");
+                 htmlHelpPath = htmlHelpPath + QStringLiteral("/docs/EddyFlow_QuickStart_12756.pdf");
             }
             else if (url.toString().contains(QStringLiteral("1ium2zmwm6hl36yz9bu4")))
             {
-                 htmlHelpPath = htmlHelpPath + QStringLiteral("/docs/EddyPro_Manual_12025.pdf");
+                 htmlHelpPath = htmlHelpPath + QStringLiteral("/docs/EddyFlow_Manual_12025.pdf");
             }
             else if (url.toString().contains(QStringLiteral("Video_Library")))
             {
-                 htmlHelpPath = htmlHelpPath + QStringLiteral("/docs/help/topics_eddypro/Video_Library.html");
+                 htmlHelpPath = htmlHelpPath + QStringLiteral("/docs/help/topics_EddyFlow/Video_Library.html");
             }
             else
             {
                 localUrlString = url.toString(QUrl::RemoveAuthority
-                    | QUrl::RemoveScheme).remove(QStringLiteral("/env")).remove(QStringLiteral("/eddypro"));
+                    | QUrl::RemoveScheme).remove(QStringLiteral("/env")).remove(QStringLiteral("/EddyFlow"));
                 htmlHelpPath = htmlHelpPath + QStringLiteral("/docs") + localUrlString;
             }
 
@@ -578,12 +579,3 @@ QLabel *WidgetUtils::createBlueLabel(QWidget *parent, const QString& text)
     return label;
 }
 
-QScienceSpinBox* WidgetUtils::createCalibrationSpinbox(QWidget *parent)
-{
-    auto spinbox = new QScienceSpinBox(parent);
-    spinbox->setRange(std::numeric_limits<double>::lowest(),
-                            std::numeric_limits<double>::max());
-    spinbox->setDecimals(7);
-    spinbox->setAccelerated(true);
-    return spinbox;
-}

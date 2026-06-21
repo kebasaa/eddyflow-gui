@@ -1,4 +1,6 @@
-# include paths
-INCLUDEPATH += $$_PRO_FILE_PWD_/libs/quazip-0.7.3/quazip
-INCLUDEPATH += $$_PRO_FILE_PWD_/../../../libs/c++/boost_1_67_0
-INCLUDEPATH += $$_PRO_FILE_PWD_/src/lisp_parser
+# include paths — QUAZIP_INCLUDE_DIR can be passed on qmake command line
+!isEmpty(QUAZIP_INCLUDE_DIR) {
+    INCLUDEPATH += $$QUAZIP_INCLUDE_DIR
+} else {
+    INCLUDEPATH += $$_PRO_FILE_PWD_/libs/quazip-1.x/quazip
+}

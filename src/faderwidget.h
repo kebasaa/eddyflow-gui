@@ -1,4 +1,4 @@
-/****************************************************************************
+﻿/****************************************************************************
 **
 ** Copyright (C) 2006 Trolltech AS. All rights reserved.
 **
@@ -62,7 +62,7 @@ public:
     void start();
 
 protected:
-    void paintEvent(QPaintEvent *event) Q_DECL_OVERRIDE;
+    void paintEvent(QPaintEvent *event) override;
 
 private:
     QTimeLine *timeLine;
@@ -70,3 +70,4 @@ private:
 };
 
 #endif
+

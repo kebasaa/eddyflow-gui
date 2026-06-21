@@ -1,23 +1,25 @@
 /***************************************************************************
   splitterhandle.cpp
   -------------------
-  Copyright (C) 2013-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2013-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "splitterhandle.h"
@@ -28,7 +30,7 @@
 #include <QPainter>
 #include <QPaintEvent>
 #include <QPropertyAnimation>
-#include <QTime>
+#include <QElapsedTimer>
 
 SplitterHandle::SplitterHandle(Qt::Orientation orientation, QSplitter *parent)
     : QSplitterHandle(orientation, parent)
@@ -63,7 +65,7 @@ void SplitterHandle::paintEvent(QPaintEvent *event)
     painter.fillRect(int(rect().width() / 2.0) + 10, 4, rect().width(), 5, Qt::white);
 }
 
-void SplitterHandle::enterEvent(QEvent *e)
+void SplitterHandle::enterEvent(QEnterEvent *e)
 {
     Q_UNUSED(e)
 
@@ -92,7 +94,7 @@ void SplitterHandle::buzz()
 {
     int xp = x();
     int yp = y();
-    QTime t;
+    QElapsedTimer t;
 
     t.start();
     for (int i = 8; i > 0;)
@@ -111,3 +113,6 @@ void SplitterHandle::buzz()
     }
     move(xp, yp);
 }
+
+
+
