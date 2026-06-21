@@ -229,10 +229,10 @@ void WidgetUtils::showCalendarOf(QWidget* widget)
     QCoreApplication::postEvent(widget,
                                 new QMouseEvent(QEvent::MouseButtonPress,
                                                 QPointF(100.0, 10.0),
+                                                QPointF(100.0, 10.0),
                                                 Qt::LeftButton,
                                                 Qt::NoButton,
-                                                Qt::NoModifier,
-                                                QPointingDevice::primaryPointingDevice()));
+                                                Qt::NoModifier));
 }
 
 // Append a horizontal rule <hr> to QTextEdit.

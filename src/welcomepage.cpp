@@ -180,7 +180,6 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     auto rssItem_7 = new QListWidgetItem(QIcon(QStringLiteral(":/icons/grad")), tr("See upcoming Eddy Covariance training courses"), newsListWidget);
     rssItem_7->setData(Qt::UserRole, QStringLiteral("https://www.licor.com/env/products/eddy_covariance/resources.html#training"));
 
-    newsListWidget->addItem(rssItem_1);
     newsListWidget->addItem(rssItem_2);
     newsListWidget->addItem(rssItem_3);
     newsListWidget->addItem(rssItem_4);
