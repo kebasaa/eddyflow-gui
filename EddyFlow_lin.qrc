@@ -5,6 +5,8 @@
         <file alias="qm-pressed">img/help/help-pressed.png</file>
         <file>img/help/menu-help.png</file>
         <file alias="splash-img">img/splash/splash-screen.png</file>
+        <file alias="app-logo-svg">img/logo/app-logo.svg</file>
+        <file alias="splash-text">img/splash/splash-text.txt</file>
         <file alias="amplitude">img/tests/amplitude_resolution.png</file>
         <file alias="dropout">img/tests/dropout.png</file>
         <file alias="skewkurt">img/tests/skew_kurt.png</file>

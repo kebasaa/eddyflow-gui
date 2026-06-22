@@ -31,8 +31,10 @@
 #include <QFile>
 #include <QFontDatabase>
 #include <QGuiApplication>
+#include <QPainter>
 #include <QPalette>
 #include <QStyleHints>
+#include <QSvgRenderer>
 #include <QtGlobal>
 #include <QTextCodec>
 #include <QTextStream>
@@ -294,7 +296,38 @@ int main(int argc, char *argv[])
     }
 
     // create and show splash screen
-    QPixmap pixmap(QStringLiteral(":/icons/splash-img"));
+    constexpr int splashW = 600, splashH = 460;
+    QPixmap pixmap(splashW, splashH);
+    pixmap.fill(QColor(237, 237, 237));
+
+    {
+        QPainter p(&pixmap);
+        p.setRenderHint(QPainter::Antialiasing);
+        p.setRenderHint(QPainter::SmoothPixmapTransform);
+
+        // Draw SVG logo centered in upper portion
+        QSvgRenderer svgRenderer(QStringLiteral(":/icons/app-logo-svg"));
+        if (svgRenderer.isValid())
+            svgRenderer.render(&p, QRectF(40.0, 25.0, 520.0, 93.0));
+
+        // Read user-editable splash text: filesystem copy takes priority over embedded resource
+        QString splashText;
+        QFile textFile(QCoreApplication::applicationDirPath() + QStringLiteral("/splash-text.txt"));
+        if (!textFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            textFile.setFileName(QStringLiteral(":/icons/splash-text"));
+            textFile.open(QIODevice::ReadOnly | QIODevice::Text);
+        }
+        if (textFile.isOpen())
+            splashText = QTextStream(&textFile).readAll().trimmed();
+
+        if (!splashText.isEmpty()) {
+            QFont textFont(QStringLiteral("Open Sans"), 10);
+            p.setFont(textFont);
+            p.setPen(QColor(60, 60, 60));
+            p.drawText(QRect(50, 140, 500, 270), Qt::AlignLeft | Qt::TextWordWrap, splashText);
+        }
+    }
+
 #if defined(Q_OS_MACOS)
     pixmap.setDevicePixelRatio(2.0);
 #endif
@@ -324,7 +357,7 @@ int main(int argc, char *argv[])
         splashFont.setPixelSize(12);
 
         splash.setFont(splashFont);
-        splash.setMessageRect(QRect(0, 427, 600, 25), Qt::AlignCenter); // Setting the message position.
+        splash.setMessageRect(QRect(0, splashH - 33, splashW, 25), Qt::AlignCenter);
         splash.show();
         splash.showStatusMessage(QObject::tr("Initializing..."));
     }

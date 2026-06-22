@@ -56,7 +56,7 @@ CustomSplashScreen::CustomSplashScreen(const QPixmap & pixmap, Qt::WindowFlags f
     rowLayout->addStretch(1);
 
     auto layout = new QVBoxLayout(this);
-    layout->addSpacerItem(new QSpacerItem(1, 335));
+    layout->addSpacerItem(new QSpacerItem(1, 310));
     layout->addLayout(rowLayout);
     layout->addWidget(progressBar_, 1, Qt::AlignVCenter);
     layout->addStretch(18);
