@@ -143,7 +143,7 @@ namespace Defs
     // strings
     const auto APP_NAME       = QStringLiteral("EddyFlow");
     const auto APP_NAME_LCASE = QStringLiteral("EddyFlow");
-    const auto APP_NAME_UCASE = QStringLiteral("EddyFlow");
+    const auto APP_NAME_UCASE = QStringLiteral("EDDYFLOW");
     const auto ORG_DOMAIN     = QStringLiteral("licor.com");
     const auto ORG_NAME       = QStringLiteral("LI-COR");
     const auto APP_URL        = QStringLiteral("https://keba_saa.github.io/eddyflow-documentation");
