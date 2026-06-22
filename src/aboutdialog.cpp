@@ -27,6 +27,7 @@
 
 #include <QDebug>
 #include <QLabel>
+#include <QSysInfo>
 #include <QFile>
 #include <QPainter>
 #include <QPushButton>
@@ -54,6 +55,28 @@ AboutDialog::AboutDialog(QWidget* parent)
     setWindowTitle(titleText);
     WidgetUtils::removeContextHelpButton(this);
 
+#if defined(Q_CC_MSVC)
+    QString compilerStr = QStringLiteral("MSVC %1.%2")
+        .arg(_MSC_VER / 100).arg(_MSC_VER % 100);
+#elif defined(Q_CC_CLANG)
+    QString compilerStr = QStringLiteral("Clang %1.%2.%3")
+        .arg(__clang_major__).arg(__clang_minor__).arg(__clang_patchlevel__);
+#elif defined(Q_CC_GNU)
+  #if defined(__MINGW64__)
+    QString compilerStr = QStringLiteral("MinGW-w64 GCC %1.%2.%3")
+        .arg(__GNUC__).arg(__GNUC_MINOR__).arg(__GNUC_PATCHLEVEL__);
+  #elif defined(__MINGW32__)
+    QString compilerStr = QStringLiteral("MinGW GCC %1.%2.%3")
+        .arg(__GNUC__).arg(__GNUC_MINOR__).arg(__GNUC_PATCHLEVEL__);
+  #else
+    QString compilerStr = QStringLiteral("GCC %1.%2.%3")
+        .arg(__GNUC__).arg(__GNUC_MINOR__).arg(__GNUC_PATCHLEVEL__);
+  #endif
+#else
+    QString compilerStr = QStringLiteral("Unknown compiler");
+#endif
+    compilerStr += QStringLiteral(" on ") + QSysInfo::prettyProductName();
+
     auto introduction = new QLabel;
     introduction->setText(
         tr("<h2>%1<sup>&reg;</sup> v%2%3</h2>"
@@ -62,14 +85,8 @@ AboutDialog::AboutDialog(QWidget* parent)
             Defs::APP_VERSION_STR,
             Defs::APP_STAGE_STR,
             QStringLiteral(__DATE__),
-            QStringLiteral(__TIME__))
-        #if defined(Q_OS_WIN)
-            .arg(Defs::WIN_COMPILER)
-        #elif defined(Q_OS_MACOS)
-            .arg(Defs::MAC_COMPILER)
-        #elif defined(Q_OS_LINUX)
-            .arg(Defs::LIN_COMPILER)
-        #endif
+            QStringLiteral(__TIME__),
+            compilerStr)
         );
     auto icon = new QLabel;
     QPixmap app_logo(390, 70);

@@ -63,9 +63,6 @@ namespace Defs
     const auto METADATA_FILE_VERSION = 0x030201;
     const auto METADATA_FILE_VERSION_STR = QStringLiteral("3.2.2");
 
-    const auto WIN_COMPILER = QStringLiteral("MinGW 7.3.0 x86_64 on Windows<sup>&reg;</sup> 10");
-    const auto MAC_COMPILER = QStringLiteral("Apple LLVM 10.0.0 (clang-1000.11.45.5) x86_64 on macOS<sup>&reg;</sup> 10.14.1");
-    const auto LIN_COMPILER = QStringLiteral("GCC 4.8.5 x86-64 on Linux");
 
     const auto CURRENT_COPYRIGHT_YEAR = QStringLiteral("2019");
     const auto LOG_FILE_MAX_SIZE = 1048576;

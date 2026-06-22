@@ -32,6 +32,7 @@
 
 # include "defs.h"
 
+class EcProject;
 class QTextBrowser;
 
 class AncillaryFileTest : public QDialog
@@ -40,7 +41,7 @@ class AncillaryFileTest : public QDialog
 public:
     enum class FileType { Spectra, PlanarFit, TimeLag };
 
-    explicit AncillaryFileTest(FileType type, QWidget* parent = nullptr);
+    explicit AncillaryFileTest(FileType type, EcProject* ecProject, QWidget* parent = nullptr);
 
     bool makeTest();
     void refresh(const QString &file);
@@ -74,6 +75,7 @@ private:
     QString typeToString(FileType type);
 
     FileType type_;
+    EcProject* ecProject_ = nullptr;
 
     QString name_ {};
     QTextBrowser* testResults_ {};

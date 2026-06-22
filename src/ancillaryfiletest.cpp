@@ -36,6 +36,7 @@
 
 #include <algorithm>
 
+#include "ecproject.h"
 #include "stringutils.h"
 #include "container_helpers.h"
 #include "widget_utils.h"
@@ -43,9 +44,11 @@
 const auto helpPage = QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Assessment_Tests.html");
 
 AncillaryFileTest::AncillaryFileTest(FileType type,
+                                     EcProject* ecProject,
                                      QWidget *parent) :
     QDialog(parent),
-    type_(type)
+    type_(type),
+    ecProject_(ecProject)
 {
     setVisible(false);
 
@@ -280,15 +283,22 @@ bool AncillaryFileTest::testSpectraF(const LineList& templateList, const LineLis
                                   + formatPassFail(last_test()));
 
     // test CH4 TFP labels, rows 33-44
-    for (auto i = 32; i < 44; ++i)
+    if (ecProject_ && ecProject_->generalColCh4() <= 0)
     {
-        test << (StringUtils::subStringList(templateList.value(i), 0, 2)
-                == StringUtils::subStringList(actualList.value(i), 0, 2));
+        testResults_->append(tr("<u>CH<sub>4</sub></u>: not configured in this project — <b>skipped</b>"));
+    }
+    else
+    {
+        for (auto i = 32; i < 44; ++i)
+        {
+            test << (StringUtils::subStringList(templateList.value(i), 0, 2)
+                    == StringUtils::subStringList(actualList.value(i), 0, 2));
 
-        testResults_->append(QLatin1String("<u>CH<sub>4</sub></u> TFP label, row ")
-                                      + QString::number(i + 1)
-                                      + QStringLiteral(": ")
-                                      + formatPassFail(last_test()));
+            testResults_->append(QLatin1String("<u>CH<sub>4</sub></u> TFP label, row ")
+                                          + QString::number(i + 1)
+                                          + QStringLiteral(": ")
+                                          + formatPassFail(last_test()));
+        }
     }
 
     // test header row 45-46
@@ -296,16 +306,23 @@ bool AncillaryFileTest::testSpectraF(const LineList& templateList, const LineLis
     testResults_->append(QLatin1String("Header rows 45-46: ")
                                   + formatPassFail(last_test()));
 
-    // test other gas TFP labels, rows 19-30
-    for (auto i = 46; i < 58; ++i)
+    // test other gas TFP labels, rows 47-58
+    if (ecProject_ && ecProject_->generalColGas4() <= 0)
     {
-        test << (StringUtils::subStringList(templateList.value(i), 0, 2)
-                == StringUtils::subStringList(actualList.value(i), 0, 2));
+        testResults_->append(tr("<u>Other gas (N₂O)</u>: not configured in this project — <b>skipped</b>"));
+    }
+    else
+    {
+        for (auto i = 46; i < 58; ++i)
+        {
+            test << (StringUtils::subStringList(templateList.value(i), 0, 2)
+                    == StringUtils::subStringList(actualList.value(i), 0, 2));
 
-        testResults_->append(QLatin1String("<u>Other gas</u> TFP label, row ")
-                                      + QString::number(i + 1)
-                                      + QStringLiteral(": ")
-                                      + formatPassFail(last_test()));
+            testResults_->append(QLatin1String("<u>Other gas</u> TFP label, row ")
+                                          + QString::number(i + 1)
+                                          + QStringLiteral(": ")
+                                          + formatPassFail(last_test()));
+        }
     }
 
     // test header, rows 59-62
@@ -459,29 +476,37 @@ bool AncillaryFileTest::testSpectraS(const LineList &actualList)
                                    "be in the range [0.01; 10.0] for good values of column 'fc': ");
     testResults_->append(c3_label + formatPassFail(last_test()));
 
-    // test d.2
-    test << std::all_of(fcCh4.begin(), fcCh4.end(),
-                        [](double d){ return (d >= 0.001 && d <= 10); });
-    auto d2_label = QStringLiteral("<u>CH<sub>4</sub></u> All column 'fc' values "
-                                   "shall be in the range [0.001; 10.0]: ");
-    testResults_->append(d2_label + formatPassFail(last_test()));
-
-    // test d.3
-    test << true;
-    for (auto i = 0; i < 12; ++i)
+    // test d.2 and d.3 — skip if CH4 not configured
+    if (ecProject_ && ecProject_->generalColCh4() <= 0)
     {
-        if (fcCh4.value(i) >= 0.001 && fcCh4.value(i) <= 10.0)
+        testResults_->append(tr("<u>CH<sub>4</sub></u>: not configured in this project — <b>skipped</b>"));
+    }
+    else
+    {
+        // test d.2
+        test << std::all_of(fcCh4.begin(), fcCh4.end(),
+                            [](double d){ return (d >= 0.001 && d <= 10); });
+        auto d2_label = QStringLiteral("<u>CH<sub>4</sub></u> All column 'fc' values "
+                                       "shall be in the range [0.001; 10.0]: ");
+        testResults_->append(d2_label + formatPassFail(last_test()));
+
+        // test d.3
+        test << true;
+        for (auto i = 0; i < 12; ++i)
         {
-            if (FnCh4.value(i) < 0.01 || FnCh4.value(i) > 10.0)
+            if (fcCh4.value(i) >= 0.001 && fcCh4.value(i) <= 10.0)
             {
-                test.replace(last_test_index(), false);
-                break;
+                if (FnCh4.value(i) < 0.01 || FnCh4.value(i) > 10.0)
+                {
+                    test.replace(last_test_index(), false);
+                    break;
+                }
             }
         }
+        auto d3_label = QStringLiteral("<u>CH<sub>4</sub></u> All column 'Fn' "
+                                       "shall be in the range [0.01; 10.0] for good values of column 'fc': ");
+        testResults_->append(d3_label + formatPassFail(last_test()));
     }
-    auto d3_label = QStringLiteral("<u>CH<sub>4</sub></u> All column 'Fn' "
-                                   "shall be in the range [0.01; 10.0] for good values of column 'fc': ");
-    testResults_->append(d3_label + formatPassFail(last_test()));
 
     // test e.1
     test << std::all_of(modelParameters.begin(), modelParameters.end(),

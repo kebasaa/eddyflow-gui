@@ -1355,7 +1355,7 @@ void AdvSpectralOptions::testSelectedSpectraFile(const QString& fp)
     QFileInfo paramFilePath(fp);
     QString canonicalParamFile = paramFilePath.canonicalFilePath();
 
-    AncillaryFileTest test_dialog(AncillaryFileTest::FileType::Spectra, this);
+    AncillaryFileTest test_dialog(AncillaryFileTest::FileType::Spectra, ecProject_, this);
     test_dialog.refresh(canonicalParamFile);
 
     auto test_result = test_dialog.makeTest();
