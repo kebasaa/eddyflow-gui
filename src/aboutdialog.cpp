@@ -80,24 +80,16 @@ AboutDialog::AboutDialog(QWidget* parent)
     auto infoWidget = new QWidget;
     auto infoLabel = new QLabel;
     infoLabel-> setText(
-        tr("<br />%1 is an open source software application that is developed, "
-           "maintained, supported by LI-COR Biosciences. It originates from "
-           "ECO2S, the Eddy COvariance COmmunity Software project, which was "
-           "developed as part of the IMECC-EU research project.</p>"
-           "<p>We gratefully acknowledge the IMECC consortium, the ECO2S "
+        tr("<br />%1 is an open source software application originates from "
+           "EddyPro, which was developed by LI-COR Biosciences from 2011-2022,"
+		   "and before that was based on ECO2S, the Eddy COvariance COmmunity"
+		   "Software project, which was developed as part of the IMECC-EU"
+		   "research project.</p>"
+           "<p>We gratefully acknowledge LI-COR, the IMECC consortium, the ECO2S "
            "development team, the University of Tuscia (Italy) and scientists "
            "around the world who assisted with development and testing of the "
            "original version of this software."
-           "<p>Copyright &copy; 2011-%2 LI-COR Inc.</p>"
-           "<div>Contact LI-COR Inc.:</div><br />"
-           "<div style=\"text-indent: 20px;\">4647 Superior Street</div>"
-           "<div style=\"text-indent: 20px;\">P.O. Box 4000</div>"
-           "<div style=\"text-indent: 20px;\">Lincoln, Nebraska, 68504, USA</div><br />"
-           "<div style=\"text-indent: 20px;\">Phone: 1-402-467-3576</div>"
-           "<div style=\"text-indent: 20px;\">Toll Free: 800-447-3576</div>"
-           "<div style=\"text-indent: 20px;\">Fax: 1-402-467-2819</div>"
-           "<div style=\"text-indent: 20px;\">Email: <a href=\"mailto:envsupport@licor.com?subject=EddyFlow %3\">envsupport@licor.com</a></div>"
-           "<div style=\"text-indent: 20px;\">Website: <a href=\"http://www.licor.com\">http://www.licor.com</a></div>"
+           "<p>Copyright &copy; 2026-%2 ETH Zurich</p>"
            ).arg(Defs::APP_NAME, Defs::CURRENT_COPYRIGHT_YEAR, Defs::APP_VERSION_STR)
         );
     infoLabel->setOpenExternalLinks(true);
@@ -123,13 +115,14 @@ AboutDialog::AboutDialog(QWidget* parent)
     thanksEdit->setText(
         tr("<h4>Original Authors</h4>"
            "<ul type=\"square\">"
-           "<li>Gerardo Fratini (gerardo.fratini@licor.com): processing engines designer and developer</li>"
-           "<li>Antonio Forgione (antonio.forgione@licor.com): GUI designer and developer</li>"
-           "<li>Dario Papale (darpap@unitus.it): project manager and coordinator</li>"
+           "<li>Jonathan Muller: EddyFlow development</li>"
            "</ul>"
 
            "<h4>Others contributors</h4>"
            "<ul type=\"square\">"
+           "<li>Gerardo Fratini (gerardo.fratini@licor.com): EddyPro processing engines designer and developer</li>"
+           "<li>Antonio Forgione (antonio.forgione@licor.com): EddyPro GUI designer and developer</li>"
+           "<li>Dario Papale (darpap@unitus.it): EddyPro project manager and coordinator</li>"
            "<li>Carlo Trotta: code harmonization and documentation</li>"
            "<li>Natascha Kljun: code for footprint estimation, Kljun et al. (2004, BLM)</li>"
            "<li>Taro Nakai: code for angle of attack correction, Nakai et al. (2006, AFM)</li>"
@@ -209,16 +202,14 @@ AboutDialog::AboutDialog(QWidget* parent)
     auto licenseWidget = new QWidget;
     auto licenseLabel = new QLabel;
     licenseLabel->setText(
-        tr("<br />The %1 software application is Copyright &copy; 2011-%2 "
-           "LI-COR Inc.\n\n"
+        tr("<br />The %1 software application is Copyright &copy; 2026-%2 "
+           "Jonathan Muller\n\n"
            "You may use, distribute and copy the %1 programs suite under "
            "the terms of the GNU General Public License version 3, "
            "which is displayed below. If you would like to obtain "
-           "a copy of the source package please contact LI-COR "
-           "Biosciences at "
-           "<a href=\"mailto:envsupport@licor.com?subject=%1 %3&body="
-           "Please, send me a copy of the source package."
-           "\">envsupport@licor.com</a>."
+           "a copy of the source code, see "
+           "<a href=\"https://github.com/kebasaa/eddyflow-engine\">EddyFlow-engine</a> and"
+		   "<a href=\"https://github.com/kebasaa/eddyflow-gui\">EddyFlow-GUI</a>."
         ).arg(Defs::APP_NAME, Defs::CURRENT_COPYRIGHT_YEAR, Defs::APP_VERSION_STR));
     licenseLabel->setWordWrap(true);
     licenseLabel->setOpenExternalLinks(true);
