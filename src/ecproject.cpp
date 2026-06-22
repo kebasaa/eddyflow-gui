@@ -2945,6 +2945,40 @@ bool EcProject::tagProject(const QString &filename)
     return FileUtils::prependToFile(app_tag, filename);
 }
 
+bool EcProject::eddyProNativeFormat(const QString &filename)
+{
+    QFile datafile(filename);
+    if (!datafile.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+        WidgetUtils::warning(nullptr,
+                             tr("Import Error"),
+                             tr("Cannot read file <p>%1:</p>\n<b>%2</b>")
+                             .arg(filename, datafile.errorString()));
+        return false;
+    }
+    QTextStream in(&datafile);
+    QString firstLine;
+    in >> firstLine;
+    datafile.close();
+
+    if (!firstLine.startsWith(QLatin1String(";EDDYPRO_PROCESSING")))
+    {
+        WidgetUtils::warning(nullptr,
+                             tr("Import Error"),
+                             tr("Cannot import file <p>%1:</p>\n"
+                                "<b>not in EddyPro native format.</b>").arg(filename));
+        return false;
+    }
+    return true;
+}
+
+bool EcProject::importEddyProProject(const QString &filename, bool updateMode, bool *modified)
+{
+    // Migration point: map .eddypro fields -> .eddyflow fields here when formats diverge.
+    // Currently the formats are identical, so delegate to the standard loader.
+    return loadEcProject(filename, updateMode, modified);
+}
+
 void EcProject::setModified(bool mod)
 {
     modified_ = mod;

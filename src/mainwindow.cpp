@@ -439,11 +439,18 @@ void MainWindow::fileOpen(const QString &fileName)
         fileStr = QFileDialog::getOpenFileName(this,
                         tr("Select an %1 Project File").arg(Defs::APP_NAME),
                         WidgetUtils::getSearchPathHint(),
-                        tr("%1 Project Files (*.%2);;All Files (*.*)").arg(Defs::APP_NAME, Defs::PROJECT_FILE_EXT),
+                        tr("%1 Project Files (*.%2 *.eddypro);;All Files (*.*)").arg(Defs::APP_NAME, Defs::PROJECT_FILE_EXT),
                         nullptr
                         // , QFileDialog::DontUseNativeDialog
                         );
         if (fileStr.isEmpty()) { return; }
+
+        // Redirect .eddypro files to the dedicated import path
+        if (QFileInfo(fileStr).suffix().toLower() == QLatin1String("eddypro"))
+        {
+            importEddyProFile(fileStr);
+            return;
+        }
     }
     // programmatically
     else
@@ -485,6 +492,47 @@ void MainWindow::fileOpen(const QString &fileName)
     openingFlag_ = false;
 
     silentMdClenaup();
+}
+
+void MainWindow::importEddyProFile(const QString& fileName)
+{
+    QString fileStr = fileName;
+    if (fileStr.isEmpty())
+    {
+        fileStr = QFileDialog::getOpenFileName(this,
+                        tr("Import an EddyPro Project File"),
+                        WidgetUtils::getSearchPathHint(),
+                        tr("EddyPro Project Files (*.eddypro);;All Files (*.*)"),
+                        nullptr);
+        if (fileStr.isEmpty()) { return; }
+    }
+
+    if (!QFile::exists(fileStr)) { return; }
+    if (!ecProject_->eddyProNativeFormat(fileStr)) { return; }
+
+    bool modified = false;
+    if (!ecProject_->importEddyProProject(fileStr, true, &modified)) { return; }
+
+    // Compute migration target: same base name, .eddyflow extension
+    QString targetFile = QFileInfo(fileStr).path()
+                         + QDir::separator()
+                         + QFileInfo(fileStr).completeBaseName()
+                         + QStringLiteral(".") + Defs::PROJECT_FILE_EXT;
+
+    if (!ecProject_->saveEcProject(targetFile))
+    {
+        WidgetUtils::warning(this, tr("Import Error"),
+                             tr("Could not save migrated project to:<br><b>%1</b>").arg(targetFile));
+        return;
+    }
+
+    WidgetUtils::warning(this,
+        tr("EddyPro Project Imported"),
+        tr("The project was imported from EddyPro format and saved as:"
+           "<br><b>%1</b>").arg(targetFile));
+
+    // Hand off to the normal open path to finalise UI state
+    openFile(targetFile);
 }
 
 //
@@ -929,6 +977,10 @@ void MainWindow::createActions()
     openAction->setToolTip(tr("Open an existing project. (%1)")
                            .arg((openAction->shortcut().toString())));
 
+    importEddyProAction = new QAction(this);
+    importEddyProAction->setText(tr("Import EddyPro Project..."));
+    importEddyProAction->setToolTip(tr("Import an EddyPro project file and convert it to EddyFlow format."));
+
     closeAction = new QAction(this);
     closeAction->setText(tr("&Close"));
     closeAction->setIcon(QIcon(QStringLiteral(":/icons/close")));
@@ -1138,6 +1190,7 @@ void MainWindow::connectActions()
     // File actions
     connect(newAction, &QAction::triggered, this, &MainWindow::fileNew);
     connect(openAction, SIGNAL(triggered()), this, SLOT(fileOpen()));
+    connect(importEddyProAction, &QAction::triggered, this, [this]{ importEddyProFile(); });
     connect(closeAction, &QAction::triggered, this, &MainWindow::fileClose);
     connect(saveAction, &QAction::triggered, this, &MainWindow::fileSave);
     connect(saveAsAction, SIGNAL(triggered()), this, SLOT(fileSaveAs()));
@@ -1225,6 +1278,7 @@ void MainWindow::createMenus()
     fileMenu = menuBar()->addMenu(tr("&File"));
     fileMenu->addAction(newAction);
     fileMenu->addAction(openAction);
+    fileMenu->addAction(importEddyProAction);
 
     // submenu open recent file
     fileMenuOpenRecent = fileMenu->addMenu(tr("&Open Recent"));

@@ -73,6 +73,12 @@ public:
     // is the file in native format?
     bool nativeFormat(const QString &filename);
 
+    // is the file in EddyPro native format (import only)?
+    bool eddyProNativeFormat(const QString &filename);
+
+    // import an EddyPro project and migrate to EddyFlow format
+    bool importEddyProProject(const QString &filename, bool updateMode, bool *modified);
+
     // field comparison for previous data assessment
     bool fuzzyCompare(const EcProject& previousProject);
 
