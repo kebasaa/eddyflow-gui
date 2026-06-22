@@ -463,11 +463,11 @@ QString FileUtils::setupEnv()
     userHomePath = userHomePath + QStringLiteral("/") + configPath;
 #endif
 
-    FileUtils::createDir(Defs::LICOR_ENV_DIR, userHomePath);
-    QString licorDir = userHomePath + QLatin1Char('/') + Defs::LICOR_ENV_DIR;
-    FileUtils::createDir(Defs::APP_NAME_LCASE, licorDir);
+    FileUtils::createDir(Defs::EDDYFLOW_ENV_DIR, userHomePath);
+    QString eddyflowDir = userHomePath + QLatin1Char('/') + Defs::EDDYFLOW_ENV_DIR;
+    FileUtils::createDir(Defs::APP_NAME_LCASE, eddyflowDir);
 
-    QString appDir = licorDir + QLatin1Char('/') + Defs::APP_NAME_LCASE;
+    QString appDir = eddyflowDir + QLatin1Char('/') + Defs::APP_NAME_LCASE;
     FileUtils::createDir(Defs::APP_VERSION_STR, appDir);
 
     QString appVerDir = appDir + QLatin1Char('/') + Defs::APP_VERSION_STR;

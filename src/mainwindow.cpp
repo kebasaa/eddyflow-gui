@@ -781,7 +781,7 @@ bool MainWindow::fileSaveAs(const QString& fileName)
                                  tr("Make sure the file is not in use "
                                     "by another application."
                                     "If the problem persists, contact "
-                                    "envsupport@licor.com ."));
+                                    "jonathan.mueller@usys.ethz.ch ."));
             showStatusTip(tr("Error in saving project"));
             return false;
         }
