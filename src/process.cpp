@@ -57,10 +57,10 @@ Process::~Process()
 
 bool Process::engineProcessStart(const QString& fullPath, const QString& workingDir, const QStringList& argList)
 {
-    connect(process_, SIGNAL(finished(int, QProcess::ExitStatus)),
-             this, SLOT(processFinished(int, QProcess::ExitStatus)));
-    connect(process_, SIGNAL(error(QProcess::ProcessError)),
-             this, SLOT(processError(QProcess::ProcessError)));
+    connect(process_, &QProcess::finished,
+             this, &Process::processFinished);
+    connect(process_, &QProcess::errorOccurred,
+             this, &Process::processError);
 
     process_->setWorkingDirectory(workingDir);
 
@@ -127,10 +127,10 @@ bool Process::zipProcessAddStart(const QString &fileName,
             + QLatin1Char('/')
             + Defs::COMPRESSOR_BIN);
 
-    connect(process_, SIGNAL(finished(int, QProcess::ExitStatus)),
-             this, SLOT(processFinished(int, QProcess::ExitStatus)));
-    connect(process_, SIGNAL(error(QProcess::ProcessError)),
-             this, SLOT(processError(QProcess::ProcessError)));
+    connect(process_, &QProcess::finished,
+             this, &Process::processFinished);
+    connect(process_, &QProcess::errorOccurred,
+             this, &Process::processError);
 
     process_->setWorkingDirectory(workDir);
 
@@ -188,10 +188,10 @@ bool Process::zipContainsFiletype(const QString& fileName, const QString& filePa
     // file path of the 7z utility
     QString fp(qApp->applicationDirPath() + QLatin1Char('/') + Defs::BIN_FILE_DIR + QLatin1Char('/') + Defs::COMPRESSOR_BIN);
 
-    connect(process_, SIGNAL(finished(int, QProcess::ExitStatus)),
-             this, SLOT(processFinished(int, QProcess::ExitStatus)));
-    connect(process_, SIGNAL(error(QProcess::ProcessError)),
-             this, SLOT(processError(QProcess::ProcessError)));
+    connect(process_, &QProcess::finished,
+             this, &Process::processFinished);
+    connect(process_, &QProcess::errorOccurred,
+             this, &Process::processError);
 
     process_->start(fp, args, QProcess::Unbuffered | QProcess::ReadWrite);
 
@@ -246,10 +246,10 @@ void Process::processResume(Defs::CurrRunStatus mode)
 void Process::processStop()
 {
     // to avoid crash message error in windows
-    disconnect(process_, SIGNAL(finished(int, QProcess::ExitStatus)),
-             this, SLOT(processFinished(int, QProcess::ExitStatus)));
-    disconnect(process_, SIGNAL(error(QProcess::ProcessError)),
-             this, SLOT(processError(QProcess::ProcessError)));
+    disconnect(process_, &QProcess::finished,
+             this, &Process::processFinished);
+    disconnect(process_, &QProcess::errorOccurred,
+             this, &Process::processError);
 
     process_->kill();
     processExit_ = ExitStatus::Stopped;
@@ -267,8 +267,8 @@ void Process::processError(QProcess::ProcessError error)
         processExit_ = ExitStatus::Error;
     }
     // to avoid multiple call
-    disconnect(process_, SIGNAL(error(QProcess::ProcessError)),
-             this, SLOT(processError(QProcess::ProcessError)));
+    disconnect(process_, &QProcess::errorOccurred,
+             this, &Process::processError);
     emit processFailure();
 }
 

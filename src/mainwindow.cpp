@@ -3312,6 +3312,16 @@ void MainWindow::runExpress()
         QString workingDir = qApp->applicationDirPath() + QLatin1Char('/') + Defs::BIN_FILE_DIR;
         QString engineFilePath(workingDir + QLatin1Char('/') + Defs::ENGINE_RP);
 
+        if (!QFileInfo::exists(engineFilePath))
+        {
+            QMessageBox::critical(this, tr("Engine not found"),
+                tr("Processing engine not found at:\n%1\n\n"
+                   "Please place the engine binaries in the bin/ "
+                   "subdirectory next to the application.").arg(engineFilePath));
+            changePage(Defs::CurrPage::Home);
+            return;
+        }
+
         ecProject_->setGeneralRunMode(Defs::CurrRunMode::Express);
         if (!fileSaveSilently()) { return; }
 
@@ -3404,6 +3414,16 @@ void MainWindow::runAdvancedStep_1()
             QString workingDir = qApp->applicationDirPath() + QLatin1Char('/') + Defs::BIN_FILE_DIR;
             QString engine1FilePath(workingDir + QLatin1Char('/') + Defs::ENGINE_RP);
 
+            if (!QFileInfo::exists(engine1FilePath))
+            {
+                QMessageBox::critical(this, tr("Engine not found"),
+                    tr("Processing engine not found at:\n%1\n\n"
+                       "Please place the engine binaries in the bin/ "
+                       "subdirectory next to the application.").arg(engine1FilePath));
+                changePage(Defs::CurrPage::Home);
+                return;
+            }
+
             ecProject_->setGeneralRunMode(Defs::CurrRunMode::Advanced);
             if (!fileSaveSilently()) { return; }
 
@@ -3455,6 +3475,16 @@ void MainWindow::runAdvancedStep_2()
         changePage(Defs::CurrPage::Run);
         QString workingDir = qApp->applicationDirPath() + QLatin1Char('/') + Defs::BIN_FILE_DIR;
         QString engineFilePath(workingDir + QLatin1Char('/') + Defs::ENGINE_FCC);
+
+        if (!QFileInfo::exists(engineFilePath))
+        {
+            QMessageBox::critical(this, tr("Engine not found"),
+                tr("Processing engine not found at:\n%1\n\n"
+                   "Please place the engine binaries in the bin/ "
+                   "subdirectory next to the application.").arg(engineFilePath));
+            changePage(Defs::CurrPage::Home);
+            return;
+        }
 
         ecProject_->setGeneralRunMode(Defs::CurrRunMode::Advanced);
 
@@ -3538,6 +3568,16 @@ void MainWindow::runRetriever()
         changePage(Defs::CurrPage::Run);
         QString workingDir = qApp->applicationDirPath() + QLatin1Char('/') + Defs::BIN_FILE_DIR;
         QString engineFilePath(workingDir + QLatin1Char('/') + Defs::ENGINE_RP);
+
+        if (!QFileInfo::exists(engineFilePath))
+        {
+            QMessageBox::critical(this, tr("Engine not found"),
+                tr("Processing engine not found at:\n%1\n\n"
+                   "Please place the engine binaries in the bin/ "
+                   "subdirectory next to the application.").arg(engineFilePath));
+            changePage(Defs::CurrPage::Home);
+            return;
+        }
 
         ecProject_->setGeneralRunMode(Defs::CurrRunMode::Retriever);
         emit checkMetadataOutputRequest();
@@ -3799,7 +3839,7 @@ void MainWindow::displayExitMsg(Process::ExitStatus exitReason)
         msgBox.setEscapeButton(QMessageBox::Ok);
         break;
     case Process::ExitStatus::FailureToStart:
-        msgBox.setText(tr("<h3>Engine (EddyFlow_rp) not found</h3>"));
+        msgBox.setText(tr("<h3>Engine (eddyflow_rp) not found</h3>"));
         msgBox.setStandardButtons(QMessageBox::Ok);
         msgBox.setDefaultButton(QMessageBox::Ok);
         msgBox.setEscapeButton(QMessageBox::Ok);

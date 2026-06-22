@@ -142,7 +142,7 @@ namespace Defs
 
     // strings
     const auto APP_NAME       = QStringLiteral("EddyFlow");
-    const auto APP_NAME_LCASE = QStringLiteral("EddyFlow");
+    const auto APP_NAME_LCASE = QStringLiteral("eddyflow");
     const auto APP_NAME_UCASE = QStringLiteral("EDDYFLOW");
     const auto ORG_DOMAIN     = QStringLiteral("github.com/kebasaa/eddyflow-gui");
     const auto ORG_NAME       = QStringLiteral("EddyFlow");
