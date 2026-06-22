@@ -69,8 +69,8 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
           combo->setEditable(false);
           combo->addItems(AnemDesc::manufacturerStringList());
           combo->view()->setTextElideMode(Qt::ElideNone);
-          connect(combo, SIGNAL(activated(int)),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(combo, QOverload<int>::of(&QComboBox::activated),
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
           return combo;
       case AnemModel::MODEL:
           combo = new QComboBox(parent);
@@ -101,20 +101,20 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
           }
           combo->view()->setTextElideMode(Qt::ElideNone);
           combo->setMaxVisibleItems(15);
-          connect(combo, SIGNAL(activated(int)),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(combo, QOverload<int>::of(&QComboBox::activated),
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
           return combo;
       case AnemModel::SWVERSION:
           ledit = new QLineEdit(parent);
           ledit->setPlaceholderText(QStringLiteral("2329-660-01"));
-          connect(ledit, SIGNAL(editingFinished()),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(ledit, &QLineEdit::editingFinished,
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
           return ledit;
       case AnemModel::ID:
           ledit = new QLineEdit(parent);
           ledit->setPlaceholderText(QStringLiteral("Alphanumeric ID"));
-          connect(ledit, SIGNAL(editingFinished()),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(ledit, &QLineEdit::editingFinished,
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
           return ledit;
       case AnemModel::HEIGHT:
           dspin = new QDoubleSpinBox(parent);
@@ -123,8 +123,8 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
           dspin->setSingleStep(1.0);
           dspin->setAccelerated(true);
           dspin->setSuffix(QStringLiteral(" [m]"));
-          connect(dspin, SIGNAL(editingFinished()),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(dspin, &QDoubleSpinBox::editingFinished,
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
           return dspin;
       case AnemModel::WINDFORMAT:
           combo = new QComboBox(parent);
@@ -143,8 +143,8 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
               combo->addItems(AnemDesc::commonWindFormatStringList());
           }
           combo->view()->setTextElideMode(Qt::ElideNone);
-          connect(combo, SIGNAL(activated(int)),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(combo, QOverload<int>::of(&QComboBox::activated),
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
           return combo;
       case AnemModel::NORTHALIGNMENT:
           combo = new QComboBox(parent);
@@ -163,8 +163,8 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
               combo->addItems(AnemDesc::naNorthAlignmentStringList());
           }
           combo->view()->setTextElideMode(Qt::ElideNone);
-          connect(combo, SIGNAL(activated(int)),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(combo, QOverload<int>::of(&QComboBox::activated),
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
           return combo;
       case AnemModel::NORTHOFFSET:
           dspin = new QDoubleSpinBox(parent);
@@ -173,8 +173,8 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
           dspin->setSingleStep(1.0);
           dspin->setAccelerated(true);
           dspin->setSuffix(tr("  [%1]", "Degrees").arg(Defs::DEGREE));
-          connect(dspin, SIGNAL(editingFinished()),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(dspin, &QDoubleSpinBox::editingFinished,
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
           return dspin;
       case AnemModel::NSEPARATION:
       case AnemModel::ESEPARATION:
@@ -192,8 +192,8 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
               dspin->setSingleStep(1.0);
               dspin->setAccelerated(true);
               dspin->setSuffix(QStringLiteral(" [cm]"));
-              connect(dspin, SIGNAL(editingFinished()),
-                      this, SLOT(commitAndCloseEditor()));
+              connect(dspin, &QDoubleSpinBox::editingFinished,
+                      this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
               return dspin;
           }
       case AnemModel::VPATHLENGTH:
@@ -211,8 +211,8 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
           dspin->setSingleStep(1.0);
           dspin->setAccelerated(true);
           dspin->setSuffix(QStringLiteral(" [cm]"));
-          connect(dspin, SIGNAL(editingFinished()),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(dspin, &QDoubleSpinBox::editingFinished,
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
           return dspin;
         }
       case AnemModel::TAU:
@@ -229,8 +229,8 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
           dspin->setSingleStep(1.0);
           dspin->setAccelerated(true);
           dspin->setSuffix(QStringLiteral(" [s]"));
-          connect(dspin, SIGNAL(editingFinished()),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(dspin, &QDoubleSpinBox::editingFinished,
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
           return dspin;
         }
         default:

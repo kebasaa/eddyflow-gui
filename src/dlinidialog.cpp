@@ -85,8 +85,8 @@ DlIniDialog::DlIniDialog(QWidget *parent, DlProject *dlProject, ConfigState* con
     // NOTE: queued connection prevents double call to saveAvailable()
     // which triggers a crash when changing input unit on a unsaved
     // metadata. to further investigate
-    connect(dlProject_, SIGNAL(projectModified()),
-            this, SLOT(saveAvailable()), Qt::QueuedConnection);
+    connect(dlProject_, &DlProject::projectModified,
+            this, &DlIniDialog::saveAvailable, Qt::QueuedConnection);
 
     auto buttonLayout = new QHBoxLayout;
     buttonLayout->addWidget(resetButton);

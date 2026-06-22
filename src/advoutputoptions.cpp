@@ -632,18 +632,16 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     connect(outFullCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setGeneralOutRich(checked); });
 
-    // buttonClicked() is and overloaded signal...
-    connect(outputFormatRadioGroup, SIGNAL(idClicked(int)),
-            this, SLOT(updateFixedOuputFormat(int)));
+    connect(outputFormatRadioGroup, &QButtonGroup::idClicked,
+            this, &AdvOutputOptions::updateFixedOuputFormat);
 
     connect(errorFormatLabel, &ClickLabel::clicked,
             this, &AdvOutputOptions::onClickerrorFormatLabel);
 
-    // currentIndexChanged() is and overloaded signal...
-    connect(errorFormatCombo, SIGNAL(currentIndexChanged(QString)),
-            this, SLOT(updateErrorLabel(QString)));
-    connect(errorFormatCombo, SIGNAL(editTextChanged(QString)),
-            this, SLOT(updateErrorLabel(QString)));
+    connect(errorFormatCombo, &QComboBox::currentTextChanged,
+            this, &AdvOutputOptions::updateErrorLabel);
+    connect(errorFormatCombo, &QComboBox::editTextChanged,
+            this, &AdvOutputOptions::updateErrorLabel);
 
     connect(outFullSpectraCheckBoxU, &RichTextCheckBox::toggled, [=](bool checked)
             { ecProject_->setScreenOutFullSpectraU(checked); });
@@ -743,7 +741,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
             this, &AdvOutputOptions::refresh);
 
     // init
-    QTimer::singleShot(0, this, SLOT(reset()));
+    QTimer::singleShot(0, this, &AdvOutputOptions::reset);
 }
 
 void AdvOutputOptions::setSmartfluxUI()

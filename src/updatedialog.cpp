@@ -91,7 +91,7 @@ UpdateDialog::UpdateDialog(QWidget *parent) :
     connect(noButton, &QPushButton::clicked,
             this, &UpdateDialog::close);
 
-    QTimer::singleShot(0, this, SLOT(initialize()));
+    QTimer::singleShot(0, this, &UpdateDialog::initialize);
 
     downloadTimer_ = new QTimer(this);
     downloadTimer_->setInterval(10000);
@@ -170,10 +170,10 @@ void UpdateDialog::checkUpdate()
     {
         updateManager = new DownloadManager(this);
 
-        connect(updateManager, SIGNAL(downloadComplete()),
-                this, SLOT(useDownloadResults()));
+        connect(updateManager, &DownloadManager::downloadComplete,
+                this, &UpdateDialog::useDownloadResults);
     }
-    QTimer::singleShot(0, updateManager, SLOT(execute()));
+    QTimer::singleShot(0, updateManager, &DownloadManager::execute);
 
     downloadTimer_->start();
 }

@@ -41,6 +41,7 @@
 
 #include "clicklabel.h"
 #include "ecproject.h"
+#include "mainwidget.h"
 #include "smartfluxbar.h"
 #include "widget_utils.h"
 
@@ -157,14 +158,15 @@ RunPage::RunPage(QWidget *parent, EcProject *ecProject, ConfigState* config)
     connect(runModeIcon_, &ClickLabel::clicked,
             this, &RunPage::runModeIconClicked);
 
-    connect(smartfluxBar_, SIGNAL(showSmartfluxBarRequest(bool)),
-            parent, SIGNAL(showSmartfluxBarRequest(bool)));
+    auto mainWidget = static_cast<MainWidget*>(parent);
+    connect(smartfluxBar_, &SmartFluxBar::showSmartfluxBarRequest,
+            mainWidget, &MainWidget::showSmartfluxBarRequest);
 
-    connect(smartfluxBar_, SIGNAL(saveSilentlyRequest()),
-            parent, SIGNAL(saveSilentlyRequest()));
+    connect(smartfluxBar_, &SmartFluxBar::saveSilentlyRequest,
+            mainWidget, &MainWidget::saveSilentlyRequest);
 
-    connect(smartfluxBar_, SIGNAL(saveRequest()),
-            parent, SIGNAL(saveRequest()));
+    connect(smartfluxBar_, &SmartFluxBar::saveRequest,
+            mainWidget, &MainWidget::saveRequest);
 
     connect(total_elapsed_update_timer_, &QTimer::timeout,
             this, &RunPage::updateElapsedTime);
@@ -362,7 +364,7 @@ bool RunPage::pauseRun(Defs::CurrRunStatus mode)
         progressWidget_->stopAnimation();
         total_elapsed_update_timer_->stop();
         main_progress_timer_.invalidate();
-        QTimer::singleShot(1000, this, SLOT(pauseLabel()));
+        QTimer::singleShot(1000, this, &RunPage::pauseLabel);
         return true;
     }
     else
@@ -422,7 +424,7 @@ bool RunPage::resumeRun(Defs::CurrRunStatus mode)
         progressWidget_->startAnimation();
         total_elapsed_update_timer_->start();
         main_progress_timer_.restart();
-        QTimer::singleShot(1000, this, SLOT(resumeLabel()));
+        QTimer::singleShot(1000, this, &RunPage::resumeLabel);
         return true;
     }
     else

@@ -217,8 +217,8 @@ MainWindow::MainWindow(const QString& filename,
             this, &MainWindow::fileSaveSilently);
     connect(mainWidget_, &MainWidget::mdCleanupRequest,
             this, &MainWindow::scheduleMdCleanup);
-    connect(mainWidget_, SIGNAL(saveRequest()),
-            this, SLOT(fileSave()));
+    connect(mainWidget_, &MainWidget::saveRequest,
+            this, [this](){ fileSave(); });
 
     // dialogs connections
     connect(mainWidget_->projectPage(), &ProjectPage::connectBinarySettingsRequest,
@@ -242,13 +242,13 @@ MainWindow::MainWindow(const QString& filename,
     connectTimeLagDialog();
 
     // restore window state
-    QTimer::singleShot(0, this, SLOT(restorePreviousStatus()));
+    QTimer::singleShot(0, this, &MainWindow::restorePreviousStatus);
 
-    QTimer::singleShot(0, this, SLOT(initialize()));
+    QTimer::singleShot(0, this, &MainWindow::initialize);
 
-    QTimer::singleShot(0, this, SLOT(checkInternetConnection()));
+    QTimer::singleShot(0, this, &MainWindow::checkInternetConnection);
 
-    QTimer::singleShot(0, this, SLOT(showAutoUpdateDialog()));
+    QTimer::singleShot(0, this, &MainWindow::showAutoUpdateDialog);
 
     // NOTE: for testing only
 //    QStringList list;
@@ -1189,11 +1189,11 @@ void MainWindow::connectActions()
 {
     // File actions
     connect(newAction, &QAction::triggered, this, &MainWindow::fileNew);
-    connect(openAction, SIGNAL(triggered()), this, SLOT(fileOpen()));
+    connect(openAction, &QAction::triggered, this, [this](){ fileOpen(); });
     connect(importEddyProAction, &QAction::triggered, this, [this]{ importEddyProFile(); });
     connect(closeAction, &QAction::triggered, this, &MainWindow::fileClose);
     connect(saveAction, &QAction::triggered, this, &MainWindow::fileSave);
-    connect(saveAsAction, SIGNAL(triggered()), this, SLOT(fileSaveAs()));
+    connect(saveAsAction, &QAction::triggered, this, [this](){ fileSaveAs(); });
     connect(quitAction, &QAction::triggered, this, &MainWindow::closeMainWindow);
 
     connect(smartfluxAction, &QAction::triggered,
@@ -1237,10 +1237,10 @@ void MainWindow::connectActions()
             this, &MainWindow::viewConsoleOutput);
 
     // test only
-//    connect(toggleConsoleOutputAct, SIGNAL(toggled(bool)),
-//            this, SLOT(dbgViewConsoleOutputToggled(bool)));
-//    connect(toggleConsoleOutputAct, SIGNAL(triggered(bool)),
-//            this, SLOT(dbgViewConsoleOutputTriggered(bool)));
+//    connect(toggleConsoleOutputAct, &QAction::toggled,
+//            this, &MainWindow::dbgViewConsoleOutputToggled);
+//    connect(toggleConsoleOutputAct, &QAction::triggered,
+//            this, &MainWindow::dbgViewConsoleOutputTriggered);
 
     connect(toggleInfoOutputAct, &QAction::toggled,
             this, &MainWindow::viewInfoOutput);
@@ -4258,7 +4258,7 @@ void MainWindow::showAutoUpdateDialog()
     updateDialog->initialize();
     updateDialog->checkUpdate();
 
-    QTimer::singleShot(60000, this, SLOT(showAutoUpdateResults()));
+    QTimer::singleShot(60000, this, &MainWindow::showAutoUpdateResults);
 }
 
 void MainWindow::showAutoUpdateResults()
@@ -4371,16 +4371,16 @@ void MainWindow::connectBinarySettingsDialog()
     BinarySettingsDialog* binary_settings_dialog =
             mainWidget_->projectPage()->getBinarySettingsDialog();
 
-    connect(binary_settings_dialog, SIGNAL(saveRequest()),
-            this, SLOT(fileSave()));
+    connect(binary_settings_dialog, &BinarySettingsDialog::saveRequest,
+            this, [this](){ fileSave(); });
 }
 
 void MainWindow::connectPlanarFitDialog()
 {
     PlanarFitSettingsDialog* planar_fit_dialog = mainWidget_->pfDialog();
 
-    bool c1 = connect(planar_fit_dialog, SIGNAL(saveRequest()),
-                      this, SLOT(fileSave()));
+    bool c1 = connect(planar_fit_dialog, &PlanarFitSettingsDialog::saveRequest,
+                      this, [this](){ fileSave(); });
     Q_ASSERT(c1);
 
     bool c2 = connect(mainWidget_->basicPage(), &BasicSettingsPage::setDateRangeRequest,
@@ -4392,8 +4392,8 @@ void MainWindow::connectTimeLagDialog()
 {
     TimeLagSettingsDialog* time_lag_dialog = mainWidget_->tlDialog();
 
-    bool c1 = connect(time_lag_dialog, SIGNAL(saveRequest()),
-                      this, SLOT(fileSave()));
+    bool c1 = connect(time_lag_dialog, &TimeLagSettingsDialog::saveRequest,
+                      this, [this](){ fileSave(); });
     Q_ASSERT(c1);
 
     bool c2 = connect(mainWidget_->basicPage(), &BasicSettingsPage::setDateRangeRequest,

@@ -52,6 +52,7 @@
 #include "globalsettings.h"
 #include "mytabwidget.h"
 //#include "slowmeasuretab.h"
+#include "mainwidget.h"
 #include "smartfluxbar.h"
 #include "splitter.h"
 #include "widget_utils.h"
@@ -337,29 +338,29 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
     connect(titleEdit, &QLineEdit::textChanged, [=](const QString& s)
             { ecProject_->setGeneralTitle(s); });
 
-    connect(fileTypeRadioGroup, SIGNAL(idClicked(int)),
-            this, SLOT(updateFileType(int)));
-    connect(fileTypeRadioGroup, SIGNAL(idClicked(int)),
-            this, SLOT(fileTypeRadioClicked_1(int)));
-    connect(fileTypeRadioGroup, SIGNAL(idClicked(int)),
-            this, SLOT(fileTypeRadioClicked_2(int)));
-    connect(fileTypeRadioGroup, SIGNAL(idClicked(int)),
-            this, SLOT(updateUseMetadataFile_1(int)));
-    connect(fileTypeRadioGroup, SIGNAL(idClicked(int)),
-            this, SLOT(selectWidget(int)));
+    connect(fileTypeRadioGroup, &QButtonGroup::idClicked,
+            this, &ProjectPage::updateFileType);
+    connect(fileTypeRadioGroup, &QButtonGroup::idClicked,
+            this, &ProjectPage::fileTypeRadioClicked_1);
+    connect(fileTypeRadioGroup, &QButtonGroup::idClicked,
+            this, &ProjectPage::fileTypeRadioClicked_2);
+    connect(fileTypeRadioGroup, &QButtonGroup::idClicked,
+            this, &ProjectPage::updateUseMetadataFile_1);
+    connect(fileTypeRadioGroup, &QButtonGroup::idClicked,
+            this, &ProjectPage::selectWidget);
 
-    connect(tobSettingsCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(tobSettingsUpdate(int)));
-    connect(tobSettingsCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateTooltip(int)));
+    connect(tobSettingsCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &ProjectPage::tobSettingsUpdate);
+    connect(tobSettingsCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &ProjectPage::updateTooltip);
 
     connect(binSettingsButton, &QPushButton::clicked,
             this, &ProjectPage::binSettingsDialog);
 
-    connect(metadataRadioGroup, SIGNAL(idClicked(int)),
-            this, SLOT(metadataRadioClicked(int)));
-    connect(metadataRadioGroup, SIGNAL(idClicked(int)),
-            this, SLOT(updateUseMetadataFile_2(int)));
+    connect(metadataRadioGroup, &QButtonGroup::idClicked,
+            this, &ProjectPage::metadataRadioClicked);
+    connect(metadataRadioGroup, &QButtonGroup::idClicked,
+            this, &ProjectPage::updateUseMetadataFile_2);
 
     connect(metadataFileBrowse, &FileBrowseWidget::clearRequested,
             this, &ProjectPage::mdResetRequest);
@@ -379,10 +380,10 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
 
     connect(biomDataCheckBox, &QCheckBox::toggled,
             this, &ProjectPage::on_biomDataCheckBox_clicked);
-    connect(biomRadioGroup, SIGNAL(idClicked(int)),
-            this, SLOT(on_biomRadioGroup_clicked_1(int)));
-    connect(biomRadioGroup, SIGNAL(idClicked(int)),
-            this, SLOT(on_biomRadioGroup_clicked_2(int)));
+    connect(biomRadioGroup, &QButtonGroup::idClicked,
+            this, &ProjectPage::on_biomRadioGroup_clicked_1);
+    connect(biomRadioGroup, &QButtonGroup::idClicked,
+            this, &ProjectPage::on_biomRadioGroup_clicked_2);
 
     connect(biometExtFileBrowse, &FileBrowseWidget::pathChanged,
             this, &ProjectPage::updateBiomFile);
@@ -399,21 +400,21 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
 
     connect(biomExtDirSuffixLabel, &ClickLabel::clicked,
             this, &ProjectPage::onBiomExtDirSuffixLabelClicked);
-    connect(biomExtDirCombo, SIGNAL(currentIndexChanged(QString)),
-            this, SLOT(updateExtDirSuffix(QString)));
+    connect(biomExtDirCombo, QOverload<const QString &>::of(&QComboBox::currentIndexChanged),
+            this, &ProjectPage::updateExtDirSuffix);
     connect(biomExtDirCombo, &QComboBox::editTextChanged,
             this, &ProjectPage::updateExtDirSuffix);
 
-    connect(smartfluxBar_, SIGNAL(showSmartfluxBarRequest(bool)),
-            parent, SIGNAL(showSmartfluxBarRequest(bool)));
+    connect(smartfluxBar_, &SmartFluxBar::showSmartfluxBarRequest,
+            this, [parent](bool on){ emit static_cast<MainWidget*>(parent)->showSmartfluxBarRequest(on); });
 
-    connect(smartfluxBar_, SIGNAL(saveSilentlyRequest()),
-            parent, SIGNAL(saveSilentlyRequest()));
+    connect(smartfluxBar_, &SmartFluxBar::saveSilentlyRequest,
+            this, [parent](){ emit static_cast<MainWidget*>(parent)->saveSilentlyRequest(); });
 
-    connect(smartfluxBar_, SIGNAL(saveRequest()),
-            parent, SIGNAL(saveRequest()));
+    connect(smartfluxBar_, &SmartFluxBar::saveRequest,
+            this, [parent](){ emit static_cast<MainWidget*>(parent)->saveRequest(); });
 
-    QTimer::singleShot(0, this, SLOT(reset()));
+    QTimer::singleShot(0, this, &ProjectPage::reset);
 }
 
 ProjectPage::~ProjectPage()

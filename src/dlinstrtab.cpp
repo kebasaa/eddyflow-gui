@@ -184,10 +184,10 @@ DlInstrTab::DlInstrTab(QWidget *parent, DlProject *dlProject) :
     // NOTE: to trigger table editing with single click without altering the
     // editTriggers property, because that way the column selection
     // clicking on the header triggers the first cell editor
-    connect(anemView_, SIGNAL(clicked(const QModelIndex &)),
-            anemView_, SLOT(edit(const QModelIndex &)));
-    connect(irgaView_, SIGNAL(clicked(const QModelIndex &)),
-            irgaView_, SLOT(edit(const QModelIndex &)));
+    connect(anemView_, &QAbstractItemView::clicked,
+            anemView_, &QAbstractItemView::edit);
+    connect(irgaView_, &QAbstractItemView::clicked,
+            irgaView_, &QAbstractItemView::edit);
 }
 
 DlInstrTab::~DlInstrTab()

@@ -40,6 +40,7 @@ public:
     void setLabel(const QString& text);
 
 signals:
+    void clicked();
     void toggled(bool checked);
 
 public slots:

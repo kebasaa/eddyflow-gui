@@ -41,6 +41,7 @@
 #include "advstatisticaloptions.h"
 #include "planarfitsettingsdialog.h"
 #include "timelagsettingsdialog.h"
+#include "mainwidget.h"
 #include "smartfluxbar.h"
 #include "widget_utils.h"
 
@@ -99,22 +100,15 @@ AdvancedSettingsPage::AdvancedSettingsPage(QWidget* parent,
     connect(resetButton, &QPushButton::clicked, this,
             &AdvancedSettingsPage::resetButtonCLicked);
 
-    // TODO: understand why the new qt5 syntax trigger errors in the
-    // following cases
-    connect(smartfluxBar, SIGNAL(showSmartfluxBarRequest(bool)),
-            parent, SIGNAL(showSmartfluxBarRequest(bool)));
-//    connect(smartfluxBar_, &SmartFluxBar::showSmartfluxBarRequest,
-//            parent, &SmartFluxBar::showSmartfluxBarRequest);
+    auto mainWidget = static_cast<MainWidget*>(parent);
+    connect(smartfluxBar, &SmartFluxBar::showSmartfluxBarRequest,
+            mainWidget, &MainWidget::showSmartfluxBarRequest);
 
-    connect(smartfluxBar, SIGNAL(saveSilentlyRequest()),
-            parent, SIGNAL(saveSilentlyRequest()));
-//    connect(smartfluxBar_, &SmartFluxBar::saveSilentlyRequest,
-//            parent, &SmartFluxBar::saveSilentlyRequest);
+    connect(smartfluxBar, &SmartFluxBar::saveSilentlyRequest,
+            mainWidget, &MainWidget::saveSilentlyRequest);
 
-    connect(smartfluxBar, SIGNAL(saveRequest()),
-            parent, SIGNAL(saveRequest()));
-//    connect(smartfluxBar_, &SmartFluxBar::saveRequest,
-//            parent, &SmartFluxBar::saveRequest);
+    connect(smartfluxBar, &SmartFluxBar::saveRequest,
+            mainWidget, &MainWidget::saveRequest);
 }
 
 AdvancedSettingsPage::~AdvancedSettingsPage()
@@ -130,8 +124,8 @@ void AdvancedSettingsPage::createMenu()
     menuWidget->setSpacing(0);
     menuWidget->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
 
-    connect(menuWidget, SIGNAL(currentRowChanged(int)),
-            this, SLOT(changePage(int)));
+    connect(menuWidget, &QListWidget::currentRowChanged,
+            this, &AdvancedSettingsPage::changePage);
 }
 
 void AdvancedSettingsPage::createIcons()

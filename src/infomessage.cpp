@@ -108,12 +108,12 @@ InfoMessage::InfoMessage(QDialogButtonBox::StandardButtons buttons, QWidget *par
     mainLayout->setSizeConstraint(QLayout::SetFixedSize);
     setLayout(mainLayout);
 
-    connect(buttonBox_, SIGNAL(accepted()), this, SLOT(accept()));
-    connect(buttonBox_, SIGNAL(rejected()), this, SLOT(reject()));
+    connect(buttonBox_, &QDialogButtonBox::accepted, this, &InfoMessage::accept);
+    connect(buttonBox_, &QDialogButtonBox::rejected, this, &InfoMessage::reject);
     connect(doNotShowAgainCheckbox_, &QCheckBox::toggled,
             this, &InfoMessage::onDoNotShowAgainCheckboxToggled_);
 
-    QTimer::singleShot(0, this, SLOT(initialize()));
+    QTimer::singleShot(0, this, &InfoMessage::initialize);
 }
 
 void InfoMessage::initialize()

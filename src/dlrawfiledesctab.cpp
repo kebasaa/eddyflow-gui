@@ -142,8 +142,8 @@ DlRawfileDescTab::DlRawfileDescTab(QWidget* parent, DlProject* dlProject) :
     // to trigger table editing with single click without altering the
     // editTriggers property, because that way the column selection
     // clicking on the header trigger the first cell editor
-    connect(variableView_, SIGNAL(clicked(const QModelIndex &)),
-            variableView_, SLOT(edit(const QModelIndex &)));
+    connect(variableView_, &QAbstractItemView::clicked,
+            variableView_, &QAbstractItemView::edit);
 }
 
 DlRawfileDescTab::~DlRawfileDescTab()

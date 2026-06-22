@@ -13,7 +13,7 @@ QT_VER = $$[QT_VERSION]
 QT_PATH = $$[QT_INSTALL_PREFIX]
 
 # Qt config
-QT += core gui widgets network concurrent core5compat svg
+QT += core gui widgets network concurrent svg
 
 CONFIG += warn_on
 CONFIG += debug_and_release

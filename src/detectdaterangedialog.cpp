@@ -87,7 +87,7 @@ DetectDateRangeDialog::DetectDateRangeDialog(QWidget *parent, EcProject *ecProje
     connect(okButton, &QPushButton::clicked,
             [=](){ this->close(); this->setResult(QDialog::Accepted);});
 
-//    QTimer::singleShot(0, this, SLOT(initialize()));
+//    QTimer::singleShot(0, this, &DetectDateRangeDialog::initialize);
 }
 
 DetectDateRangeDialog::~DetectDateRangeDialog()

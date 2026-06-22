@@ -73,15 +73,15 @@ QWidget *VariableDelegate::createEditor(QWidget* parent,
             combo = new QComboBox(parent);
             combo->addItems(VariableDesc::yesNoStringList());
             combo->setMinimumWidth(130);
-            connect(combo, SIGNAL(activated(int)),
-                    this, SLOT(commitAndCloseEditor()));
+            connect(combo, QOverload<int>::of(&QComboBox::activated),
+                    this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
             return combo;
         case VariableModel::NUMERIC:
             combo = new QComboBox(parent);
             combo->addItems(VariableDesc::yesNoStringList());
             combo->setMinimumWidth(130);
-            connect(combo, SIGNAL(activated(int)),
-                    this, SLOT(commitAndCloseEditor()));
+            connect(combo, QOverload<int>::of(&QComboBox::activated),
+                    this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
             return combo;
         case VariableModel::VARIABLE:
             custom_combo = new CustomComboBox(parent);
@@ -97,16 +97,16 @@ QWidget *VariableDelegate::createEditor(QWidget* parent,
             }
             custom_combo->setMinimumWidth(130);
             custom_combo->view()->setAlternatingRowColors(true);
-            connect(custom_combo, SIGNAL(activated(int)),
-                    this, SLOT(commitAndCloseEditor()));
+            connect(custom_combo, QOverload<int>::of(&QComboBox::activated),
+                    this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
             return custom_combo;
         case VariableModel::INSTRUMENT:
             combo = new QComboBox(parent);
             combo->setEditable(false);
             combo->addItems((dynamic_cast<const VariableModel *>(index.model()))->instrModels());
             combo->setMinimumWidth(130);
-            connect(combo, SIGNAL(activated(int)),
-                    this, SLOT(commitAndCloseEditor()));
+            connect(combo, QOverload<int>::of(&QComboBox::activated),
+                    this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
             return combo;
         case VariableModel::MEASURETYPE:
             if (!VariableDesc::isGasVariable(currentVar)
@@ -121,8 +121,8 @@ QWidget *VariableDelegate::createEditor(QWidget* parent,
                 combo->setEditable(false);
                 combo->addItems(VariableDesc::measureTypeStringList());
                 combo->setMinimumWidth(130);
-                connect(combo, SIGNAL(activated(int)),
-                        this, SLOT(commitAndCloseEditor()));
+                connect(combo, QOverload<int>::of(&QComboBox::activated),
+                        this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
                 return combo;
             }
         case VariableModel::INPUTUNIT:
@@ -169,8 +169,8 @@ QWidget *VariableDelegate::createEditor(QWidget* parent,
 
             combo->setMaxVisibleItems(20);
             combo->setMinimumWidth(130);
-            connect(combo, SIGNAL(activated(int)),
-                    this, SLOT(commitAndCloseEditor()));
+            connect(combo, QOverload<int>::of(&QComboBox::activated),
+                    this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
 
             return combo;
         case VariableModel::CONVERSIONTYPE:
@@ -189,8 +189,8 @@ QWidget *VariableDelegate::createEditor(QWidget* parent,
                 combo->addItems(VariableDesc::conversionTypeStringList());
                 combo->setMinimumWidth(130);
                 combo->view()->setAlternatingRowColors(true);
-                connect(combo, SIGNAL(activated(int)),
-                        this, SLOT(commitAndCloseEditor()));
+                connect(combo, QOverload<int>::of(&QComboBox::activated),
+                        this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
                 return combo;
             }
         case VariableModel::OUTPUTUNIT:
@@ -246,8 +246,8 @@ QWidget *VariableDelegate::createEditor(QWidget* parent,
 
                 combo->setMaxVisibleItems(20);
                 combo->setMinimumWidth(130);
-                connect(combo, SIGNAL(activated(int)),
-                        this, SLOT(commitAndCloseEditor()));
+                connect(combo, QOverload<int>::of(&QComboBox::activated),
+                        this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
                 return combo;
             }
         case VariableModel::AVALUE:
@@ -266,8 +266,8 @@ QWidget *VariableDelegate::createEditor(QWidget* parent,
                 nzdspin->setRange(-999999.0, 999999.0);
                 nzdspin->setSingleStep(1.0);
                 nzdspin->setAccelerated(true);
-                connect(nzdspin, SIGNAL(editingFinished()),
-                        this, SLOT(commitAndCloseEditor()));
+                connect(nzdspin, &QDoubleSpinBox::editingFinished,
+                        this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
                 return nzdspin;
             }
         case VariableModel::NOMTIMELAG:
@@ -279,8 +279,8 @@ QWidget *VariableDelegate::createEditor(QWidget* parent,
             dspin->setSingleStep(1.0);
             dspin->setAccelerated(true);
             dspin->setSuffix(QStringLiteral(" [s]"));
-            connect(dspin, SIGNAL(editingFinished()),
-                    this, SLOT(commitAndCloseEditor()));
+            connect(dspin, &QDoubleSpinBox::editingFinished,
+                    this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
             return dspin;
         default:
             return QStyledItemDelegate::createEditor(parent, option, index);

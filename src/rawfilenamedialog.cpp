@@ -97,8 +97,8 @@ RawFilenameDialog::RawFilenameDialog(QWidget *parent,
             this, &RawFilenameDialog::accept);
     connect(cancelButton, &QPushButton::clicked,
             this, &RawFilenameDialog::reject);
-    connect(extRadioGroup, SIGNAL(idClicked(int)),
-            this, SLOT(updateFormatEdit(int)));
+    connect(extRadioGroup, &QButtonGroup::idClicked,
+            this, &RawFilenameDialog::updateFormatEdit);
     connect(rawFilenameFormatEdit, &QLineEdit::textEdited,
             this, &RawFilenameDialog::updateFileList);
 }

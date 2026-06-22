@@ -111,23 +111,23 @@ BinarySettingsDialog::BinarySettingsDialog(QWidget* parent, EcProject *ecProject
 
     connect(binaryHLinesLabel, &ClickLabel::clicked,
             this, &BinarySettingsDialog::onBinaryHLinesLabelClicked);
-    connect(binaryHLinesSpin, SIGNAL(valueChanged(int)),
-            this, SLOT(updateBinaryHLine(int)));
+    connect(binaryHLinesSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &BinarySettingsDialog::updateBinaryHLine);
 
     connect(binaryEolLabel, &ClickLabel::clicked,
             this, &BinarySettingsDialog::onBinaryClickEolLabel);
-    connect(binaryEolCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateBinaryEol(int)));
+    connect(binaryEolCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &BinarySettingsDialog::updateBinaryEol);
 
     connect(binaryNBytesLabel, &ClickLabel::clicked,
             this, &BinarySettingsDialog::onBinaryNBytesLabelClicked);
-    connect(binaryNBytesSpin, SIGNAL(valueChanged(int)),
-            this, SLOT(updateBinaryNBytes(int)));
+    connect(binaryNBytesSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &BinarySettingsDialog::updateBinaryNBytes);
 
     connect(binaryEndianessLabel, &ClickLabel::clicked,
             this, &BinarySettingsDialog::onBinaryClickEndianessLabel);
-    connect(binaryEndianessCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateBinaryEndianess(int)));
+    connect(binaryEndianessCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &BinarySettingsDialog::updateBinaryEndianess);
 
     connect(okButton, &QPushButton::clicked,
             this, &BinarySettingsDialog::close);

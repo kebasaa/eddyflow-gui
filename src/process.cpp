@@ -275,8 +275,8 @@ void Process::processError(QProcess::ProcessError error)
 void Process::processFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
     // to avoid multiple call
-    disconnect(process_, SIGNAL(finished(int, QProcess::ExitStatus)),
-             this, SLOT(processFinished(int, QProcess::ExitStatus)));
+    disconnect(process_, &QProcess::finished,
+             this, &Process::processFinished);
 
     if (exitStatus == QProcess::CrashExit)
     {

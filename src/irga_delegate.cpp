@@ -68,8 +68,8 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
           combo->setEditable(false);
           combo->addItems(IrgaDesc::manufacturerStringList());
           combo->view()->setTextElideMode(Qt::ElideNone);
-          connect(combo, SIGNAL(activated(int)),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(combo, QOverload<int>::of(&QComboBox::activated),
+                  this, QOverload<>::of(&IrgaDelegate::commitAndCloseEditor));
           return combo;
       case IrgaModel::MODEL:
           combo = new QComboBox(parent);
@@ -88,20 +88,20 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
           }
           combo->view()->setTextElideMode(Qt::ElideNone);
           combo->setMaxVisibleItems(15);
-          connect(combo, SIGNAL(activated(int)),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(combo, QOverload<int>::of(&QComboBox::activated),
+                  this, QOverload<>::of(&IrgaDelegate::commitAndCloseEditor));
           return combo;
       case IrgaModel::SWVERSION:
             ledit = new QLineEdit(parent);
             ledit->setPlaceholderText(QStringLiteral("8.0.0"));
-            connect(ledit, SIGNAL(editingFinished()),
-                    this, SLOT(commitAndCloseEditor()));
+            connect(ledit, &QLineEdit::editingFinished,
+                    this, QOverload<>::of(&IrgaDelegate::commitAndCloseEditor));
             return ledit;
       case IrgaModel::ID:
             ledit = new QLineEdit(parent);
             ledit->setPlaceholderText(QStringLiteral("Alphanumeric ID"));
-            connect(ledit, SIGNAL(editingFinished()),
-                  this, SLOT(commitAndCloseEditor()));
+            connect(ledit, &QLineEdit::editingFinished,
+                  this, QOverload<>::of(&IrgaDelegate::commitAndCloseEditor));
             return ledit;
       case IrgaModel::TUBELENGTH:
             if (IrgaDesc::isOpenPathModel(currentModel))
@@ -117,8 +117,8 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
                 dspin->setSingleStep(1.0);
                 dspin->setAccelerated(true);
                 dspin->setSuffix(QStringLiteral(" [cm]"));
-                connect(dspin, SIGNAL(editingFinished()),
-                      this, SLOT(commitAndCloseEditor()));
+                connect(dspin, &QDoubleSpinBox::editingFinished,
+                      this, QOverload<>::of(&IrgaDelegate::commitAndCloseEditor));
                 return dspin;
             }
       case IrgaModel::TUBEDIAMETER:
@@ -135,8 +135,8 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
               dspin->setSingleStep(1.0);
               dspin->setAccelerated(true);
               dspin->setSuffix(QStringLiteral(" [mm]"));
-              connect(dspin, SIGNAL(editingFinished()),
-                      this, SLOT(commitAndCloseEditor()));
+              connect(dspin, &QDoubleSpinBox::editingFinished,
+                      this, QOverload<>::of(&IrgaDelegate::commitAndCloseEditor));
               return dspin;
             }
       case IrgaModel::TUBEFLOWRATE:
@@ -153,8 +153,8 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
               dspin->setSingleStep(1.0);
               dspin->setAccelerated(true);
               dspin->setSuffix(QStringLiteral(" [l/m]"));
-              connect(dspin, SIGNAL(editingFinished()),
-                      this, SLOT(commitAndCloseEditor()));
+              connect(dspin, &QDoubleSpinBox::editingFinished,
+                      this, QOverload<>::of(&IrgaDelegate::commitAndCloseEditor));
               return dspin;
             }
       case IrgaModel::TUBENSEPARATION:
@@ -166,8 +166,8 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
           dspin->setSingleStep(1.0);
           dspin->setAccelerated(true);
           dspin->setSuffix(QStringLiteral(" [cm]"));
-          connect(dspin, SIGNAL(editingFinished()),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(dspin, &QDoubleSpinBox::editingFinished,
+                  this, QOverload<>::of(&IrgaDelegate::commitAndCloseEditor));
           return dspin;
         case IrgaModel::VPATHLENGTH:
         case IrgaModel::HPATHLENGTH:
@@ -189,8 +189,8 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
                 dspin->setSingleStep(1.0);
                 dspin->setAccelerated(true);
                 dspin->setSuffix(QStringLiteral(" [cm]"));
-                connect(dspin, SIGNAL(editingFinished()),
-                        this, SLOT(commitAndCloseEditor()));
+                connect(dspin, &QDoubleSpinBox::editingFinished,
+                        this, QOverload<>::of(&IrgaDelegate::commitAndCloseEditor));
                 return dspin;
             }
         case IrgaModel::TAU:
@@ -212,8 +212,8 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
                 dspin->setSingleStep(1.0);
                 dspin->setAccelerated(true);
                 dspin->setSuffix(QStringLiteral(" [s]"));
-                connect(dspin, SIGNAL(editingFinished()),
-                        this, SLOT(commitAndCloseEditor()));
+                connect(dspin, &QDoubleSpinBox::editingFinished,
+                        this, QOverload<>::of(&IrgaDelegate::commitAndCloseEditor));
                 return dspin;
             }
         case IrgaModel::KWATER:
@@ -234,8 +234,8 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
                 dspin->setSingleStep(1.0);
                 dspin->setAccelerated(true);
                 dspin->setSuffix(QStringLiteral(" [") + Defs::M3_G_CM_STRING + QStringLiteral("]"));
-                connect(dspin, SIGNAL(editingFinished()),
-                        this, SLOT(commitAndCloseEditor()));
+                connect(dspin, &QDoubleSpinBox::editingFinished,
+                        this, QOverload<>::of(&IrgaDelegate::commitAndCloseEditor));
                 return dspin;
             }
           default:

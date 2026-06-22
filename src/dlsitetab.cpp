@@ -251,23 +251,23 @@ DlSiteTab::DlSiteTab(QWidget *parent, DlProject *dlProject) :
 
     connect(altitudeLabel, &ClickLabel::clicked,
             this, &DlSiteTab::onClickAltitudeLabel);
-    connect(altitudeSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateAltitude(double)));
+    connect(altitudeSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &DlSiteTab::updateAltitude);
 
     connect(canopyLabel, &ClickLabel::clicked,
             this, &DlSiteTab::onClickCanopyLabel);
-    connect(canopyHeightSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateCanopyHeight(double)));
+    connect(canopyHeightSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &DlSiteTab::updateCanopyHeight);
 
     connect(displacementLabel, &ClickLabel::clicked,
             this, &DlSiteTab::onClickDisplacementLabel);
-    connect(displacementHeightSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateDisplacementHeight(double)));
+    connect(displacementHeightSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &DlSiteTab::updateDisplacementHeight);
 
     connect(roughnessLabel, &ClickLabel::clicked,
             this, &DlSiteTab::onClickRoughnessLabel);
-    connect(roughnessLengthSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateRoughnessLength(double)));
+    connect(roughnessLengthSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &DlSiteTab::updateRoughnessLength);
 
     connect(latitudeLabel, &ClickLabel::clicked,
             this, &DlSiteTab::onClickLatitudeLabel);
@@ -286,15 +286,15 @@ DlSiteTab::DlSiteTab(QWidget *parent, DlProject *dlProject) :
 
     connect(freqLabel, &ClickLabel::clicked,
             this, &DlSiteTab::onClickFreqLabel);
-    connect(acquisitionFreqSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateAcquisitionFrequency(double)));
+    connect(acquisitionFreqSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &DlSiteTab::updateAcquisitionFrequency);
 
-    connect(timestampRadioGroup, SIGNAL(idClicked(int)),
-            this, SLOT(updateTimestampRef(int)));
+    connect(timestampRadioGroup, &QButtonGroup::idClicked,
+            this, &DlSiteTab::updateTimestampRef);
     connect(durationLabel, &ClickLabel::clicked,
             this, &DlSiteTab::onClickDurationLabel);
-    connect(fileDurationSpin, SIGNAL(valueChanged(int)),
-            this, SLOT(updateFileDuration(int)));
+    connect(fileDurationSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &DlSiteTab::updateFileDuration);
 }
 
 DlSiteTab::~DlSiteTab()

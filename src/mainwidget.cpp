@@ -31,7 +31,9 @@
 
 #include "advoutputoptions.h"
 #include "advspectraloptions.h"
+#include "advsettingscontainer.h"
 #include "basicsettingspage.h"
+#include "mainwindow.h"
 #include "configstate.h"
 #include "dlproject.h"
 #include "ecproject.h"
@@ -92,16 +94,17 @@ MainWidget::MainWidget(QWidget *parent, DlProject *dlProject, EcProject *ecProje
             this, &MainWidget::fadeInWidget);
 
     // from MainWindow
-    connect(static_cast<QMainWindow*>(parent), SIGNAL(updateMetadataReadRequest()),
-            basicSettingsPage_, SLOT(updateMetadataRead()));
-    connect(this, SIGNAL(showSetPrototypeRequest()),
-            basicSettingsPage_, SLOT(showSetPrototype()));
+    auto mainWindow = static_cast<MainWindow*>(parent);
+    connect(mainWindow, &MainWindow::updateMetadataReadRequest,
+            basicSettingsPage_, [this](){ basicSettingsPage_->updateMetadataRead(); });
+    connect(this, &MainWidget::showSetPrototypeRequest,
+            basicSettingsPage_, &BasicSettingsPage::showSetPrototype);
 
-    connect(static_cast<QMainWindow*>(parent), SIGNAL(checkMetadataOutputRequest()),
-            advancedSettingsPage_->advancedSettingPages(), SIGNAL(checkMetadataOutputRequest()));
+    connect(mainWindow, &MainWindow::checkMetadataOutputRequest,
+            advancedSettingsPage_->advancedSettingPages(), &AdvSettingsContainer::checkMetadataOutputRequest);
 
-    connect(projectPage_, SIGNAL(updateMetadataReadRequest()),
-            basicSettingsPage_, SLOT(updateMetadataRead()));
+    connect(projectPage_, &ProjectPage::updateMetadataReadRequest,
+            basicSettingsPage_, [this](){ basicSettingsPage_->updateMetadataRead(); });
     connect(projectPage_, &ProjectPage::mdCleanupRequest,
             this, &MainWidget::mdCleanupRequest);
     connect(projectPage_, &ProjectPage::requestBasicSettingsClear,

@@ -36,7 +36,6 @@
 #include <QStyleHints>
 #include <QSvgRenderer>
 #include <QtGlobal>
-#include <QTextCodec>
 #include <QTextStream>
 #include <QTranslator>
 

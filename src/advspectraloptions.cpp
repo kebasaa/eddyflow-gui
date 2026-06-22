@@ -722,8 +722,8 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     connect(binnedSpectraRadioGroup,
             &QButtonGroup::idClicked,
             [=](int radioButton){ ecProject_->setGeneralBinSpectraAvail(radioButton); });
-    connect(binnedSpectraRadioGroup, SIGNAL(idClicked(int)),
-            this, SLOT(binnedSpectraRadioClicked(int)));
+    connect(binnedSpectraRadioGroup, &QButtonGroup::idClicked,
+            this, &AdvSpectralOptions::binnedSpectraRadioClicked);
     connect(binnedSpectraDirBrowse, &DirBrowseWidget::pathChanged,
             this, &AdvSpectralOptions::updateBinnedSpectraFile);
     connect(binnedSpectraDirBrowse, &DirBrowseWidget::pathSelected,
@@ -747,12 +747,12 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
 
     connect(filterLabel, &ClickLabel::clicked, [=]()
             { if (filterCombo->isEnabled()) filterCombo->showPopup(); });
-    connect(filterCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateFilter(int)));
+    connect(filterCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvSpectralOptions::updateFilter);
     connect(nBinsLabel, &ClickLabel::clicked, [=]()
             { nBinsSpin->setFocus(); nBinsSpin->selectAll(); });
-    connect(nBinsSpin, SIGNAL(valueChanged(int)),
-            this, SLOT(updateNBins(int)));
+    connect(nBinsSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateNBins);
     connect(fftCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setScreenlPowerOfTwo(checked); });
 
@@ -831,8 +831,8 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             hfMethCombo, &QComboBox::setEnabled);
     connect(hfMethLabel, &ClickLabel::clicked,
             this, &AdvSpectralOptions::onClickHfMethLabel);
-    connect(hfMethCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateHfMethod_2(int)));
+    connect(hfMethCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvSpectralOptions::updateHfMethod_2);
     connect(horstCheck, &QCheckBox::toggled,
             horstMethodLabel, &ClickLabel::setEnabled);
     connect(horstCheck, &QCheckBox::toggled,
@@ -841,8 +841,8 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             this, &AdvSpectralOptions::onClickHorstLabel);
     connect(horstCheck, &QCheckBox::toggled,
             this, &AdvSpectralOptions::updateHorst_1);
-    connect(horstCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateHorst_2(int)));
+    connect(horstCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvSpectralOptions::updateHorst_2);
 
     connect(hfCorrectGhgBaCheck, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setGeneralHfCorrectGhgBa(checked); });
@@ -868,8 +868,8 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             this, &AdvSpectralOptions::testSelectedSpectraFile);
     connect(minSmplLabel, &ClickLabel::clicked,
             this, &AdvSpectralOptions::onMinSmplLabelClicked);
-    connect(minSmplSpin, SIGNAL(valueChanged(int)),
-            this, SLOT(updateMinSmpl(int)));
+    connect(minSmplSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateMinSmpl);
     connect(minUnstableLabel, &ClickLabel::clicked,
             this, &AdvSpectralOptions::onMinCo2LabelClicked);
     connect(minStableLabel, &ClickLabel::clicked,
@@ -878,37 +878,37 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             this, &AdvSpectralOptions::onMinGas4LabelClicked);
     connect(spin10Label, &ClickLabel::clicked,
             this, &AdvSpectralOptions::onSpin10LabelClicked);
-    connect(spin11, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFminCo2(double)));
-    connect(spin12, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFminH2o(double)));
-    connect(spin13, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFminCh4(double)));
-    connect(spin14, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFminGas4(double)));
+    connect(spin11, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateFminCo2);
+    connect(spin12, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateFminH2o);
+    connect(spin13, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateFminCh4);
+    connect(spin14, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateFminGas4);
     connect(spin20Label, &ClickLabel::clicked,
             this, &AdvSpectralOptions::onSpin20LabelClicked);
-    connect(spin21, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFmaxCo2(double)));
-    connect(spin22, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFmaxH2o(double)));
-    connect(spin23, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFmaxCh4(double)));
-    connect(spin24, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFmaxGas4(double)));
+    connect(spin21, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateFmaxCo2);
+    connect(spin22, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateFmaxH2o);
+    connect(spin23, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateFmaxCh4);
+    connect(spin24, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateFmaxGas4);
     connect(spin30Label, &ClickLabel::clicked,
             this, &AdvSpectralOptions::onSpin30LabelClicked);
-    connect(spin31, SIGNAL(valueChanged(double)),
-            this, SLOT(updateHfnCo2(double)));
-    connect(spin32, SIGNAL(valueChanged(double)),
-            this, SLOT(updateHfnH2o(double)));
-    connect(spin33, SIGNAL(valueChanged(double)),
-            this, SLOT(updateHfnCh4(double)));
-    connect(spin34, SIGNAL(valueChanged(double)),
-            this, SLOT(updateHfnGas4(double)));
+    connect(spin31, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateHfnCo2);
+    connect(spin32, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateHfnH2o);
+    connect(spin33, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateHfnCh4);
+    connect(spin34, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateHfnGas4);
 
-    connect(fullSpectraRadioGroup, SIGNAL(idClicked(int)),
-            this, SLOT(fullSpectraRadioClicked(int)));
+    connect(fullSpectraRadioGroup, &QButtonGroup::idClicked,
+            this, &AdvSpectralOptions::fullSpectraRadioClicked);
     connect(fullSpectraDirBrowse, &DirBrowseWidget::pathChanged,
             this, &AdvSpectralOptions::updateFullSpectraFile);
     connect(fullSpectraDirBrowse, &DirBrowseWidget::pathSelected,
@@ -926,8 +926,8 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     for (auto widget : combo_list)
     {
         auto combo = static_cast<QComboBox *>(widget);
-        connect(combo, SIGNAL(currentIndexChanged(int)),
-                this, SLOT(updateTooltip(int)));
+        connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, &AdvSpectralOptions::updateTooltip);
     }
 
     // fix layout alignment
@@ -949,7 +949,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
         w->setMaximumWidth(max_spin_width);
     }
 
-    QTimer::singleShot(0, this, SLOT(reset()));
+    QTimer::singleShot(0, this, &AdvSpectralOptions::reset);
 }
 
 AdvSpectralOptions::~AdvSpectralOptions()

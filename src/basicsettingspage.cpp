@@ -985,18 +985,18 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
 
     connect(avgIntervalLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onAvgLenLabelClicked);
-    connect(avgIntervalSpin, SIGNAL(valueChanged(int)),
-            this, SLOT(updateAvrgLen(int)));
+    connect(avgIntervalSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &BasicSettingsPage::updateAvrgLen);
 
     connect(maxLackLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onMaxLackLabelClicked);
-    connect(maxLackSpin, SIGNAL(valueChanged(int)),
-            this, SLOT(updateMaxLack(int)));
+    connect(maxLackSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &BasicSettingsPage::updateMaxLack);
 
     connect(subsetCheckBox, &QCheckBox::toggled,
             this, &BasicSettingsPage::updateSubsetSelection);
-//    connect(subsetCheckBox, SIGNAL(toggled(bool)),
-//            dateRangeDetectButton, SLOT(setDisabled(bool)));
+//    connect(subsetCheckBox, &QCheckBox::toggled,
+//            dateRangeDetectButton, &QPushButton::setDisabled);
 
     connect(dateRangeDetectButton, &QPushButton::clicked,
             this, &BasicSettingsPage::dateRangeDetect);
@@ -1020,191 +1020,191 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
 
     connect(anemRefLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickAnemRefLabel);
-    connect(anemRefCombo, SIGNAL(activated(QString)),
-            this, SLOT(updateAnemRefCombo(QString)));
+    connect(anemRefCombo, QOverload<const QString &>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateAnemRefCombo);
 
     connect(anemFlagLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickAnemFlagLabel);
-    connect(anemFlagCombo, SIGNAL(activated(int)),
-            this, SLOT(updateAnemFlagCombo(int)));
+    connect(anemFlagCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateAnemFlagCombo);
 
     connect(co2RefLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickCo2RefLabel);
-    connect(co2RefCombo, SIGNAL(activated(int)),
-            this, SLOT(updateCo2RefCombo(int)));
+    connect(co2RefCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateCo2RefCombo);
 
     connect(h2oRefLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickH2oRefLabel);
-    connect(h2oRefCombo, SIGNAL(activated(int)),
-            this, SLOT(updateH2oRefCombo(int)));
+    connect(h2oRefCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateH2oRefCombo);
 
     connect(ch4RefLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickCh4RefLabel);
-    connect(ch4RefCombo, SIGNAL(activated(int)),
-            this, SLOT(updateCh4RefCombo(int)));
+    connect(ch4RefCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateCh4RefCombo);
 
-    connect(gasMw, SIGNAL(valueChanged(double)),
-            this, SLOT(updateGasMw(double)));
-    connect(gasDiff, SIGNAL(valueChanged(double)),
-            this, SLOT(updateGasDiff(double)));
+    connect(gasMw, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &BasicSettingsPage::updateGasMw);
+    connect(gasDiff, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &BasicSettingsPage::updateGasDiff);
 
     connect(fourthGasRefLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickFourthGasRefLabel);
-    connect(fourthGasRefCombo, SIGNAL(activated(int)),
-            this, SLOT(updateFourthGasRefCombo(int)));
-    connect(fourthGasRefCombo, SIGNAL(activated(QString)),
-            this, SLOT(updateFourthGasSettings(QString)));
+    connect(fourthGasRefCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateFourthGasRefCombo);
+    connect(fourthGasRefCombo, QOverload<const QString &>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateFourthGasSettings);
 
     connect(intTcRefLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickIntTcRefLabel);
-    connect(intTcRefCombo, SIGNAL(activated(int)),
-            this, SLOT(updateIntTcRefCombo(int)));
+    connect(intTcRefCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateIntTcRefCombo);
 
     connect(intT1RefLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickIntT1RefLabel);
-    connect(intT1RefCombo, SIGNAL(activated(int)),
-            this, SLOT(updateIntT1RefCombo(int)));
+    connect(intT1RefCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateIntT1RefCombo);
 
     connect(intT2RefLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickIntT2RefLabel);
-    connect(intT2RefCombo, SIGNAL(activated(int)),
-            this, SLOT(updateIntT2RefCombo(int)));
+    connect(intT2RefCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateIntT2RefCombo);
 
     connect(intPRefLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickIntPRefLabel);
-    connect(intPRefCombo, SIGNAL(activated(int)),
-            this, SLOT(updateIntPRefCombo(int)));
+    connect(intPRefCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateIntPRefCombo);
 
     connect(airTRefLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickAirTRefLabel);
-    connect(airTRefCombo, SIGNAL(activated(int)),
-            this, SLOT(updateAirTRefCombo(int)));
+    connect(airTRefCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateAirTRefCombo);
 
     connect(airPRefLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickAirPRefLabel);
-    connect(airPRefCombo, SIGNAL(activated(int)),
-            this, SLOT(updateAirPRefCombo(int)));
+    connect(airPRefCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateAirPRefCombo);
 
     connect(rhLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickRhLabel);
-    connect(rhCombo, SIGNAL(activated(int)),
-            this, SLOT(updateRhCombo(int)));
+    connect(rhCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateRhCombo);
 
     connect(rgLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickRgLabel);
-    connect(rgCombo, SIGNAL(activated(int)),
-            this, SLOT(updateRgCombo(int)));
+    connect(rgCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateRgCombo);
 
     connect(lwinLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickLwinLabel);
-    connect(lwinCombo, SIGNAL(activated(int)),
-            this, SLOT(updateLwinCombo(int)));
+    connect(lwinCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateLwinCombo);
 
     connect(ppfdLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickPpfdLabel);
-    connect(ppfdCombo, SIGNAL(activated(int)),
-            this, SLOT(updatePpfdCombo(int)));
+    connect(ppfdCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updatePpfdCombo);
 
     connect(diag7500Label, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickDiag7500Label);
-    connect(diag7500Combo, SIGNAL(activated(int)),
-            this, SLOT(updateDiag7500Combo(int)));
+    connect(diag7500Combo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateDiag7500Combo);
 
     connect(diag7200Label, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickDiag7200Label);
-    connect(diag7200Combo, SIGNAL(activated(int)),
-            this, SLOT(updateDiag7200Combo(int)));
+    connect(diag7200Combo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateDiag7200Combo);
 
     connect(diag7700Label, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickDiag7700Label);
-    connect(diag7700Combo, SIGNAL(activated(int)),
-            this, SLOT(updateDiag7700Combo(int)));
+    connect(diag7700Combo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateDiag7700Combo);
 
     connect(tsRefLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickTsRefLabel);
-    connect(tsRefCombo, SIGNAL(activated(int)),
-            this, SLOT(updateTsRefCombo(int)));
+    connect(tsRefCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateTsRefCombo);
 
     connect(crossWindCheckBox, &QCheckBox::toggled,
             this, &BasicSettingsPage::updateCrossWind);
 
-    connect(flag1VarCombo, SIGNAL(activated(int)),
-            this, SLOT(updateFlag1Combo(int)));
-    connect(flag1ThresholdSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFlag1Threshold(double)));
-    connect(flag1PolicyCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateFlag1Policy(int)));
+    connect(flag1VarCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateFlag1Combo);
+    connect(flag1ThresholdSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &BasicSettingsPage::updateFlag1Threshold);
+    connect(flag1PolicyCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &BasicSettingsPage::updateFlag1Policy);
 
-    connect(flag2VarCombo, SIGNAL(activated(int)),
-            this, SLOT(updateFlag2Combo(int)));
-    connect(flag2ThresholdSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFlag2Threshold(double)));
-    connect(flag2PolicyCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateFlag2Policy(int)));
+    connect(flag2VarCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateFlag2Combo);
+    connect(flag2ThresholdSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &BasicSettingsPage::updateFlag2Threshold);
+    connect(flag2PolicyCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &BasicSettingsPage::updateFlag2Policy);
 
-    connect(flag3VarCombo, SIGNAL(activated(int)),
-            this, SLOT(updateFlag3Combo(int)));
-    connect(flag3ThresholdSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFlag3Threshold(double)));
-    connect(flag3PolicyCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateFlag3Policy(int)));
+    connect(flag3VarCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateFlag3Combo);
+    connect(flag3ThresholdSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &BasicSettingsPage::updateFlag3Threshold);
+    connect(flag3PolicyCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &BasicSettingsPage::updateFlag3Policy);
 
-    connect(flag4VarCombo, SIGNAL(activated(int)),
-            this, SLOT(updateFlag4Combo(int)));
-    connect(flag4ThresholdSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFlag4Threshold(double)));
-    connect(flag4PolicyCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateFlag4Policy(int)));
+    connect(flag4VarCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateFlag4Combo);
+    connect(flag4ThresholdSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &BasicSettingsPage::updateFlag4Threshold);
+    connect(flag4PolicyCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &BasicSettingsPage::updateFlag4Policy);
 
-    connect(flag5VarCombo, SIGNAL(activated(int)),
-            this, SLOT(updateFlag5Combo(int)));
-    connect(flag5ThresholdSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFlag5Threshold(double)));
-    connect(flag5PolicyCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateFlag5Policy(int)));
+    connect(flag5VarCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateFlag5Combo);
+    connect(flag5ThresholdSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &BasicSettingsPage::updateFlag5Threshold);
+    connect(flag5PolicyCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &BasicSettingsPage::updateFlag5Policy);
 
-    connect(flag6VarCombo, SIGNAL(activated(int)),
-            this, SLOT(updateFlag6Combo(int)));
-    connect(flag6ThresholdSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFlag6Threshold(double)));
-    connect(flag6PolicyCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateFlag6Policy(int)));
+    connect(flag6VarCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateFlag6Combo);
+    connect(flag6ThresholdSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &BasicSettingsPage::updateFlag6Threshold);
+    connect(flag6PolicyCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &BasicSettingsPage::updateFlag6Policy);
 
-    connect(flag7VarCombo, SIGNAL(activated(int)),
-            this, SLOT(updateFlag7Combo(int)));
-    connect(flag7ThresholdSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFlag7Threshold(double)));
-    connect(flag7PolicyCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateFlag7Policy(int)));
+    connect(flag7VarCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateFlag7Combo);
+    connect(flag7ThresholdSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &BasicSettingsPage::updateFlag7Threshold);
+    connect(flag7PolicyCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &BasicSettingsPage::updateFlag7Policy);
 
-    connect(flag8VarCombo, SIGNAL(activated(int)),
-            this, SLOT(updateFlag8Combo(int)));
-    connect(flag8ThresholdSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFlag8Threshold(double)));
-    connect(flag8PolicyCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateFlag8Policy(int)));
+    connect(flag8VarCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateFlag8Combo);
+    connect(flag8ThresholdSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &BasicSettingsPage::updateFlag8Threshold);
+    connect(flag8PolicyCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &BasicSettingsPage::updateFlag8Policy);
 
-    connect(flag9VarCombo, SIGNAL(activated(int)),
-            this, SLOT(updateFlag9Combo(int)));
-    connect(flag9ThresholdSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFlag9Threshold(double)));
-    connect(flag9PolicyCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateFlag9Policy(int)));
+    connect(flag9VarCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateFlag9Combo);
+    connect(flag9ThresholdSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &BasicSettingsPage::updateFlag9Threshold);
+    connect(flag9PolicyCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &BasicSettingsPage::updateFlag9Policy);
 
-    connect(flag10VarCombo, SIGNAL(activated(int)),
-            this, SLOT(updateFlag10Combo(int)));
-    connect(flag10ThresholdSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFlag10Threshold(double)));
-    connect(flag10PolicyCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateFlag10Policy(int)));
+    connect(flag10VarCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateFlag10Combo);
+    connect(flag10ThresholdSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &BasicSettingsPage::updateFlag10Threshold);
+    connect(flag10PolicyCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &BasicSettingsPage::updateFlag10Policy);
 
     connect(moreButton, &QPushButton::toggled,
             gasExtension, &QWidget::setVisible);
 
-    connect(northRadioGroup, SIGNAL(idClicked(int)),
-            this, SLOT(northRadioClicked(int)));
-    connect(northRadioGroup, SIGNAL(idClicked(int)),
-            this, SLOT(updateUseGeoNorth(int)));
+    connect(northRadioGroup, QOverload<int>::of(&QButtonGroup::idClicked),
+            this, &BasicSettingsPage::northRadioClicked);
+    connect(northRadioGroup, QOverload<int>::of(&QButtonGroup::idClicked),
+            this, &BasicSettingsPage::updateUseGeoNorth);
 
     connect(declinationLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickDeclinationLabel);
@@ -1232,8 +1232,8 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     for (auto widget :combo_list)
     {
         auto combo = dynamic_cast<QComboBox *>(widget);
-        connect(combo, SIGNAL(currentIndexChanged(int)),
-                this, SLOT(updateFlagUnit(int)));
+        connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, &BasicSettingsPage::updateFlagUnit);
     }
 
     auto label_list = QWidgetList() << flag1Label
@@ -1253,18 +1253,18 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
                 this, &BasicSettingsPage::onClickFlagLabel);
     }
 
-    connect(smartfluxBar_, SIGNAL(showSmartfluxBarRequest(bool)),
-            parent, SIGNAL(showSmartfluxBarRequest(bool)));
+    connect(smartfluxBar_, &SmartFluxBar::showSmartfluxBarRequest,
+            static_cast<MainWidget *>(parent), &MainWidget::showSmartfluxBarRequest);
 
-    connect(smartfluxBar_, SIGNAL(saveSilentlyRequest()),
-            parent, SIGNAL(saveSilentlyRequest()));
+    connect(smartfluxBar_, &SmartFluxBar::saveSilentlyRequest,
+            static_cast<MainWidget *>(parent), &MainWidget::saveSilentlyRequest);
 
-    connect(smartfluxBar_, SIGNAL(saveRequest()),
-            parent, SIGNAL(saveRequest()));
+    connect(smartfluxBar_, &SmartFluxBar::saveRequest,
+            static_cast<MainWidget *>(parent), &MainWidget::saveRequest);
 
     // other inits
-    QTimer::singleShot(0, this, SLOT(reset()));
-    QTimer::singleShot(0, this, SLOT(init()));
+    QTimer::singleShot(0, this, &BasicSettingsPage::reset);
+    QTimer::singleShot(0, this, &BasicSettingsPage::init);
 }
 
 BasicSettingsPage::~BasicSettingsPage()
@@ -2718,7 +2718,7 @@ void BasicSettingsPage::updateRecursion(bool b)
 {
     ecProject_->setScreenRecurse(b);
 
-    QTimer::singleShot(0, this, SLOT(runUpdateFilesFound()));
+    QTimer::singleShot(0, this, &BasicSettingsPage::runUpdateFilesFound);
 }
 
 void BasicSettingsPage::updateSubsetSelection(bool b)
@@ -5215,8 +5215,8 @@ void BasicSettingsPage::setupWindFilterViews()
 
     windFilterTableView_->verticalHeader()->setProperty("pieTableV", true);
 
-    connect(windFilterView_, SIGNAL(clicked(QModelIndex)),
-            windFilterTableView_, SLOT(edit(QModelIndex)));
+    connect(windFilterView_, &WindFilterView::clicked,
+            windFilterTableView_, &WindFilterTableView::edit);
 }
 
 void BasicSettingsPage::insertAngleAt(int row)

@@ -38,6 +38,7 @@
 #include "clicklabel.h"
 #include "defs.h"
 #include "ecproject.h"
+#include "mainwidget.h"
 #include "smartfluxbar.h"
 #include "widget_utils.h"
 
@@ -298,8 +299,9 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     connect(supportListWidget, &QListWidget::itemClicked,
             this, &WelcomePage::supportItemRequested);
 
-    connect(parent, SIGNAL(recentUpdated()),
-            this, SLOT(updateRecentList()));
+    auto mainWidget = static_cast<MainWidget*>(parent);
+    connect(mainWidget, &MainWidget::recentUpdated,
+            this, &WelcomePage::updateRecentList);
 
     connect(openButton, &QToolButton::clicked,
             this, &WelcomePage::openProjectRequested);
@@ -307,17 +309,17 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
             this, &WelcomePage::newProjectRequest);
 
     // routing signal to parent
-    connect(smartfluxBar_, SIGNAL(showSmartfluxBarRequest(bool)),
-            parent, SIGNAL(showSmartfluxBarRequest(bool)));
+    connect(smartfluxBar_, &SmartFluxBar::showSmartfluxBarRequest,
+            mainWidget, &MainWidget::showSmartfluxBarRequest);
 
-    connect(smartfluxBar_, SIGNAL(saveSilentlyRequest()),
-            parent, SIGNAL(saveSilentlyRequest()));
+    connect(smartfluxBar_, &SmartFluxBar::saveSilentlyRequest,
+            mainWidget, &MainWidget::saveSilentlyRequest);
 
-    connect(smartfluxModeCheckbox_, SIGNAL(toggled(bool)),
-            parent, SIGNAL(showSmartfluxBarRequest(bool)));
+    connect(smartfluxModeCheckbox_, &QCheckBox::toggled,
+            mainWidget, &MainWidget::showSmartfluxBarRequest);
 
-    connect(smartfluxBar_, SIGNAL(saveRequest()),
-            parent, SIGNAL(saveRequest()));
+    connect(smartfluxBar_, &SmartFluxBar::saveRequest,
+            mainWidget, &MainWidget::saveRequest);
 }
 
 WelcomePage::~WelcomePage()

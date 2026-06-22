@@ -407,12 +407,12 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     connect(wLabel, &ClickLabel::clicked,
             this, &AdvProcessingOptions::onWLabelClicked);
 
-    connect(uOffsetSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateUOffset(double)));
-    connect(vOffsetSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateVOffset(double)));
-    connect(wOffsetSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateWOffset(double)));
+    connect(uOffsetSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvProcessingOptions::updateUOffset);
+    connect(vOffsetSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvProcessingOptions::updateVOffset);
+    connect(wOffsetSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvProcessingOptions::updateWOffset);
 
     connect(wBoostCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateWBoost);
@@ -424,8 +424,8 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             this, &AdvProcessingOptions::onClickAoaMethLabel);
     connect(aoaCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateAoaMethod_1);
-    connect(aoaMethCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateAoaMethod_2(int)));
+    connect(aoaMethCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvProcessingOptions::updateAoaMethod_2);
 
     connect(rotCheckBox, &RichTextCheckBox::toggled,
             rotMethLabel, &ClickLabel::setEnabled);
@@ -435,8 +435,8 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             this, &AdvProcessingOptions::onClickRotMethLabel);
     connect(rotCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateRotMethod_1);
-    connect(rotMethCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateRotMethod_2(int)));
+    connect(rotMethCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvProcessingOptions::updateRotMethod_2);
     connect(rotCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updatePfSettingsButton);
 
@@ -448,13 +448,13 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             this, &AdvProcessingOptions::onClickDetrendLabel);
     connect(timeConstantLabel, &ClickLabel::clicked,
             this, &AdvProcessingOptions::onClickTimeConstantLabel);
-    connect(detrendCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(onClickDetrendCombo(int)));
-    connect(detrendCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateDetrendMeth(int)));
+    connect(detrendCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvProcessingOptions::onClickDetrendCombo);
+    connect(detrendCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvProcessingOptions::updateDetrendMeth);
 
-    connect(timeConstantSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateTimeConst(double)));
+    connect(timeConstantSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvProcessingOptions::updateTimeConst);
 
     connect(timeLagCheckBox, &RichTextCheckBox::toggled,
             timeLagMethodLabel, &ClickLabel::setEnabled);
@@ -466,8 +466,8 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             this, &AdvProcessingOptions::onClickTimeLagMethLabel);
     connect(timeLagCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateTlagMeth_1);
-    connect(timeLagMethodCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateTlagMeth_2(int)));
+    connect(timeLagMethodCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvProcessingOptions::updateTlagMeth_2);
 
     connect(qcCheckBox, &RichTextCheckBox::toggled,
             qcLabel, &ClickLabel::setEnabled);
@@ -477,8 +477,8 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             this, &AdvProcessingOptions::onClickQcMethodLabel);
     connect(qcCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateQcMeth_1);
-    connect(qcMethodCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateQcMeth_2(int)));
+    connect(qcMethodCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvProcessingOptions::updateQcMeth_2);
 
     connect(fpCheckBox, &RichTextCheckBox::toggled,
             fpLabel, &ClickLabel::setEnabled);
@@ -488,8 +488,8 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             this, &AdvProcessingOptions::onClickFpMethodLabel);
     connect(fpCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateFpMeth_1);
-    connect(fpMethodCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateFpMeth_2(int)));
+    connect(fpMethodCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvProcessingOptions::updateFpMeth_2);
 
     connect(wplCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateWplMeth_1);
@@ -501,8 +501,8 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             { ecProject_->setScreenBuCorr(checked); });
     connect(burbaCorrCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::enableBurbaCorrectionArea);
-    connect(burbaRadioGroup, SIGNAL(idClicked(int)),
-            this, SLOT(updateBurbaType_2(int)));
+    connect(burbaRadioGroup, &QButtonGroup::idClicked,
+            this, &AdvProcessingOptions::updateBurbaType_2);
     connect(setDefaultsButton, &QPushButton::clicked,
             this, &AdvProcessingOptions::on_setDefaultsButton_clicked);
 
@@ -520,13 +520,13 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     for (auto widget : combo_list)
     {
         auto combo = static_cast<QComboBox *>(widget);
-        connect(combo, SIGNAL(currentIndexChanged(int)),
-                this, SLOT(updateTooltip(int)));
+        connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, &AdvProcessingOptions::updateTooltip);
     }
 
     createPfSettingsDialog();
     createTlSettingsDialog();
-    QTimer::singleShot(0, this, SLOT(reset()));
+    QTimer::singleShot(0, this, &AdvProcessingOptions::reset);
 }
 
 AdvProcessingOptions::~AdvProcessingOptions()

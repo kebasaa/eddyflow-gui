@@ -348,11 +348,11 @@ TimeLagSettingsDialog::TimeLagSettingsDialog(QWidget *parent, EcProject *ecProje
     mainLayout->setSizeConstraint(QLayout::SetFixedSize);
     setLayout(mainLayout);
 
-    connect(radioGroup, SIGNAL(idClicked(int)),
-            this, SLOT(updateTlMode(int)));
+    connect(radioGroup, &QButtonGroup::idClicked,
+            this, &TimeLagSettingsDialog::updateTlMode);
 
-    connect(radioGroup, SIGNAL(idClicked(int)),
-            this, SLOT(radioClicked(int)));
+    connect(radioGroup, &QButtonGroup::idClicked,
+            this, &TimeLagSettingsDialog::radioClicked);
 
     connect(fileBrowse, &FileBrowseWidget::pathChanged,
             this, &TimeLagSettingsDialog::updateFile);
@@ -378,61 +378,61 @@ TimeLagSettingsDialog::TimeLagSettingsDialog(QWidget *parent, EcProject *ecProje
 
     connect(rhClassLabel, &ClickLabel::clicked,
             this, &TimeLagSettingsDialog::onRhClassClicked);
-    connect(rhClassSpin, SIGNAL(valueChanged(int)),
-            this, SLOT(updateRhClass(int)));
+    connect(rhClassSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &TimeLagSettingsDialog::updateRhClass);
 
     connect(co2MinFluxLabel, &ClickLabel::clicked,
             this, &TimeLagSettingsDialog::onCo2MinFluxClicked);
-    connect(co2MinFluxSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateCo2MinFlux(double)));
+    connect(co2MinFluxSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &TimeLagSettingsDialog::updateCo2MinFlux);
 
     connect(ch4MinFluxLabel, &ClickLabel::clicked,
             this, &TimeLagSettingsDialog::onCh4MinFluxClicked);
-    connect(ch4MinFluxSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateCh4MinFlux(double)));
+    connect(ch4MinFluxSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &TimeLagSettingsDialog::updateCh4MinFlux);
 
     connect(gas4MinFluxLabel, &ClickLabel::clicked,
             this, &TimeLagSettingsDialog::onGas4MinFluxClicked);
-    connect(gas4MinFluxSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateGas4MinFlux(double)));
+    connect(gas4MinFluxSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &TimeLagSettingsDialog::updateGas4MinFlux);
 
     connect(leMinFluxLabel, &ClickLabel::clicked,
             this, &TimeLagSettingsDialog::onLeMinFluxClicked);
-    connect(leMinFluxSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateLeMinFlux(double)));
+    connect(leMinFluxSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &TimeLagSettingsDialog::updateLeMinFlux);
 
     connect(pgRangeLabel, &ClickLabel::clicked,
             this, &TimeLagSettingsDialog::onPgRangeLabelClicked);
-    connect(pgRangeSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updatePgRange(double)));
+    connect(pgRangeSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &TimeLagSettingsDialog::updatePgRange);
 
     connect(co2Label, &ClickLabel::clicked,
             this, &TimeLagSettingsDialog::onCo2LabelClicked);
-    connect(minCo2TlSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateMinCo2Tl(double)));
-    connect(maxCo2TlSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateMaxCo2Tl(double)));
+    connect(minCo2TlSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &TimeLagSettingsDialog::updateMinCo2Tl);
+    connect(maxCo2TlSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &TimeLagSettingsDialog::updateMaxCo2Tl);
 
     connect(h2oLabel, &ClickLabel::clicked,
             this, &TimeLagSettingsDialog::onH2oLabelClicked);
-    connect(minH2oTlSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateMinH2oTl(double)));
-    connect(maxH2oTlSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateMaxH2oTl(double)));
+    connect(minH2oTlSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &TimeLagSettingsDialog::updateMinH2oTl);
+    connect(maxH2oTlSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &TimeLagSettingsDialog::updateMaxH2oTl);
 
     connect(ch4Label, &ClickLabel::clicked,
             this, &TimeLagSettingsDialog::onCh4LabelClicked);
-    connect(minCh4TlSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateMinCh4Tl(double)));
-    connect(maxCh4TlSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateMaxCh4Tl(double)));
+    connect(minCh4TlSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &TimeLagSettingsDialog::updateMinCh4Tl);
+    connect(maxCh4TlSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &TimeLagSettingsDialog::updateMaxCh4Tl);
 
     connect(gas4Label, &ClickLabel::clicked,
             this, &TimeLagSettingsDialog::onGas4LabelClicked);
-    connect(minGas4TlSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateMinGas4Tl(double)));
-    connect(maxGas4TlSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateMaxGas4Tl(double)));
+    connect(minGas4TlSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &TimeLagSettingsDialog::updateMinGas4Tl);
+    connect(maxGas4TlSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &TimeLagSettingsDialog::updateMaxGas4Tl);
 
     connect(okButton, &QPushButton::clicked,
             this, &TimeLagSettingsDialog::close);

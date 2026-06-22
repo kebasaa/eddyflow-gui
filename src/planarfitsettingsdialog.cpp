@@ -272,11 +272,11 @@ PlanarFitSettingsDialog::PlanarFitSettingsDialog(QWidget* parent, EcProject *ecP
     mainLayout->setContentsMargins(30, 30, 30, 30);
     setLayout(mainLayout);
 
-    connect(radioGroup, SIGNAL(idClicked(int)),
-            this, SLOT(updatePfMode(int)));
+    connect(radioGroup, &QButtonGroup::idClicked,
+            this, &PlanarFitSettingsDialog::updatePfMode);
 
-    connect(radioGroup, SIGNAL(idClicked(int)),
-            this, SLOT(radioClicked(int)));
+    connect(radioGroup, &QButtonGroup::idClicked,
+            this, &PlanarFitSettingsDialog::radioClicked);
 
     connect(fileBrowse, &FileBrowseWidget::pathChanged,
             this, &PlanarFitSettingsDialog::updateFile);
@@ -302,34 +302,34 @@ PlanarFitSettingsDialog::PlanarFitSettingsDialog(QWidget* parent, EcProject *ecP
 
     connect(itemPerSectorLabel, &ClickLabel::clicked,
             this, &PlanarFitSettingsDialog::onItemPerSectorLabelClicked);
-    connect(itemPerSectorSpin, SIGNAL(valueChanged(int)),
-            this, SLOT(updateItemPerSector(int)));
+    connect(itemPerSectorSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &PlanarFitSettingsDialog::updateItemPerSector);
 
     connect(maxAvgWLabel, &ClickLabel::clicked,
             this, &PlanarFitSettingsDialog::onMaxAvgWLabelClicked);
-    connect(maxAvgWSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateMaxAvgW(double)));
+    connect(maxAvgWSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &PlanarFitSettingsDialog::updateMaxAvgW);
 
     connect(minAvgULabel, &ClickLabel::clicked,
             this, &PlanarFitSettingsDialog::onMinAvgULabelClicked);
-    connect(minAvgUSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateMinAvgU(double)));
+    connect(minAvgUSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &PlanarFitSettingsDialog::updateMinAvgU);
 
     connect(fixPolicyLabel, &ClickLabel::clicked,
             this, &PlanarFitSettingsDialog::onFixPolicyLabelClicked);
-    connect(fixPolicyCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateFixPolicy(int)));
+    connect(fixPolicyCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &PlanarFitSettingsDialog::updateFixPolicy);
 
     connect(setEquallySpacedButton, &QPushButton::clicked,
             this, &PlanarFitSettingsDialog::setEquallySpaced);
 
     connect(offsetLabel, &ClickLabel::clicked,
             this, &PlanarFitSettingsDialog::onOffsetLabelClicked);
-    connect(offsetSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(setNorthOffset(double)));
+    connect(offsetSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &PlanarFitSettingsDialog::setNorthOffset);
 
-    connect(angleTableModel_, SIGNAL(offsetChanged(double)),
-            offsetSpin, SLOT(setValue(double)));
+    connect(angleTableModel_, &AngleTableModel::offsetChanged,
+            offsetSpin, &QDoubleSpinBox::setValue);
     connect(angleTableModel_, &AngleTableModel::modified,
             this, &PlanarFitSettingsDialog::modelModified);
     connect(angleTableModel_, &AngleTableModel::modelReset,
@@ -712,8 +712,8 @@ void PlanarFitSettingsDialog::setupViews()
     QHeaderView *vHeaderView = angleTableView_->verticalHeader();
     vHeaderView->setProperty("pieTableV", true);
 
-    connect(anglesView_, SIGNAL(clicked(QModelIndex)),
-            angleTableView_, SLOT(edit(QModelIndex)));
+    connect(anglesView_, &QAbstractItemView::clicked,
+            angleTableView_, &QAbstractItemView::edit);
 }
 
 void PlanarFitSettingsDialog::insertAngleAt(int row)

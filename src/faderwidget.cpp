@@ -35,7 +35,7 @@ FaderWidget::FaderWidget(QWidget *parent)
 
     timeLine = new QTimeLine(333, this);
     timeLine->setFrameRange(1000, 0);
-    connect(timeLine, SIGNAL(frameChanged(int)), this, SLOT(update()));
+    connect(timeLine, &QTimeLine::frameChanged, this, [this](int){ update(); });
 
     setAttribute(Qt::WA_DeleteOnClose);
     if (parent)

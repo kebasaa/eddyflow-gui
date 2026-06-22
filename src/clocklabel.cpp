@@ -34,7 +34,7 @@ ClockLabel::ClockLabel(QWidget *parent) : QLabel(parent)
 {
     QTimer *timer = new QTimer(this);
     timer->setInterval(1000);
-    connect(timer, SIGNAL(timeout()), this, SLOT(updateTime()));
+    connect(timer, &QTimer::timeout, this, &ClockLabel::updateTime);
     timer->start();
 
     updateTime();

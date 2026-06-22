@@ -104,27 +104,27 @@ DynamicSettingsDialog::DynamicSettingsDialog(QWidget* parent, EcProject *ecProje
     dynSettingsLayout->setRowMinimumHeight(0, 25);
     setLayout(dynSettingsLayout);
 
-    connect(timelineFileCheckBox, SIGNAL(toggled(bool)),
-            this, SLOT(onTimelineFileCheckBoxClicked(bool)));
-    connect(timelineFileCheckBox, SIGNAL(toggled(bool)),
-            this, SLOT(updateUseTimelineFile(bool)));
-    connect(timelineFileEdit, SIGNAL(textChanged(const QString &)),
-            this, SLOT(updateTimelineFile(const QString &)));
-    connect(timelineFileLoad, SIGNAL(clicked()),
-            this, SLOT(timelineFileLoad_clicked()));
+    connect(timelineFileCheckBox, &QCheckBox::toggled,
+            this, &DynamicSettingsDialog::onTimelineFileCheckBoxClicked);
+    connect(timelineFileCheckBox, &QCheckBox::toggled,
+            this, &DynamicSettingsDialog::updateUseTimelineFile);
+    connect(timelineFileEdit, &QLineEdit::textChanged,
+            this, &DynamicSettingsDialog::updateTimelineFile);
+    connect(timelineFileLoad, &QPushButton::clicked,
+            this, &DynamicSettingsDialog::timelineFileLoad_clicked);
 
-    connect(meteoFileCheckBox, SIGNAL(toggled(bool)),
-            this, SLOT(onMeteoFileCheckBoxClicked(bool)));
-    connect(meteoFileCheckBox, SIGNAL(toggled(bool)),
-            this, SLOT(updateUseMeteoFile(bool)));
-    connect(meteoFileEdit, SIGNAL(textChanged(const QString &)),
-            this, SLOT(updateMeteoFile(const QString &)));
-    connect(meteoFileLoad, SIGNAL(clicked()),
-            this, SLOT(meteoFileLoad_clicked()));
+    connect(meteoFileCheckBox, &QCheckBox::toggled,
+            this, &DynamicSettingsDialog::onMeteoFileCheckBoxClicked);
+    connect(meteoFileCheckBox, &QCheckBox::toggled,
+            this, &DynamicSettingsDialog::updateUseMeteoFile);
+    connect(meteoFileEdit, &QLineEdit::textChanged,
+            this, &DynamicSettingsDialog::updateMeteoFile);
+    connect(meteoFileLoad, &QPushButton::clicked,
+            this, &DynamicSettingsDialog::meteoFileLoad_clicked);
 
-    connect(okButton, SIGNAL(clicked()), this, SLOT(close()));
+    connect(okButton, &QPushButton::clicked, this, &DynamicSettingsDialog::close);
 
-    connect(ecProject_, SIGNAL(ecProjectNew()), this, SLOT(reset()));
+    connect(ecProject_, &EcProject::ecProjectNew, this, &DynamicSettingsDialog::reset);
 }
 
 DynamicSettingsDialog::~DynamicSettingsDialog()

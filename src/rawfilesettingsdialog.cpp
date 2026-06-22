@@ -111,13 +111,13 @@ RawFileSettingsDialog::RawFileSettingsDialog(QWidget* parent, DlProject *dlProje
 
     connect(fieldSepLabel, &ClickLabel::clicked,
             this, &RawFileSettingsDialog::onClickFieldSepLabel);
-    connect(fieldSepCombo, SIGNAL(currentIndexChanged(QString)),
-            this, SLOT(updateFieldSep(QString)));
+    connect(fieldSepCombo, &QComboBox::currentTextChanged,
+            this, &RawFileSettingsDialog::updateFieldSep);
 
     connect(headerRowsLabel, &ClickLabel::clicked,
             this, &RawFileSettingsDialog::onClickHeaderRowsLabel);
-    connect(headerRowsSpin, SIGNAL(valueChanged(int)),
-            this, SLOT(updateHeaderRows(int)));
+    connect(headerRowsSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &RawFileSettingsDialog::updateHeaderRows);
 
     connect(dataRecLabel, &ClickLabel::clicked,
             this, &RawFileSettingsDialog::onClickDataRecLabel);

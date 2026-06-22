@@ -49,11 +49,11 @@ CustomCheckBox::CustomCheckBox(QWidget *parent) : QWidget(parent)
     connect(checkbox, &HoverCheckBox::toggled,
             this, &CustomCheckBox::toggled);
 
-    connect(label, SIGNAL(released()), checkbox, SLOT(toggle()));
-    connect(label, SIGNAL(released()), checkbox, SLOT(clearPressed()));
-    connect(label, SIGNAL(pressed()), checkbox, SLOT(setPressed()));
-    connect(label, SIGNAL(left()), checkbox, SLOT(clearStates()));
-    connect(label, SIGNAL(released()), this, SIGNAL(clicked()));
+    connect(label, &ClickableLabel::released, checkbox, &QAbstractButton::toggle);
+    connect(label, &ClickableLabel::released, checkbox, &HoverCheckBox::clearPressed);
+    connect(label, &ClickableLabel::pressed, checkbox, &HoverCheckBox::setPressed);
+    connect(label, &ClickableLabel::left, checkbox, &HoverCheckBox::clearStates);
+    connect(label, &ClickableLabel::released, this, &CustomCheckBox::clicked);
 }
 
 CustomCheckBox::~CustomCheckBox()
