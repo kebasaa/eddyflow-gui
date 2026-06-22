@@ -40,6 +40,9 @@ public:
     // irga desc strings
     static const QString getIRGA_MANUFACTURER_STRING_0();
     static const QString getIRGA_MANUFACTURER_STRING_1();
+    static const QString getIRGA_MANUFACTURER_STRING_2();
+    static const QString getIRGA_MANUFACTURER_STRING_3();
+    static const QString getIRGA_MANUFACTURER_STRING_4();
 
     static const QString getIRGA_MODEL_STRING_0();
     static const QString getIRGA_MODEL_STRING_1();
@@ -56,6 +59,12 @@ public:
     static const QString getIRGA_MODEL_STRING_12();
     static const QString getIRGA_MODEL_STRING_13();
     static const QString getIRGA_MODEL_STRING_14();
+    static const QString getIRGA_MODEL_STRING_15();
+    static const QString getIRGA_MODEL_STRING_16();
+    static const QString getIRGA_MODEL_STRING_17();
+    static const QString getIRGA_MODEL_STRING_18();
+    static const QString getIRGA_MODEL_STRING_19();
+    static const QString getIRGA_MODEL_STRING_20();
 
     IrgaDesc();
 
@@ -146,6 +155,9 @@ public:
     static const QStringList allModelStringList();
     static const QStringList licorModelStringList();
     static const QStringList otherModelStringList();
+    static const QStringList campbellIrgaModelStringList();
+    static const QStringList miroModelStringList();
+    static const QStringList aerodyneModelStringList();
 
     static bool isWellNamed(const IrgaDesc& irga);
     static bool hasGoodSeparations(const IrgaDesc& irga);

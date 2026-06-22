@@ -84,6 +84,42 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                         return nullStrValue;
                     }
                 }
+                else if (irgaDesc.manufacturer() == IrgaDesc::getIRGA_MANUFACTURER_STRING_2())
+                {
+                    if (StringUtils::stringBelongsToList(irgaDesc.model(), IrgaDesc::campbellIrgaModelStringList()))
+                    {
+                        return QVariant(irgaDesc.model());
+                    }
+                    else
+                    {
+                        const_cast<IrgaModel *>(this)->setData(index, nullStrValue);
+                        return nullStrValue;
+                    }
+                }
+                else if (irgaDesc.manufacturer() == IrgaDesc::getIRGA_MANUFACTURER_STRING_3())
+                {
+                    if (StringUtils::stringBelongsToList(irgaDesc.model(), IrgaDesc::miroModelStringList()))
+                    {
+                        return QVariant(irgaDesc.model());
+                    }
+                    else
+                    {
+                        const_cast<IrgaModel *>(this)->setData(index, nullStrValue);
+                        return nullStrValue;
+                    }
+                }
+                else if (irgaDesc.manufacturer() == IrgaDesc::getIRGA_MANUFACTURER_STRING_4())
+                {
+                    if (StringUtils::stringBelongsToList(irgaDesc.model(), IrgaDesc::aerodyneModelStringList()))
+                    {
+                        return QVariant(irgaDesc.model());
+                    }
+                    else
+                    {
+                        const_cast<IrgaModel *>(this)->setData(index, nullStrValue);
+                        return nullStrValue;
+                    }
+                }
                 else
                 {
                     if (StringUtils::stringBelongsToList(irgaDesc.model(), IrgaDesc::otherModelStringList()))
@@ -139,7 +175,11 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
                     && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
                     && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11())
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_20())
                 {
                     return nullStrValue;
                 }
@@ -153,7 +193,11 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
                     && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
                     && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11())
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_20())
                 {
                     return nullStrValue;
                 }
@@ -167,7 +211,11 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
                     && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
                     && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11())
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_20())
                 {
                     return nullStrValue;
                 }
@@ -254,7 +302,11 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
                     && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
                     && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11())
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_20())
                 {
                     return nullStrValue;
                 }
@@ -268,7 +320,11 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
                     && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
                     && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11())
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_20())
                 {
                     return nullStrValue;
                 }
@@ -282,7 +338,11 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
                     && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
                     && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11())
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_20())
                 {
                     return nullStrValue;
                 }
@@ -364,7 +424,11 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
                     && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
                     && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11())
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
+                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_20())
                 {
                     return QVariant(QBrush(QColor(QStringLiteral("#eff0f1"))));
                 }
@@ -424,6 +488,22 @@ bool IrgaModel::setData(const QModelIndex& index, const QVariant& value, int rol
                 return false;
             }
             irgaDesc.setModel(value.toString());
+            // auto-fill known path lengths and time response for EC150 / IRGASON
+            if (value.toString() == IrgaDesc::getIRGA_MODEL_STRING_15())
+            {
+                irgaDesc.setVPathLength(15.31);
+                irgaDesc.setHPathLength(0.6);
+                irgaDesc.setTau(0.1);
+            }
+            else if (value.toString() == IrgaDesc::getIRGA_MODEL_STRING_16())
+            {
+                irgaDesc.setVPathLength(15.31);
+                irgaDesc.setHPathLength(0.6);
+                irgaDesc.setTau(0.1);
+                irgaDesc.setTubeNSeparation(0.01);
+                irgaDesc.setTubeESeparation(0.01);
+                irgaDesc.setTubeVSeparation(0.01);
+            }
             break;
         case SWVERSION:
             if (value == irgaDesc.swVersion())

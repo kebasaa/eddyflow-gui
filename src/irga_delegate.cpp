@@ -86,6 +86,18 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
           {
               combo->addItems(IrgaDesc::otherModelStringList());
           }
+          else if (currentManufacturer == IrgaDesc::getIRGA_MANUFACTURER_STRING_2())
+          {
+              combo->addItems(IrgaDesc::campbellIrgaModelStringList());
+          }
+          else if (currentManufacturer == IrgaDesc::getIRGA_MANUFACTURER_STRING_3())
+          {
+              combo->addItems(IrgaDesc::miroModelStringList());
+          }
+          else if (currentManufacturer == IrgaDesc::getIRGA_MANUFACTURER_STRING_4())
+          {
+              combo->addItems(IrgaDesc::aerodyneModelStringList());
+          }
           combo->view()->setTextElideMode(Qt::ElideNone);
           combo->setMaxVisibleItems(15);
           connect(combo, QOverload<int>::of(&QComboBox::activated),
@@ -176,7 +188,11 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_8()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_9()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_10()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_11())
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_11()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_17()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_18()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_19()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_20())
             {
                 label = new QLabel(parent);
                 return label;
@@ -199,7 +215,11 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_8()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_9()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_10()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_11())
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_11()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_17()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_18()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_19()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_20())
             {
                 label = new QLabel(parent);
                 return label;

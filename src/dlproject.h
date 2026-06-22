@@ -193,6 +193,8 @@ public:
     static const QString getANEM_MODEL_STRING_16();
     static const QString getANEM_MODEL_STRING_17();
     static const QString getANEM_MODEL_STRING_18();
+    static const QString getANEM_MODEL_STRING_19();
+    static const QString getANEM_MODEL_STRING_20();
 
 signals:
     // send that a new project has been created
@@ -290,6 +292,9 @@ private:
 
     static const QString IRGA_MANUFACTURER_STRING_0;
     static const QString IRGA_MANUFACTURER_STRING_1;
+    static const QString IRGA_MANUFACTURER_STRING_2;
+    static const QString IRGA_MANUFACTURER_STRING_3;
+    static const QString IRGA_MANUFACTURER_STRING_4;
 
     static const QString IRGA_MODEL_STRING_0;
     static const QString IRGA_MODEL_STRING_1;
@@ -306,6 +311,12 @@ private:
     static const QString IRGA_MODEL_STRING_12;
     static const QString IRGA_MODEL_STRING_13;
     static const QString IRGA_MODEL_STRING_14;
+    static const QString IRGA_MODEL_STRING_15;
+    static const QString IRGA_MODEL_STRING_16;
+    static const QString IRGA_MODEL_STRING_17;
+    static const QString IRGA_MODEL_STRING_18;
+    static const QString IRGA_MODEL_STRING_19;
+    static const QString IRGA_MODEL_STRING_20;
 
     static const QString IRGA_SW_VERSION_STRING_0;
     static const QString IRGA_SW_VERSION_STRING_1;

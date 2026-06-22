@@ -601,6 +601,14 @@ bool AnemModel::setData(const QModelIndex& index, const QVariant& value, int rol
                 return false;
             }
             anemDesc.setModel(value.toString());
+            // auto-fill known path lengths and time response for CSAT-3A / IRGASON
+            if (value.toString() == AnemDesc::getANEM_MODEL_STRING_19()
+                || value.toString() == AnemDesc::getANEM_MODEL_STRING_20())
+            {
+                anemDesc.setVPathLength(11.547);
+                anemDesc.setHPathLength(0.8);
+                anemDesc.setTau(0.05);
+            }
             break;
         case SWVERSION:
             if (value == anemDesc.swVersion())

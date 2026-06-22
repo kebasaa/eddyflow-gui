@@ -42,6 +42,24 @@ const QString IrgaDesc::getIRGA_MANUFACTURER_STRING_1()
     return s;
 }
 
+const QString IrgaDesc::getIRGA_MANUFACTURER_STRING_2()
+{
+    static const QString s(QStringLiteral("Campbell Scientific"));
+    return s;
+}
+
+const QString IrgaDesc::getIRGA_MANUFACTURER_STRING_3()
+{
+    static const QString s(QStringLiteral("Miro Analytical"));
+    return s;
+}
+
+const QString IrgaDesc::getIRGA_MANUFACTURER_STRING_4()
+{
+    static const QString s(QStringLiteral("Aerodyne Research"));
+    return s;
+}
+
 const QString IrgaDesc::getIRGA_MODEL_STRING_0()
 {
     static const QString s(QStringLiteral("LI-6262"));
@@ -133,6 +151,42 @@ const QString IrgaDesc::getIRGA_MODEL_STRING_13()
 const QString IrgaDesc::getIRGA_MODEL_STRING_14()
 {
     static const QString s(QStringLiteral("LI-7500DS"));
+    return s;
+}
+
+const QString IrgaDesc::getIRGA_MODEL_STRING_15()
+{
+    static const QString s(QStringLiteral("EC150"));
+    return s;
+}
+
+const QString IrgaDesc::getIRGA_MODEL_STRING_16()
+{
+    static const QString s(QStringLiteral("IRGASON"));
+    return s;
+}
+
+const QString IrgaDesc::getIRGA_MODEL_STRING_17()
+{
+    static const QString s(QStringLiteral("Spectronus"));
+    return s;
+}
+
+const QString IrgaDesc::getIRGA_MODEL_STRING_18()
+{
+    static const QString s(QStringLiteral("MIU1000"));
+    return s;
+}
+
+const QString IrgaDesc::getIRGA_MODEL_STRING_19()
+{
+    static const QString s(QStringLiteral("MIU2000"));
+    return s;
+}
+
+const QString IrgaDesc::getIRGA_MODEL_STRING_20()
+{
+    static const QString s(QStringLiteral("Aerodyne QCLS"));
     return s;
 }
 
@@ -253,7 +307,10 @@ const QStringList IrgaDesc::manufacturerStringList()
 {
     return (QStringList()
             << getIRGA_MANUFACTURER_STRING_0()
-            << getIRGA_MANUFACTURER_STRING_1());
+            << getIRGA_MANUFACTURER_STRING_1()
+            << getIRGA_MANUFACTURER_STRING_2()
+            << getIRGA_MANUFACTURER_STRING_3()
+            << getIRGA_MANUFACTURER_STRING_4());
 }
 
 // Return string list of usage types
@@ -304,6 +361,27 @@ const QStringList IrgaDesc::otherModelStringList()
             << getIRGA_MODEL_STRING_11());
 }
 
+const QStringList IrgaDesc::campbellIrgaModelStringList()
+{
+    return (QStringList()
+            << getIRGA_MODEL_STRING_15()
+            << getIRGA_MODEL_STRING_16());
+}
+
+const QStringList IrgaDesc::miroModelStringList()
+{
+    return (QStringList()
+            << getIRGA_MODEL_STRING_17()
+            << getIRGA_MODEL_STRING_18()
+            << getIRGA_MODEL_STRING_19());
+}
+
+const QStringList IrgaDesc::aerodyneModelStringList()
+{
+    return (QStringList()
+            << getIRGA_MODEL_STRING_20());
+}
+
 bool IrgaDesc::isALicorModel(const QString& model)
 {
     return ((model == getIRGA_MODEL_STRING_0())
@@ -331,6 +409,21 @@ bool IrgaDesc::isWellNamed(const IrgaDesc& irga)
         if (manufacturer == getIRGA_MANUFACTURER_STRING_0())
         {
             isGoodModel = isLicorModel;
+        }
+        else if (manufacturer == getIRGA_MANUFACTURER_STRING_2())
+        {
+            isGoodModel = (model == getIRGA_MODEL_STRING_15())
+                           || (model == getIRGA_MODEL_STRING_16());
+        }
+        else if (manufacturer == getIRGA_MANUFACTURER_STRING_3())
+        {
+            isGoodModel = (model == getIRGA_MODEL_STRING_17())
+                           || (model == getIRGA_MODEL_STRING_18())
+                           || (model == getIRGA_MODEL_STRING_19());
+        }
+        else if (manufacturer == getIRGA_MANUFACTURER_STRING_4())
+        {
+            isGoodModel = (model == getIRGA_MODEL_STRING_20());
         }
         else
         {
@@ -367,7 +460,11 @@ bool IrgaDesc::isAGoodClosedPath(const IrgaDesc& irga)
                         || (model == getIRGA_MODEL_STRING_7())
                         || (model == getIRGA_MODEL_STRING_10())
                         || (model == getIRGA_MODEL_STRING_11())
-                        || (model == getIRGA_MODEL_STRING_13());
+                        || (model == getIRGA_MODEL_STRING_13())
+                        || (model == getIRGA_MODEL_STRING_17())
+                        || (model == getIRGA_MODEL_STRING_18())
+                        || (model == getIRGA_MODEL_STRING_19())
+                        || (model == getIRGA_MODEL_STRING_20());
 
     auto isGoodClosedPath = false;
     if (isClosedPath)
@@ -393,7 +490,11 @@ bool IrgaDesc::hasGoodFlowRate(const IrgaDesc& irga)
                         || (model == getIRGA_MODEL_STRING_7())
                         || (model == getIRGA_MODEL_STRING_10())
                         || (model == getIRGA_MODEL_STRING_11())
-                        || (model == getIRGA_MODEL_STRING_13());
+                        || (model == getIRGA_MODEL_STRING_13())
+                        || (model == getIRGA_MODEL_STRING_17())
+                        || (model == getIRGA_MODEL_STRING_18())
+                        || (model == getIRGA_MODEL_STRING_19())
+                        || (model == getIRGA_MODEL_STRING_20());
 
     auto hasGoodFlowRate = false;
     if (isClosedPath)
@@ -410,7 +511,9 @@ bool IrgaDesc::hasGoodFlowRate(const IrgaDesc& irga)
 bool IrgaDesc::hasGoodPathLength(const IrgaDesc& irga)
 {
     auto isGoodPathLength = false;
-    if (isALicorModel(irga.model()))
+    if (isALicorModel(irga.model())
+        || irga.model() == getIRGA_MODEL_STRING_15()
+        || irga.model() == getIRGA_MODEL_STRING_16())
     {
         isGoodPathLength = true;
     }
@@ -477,5 +580,7 @@ bool IrgaDesc::isOpenPathModel(const QString& model)
              || model == IrgaDesc::getIRGA_MODEL_STRING_8()
              || model == IrgaDesc::getIRGA_MODEL_STRING_9()
              || model == IrgaDesc::getIRGA_MODEL_STRING_12()
-             || model == IrgaDesc::getIRGA_MODEL_STRING_14());
+             || model == IrgaDesc::getIRGA_MODEL_STRING_14()
+             || model == IrgaDesc::getIRGA_MODEL_STRING_15()
+             || model == IrgaDesc::getIRGA_MODEL_STRING_16());
 }
