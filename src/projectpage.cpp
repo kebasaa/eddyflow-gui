@@ -400,7 +400,7 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
 
     connect(biomExtDirSuffixLabel, &ClickLabel::clicked,
             this, &ProjectPage::onBiomExtDirSuffixLabelClicked);
-    connect(biomExtDirCombo, QOverload<const QString &>::of(&QComboBox::currentIndexChanged),
+    connect(biomExtDirCombo, &QComboBox::currentTextChanged,
             this, &ProjectPage::updateExtDirSuffix);
     connect(biomExtDirCombo, &QComboBox::editTextChanged,
             this, &ProjectPage::updateExtDirSuffix);

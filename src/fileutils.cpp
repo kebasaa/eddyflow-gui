@@ -82,15 +82,11 @@ void FileUtils::createDir(const QString& dirName, const QString& absoluteDirDest
         dirPath = dirName;
 
     QDir dir;
-    if (!dir.exists(dirPath))
+    if (!dir.mkpath(dirPath))
     {
-        bool created = dir.mkdir(dirPath);
-        if (!created)
-        {
-            WidgetUtils::warning(nullptr,
-                                 QObject::tr("mkdir error"),
-                                 QObject::tr("Error creating dir %1").arg(dirPath));
-        }
+        WidgetUtils::warning(nullptr,
+                             QObject::tr("mkdir error"),
+                             QObject::tr("Error creating dir %1").arg(dirPath));
     }
 }
 

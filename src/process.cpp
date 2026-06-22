@@ -60,7 +60,7 @@ bool Process::engineProcessStart(const QString& fullPath, const QString& working
     connect(process_, &QProcess::finished,
              this, &Process::processFinished);
     connect(process_, &QProcess::errorOccurred,
-             this, &Process::processError);
+             this, &Process::onProcessError);
 
     process_->setWorkingDirectory(workingDir);
 
@@ -130,7 +130,7 @@ bool Process::zipProcessAddStart(const QString &fileName,
     connect(process_, &QProcess::finished,
              this, &Process::processFinished);
     connect(process_, &QProcess::errorOccurred,
-             this, &Process::processError);
+             this, &Process::onProcessError);
 
     process_->setWorkingDirectory(workDir);
 
@@ -191,7 +191,7 @@ bool Process::zipContainsFiletype(const QString& fileName, const QString& filePa
     connect(process_, &QProcess::finished,
              this, &Process::processFinished);
     connect(process_, &QProcess::errorOccurred,
-             this, &Process::processError);
+             this, &Process::onProcessError);
 
     process_->start(fp, args, QProcess::Unbuffered | QProcess::ReadWrite);
 
@@ -249,13 +249,13 @@ void Process::processStop()
     disconnect(process_, &QProcess::finished,
              this, &Process::processFinished);
     disconnect(process_, &QProcess::errorOccurred,
-             this, &Process::processError);
+             this, &Process::onProcessError);
 
     process_->kill();
     processExit_ = ExitStatus::Stopped;
 }
 
-void Process::processError(QProcess::ProcessError error)
+void Process::onProcessError(QProcess::ProcessError error)
 {
     if (error == QProcess::FailedToStart)
     {
@@ -268,7 +268,7 @@ void Process::processError(QProcess::ProcessError error)
     }
     // to avoid multiple call
     disconnect(process_, &QProcess::errorOccurred,
-             this, &Process::processError);
+             this, &Process::onProcessError);
     emit processFailure();
 }
 

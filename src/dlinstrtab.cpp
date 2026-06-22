@@ -185,9 +185,9 @@ DlInstrTab::DlInstrTab(QWidget *parent, DlProject *dlProject) :
     // editTriggers property, because that way the column selection
     // clicking on the header triggers the first cell editor
     connect(anemView_, &QAbstractItemView::clicked,
-            anemView_, &QAbstractItemView::edit);
+            anemView_, qOverload<const QModelIndex &>(&QAbstractItemView::edit));
     connect(irgaView_, &QAbstractItemView::clicked,
-            irgaView_, &QAbstractItemView::edit);
+            irgaView_, qOverload<const QModelIndex &>(&QAbstractItemView::edit));
 }
 
 DlInstrTab::~DlInstrTab()

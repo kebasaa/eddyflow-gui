@@ -488,7 +488,7 @@ void PlanarFitSettingsDialog::testSelectedFile(const QString& fp)
     QFileInfo paramFilePath(fp);
     auto canonicalParamFile = paramFilePath.canonicalFilePath();
 
-    AncillaryFileTest test_dialog(AncillaryFileTest::FileType::PlanarFit, this);
+    AncillaryFileTest test_dialog(AncillaryFileTest::FileType::PlanarFit, ecProject_, this);
     test_dialog.refresh(canonicalParamFile);
 
     auto test_result = test_dialog.makeTest();
@@ -713,7 +713,7 @@ void PlanarFitSettingsDialog::setupViews()
     vHeaderView->setProperty("pieTableV", true);
 
     connect(anglesView_, &QAbstractItemView::clicked,
-            angleTableView_, &QAbstractItemView::edit);
+            angleTableView_, qOverload<const QModelIndex &>(&QAbstractItemView::edit));
 }
 
 void PlanarFitSettingsDialog::insertAngleAt(int row)

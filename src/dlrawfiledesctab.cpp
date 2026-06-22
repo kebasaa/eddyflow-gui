@@ -143,7 +143,7 @@ DlRawfileDescTab::DlRawfileDescTab(QWidget* parent, DlProject* dlProject) :
     // editTriggers property, because that way the column selection
     // clicking on the header trigger the first cell editor
     connect(variableView_, &QAbstractItemView::clicked,
-            variableView_, &QAbstractItemView::edit);
+            variableView_, qOverload<const QModelIndex &>(&QAbstractItemView::edit));
 }
 
 DlRawfileDescTab::~DlRawfileDescTab()

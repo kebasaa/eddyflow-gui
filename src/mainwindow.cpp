@@ -3318,7 +3318,7 @@ void MainWindow::runExpress()
                 tr("Processing engine not found at:\n%1\n\n"
                    "Please place the engine binaries in the bin/ "
                    "subdirectory next to the application.").arg(engineFilePath));
-            changePage(Defs::CurrPage::Home);
+            changePage(Defs::CurrPage::Welcome);
             return;
         }
 
@@ -3420,7 +3420,7 @@ void MainWindow::runAdvancedStep_1()
                     tr("Processing engine not found at:\n%1\n\n"
                        "Please place the engine binaries in the bin/ "
                        "subdirectory next to the application.").arg(engine1FilePath));
-                changePage(Defs::CurrPage::Home);
+                changePage(Defs::CurrPage::Welcome);
                 return;
             }
 
@@ -3482,7 +3482,7 @@ void MainWindow::runAdvancedStep_2()
                 tr("Processing engine not found at:\n%1\n\n"
                    "Please place the engine binaries in the bin/ "
                    "subdirectory next to the application.").arg(engineFilePath));
-            changePage(Defs::CurrPage::Home);
+            changePage(Defs::CurrPage::Welcome);
             return;
         }
 
@@ -3575,7 +3575,7 @@ void MainWindow::runRetriever()
                 tr("Processing engine not found at:\n%1\n\n"
                    "Please place the engine binaries in the bin/ "
                    "subdirectory next to the application.").arg(engineFilePath));
-            changePage(Defs::CurrPage::Home);
+            changePage(Defs::CurrPage::Welcome);
             return;
         }
 

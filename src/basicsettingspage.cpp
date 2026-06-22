@@ -1020,7 +1020,7 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
 
     connect(anemRefLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickAnemRefLabel);
-    connect(anemRefCombo, QOverload<const QString &>::of(&QComboBox::activated),
+    connect(anemRefCombo, &QComboBox::currentTextChanged,
             this, &BasicSettingsPage::updateAnemRefCombo);
 
     connect(anemFlagLabel, &ClickLabel::clicked,
@@ -1052,7 +1052,7 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
             this, &BasicSettingsPage::onClickFourthGasRefLabel);
     connect(fourthGasRefCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateFourthGasRefCombo);
-    connect(fourthGasRefCombo, QOverload<const QString &>::of(&QComboBox::activated),
+    connect(fourthGasRefCombo, &QComboBox::currentTextChanged,
             this, &BasicSettingsPage::updateFourthGasSettings);
 
     connect(intTcRefLabel, &ClickLabel::clicked,
@@ -5216,7 +5216,7 @@ void BasicSettingsPage::setupWindFilterViews()
     windFilterTableView_->verticalHeader()->setProperty("pieTableV", true);
 
     connect(windFilterView_, &WindFilterView::clicked,
-            windFilterTableView_, &WindFilterTableView::edit);
+            windFilterTableView_, qOverload<const QModelIndex &>(&QAbstractItemView::edit));
 }
 
 void BasicSettingsPage::insertAngleAt(int row)

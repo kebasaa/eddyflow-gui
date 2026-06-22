@@ -102,7 +102,7 @@ public:
     bool isRunning() const { return (process_->state() == QProcess::Running); }
 
 private slots:
-    void processError(QProcess::ProcessError error);
+    void onProcessError(QProcess::ProcessError error);
     void processFinished(int exitCode, QProcess::ExitStatus exitStatus);
 
 private:

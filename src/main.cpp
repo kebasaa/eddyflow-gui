@@ -314,7 +314,7 @@ int main(int argc, char *argv[])
         QFile textFile(QCoreApplication::applicationDirPath() + QStringLiteral("/splash-text.txt"));
         if (!textFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
             textFile.setFileName(QStringLiteral(":/icons/splash-text"));
-            textFile.open(QIODevice::ReadOnly | QIODevice::Text);
+            (void)textFile.open(QIODevice::ReadOnly | QIODevice::Text);
         }
         if (textFile.isOpen())
             splashText = QTextStream(&textFile).readAll().trimmed();

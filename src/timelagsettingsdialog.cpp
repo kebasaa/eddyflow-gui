@@ -726,7 +726,7 @@ void TimeLagSettingsDialog::testSelectedFile(const QString& fp)
     QFileInfo paramFilePath(paramFile);
     QString canonicalParamFile = paramFilePath.canonicalFilePath();
 
-    AncillaryFileTest test_dialog(AncillaryFileTest::FileType::TimeLag, this);
+    AncillaryFileTest test_dialog(AncillaryFileTest::FileType::TimeLag, ecProject_, this);
     test_dialog.refresh(canonicalParamFile);
 
     auto test_result = test_dialog.makeTest();
