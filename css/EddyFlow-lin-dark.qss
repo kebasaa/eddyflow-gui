@@ -354,6 +354,17 @@ QComboBox::down-arrow:off {
     image: url(:/icons/combo-disabled);
 }
 
+QComboBox QAbstractItemView {
+    background-color: #2a2a2a;
+    color: #c0c0c0;
+    border: 1px solid #555555;
+    border-radius: 3px;
+    padding: 1px 3px;
+    min-width: 10em;
+    selection-background-color: #1a4a6e;
+    selection-color: #e8e8e8;
+}
+
 MainWindow {
     background-color: #1e1e1e;
 }
@@ -1884,6 +1895,7 @@ QHeaderView::section {
     padding-left: 0px;
     padding-right: 1px;
     margin: 2px 0px;
+    color: #c0c0c0;
 }
 
 QHeaderView[pieTableH="true"]::section {
@@ -1959,6 +1971,10 @@ QLabel#tableRefLabel {
 }
 
 QTableView {
+    background-color: #2a2a2a;
+    alternate-background-color: #252525;
+    color: #c0c0c0;
+    gridline-color: #444444;
     selection-color: #e8e8e8;
     selection-background-color: #1a4a6e;
 }
