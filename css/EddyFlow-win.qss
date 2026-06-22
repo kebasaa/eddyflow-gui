@@ -846,28 +846,30 @@ QLabel[blueLabel="true"] {
 
 QLabel[applogoLabel="true"] {
     margin-top: 30px;
-    image: url(:/icons/app-logo);
+    image: url(:/icons/app-logo-svg);
     min-width: 780px;
     min-height: 139px;
 }
 
 QLabel[applogoLabel="true"]:hover {
-    image: url(:/icons/app-logo-hover);
+    image: url(:/icons/app-logo-svg);
     min-width: 780px;
     min-height: 139px;
+    opacity: 0.8;
 }
 
 QLabel[applogoSmallLabel="true"] {
     margin-top: 5px;
-    image: url(:/icons/app-logo-small);
+    image: url(:/icons/app-logo-svg);
     min-width: 390px;
     min-height: 70px;
 }
 
 QLabel[applogoSmallLabel="true"]:hover {
-    image: url(:/icons/app-logo-small-hover);
+    image: url(:/icons/app-logo-svg);
     min-width: 390px;
     min-height: 70px;
+    opacity: 0.8;
 }
 
 

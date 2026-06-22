@@ -28,7 +28,9 @@
 #include <QDebug>
 #include <QLabel>
 #include <QFile>
+#include <QPainter>
 #include <QPushButton>
+#include <QSvgRenderer>
 #include <QTabWidget>
 #include <QTextEdit>
 #include <QVBoxLayout>
@@ -70,11 +72,15 @@ AboutDialog::AboutDialog(QWidget* parent)
         #endif
         );
     auto icon = new QLabel;
-    auto app_logo_2x = QPixmap(QStringLiteral(":/icons/app-logo-about"));
-#if defined(Q_OS_MACOS)
-    app_logo_2x.setDevicePixelRatio(2.0);
-#endif
-    icon->setPixmap(app_logo_2x);
+    QPixmap app_logo(390, 70);
+    app_logo.fill(Qt::transparent);
+    {
+        QPainter p(&app_logo);
+        p.setRenderHint(QPainter::Antialiasing);
+        QSvgRenderer svgRenderer(QStringLiteral(":/icons/app-logo-svg"));
+        svgRenderer.render(&p);
+    }
+    icon->setPixmap(app_logo);
 
     // About information
     auto infoWidget = new QWidget;
