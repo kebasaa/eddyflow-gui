@@ -3589,7 +3589,7 @@ void BasicSettingsPage::createQuestionMark()
     for (auto btn : btn_list)
     {
         btn->setObjectName(QStringLiteral("questionMarkImg"));
-    btn->setFlat(true);
+    static_cast<QPushButton*>(btn)->setFlat(true);
     }
 
     connect(questionMark_1, &QPushButton::clicked,
