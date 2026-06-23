@@ -328,10 +328,11 @@ void Process::setEnv(const QStringList &envList)
     QProcessEnvironment env;
     for (const auto &keyValue : envList)
     {
-        env.insert(keyValue.split(QStringLiteral("=")).first(),
-                   keyValue.split(QStringLiteral("=")).last());
+        const int sep = keyValue.indexOf(QLatin1Char('='));
+        if (sep > 0)
+            env.insert(keyValue.left(sep), keyValue.mid(sep + 1));
+        // sep <= 0: no '=' present, or leading '=' (Windows internal drive vars) — skip
     }
-
     process_->setProcessEnvironment(env);
 }
 

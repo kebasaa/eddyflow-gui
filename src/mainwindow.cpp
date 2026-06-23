@@ -2985,10 +2985,10 @@ void MainWindow::createEngineProcess()
     engineProcess_->setReadChannels(QProcess::StandardOutput);
 
     // add useful GFortran environment variables
-    QStringList env = QProcess::systemEnvironment();
-    env << QStringLiteral("GFORTRAN_UNBUFFERED_PRECONNECTED=y");
-    env << QStringLiteral("GFORTRAN_SHOW_LOCUS=n");
-    engineProcess_->setEnv(env);
+    auto env = QProcessEnvironment::systemEnvironment();
+    env.insert(QStringLiteral("GFORTRAN_UNBUFFERED_PRECONNECTED"), QStringLiteral("y"));
+    env.insert(QStringLiteral("GFORTRAN_SHOW_LOCUS"), QStringLiteral("n"));
+    engineProcess_->process()->setProcessEnvironment(env);
 
     connect(engineProcess_, &Process::processFailure,
             this, &MainWindow::displayExitDialog);
