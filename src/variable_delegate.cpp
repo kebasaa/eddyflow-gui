@@ -543,7 +543,8 @@ bool VariableDelegate::eventFilter(QObject* editor, QEvent* event)
 //    QDoubleSpinBox* spin = qobject_cast<QDoubleSpinBox *>(editor);
     QEvent::Type eventType = event->type();
 
-    int eventKey = dynamic_cast<const QKeyEvent*>(event)->key();
+    const QKeyEvent* keyEvent = dynamic_cast<const QKeyEvent*>(event);
+    int eventKey = keyEvent ? keyEvent->key() : 0;
 
     // if ((combo || spin)
     if (combo

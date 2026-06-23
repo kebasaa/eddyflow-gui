@@ -336,6 +336,8 @@ QComboBox::drop-down {
 
 QComboBox::down-arrow {
     image: url(:/icons/combo-normal);
+    width: 9px;
+    height: 9px;
 }
 
 QComboBox::down-arrow:hover {
@@ -1427,6 +1429,7 @@ QPushButton#foldButton {
     border-color: navy;
     text-align: left;
     subcontrol-position: left bottom;
+    padding: 0px;
     image: url(:/icons/fold-down);
 }
 
@@ -2079,6 +2082,8 @@ QDateEdit::drop-down {
 
 QDateEdit::down-arrow {
     image: url(:/icons/combo-normal);
+    width: 9px;
+    height: 9px;
 }
 
 QDateEdit::down-arrow:hover {

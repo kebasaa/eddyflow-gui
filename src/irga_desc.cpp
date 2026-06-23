@@ -306,11 +306,11 @@ bool IrgaDesc::operator==(const IrgaDesc& irga) const
 const QStringList IrgaDesc::manufacturerStringList()
 {
     return (QStringList()
-            << getIRGA_MANUFACTURER_STRING_0()
-            << getIRGA_MANUFACTURER_STRING_1()
+            << getIRGA_MANUFACTURER_STRING_4()
             << getIRGA_MANUFACTURER_STRING_2()
+            << getIRGA_MANUFACTURER_STRING_0()
             << getIRGA_MANUFACTURER_STRING_3()
-            << getIRGA_MANUFACTURER_STRING_4());
+            << getIRGA_MANUFACTURER_STRING_1());
 }
 
 // Return string list of usage types

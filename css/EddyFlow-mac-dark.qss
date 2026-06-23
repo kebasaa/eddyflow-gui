@@ -345,6 +345,8 @@ QComboBox QAbstractItemView {
 
 QComboBox::down-arrow {
     image: url(:/icons/combo-normal);
+    width: 9px;
+    height: 9px;
 }
 
 QComboBox::down-arrow:hover {
@@ -1452,6 +1454,7 @@ QPushButton#foldButton {
     border-color: navy;
     text-align: left;
     subcontrol-position: left bottom;
+    padding: 0px;
     image: url(:/icons/fold-down);
 }
 
@@ -2051,8 +2054,8 @@ QLabel#tableRefLabel {
 }
 
 QTableView {
-    selection-color: #e8e8e8;
-    selection-background-color: #1a4a6e;
+    selection-color: white;
+    selection-background-color: #318ef4;
 }
 
 QFrame#instrContainer {
@@ -2114,6 +2117,8 @@ QDateEdit::drop-down {
 
 QDateEdit::down-arrow {
     image: url(:/icons/combo-normal);
+    width: 9px;
+    height: 9px;
 }
 
 QDateEdit::down-arrow:hover {
