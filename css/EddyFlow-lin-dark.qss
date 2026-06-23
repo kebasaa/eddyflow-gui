@@ -1999,7 +1999,7 @@ QDateEdit {
                       stop:0 #252525, stop:1 #2a3a42);
     color: #c0c0c0;
     font: normal normal 11px "Open Sans";
-    min-width: 6em;
+    min-width: 9em;
     padding: 1px 3px 1px 3px;
     max-height: 17px;
 }

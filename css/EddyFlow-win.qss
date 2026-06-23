@@ -2037,7 +2037,7 @@ QDateEdit {
                       stop:0 white, stop:1 #D1E4E7);
     color: #333333;
     font: normal normal 11px "Open Sans";
-    min-width: 6em;
+    min-width: 9em;
     padding: 1px 3px 1px 3px;
     max-height: 17px;
 }

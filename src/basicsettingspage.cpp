@@ -33,6 +33,7 @@
 #include <QDebug>
 #include <QDoubleSpinBox>
 #include <QFileDialog>
+#include <QLocale>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QInputDialog>
@@ -92,6 +93,17 @@
 
 const QString BasicSettingsPage::FLAG_POLICY_STRING_0 = QObject::tr("Above threshold");
 const QString BasicSettingsPage::FLAG_POLICY_STRING_1 = QObject::tr("Below threshold");
+
+// Returns "dd.MM.yyyy" or "dd/MM/yyyy" using the system locale's separator
+static QString eddyDateFormat()
+{
+    const QString fmt = QLocale::system().dateFormat(QLocale::ShortFormat);
+    QChar sep = QLatin1Char('/');
+    for (const QChar c : fmt)
+        if (c != QLatin1Char('d') && c != QLatin1Char('M') && c != QLatin1Char('y') && !c.isLetter())
+            { sep = c; break; }
+    return QString(QLatin1String("dd") + sep + QLatin1String("MM") + sep + QLatin1String("yyyy"));
+}
 
 BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcProject *ecProject, ConfigState* config) :
     QWidget(parent),
@@ -219,8 +231,8 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     startDateEdit = new QDateEdit;
     startDateEdit->setToolTip(startDateLabel->toolTip());
     startDateEdit->setCalendarPopup(true);
-    startDateEdit->setMinimumWidth(70);
-    startDateEdit->setMaximumWidth(70);
+    startDateEdit->setDisplayFormat(eddyDateFormat());
+    startDateEdit->setMinimumWidth(100);
     WidgetUtils::customizeCalendar(startDateEdit->calendarWidget());
 
     startTimeEdit = new QTimeEdit;
@@ -242,8 +254,8 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     endDateEdit = new QDateEdit;
     endDateEdit->setToolTip(endDateLabel->toolTip());
     endDateEdit->setCalendarPopup(true);
-    endDateEdit->setMinimumWidth(70);
-    endDateEdit->setMaximumWidth(70);
+    endDateEdit->setDisplayFormat(eddyDateFormat());
+    endDateEdit->setMinimumWidth(100);
     WidgetUtils::customizeCalendar(endDateEdit->calendarWidget());
 
     endTimeEdit = new QTimeEdit;
@@ -307,8 +319,8 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     declinationDateEdit = new QDateEdit;
     declinationDateEdit->setToolTip(declinationDateLabel->toolTip());
     declinationDateEdit->setCalendarPopup(true);
-    declinationDateEdit->setMinimumWidth(70);
-    declinationDateEdit->setMaximumWidth(70);
+    declinationDateEdit->setDisplayFormat(eddyDateFormat());
+    declinationDateEdit->setMinimumWidth(100);
     WidgetUtils::customizeCalendar(declinationDateEdit->calendarWidget());
     // NOTE: manage NOAA website API limitation, where current last day available is 2019-12-31
     // compare http://www.ngdc.noaa.gov/geomag-web/#declination
