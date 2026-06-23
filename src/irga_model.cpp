@@ -453,6 +453,10 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                 return QVariant(QColor(Qt::white));
         }
     }
+    else if (role == Qt::ForegroundRole)
+    {
+        return QVariant(QColor(Qt::black));
+    }
     else
     {
         return QVariant();

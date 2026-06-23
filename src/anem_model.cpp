@@ -529,6 +529,10 @@ QVariant AnemModel::data(const QModelIndex& index, int role) const
                 return QVariant(QColor(Qt::white));
         }
     }
+    else if (role == Qt::ForegroundRole)
+    {
+        return QVariant(QColor(Qt::black));
+    }
     // tooltips texts
     else if (role == Qt::ToolTipRole)
     {

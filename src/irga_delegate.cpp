@@ -302,7 +302,11 @@ void IrgaDelegate::setEditorData(QWidget* editor,
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_8()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_9()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_10()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_11())
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_11()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_17()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_18()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_19()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_20())
             {
                 label = dynamic_cast<QLabel*>(editor);
                 if (!label) { return; }
@@ -401,7 +405,11 @@ void IrgaDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_8()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_9()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_10()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_11())
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_11()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_17()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_18()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_19()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_20())
             {
                 label = dynamic_cast<QLabel*>(editor);
                 if (!label) { return; }
@@ -489,7 +497,8 @@ bool IrgaDelegate::eventFilter(QObject* editor, QEvent* event)
 {
     QComboBox* combo = qobject_cast<QComboBox *>(editor);
     QEvent::Type eventType = event->type();
-    int eventKey = dynamic_cast<const QKeyEvent*>(event)->key();
+    const QKeyEvent* keyEvent = dynamic_cast<const QKeyEvent*>(event);
+    int eventKey = keyEvent ? keyEvent->key() : 0;
     if (combo
         && (eventType == QEvent::MouseButtonRelease
             || (eventType == QEvent::KeyPress && (eventKey == Qt::Key_Space

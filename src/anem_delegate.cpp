@@ -398,7 +398,8 @@ bool AnemDelegate::eventFilter(QObject* editor, QEvent* event)
 {
     QComboBox* combo = qobject_cast<QComboBox *>(editor);
     QEvent::Type eventType = event->type();
-    int eventKey = static_cast<const QKeyEvent*>(event)->key();
+    const QKeyEvent* keyEvent = dynamic_cast<const QKeyEvent*>(event);
+    int eventKey = keyEvent ? keyEvent->key() : 0;
     if (combo
          && (eventType == QEvent::MouseButtonRelease
              || (eventType == QEvent::KeyPress && (eventKey == Qt::Key_Space

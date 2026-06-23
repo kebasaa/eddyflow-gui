@@ -526,6 +526,7 @@ QToolButton:!checked:hover {
 QToolButton#plusButton {
     border: none;
     background: transparent;
+    padding: 0px;
     image: url(:/icons/plus);
 }
 
@@ -550,6 +551,7 @@ QToolButton#plusButton:disabled {
 QToolButton#minusButton {
     border: none;
     background: transparent;
+    padding: 0px;
     image: url(:/icons/minus);
 }
 
@@ -1413,6 +1415,7 @@ QPushButton[smartfluxQuestionMark="true"] {
 QPushButton#questionMarkImg {
     background-color: transparent;
     border: none;
+    padding: 0px;
     image: url(:/icons/qm-enabled);
     min-width: 12px;
     max-width: 12px;
