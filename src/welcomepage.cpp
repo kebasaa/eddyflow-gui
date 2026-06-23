@@ -31,6 +31,9 @@
 #include <QDir>
 #include <QGridLayout>
 #include <QListWidget>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QPushButton>
 #include <QToolButton>
 #include <QUrl>
@@ -424,6 +427,8 @@ void WelcomePage::createQuestionMark()
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_1->setFlat(true);
+    questionMark_1->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_1->setIconSize(QSize(12, 12));
     questionMark_1->setProperty("smartfluxQuestionMark", true);
 
     connect(questionMark_1, &QPushButton::clicked,

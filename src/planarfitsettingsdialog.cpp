@@ -39,6 +39,9 @@
 #include <QScrollArea>
 #include <QSpinBox>
 #include <QTimeEdit>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QToolButton>
 
 #include "ancillaryfiletest.h"
@@ -671,10 +674,14 @@ void PlanarFitSettingsDialog::setupViews()
 {
     addButton = new QToolButton;
     addButton->setObjectName(QStringLiteral("plusButton"));
+    addButton->setAutoRaise(true);
+    { QIcon icon; icon.addPixmap(QPixmap(QStringLiteral(":/icons/plus")), QIcon::Normal, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/plus-hover")), QIcon::Active, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/plus-disabled")), QIcon::Disabled, QIcon::Off); addButton->setIcon(icon); addButton->setIconSize(QSize(18, 18)); }
     addButton->setToolTip(tr("<b>+</b> Add an angle."));
 
     removeButton = new QToolButton;
     removeButton->setObjectName(QStringLiteral("minusButton"));
+    removeButton->setAutoRaise(true);
+    { QIcon icon; icon.addPixmap(QPixmap(QStringLiteral(":/icons/minus")), QIcon::Normal, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/minus-hover")), QIcon::Active, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/minus-disabled")), QIcon::Disabled, QIcon::Off); removeButton->setIcon(icon); removeButton->setIconSize(QSize(18, 18)); }
     removeButton->setToolTip(tr("<b>-</b> Remove an angle."));
 
     connect(addButton, &QToolButton::clicked,

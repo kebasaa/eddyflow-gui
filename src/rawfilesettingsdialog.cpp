@@ -28,6 +28,9 @@
 #include <QComboBox>
 #include <QDebug>
 #include <QGridLayout>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QPushButton>
 #include <QSpinBox>
 #include <QUrl>
@@ -82,6 +85,8 @@ RawFileSettingsDialog::RawFileSettingsDialog(QWidget* parent, DlProject *dlProje
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_1->setFlat(true);
+    questionMark_1->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_1->setIconSize(QSize(12, 12));
     questionMark_1->setVisible(false);
 
     auto rawPropertiesLayout = new QGridLayout;

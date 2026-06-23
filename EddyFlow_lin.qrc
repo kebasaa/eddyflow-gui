@@ -1,4 +1,5 @@
 <RCC>
+    <!-- Bumped: force rcc recompile when .qss files are updated -->
     <qresource prefix="/icons">
         <file alias="qm-enabled">img/help/help-enabled.png</file>
         <file alias="qm-hover">img/help/help-hover.png</file>

@@ -31,6 +31,9 @@
 #include <QComboBox>
 #include <QDebug>
 #include <QGridLayout>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScrollArea>
@@ -825,21 +828,33 @@ void ProjectPage::createQuestionMark()
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_1->setFlat(true);
+    questionMark_1->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_1->setIconSize(QSize(12, 12));
     questionMark_2 = new QPushButton;
     questionMark_2->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_2->setFlat(true);
+    questionMark_2->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_2->setIconSize(QSize(12, 12));
     questionMark_3 = new QPushButton;
     questionMark_3->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_3->setFlat(true);
+    questionMark_3->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_3->setIconSize(QSize(12, 12));
     questionMark_4 = new QPushButton;
     questionMark_4->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_4->setFlat(true);
+    questionMark_4->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_4->setIconSize(QSize(12, 12));
     questionMark_5 = new QPushButton;
     questionMark_5->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_5->setFlat(true);
+    questionMark_5->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_5->setIconSize(QSize(12, 12));
     questionMark_6 = new QPushButton;
     questionMark_6->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_6->setFlat(true);
+    questionMark_6->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_6->setIconSize(QSize(12, 12));
 
     connect(questionMark_1, &QPushButton::clicked,
             this, &ProjectPage::onlineHelpTrigger_2);

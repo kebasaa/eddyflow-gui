@@ -518,7 +518,6 @@ QToolButton#plusButton {
     border: none;
     background: transparent;
     padding: 0px;
-    image: url(:/icons/plus);
 }
 
 QToolButton#plusButton:hover {
@@ -543,7 +542,6 @@ QToolButton#minusButton {
     border: none;
     background: transparent;
     padding: 0px;
-    image: url(:/icons/minus);
 }
 
 QToolButton#minusButton:hover {
@@ -1408,7 +1406,6 @@ QPushButton#questionMarkImg {
     background-color: transparent;
     border: none;
     padding: 0px;
-    image: url(:/icons/qm-enabled);
     min-width: 12px;
     max-width: 12px;
     min-height: 12px;
@@ -1430,7 +1427,6 @@ QPushButton#foldButton {
     text-align: left;
     subcontrol-position: left bottom;
     padding: 0px;
-    image: url(:/icons/fold-down);
 }
 
 QPushButton#foldButton:hover {
@@ -1447,7 +1443,6 @@ QPushButton#foldButton:checked {
     border-color: navy;
     text-align: left;
     subcontrol-position: right bottom;
-    image: url(:/icons/fold-up);
 }
 
 QPushButton#foldButton:checked:hover {
@@ -1459,7 +1454,6 @@ QPushButton#foldButton:checked:pressed {
 }
 
 QPushButton#foldButton:unchecked {
-    image: url(:/icons/fold-down);
 }
 
 QPushButton#foldButton:unchecked:hover {

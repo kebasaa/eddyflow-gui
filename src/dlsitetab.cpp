@@ -30,6 +30,9 @@
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QLineEdit>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QRegularExpression>
@@ -228,6 +231,8 @@ DlSiteTab::DlSiteTab(QWidget *parent, DlProject *dlProject) :
     auto siteGroup = new QGroupBox(tr("Station Info"));
     siteGroup->setObjectName(QStringLiteral("simpleGroupBox"));
     siteGroup->setFlat(true);
+    siteGroup->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    siteGroup->setIconSize(QSize(12, 12));
     siteGroup->setLayout(infoLayout);
 
     auto siteLayout = new QVBoxLayout;
@@ -796,12 +801,18 @@ void DlSiteTab::createQuestionMark()
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_1->setFlat(true);
+    questionMark_1->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_1->setIconSize(QSize(12, 12));
     questionMark_2 = new QPushButton;
     questionMark_2->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_2->setFlat(true);
+    questionMark_2->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_2->setIconSize(QSize(12, 12));
     questionMark_3 = new QPushButton;
     questionMark_3->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_3->setFlat(true);
+    questionMark_3->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_3->setIconSize(QSize(12, 12));
 
     connect(questionMark_1, &QPushButton::clicked,
             this, &DlSiteTab::onlineHelpTrigger_1);

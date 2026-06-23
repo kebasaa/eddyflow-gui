@@ -30,6 +30,9 @@
 #include <QComboBox>
 #include <QDebug>
 #include <QDoubleSpinBox>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScrollArea>
@@ -1457,12 +1460,18 @@ void AdvProcessingOptions::createQuestionMark()
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_1->setFlat(true);
+    questionMark_1->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_1->setIconSize(QSize(12, 12));
     questionMark_4 = new QPushButton;
     questionMark_4->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_4->setFlat(true);
+    questionMark_4->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_4->setIconSize(QSize(12, 12));
     questionMark_11 = new QPushButton;
     questionMark_11->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_11->setFlat(true);
+    questionMark_11->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_11->setIconSize(QSize(12, 12));
 
     connect(questionMark_1, &QPushButton::clicked,
             this, &AdvProcessingOptions::onlineHelpTrigger_1);

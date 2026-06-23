@@ -30,6 +30,9 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QScrollArea>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QToolButton>
 
 #include "anem_delegate.h"
@@ -71,10 +74,14 @@ DlInstrTab::DlInstrTab(QWidget *parent, DlProject *dlProject) :
 
     auto addAnemButton = new QToolButton;
     addAnemButton->setObjectName(QStringLiteral("plusButton"));
+    addAnemButton->setAutoRaise(true);
+    { QIcon icon; icon.addPixmap(QPixmap(QStringLiteral(":/icons/plus")), QIcon::Normal, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/plus-hover")), QIcon::Active, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/plus-disabled")), QIcon::Disabled, QIcon::Off); addAnemButton->setIcon(icon); addAnemButton->setIconSize(QSize(18, 18)); }
     addAnemButton->setToolTip(tr("<b>+</b> Add a new anemometer."));
 
     auto removeAnemButton = new QToolButton;
     removeAnemButton->setObjectName(QStringLiteral("minusButton"));
+    removeAnemButton->setAutoRaise(true);
+    { QIcon icon; icon.addPixmap(QPixmap(QStringLiteral(":/icons/minus")), QIcon::Normal, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/minus-hover")), QIcon::Active, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/minus-disabled")), QIcon::Disabled, QIcon::Off); removeAnemButton->setIcon(icon); removeAnemButton->setIconSize(QSize(18, 18)); }
     removeAnemButton->setToolTip(tr("<b>-</b> Remove the currently selected anemometer."));
 
     auto anemButtonsLayout = new QVBoxLayout;
@@ -122,10 +129,14 @@ DlInstrTab::DlInstrTab(QWidget *parent, DlProject *dlProject) :
 
     auto addIrgaButton = new QToolButton;
     addIrgaButton->setObjectName(QStringLiteral("plusButton"));
+    addIrgaButton->setAutoRaise(true);
+    { QIcon icon; icon.addPixmap(QPixmap(QStringLiteral(":/icons/plus")), QIcon::Normal, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/plus-hover")), QIcon::Active, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/plus-disabled")), QIcon::Disabled, QIcon::Off); addIrgaButton->setIcon(icon); addIrgaButton->setIconSize(QSize(18, 18)); }
     addIrgaButton->setToolTip(tr("<b>+</b> Add a new gas analyzer."));
 
     auto removeIrgaButton = new QToolButton;
     removeIrgaButton->setObjectName(QStringLiteral("minusButton"));
+    removeIrgaButton->setAutoRaise(true);
+    { QIcon icon; icon.addPixmap(QPixmap(QStringLiteral(":/icons/minus")), QIcon::Normal, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/minus-hover")), QIcon::Active, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/minus-disabled")), QIcon::Disabled, QIcon::Off); removeIrgaButton->setIcon(icon); removeIrgaButton->setIconSize(QSize(18, 18)); }
     removeIrgaButton->setToolTip(tr("<b>-</b>Remove the currently selected gas analyzer."));
 
     auto irgaButtonsLayout = new QVBoxLayout;

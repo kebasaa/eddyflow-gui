@@ -29,6 +29,9 @@
 #include <QComboBox>
 #include <QDebug>
 #include <QLineEdit>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QVBoxLayout>
@@ -1424,21 +1427,33 @@ void AdvOutputOptions::createQuestionMark()
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_1->setFlat(true);
+    questionMark_1->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_1->setIconSize(QSize(12, 12));
     questionMark_2 = new QPushButton;
     questionMark_2->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_2->setFlat(true);
+    questionMark_2->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_2->setIconSize(QSize(12, 12));
     questionMark_4 = new QPushButton;
     questionMark_4->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_4->setFlat(true);
+    questionMark_4->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_4->setIconSize(QSize(12, 12));
     questionMark_5 = new QPushButton;
     questionMark_5->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_5->setFlat(true);
+    questionMark_5->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_5->setIconSize(QSize(12, 12));
     questionMark_8 = new QPushButton;
     questionMark_8->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_8->setFlat(true);
+    questionMark_8->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_8->setIconSize(QSize(12, 12));
     questionMark_9 = new QPushButton;
     questionMark_9->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_9->setFlat(true);
+    questionMark_9->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_9->setIconSize(QSize(12, 12));
 
     connect(questionMark_1, &QPushButton::clicked,
             this, &AdvOutputOptions::onlineHelpTrigger_1);

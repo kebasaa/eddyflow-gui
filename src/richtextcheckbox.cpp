@@ -28,6 +28,9 @@
 
 #include <QCheckBox>
 #include <QHBoxLayout>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QPushButton>
 #include <QTextDocument>
 
@@ -48,6 +51,8 @@ RichTextCheckBox::RichTextCheckBox(QWidget *parent) :
     questionMark = new QPushButton;
     questionMark->setObjectName(QLatin1String("questionMarkImg"));
     questionMark->setFlat(true);
+    questionMark->setIcon(QIcon(QLatin1String(":/icons/qm-enabled")));
+    questionMark->setIconSize(QSize(12, 12));
     questionMark->setVisible(false);
 
     auto container = new QHBoxLayout(this);

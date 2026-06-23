@@ -30,6 +30,9 @@
 #include <QComboBox>
 #include <QDebug>
 #include <QGridLayout>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QResizeEvent>
@@ -2751,36 +2754,58 @@ void AdvStatisticalOptions::createQuestionMark()
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_1->setFlat(true);
+    questionMark_1->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_1->setIconSize(QSize(12, 12));
     questionMark_2 = new QPushButton;
     questionMark_2->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_2->setFlat(true);
+    questionMark_2->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_2->setIconSize(QSize(12, 12));
     questionMark_3 = new QPushButton;
     questionMark_3->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_3->setFlat(true);
+    questionMark_3->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_3->setIconSize(QSize(12, 12));
     questionMark_4 = new QPushButton;
     questionMark_4->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_4->setFlat(true);
+    questionMark_4->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_4->setIconSize(QSize(12, 12));
     questionMark_5 = new QPushButton;
     questionMark_5->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_5->setFlat(true);
+    questionMark_5->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_5->setIconSize(QSize(12, 12));
     questionMark_6 = new QPushButton;
     questionMark_6->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_6->setFlat(true);
+    questionMark_6->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_6->setIconSize(QSize(12, 12));
     questionMark_7 = new QPushButton;
     questionMark_7->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_7->setFlat(true);
+    questionMark_7->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_7->setIconSize(QSize(12, 12));
     questionMark_8 = new QPushButton;
     questionMark_8->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_8->setFlat(true);
+    questionMark_8->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_8->setIconSize(QSize(12, 12));
     questionMark_9 = new QPushButton;
     questionMark_9->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_9->setFlat(true);
+    questionMark_9->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_9->setIconSize(QSize(12, 12));
     questionMark_10 = new QPushButton;
     questionMark_10->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_10->setFlat(true);
+    questionMark_10->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_10->setIconSize(QSize(12, 12));
     questionMark_11 = new QPushButton;
     questionMark_11->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_11->setFlat(true);
+    questionMark_11->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_11->setIconSize(QSize(12, 12));
 
     connect(questionMark_1, &QPushButton::clicked,
             this, &AdvStatisticalOptions::onlineHelpTrigger_1);

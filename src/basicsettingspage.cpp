@@ -49,6 +49,9 @@
 #include <QTimer>
 #include <QUrl>
 #include <QUrlQuery>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QToolButton>
 #include <QHeaderView>
 
@@ -459,6 +462,8 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     moreButton->setCheckable(true);
     moreButton->setChecked(false);
     moreButton->setAutoDefault(false);
+    moreButton->setFlat(true);
+    { QIcon foldIcon; foldIcon.addPixmap(QPixmap(QStringLiteral(":/icons/fold-down")), QIcon::Normal, QIcon::Off); foldIcon.addPixmap(QPixmap(QStringLiteral(":/icons/fold-down-hover")), QIcon::Active, QIcon::Off); foldIcon.addPixmap(QPixmap(QStringLiteral(":/icons/fold-up")), QIcon::Normal, QIcon::On); foldIcon.addPixmap(QPixmap(QStringLiteral(":/icons/fold-up-hover")), QIcon::Active, QIcon::On); moreButton->setIcon(foldIcon); moreButton->setIconSize(QSize(16, 9)); }
 
     auto extensionLayout = new QGridLayout;
     extensionLayout->setContentsMargins(0, 0, 0, 0);
@@ -3589,7 +3594,9 @@ void BasicSettingsPage::createQuestionMark()
     for (auto btn : btn_list)
     {
         btn->setObjectName(QStringLiteral("questionMarkImg"));
-    static_cast<QPushButton*>(btn)->setFlat(true);
+        static_cast<QPushButton*>(btn)->setFlat(true);
+        static_cast<QPushButton*>(btn)->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+        static_cast<QPushButton*>(btn)->setIconSize(QSize(12, 12));
     }
 
     connect(questionMark_1, &QPushButton::clicked,
@@ -5190,10 +5197,14 @@ void BasicSettingsPage::setupWindFilterViews()
 {
     addButton = new QToolButton;
     addButton->setObjectName(QStringLiteral("plusButton"));
+    addButton->setAutoRaise(true);
+    { QIcon icon; icon.addPixmap(QPixmap(QStringLiteral(":/icons/plus")), QIcon::Normal, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/plus-hover")), QIcon::Active, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/plus-disabled")), QIcon::Disabled, QIcon::Off); addButton->setIcon(icon); addButton->setIconSize(QSize(18, 18)); }
     addButton->setToolTip(tr("<b>+</b> Add an angle."));
 
     removeButton = new QToolButton;
     removeButton->setObjectName(QStringLiteral("minusButton"));
+    removeButton->setAutoRaise(true);
+    { QIcon icon; icon.addPixmap(QPixmap(QStringLiteral(":/icons/minus")), QIcon::Normal, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/minus-hover")), QIcon::Active, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/minus-disabled")), QIcon::Disabled, QIcon::Off); removeButton->setIcon(icon); removeButton->setIconSize(QSize(18, 18)); }
     removeButton->setToolTip(tr("<b>-</b> Remove an angle."));
 
     connect(addButton, &QToolButton::clicked,

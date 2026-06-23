@@ -32,6 +32,9 @@
 #include <QDoubleSpinBox>
 #include <QFileDialog>
 #include <QHBoxLayout>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScrollArea>
@@ -1909,21 +1912,33 @@ void AdvSpectralOptions::createQuestionMarks()
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_1->setFlat(true);
+    questionMark_1->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_1->setIconSize(QSize(12, 12));
     questionMark_11 = new QPushButton;
     questionMark_11->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_11->setFlat(true);
+    questionMark_11->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_11->setIconSize(QSize(12, 12));
     questionMark_22 = new QPushButton;
     questionMark_22->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_22->setFlat(true);
+    questionMark_22->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_22->setIconSize(QSize(12, 12));
     questionMark_33 = new QPushButton;
     questionMark_33->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_33->setFlat(true);
+    questionMark_33->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_33->setIconSize(QSize(12, 12));
     questionMark_44 = new QPushButton;
     questionMark_44->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_44->setFlat(true);
+    questionMark_44->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_44->setIconSize(QSize(12, 12));
     questionMark_55 = new QPushButton;
     questionMark_55->setObjectName(QStringLiteral("questionMarkImg"));
     questionMark_55->setFlat(true);
+    questionMark_55->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_55->setIconSize(QSize(12, 12));
 
     connect(questionMark_1, &QPushButton::clicked,
             this, &AdvSpectralOptions::onlineHelpTrigger_11);
