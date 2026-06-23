@@ -237,8 +237,7 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
 
     startTimeEdit = new QTimeEdit;
     startTimeEdit->setDisplayFormat(QStringLiteral("hh:mm"));
-    startTimeEdit->setMinimumWidth(70);
-    startTimeEdit->setMaximumWidth(70);
+    startTimeEdit->setMinimumWidth(60);
     startTimeEdit->setAccelerated(true);
 
     auto startDateContainer = new QHBoxLayout;
@@ -260,8 +259,7 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
 
     endTimeEdit = new QTimeEdit;
     endTimeEdit->setDisplayFormat(QStringLiteral("hh:mm"));
-    endTimeEdit->setMinimumWidth(70);
-    endTimeEdit->setMaximumWidth(70);
+    endTimeEdit->setMinimumWidth(60);
     endTimeEdit->setAccelerated(true);
 
     auto endDateContainer = new QHBoxLayout;
