@@ -335,7 +335,7 @@ QComboBox::drop-down {
 }
 
 QComboBox::down-arrow {
-    image: url(:/icons/combo-normal);
+    image: url(:/icons/cal-down);
     width: 9px;
     height: 9px;
 }
@@ -2096,7 +2096,7 @@ QDateEdit::drop-down {
 }
 
 QDateEdit::down-arrow {
-    image: url(:/icons/combo-normal);
+    image: url(:/icons/cal-down);
     width: 9px;
     height: 9px;
 }

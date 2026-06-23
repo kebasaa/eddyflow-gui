@@ -1423,16 +1423,22 @@ void AdvOutputOptions::createQuestionMark()
 {
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_1->setFlat(true);
     questionMark_2 = new QPushButton;
     questionMark_2->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_2->setFlat(true);
     questionMark_4 = new QPushButton;
     questionMark_4->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_4->setFlat(true);
     questionMark_5 = new QPushButton;
     questionMark_5->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_5->setFlat(true);
     questionMark_8 = new QPushButton;
     questionMark_8->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_8->setFlat(true);
     questionMark_9 = new QPushButton;
     questionMark_9->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_9->setFlat(true);
 
     connect(questionMark_1, &QPushButton::clicked,
             this, &AdvOutputOptions::onlineHelpTrigger_1);

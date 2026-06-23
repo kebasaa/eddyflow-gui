@@ -824,16 +824,22 @@ void ProjectPage::createQuestionMark()
 {
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_1->setFlat(true);
     questionMark_2 = new QPushButton;
     questionMark_2->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_2->setFlat(true);
     questionMark_3 = new QPushButton;
     questionMark_3->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_3->setFlat(true);
     questionMark_4 = new QPushButton;
     questionMark_4->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_4->setFlat(true);
     questionMark_5 = new QPushButton;
     questionMark_5->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_5->setFlat(true);
     questionMark_6 = new QPushButton;
     questionMark_6->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_6->setFlat(true);
 
     connect(questionMark_1, &QPushButton::clicked,
             this, &ProjectPage::onlineHelpTrigger_2);

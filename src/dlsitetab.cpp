@@ -795,10 +795,13 @@ void DlSiteTab::createQuestionMark()
 {
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_1->setFlat(true);
     questionMark_2 = new QPushButton;
     questionMark_2->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_2->setFlat(true);
     questionMark_3 = new QPushButton;
     questionMark_3->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_3->setFlat(true);
 
     connect(questionMark_1, &QPushButton::clicked,
             this, &DlSiteTab::onlineHelpTrigger_1);

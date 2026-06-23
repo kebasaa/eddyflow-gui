@@ -81,6 +81,7 @@ RawFileSettingsDialog::RawFileSettingsDialog(QWidget* parent, DlProject *dlProje
     dataRecLabelEdit->setVisible(false);
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_1->setFlat(true);
     questionMark_1->setVisible(false);
 
     auto rawPropertiesLayout = new QGridLayout;

@@ -1456,10 +1456,13 @@ void AdvProcessingOptions::createQuestionMark()
 {
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_1->setFlat(true);
     questionMark_4 = new QPushButton;
     questionMark_4->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_4->setFlat(true);
     questionMark_11 = new QPushButton;
     questionMark_11->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_11->setFlat(true);
 
     connect(questionMark_1, &QPushButton::clicked,
             this, &AdvProcessingOptions::onlineHelpTrigger_1);

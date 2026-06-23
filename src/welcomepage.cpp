@@ -423,6 +423,7 @@ void WelcomePage::createQuestionMark()
 {
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_1->setFlat(true);
     questionMark_1->setProperty("smartfluxQuestionMark", true);
 
     connect(questionMark_1, &QPushButton::clicked,

@@ -2750,26 +2750,37 @@ void AdvStatisticalOptions::createQuestionMark()
 {
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_1->setFlat(true);
     questionMark_2 = new QPushButton;
     questionMark_2->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_2->setFlat(true);
     questionMark_3 = new QPushButton;
     questionMark_3->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_3->setFlat(true);
     questionMark_4 = new QPushButton;
     questionMark_4->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_4->setFlat(true);
     questionMark_5 = new QPushButton;
     questionMark_5->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_5->setFlat(true);
     questionMark_6 = new QPushButton;
     questionMark_6->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_6->setFlat(true);
     questionMark_7 = new QPushButton;
     questionMark_7->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_7->setFlat(true);
     questionMark_8 = new QPushButton;
     questionMark_8->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_8->setFlat(true);
     questionMark_9 = new QPushButton;
     questionMark_9->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_9->setFlat(true);
     questionMark_10 = new QPushButton;
     questionMark_10->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_10->setFlat(true);
     questionMark_11 = new QPushButton;
     questionMark_11->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_11->setFlat(true);
 
     connect(questionMark_1, &QPushButton::clicked,
             this, &AdvStatisticalOptions::onlineHelpTrigger_1);

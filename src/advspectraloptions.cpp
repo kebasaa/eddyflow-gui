@@ -1908,16 +1908,22 @@ void AdvSpectralOptions::createQuestionMarks()
 {
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_1->setFlat(true);
     questionMark_11 = new QPushButton;
     questionMark_11->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_11->setFlat(true);
     questionMark_22 = new QPushButton;
     questionMark_22->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_22->setFlat(true);
     questionMark_33 = new QPushButton;
     questionMark_33->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_33->setFlat(true);
     questionMark_44 = new QPushButton;
     questionMark_44->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_44->setFlat(true);
     questionMark_55 = new QPushButton;
     questionMark_55->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_55->setFlat(true);
 
     connect(questionMark_1, &QPushButton::clicked,
             this, &AdvSpectralOptions::onlineHelpTrigger_11);

@@ -47,6 +47,7 @@ RichTextCheckBox::RichTextCheckBox(QWidget *parent) :
 
     questionMark = new QPushButton;
     questionMark->setObjectName(QLatin1String("questionMarkImg"));
+    questionMark->setFlat(true);
     questionMark->setVisible(false);
 
     auto container = new QHBoxLayout(this);
