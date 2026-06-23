@@ -796,18 +796,8 @@ bool MainWindow::fileSaveAs(const QString& fileName)
 // the only message being in case of error
 bool MainWindow::fileSaveSilently()
 {
-    if (newFlag_ && modifiedFlag_)
-    {
-        return fileSave();
-    }
-
-    // hack: in case of new flag (it should not be possible with old files,
-    // for which we shall make a silent saving) delete the flag
-    // TODO: prevent it
     if (newFlag_)
-    {
-        newFlag_ = false;
-    }
+        return fileSave();  // always prompt Save As for new (unsaved) projects
 
     if (modifiedFlag_)
     {
@@ -815,11 +805,6 @@ bool MainWindow::fileSaveSilently()
         return fileSave(quiet);
     }
 
-//    auto quiet = true;
-//    return fileSave(quiet);
-
-//    QMessageBox::warning(nullptr, QLatin1String(Q_FUNC_INFO),
-//    tr("New 2: %1\nModified: %2").arg(newFlag_, modifiedFlag_));
     return true;
 }
 
@@ -3325,6 +3310,16 @@ void MainWindow::runExpress()
         ecProject_->setGeneralRunMode(Defs::CurrRunMode::Express);
         if (!fileSaveSilently()) { return; }
 
+        const QString projFilePath = QFileInfo(ecProject_->generalFileName()).absoluteFilePath();
+        if (!QFileInfo::exists(projFilePath))
+        {
+            QMessageBox::critical(this, tr("Project Not Saved"),
+                tr("Please save the project to a file before running.\n\n"
+                   "Go to File > Save As... and choose a location."));
+            changePage(Defs::CurrPage::Welcome);
+            return;
+        }
+
         QStringList args;
 
         args << QStringLiteral("-c");
@@ -3333,7 +3328,7 @@ void MainWindow::runExpress()
         args << Defs::HOST_OS;
         args << QStringLiteral("-e");
         args << appEnvPath_;
-        args << ecProject_->generalFileName();
+        args << projFilePath;
 
         engineProcess_->engineProcessStart(engineFilePath, workingDir, args);
 
@@ -3427,6 +3422,16 @@ void MainWindow::runAdvancedStep_1()
             ecProject_->setGeneralRunMode(Defs::CurrRunMode::Advanced);
             if (!fileSaveSilently()) { return; }
 
+            const QString projFilePath1 = QFileInfo(ecProject_->generalFileName()).absoluteFilePath();
+            if (!QFileInfo::exists(projFilePath1))
+            {
+                QMessageBox::critical(this, tr("Project Not Saved"),
+                    tr("Please save the project to a file before running.\n\n"
+                       "Go to File > Save As... and choose a location."));
+                changePage(Defs::CurrPage::Welcome);
+                return;
+            }
+
             QStringList args;
             args << QStringLiteral("-c");
             args << QStringLiteral("gui");
@@ -3434,7 +3439,7 @@ void MainWindow::runAdvancedStep_1()
             args << Defs::HOST_OS;
             args << QStringLiteral("-e");
             args << appEnvPath_;
-            args << ecProject_->generalFileName();
+            args << projFilePath1;
             engineProcess_->engineProcessStart(engine1FilePath, workingDir, args);
 
             // block until the process truly start to ensure reliable behavior
@@ -3490,6 +3495,16 @@ void MainWindow::runAdvancedStep_2()
 
         if (!fileSaveSilently()) { return; }
 
+        const QString projFilePath2 = QFileInfo(ecProject_->generalFileName()).absoluteFilePath();
+        if (!QFileInfo::exists(projFilePath2))
+        {
+            QMessageBox::critical(this, tr("Project Not Saved"),
+                tr("Please save the project to a file before running.\n\n"
+                   "Go to File > Save As... and choose a location."));
+            changePage(Defs::CurrPage::Welcome);
+            return;
+        }
+
         QStringList args;
         args << QStringLiteral("-c");
         args << QStringLiteral("gui");
@@ -3497,7 +3512,7 @@ void MainWindow::runAdvancedStep_2()
         args << Defs::HOST_OS;
         args << QStringLiteral("-e");
         args << appEnvPath_;
-        args << ecProject_->generalFileName();
+        args << projFilePath2;
         engineProcess_->engineProcessStart(engineFilePath, workingDir, args);
 
         // block until the process truly start to ensure reliable behavior
@@ -3583,6 +3598,16 @@ void MainWindow::runRetriever()
         emit checkMetadataOutputRequest();
         if (!fileSaveSilently()) { return; }
 
+        const QString projFilePath3 = QFileInfo(ecProject_->generalFileName()).absoluteFilePath();
+        if (!QFileInfo::exists(projFilePath3))
+        {
+            QMessageBox::critical(this, tr("Project Not Saved"),
+                tr("Please save the project to a file before running.\n\n"
+                   "Go to File > Save As... and choose a location."));
+            changePage(Defs::CurrPage::Welcome);
+            return;
+        }
+
         QStringList args;
         args << QStringLiteral("-c");
         args << QStringLiteral("gui");
@@ -3590,7 +3615,7 @@ void MainWindow::runRetriever()
         args << Defs::HOST_OS;
         args << QStringLiteral("-e");
         args << appEnvPath_;
-        args << ecProject_->generalFileName();
+        args << projFilePath3;
         engineProcess_->engineProcessStart(engineFilePath, workingDir, args);
 
         // block until the process truly start to ensure reliable behavior
