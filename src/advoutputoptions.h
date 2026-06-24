@@ -32,6 +32,7 @@
 class QButtonGroup;
 class QCheckBox;
 class QComboBox;
+class QGroupBox;
 class QLabel;
 class QPushButton;
 class QRadioButton;
@@ -66,6 +67,7 @@ private slots:
 
     void updateFixedOuputFormat(int n);
     void updateErrorLabel(const QString& s);
+    void updateFluxnetErrLabelMode(bool checked);
 
     void checkFullSpectraAll(bool b);
     void checkFullCospectraAll(bool b);
@@ -149,8 +151,9 @@ private:
     RichTextCheckBox* outFullCospectraCheckBoxN2o;
 
     QCheckBox* outFullCospectraAll;
-    QCheckBox* outGhgEuCheckBox;
-    QCheckBox* outAmFluxCheckBox;
+    QGroupBox* fluxnetGroupBox;
+    QCheckBox* fluxnetBiometCheckBox;
+    QCheckBox* fluxnetErrLabelCheckBox;
     QCheckBox* outDetailsCheckBox;
     QCheckBox* outMdCheckBox;
     QCheckBox* outBiometCheckBox;
