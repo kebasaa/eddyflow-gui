@@ -2738,11 +2738,14 @@ void MainWindow::showGuidedModeMessages_3()
 
 void MainWindow::onFastTemperatureSelected()
 {
-    const AnemDescList* adl = dlProject_->masterAnemList();
+    AnemDescList* adl = dlProject_->anems();
     if (!adl || adl->isEmpty())
         return;
 
     const QString anemModel = ecProject_->generalColMasterSonic();
+    if (anemModel.isEmpty())
+        return;
+
     int anemIndex = anemModel.mid(anemModel.lastIndexOf(QLatin1Char('_')) + 1).toInt();
     int i = anemIndex - 1;
     if (i < 0 || i >= adl->size())
