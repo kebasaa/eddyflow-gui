@@ -11,6 +11,15 @@ dioxide, and other trace gases, and energy with the Eddy Covariance method.
 
 [LI-COR Biosciences](http://www.licor.com) has not published upstream EddyFlow updates for several years. This repository is an actively maintained fork of EddyPro 6.2.2 that continues development while gratefully acknowledging LI-COR, ECO2S, and the original EddyFlow authors for creating and releasing EddyFlow.eddypro originates from [ECO<sub>2</sub>S](http://gaia.agraria.unitus.it/eco2s), the Eddy COvariance COmmunity Software project, which was developed as part of the Infrastructure for Measurement of the European Carbon Cycle (IMECC-EU) research project. We gratefully acknowledge the [IMECC](http://imecc.ipsl.jussieu.fr/index.html) consortium, the ECO<sub>2</sub>S development team, the [University of Tuscia](https://www.unitus.it) (Italy) and scientists around the world who assisted with development and testing of the original version of this software.
 
+## EddyFlow repositories
+
+EddyFlow consists of 4 repositories:
+
+- [eddyflow-engine](https://github.com/keba_saa/eddyflow-engine): The engine behind it all
+- [eddyflow-gui](https://github.com/keba_saa/eddyflow-gui) (current repository): The Qt6 GUI
+- [eddyflow-documentation](https://github.com/keba_saa/eddyflow-documentation): The documentation of the software and its usage
+- [eddyflow-build-script](https://github.com/keba_saa/eddyflow-build-script): This builds the software binaries (currently Windows only)
+
 ## Overview
 
 The EddyFlow installer installs the following components:
@@ -26,7 +35,7 @@ Both Engine and GUI are pre-built for a particular environment (operating system
 ## License
 
 This fork of EddyPro 6.2.2 is released with and will retain the
-[GNU General Public License (GPL) v3.0](https://github.com/LI-COR/EddyFlow-gui/blob/master/LICENSE).
+[GNU General Public License (GPL) v3.0](LICENSE).
 
 ## Source Code Repository
 
