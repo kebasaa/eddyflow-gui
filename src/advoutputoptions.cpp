@@ -1,23 +1,25 @@
 /***************************************************************************
   advoutputoptions.cpp
   -------------------
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "advoutputoptions.h"
@@ -27,6 +29,9 @@
 #include <QComboBox>
 #include <QDebug>
 #include <QLineEdit>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QVBoxLayout>
@@ -38,7 +43,6 @@
 #include "clicklabel.h"
 #include "configstate.h"
 #include "customcheckbox.h"
-#include "dbghelper.h"
 #include "ecproject.h"
 #include "richtextcheckbox.h"
 #include "widget_utils.h"
@@ -144,7 +148,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
            "only the main spectral slopes are evidenced. Select this option "
            "to output binned spectra and cospectra for all available "
            "variables for each flux averaging interval. Results files are "
-           "stored in a separate sub-folder \"\\eddypro_binned_cospectra\" "
+           "stored in a separate sub-folder \"\\EddyFlow_binned_cospectra\" "
            "inside the selected output folder.");
     outBinSpectraCheckBox->setToolTip(tooltipStr);
 
@@ -159,7 +163,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
                "attain the value of 1 at the lower frequency. Select this "
                "option to output binned ogives for all available variables, "
                "for each flux averaging interval. Results files are stored "
-               "in a separate sub-folder \"\\eddypro_binned_ogives\" inside "
+               "in a separate sub-folder \"\\EddyFlow_binned_ogives\" inside "
                "the selected output folder.");
     outBinOgivesCheckBox->setToolTip(tooltipStr);
 
@@ -167,8 +171,8 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     outMeanSpectraCheckBox->setText(tr("Ensemble averaged spectra"));
     tooltipStr =
         tr("<b>Ensemble averaged spectra:</b> Check this box to "
-           "instruct EddyPro to calculate ensemble-averaged spectra. "
-           "EddyPro will present ensemble gas spectra with and without noise "
+           "instruct EddyFlow to calculate ensemble-averaged spectra. "
+           "EddyFlow will present ensemble gas spectra with and without noise "
            "elimination (if this option is selected in the Spectral Analysis "
            "page) along with ensemble temperature spectra for reference. Use "
            "ensemble spectra to analyze the turbulence structure and the "
@@ -181,7 +185,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     outMeanCospCheckBox->setText(tr("Ensemble averaged cospectra and models"));
     tooltipStr =
         tr("<b>Ensemble averaged cospectra and models:</b> Check this box to "
-           "instruct EddyPro to calculate ensemble-averaged cospectra, fit "
+           "instruct EddyFlow to calculate ensemble-averaged cospectra, fit "
            "model cospectra and present \"ideal\" cospectra along with the "
            "former, to analyzer the turbulence structure at your site. Note "
            "that a fair amount of cospectral data are needed (e.g., more than "
@@ -256,7 +260,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     outFullCheckBox->setText(tr("Full output (fluxes, quality flags, "
                                 "turbulence, statistics...)"));
     tooltipStr =
-        tr("<b>Full Output:</b> This is the main EddyPro results file. It "
+        tr("<b>Full Output:</b> This is the main EddyFlow results file. It "
            "contains fluxes, quality flags, micrometeorological variables, "
            "gas concentrations and densities, footprint estimations and "
            "diagnostic information along with ancillary variables such as "
@@ -292,10 +296,10 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
         tr("<b>Biomet measurements:</b> Average values of all available "
            "biomet measurements, calculated over the same time period "
            "selected for fluxes. Biomet measurements that are recognized "
-           "by EddyPro (i.e., marked by recognized labels) are screened "
+           "by EddyFlow (i.e., marked by recognized labels) are screened "
            "for physical plausibility before calculating the average value "
            "and they are converted to units that coincide with other "
-           "EddyPro results. All other variables are solely averaged "
+           "EddyFlow results. All other variables are solely averaged "
            "and provided on output.");
     outBiometCheckBox->setToolTip(tooltipStr);
 
@@ -338,10 +342,10 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
            "deviations, variances and covariances, skewness and kurtosis) "
            "for all variables contained in the raw files. Result files "
            "concerning variables selected for flux computation are stored "
-           "in a separate sub-folder \"\\eddypro_stats\" inside the "
+           "in a separate sub-folder \"\\EddyFlow_stats\" inside the "
            "selected output folder. Result files concerning variables "
            "not selected for flux computation but available in the raw "
-           "files are stored in a separate sub-folder \"\\eddypro_user_stats\" "
+           "files are stored in a separate sub-folder \"\\EddyFlow_user_stats\" "
            "inside the selected output folder.");
     statLabel->setToolTip(tooltipStr);
 
@@ -349,7 +353,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     tooltipStr =
             tr("<b>Time series:</b> Actual time series for each variable "
                "selected in the list on the right. Result files are stored "
-               "in a separate sub-folder \"\\eddypro_raw_datasets\" inside "
+               "in a separate sub-folder \"\\EddyFlow_raw_datasets\" inside "
                "the selected output folder.");
     timeSeriesLabel->setToolTip(tooltipStr);
 
@@ -418,7 +422,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     tooltipStr =
         tr("<b>Full length spectra:</b> Spectra calculated for each variable, "
            "for each flux averaging interval. Results files are stored in "
-           "a separate sub-folder \"\\eddypro_full_cospectra\" inside the "
+           "a separate sub-folder \"\\EddyFlow_full_cospectra\" inside the "
            "selected output folder.");
     title_3->setToolTip(tooltipStr);
 
@@ -427,7 +431,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
         tr("<b>Full length cospectra:</b> Cospectra with the vertical wind "
            "component, calculated for each variable, for each flux averaging "
            "interval. Result files are stored in a separate sub-folder "
-           "\"\\eddypro_full_cospectra\" inside the selected output folder.");
+           "\"\\EddyFlow_full_cospectra\" inside the selected output folder.");
     title_4->setToolTip(tooltipStr);
 
     auto title_5 = new QLabel;
@@ -490,23 +494,6 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     qBox_9->addStretch();
 
 //
-    auto toviLogo = new QPushButton;
-    toviLogo->setObjectName(QStringLiteral("toviLogoImg"));
-    toviLogo->setStyleSheet(QStringLiteral("QPushButton {margin-left: 0px; }"));
-
-    connect(toviLogo, &QPushButton::clicked,
-            this, &AdvOutputOptions::openToviHomepage);
-
-    auto toviAdsText = new QLabel(tr("Also formatted for "
-                                     "<a href=\"https://tovi.io/?utm_source=EddyPro%20Software&utm_medium=Tovi%20Ads&utm_campaign=EP_Tovi_ads\">Tovi</a>"));
-    toviAdsText->setProperty("toviAds", true);
-    toviAdsText->setOpenExternalLinks(true);
-
-    auto toviBox = new QHBoxLayout;
-    toviBox->addWidget(toviLogo);
-    toviBox->addWidget(toviAdsText);
-    toviBox->addStretch();
-
     auto outputLayout = new QGridLayout;
     outputLayout->addLayout(minSelectionLayout, 0, 0, 1, -1);
     outputLayout->addLayout(typicalSelectionLayout, 1, 0, 1, -1);
@@ -515,7 +502,6 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     outputLayout->addLayout(qBox_1, 4, 0);
     outputLayout->addWidget(outFullCheckBox, 5, 0, 1, 4);
     outputLayout->addLayout(qBox_2, 5, 2, Qt::AlignRight);
-    outputLayout->addLayout(toviBox, 6, 0, 1, 4);
     outputLayout->addWidget(variableVarsOutputRadio, 5, 3, 1, 2, Qt::AlignLeft);
     outputLayout->addWidget(fixedVarsOutputRadio, 6, 3, 1, 2, Qt::AlignLeft);
     outputLayout->addWidget(vrLabel_1, 5, 5, 8, 1);
@@ -635,7 +621,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     connect(outMeanCospCheckBox, &QCheckBox::toggled,
             this, &AdvOutputOptions::updateBinSpectra);
     connect(outGhgEuCheckBox, &QCheckBox::toggled, [=](bool checked)
-            { ecProject_->setGeneralOutGhgEu(checked); });
+            { ecProject_->setFluxnetStandardizeBiomet(checked); });
     connect(outDetailsCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setScreenlOutDetails(checked); });
     connect(outMdCheckBox, &QCheckBox::toggled, [=](bool checked)
@@ -645,22 +631,20 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     connect(createDatasetCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setGeneralMakeDataset(checked); });
     connect(outAmFluxCheckBox, &QCheckBox::toggled, [=](bool checked)
-            { ecProject_->setGeneralOutAmFluxOut(checked); });
+            { ecProject_->setFluxnetErrLabel(checked); });
     connect(outFullCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setGeneralOutRich(checked); });
 
-    // buttonClicked() is and overloaded signal...
-    connect(outputFormatRadioGroup, SIGNAL(buttonClicked(int)),
-            this, SLOT(updateFixedOuputFormat(int)));
+    connect(outputFormatRadioGroup, &QButtonGroup::idClicked,
+            this, &AdvOutputOptions::updateFixedOuputFormat);
 
     connect(errorFormatLabel, &ClickLabel::clicked,
             this, &AdvOutputOptions::onClickerrorFormatLabel);
 
-    // currentIndexChanged() is and overloaded signal...
-    connect(errorFormatCombo, SIGNAL(currentIndexChanged(QString)),
-            this, SLOT(updateErrorLabel(QString)));
-    connect(errorFormatCombo, SIGNAL(editTextChanged(QString)),
-            this, SLOT(updateErrorLabel(QString)));
+    connect(errorFormatCombo, &QComboBox::currentTextChanged,
+            this, &AdvOutputOptions::updateErrorLabel);
+    connect(errorFormatCombo, &QComboBox::editTextChanged,
+            this, &AdvOutputOptions::updateErrorLabel);
 
     connect(outFullSpectraCheckBoxU, &RichTextCheckBox::toggled, [=](bool checked)
             { ecProject_->setScreenOutFullSpectraU(checked); });
@@ -760,7 +744,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
             this, &AdvOutputOptions::refresh);
 
     // init
-    QTimer::singleShot(0, this, SLOT(reset()));
+    QTimer::singleShot(0, this, &AdvOutputOptions::reset);
 }
 
 void AdvOutputOptions::setSmartfluxUI()
@@ -1014,8 +998,8 @@ void AdvOutputOptions::refresh()
     outFullCospectraCheckBoxCh4->setChecked(ecProject_->screenOutFullCospectraCh4());
     outFullCospectraCheckBoxN2o->setChecked(ecProject_->screenOutFullCospectraN2o());
 
-    outGhgEuCheckBox->setChecked(ecProject_->generalOutGhgEu());
-    outAmFluxCheckBox->setChecked(ecProject_->generalOutAmFlux());
+    outGhgEuCheckBox->setChecked(ecProject_->fluxnetStandardizeBiomet());
+    outAmFluxCheckBox->setChecked(ecProject_->fluxnetErrLabel());
     outFullCheckBox->setChecked(ecProject_->generalOutRich());
     outDetailsCheckBox->setChecked(ecProject_->screenOutDetails());
     outMdCheckBox->setChecked(ecProject_->generalOutMd());
@@ -1442,16 +1426,34 @@ void AdvOutputOptions::createQuestionMark()
 {
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_1->setFlat(true);
+    questionMark_1->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_1->setIconSize(QSize(12, 12));
     questionMark_2 = new QPushButton;
     questionMark_2->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_2->setFlat(true);
+    questionMark_2->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_2->setIconSize(QSize(12, 12));
     questionMark_4 = new QPushButton;
     questionMark_4->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_4->setFlat(true);
+    questionMark_4->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_4->setIconSize(QSize(12, 12));
     questionMark_5 = new QPushButton;
     questionMark_5->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_5->setFlat(true);
+    questionMark_5->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_5->setIconSize(QSize(12, 12));
     questionMark_8 = new QPushButton;
     questionMark_8->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_8->setFlat(true);
+    questionMark_8->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_8->setIconSize(QSize(12, 12));
     questionMark_9 = new QPushButton;
     questionMark_9->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_9->setFlat(true);
+    questionMark_9->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_9->setIconSize(QSize(12, 12));
 
     connect(questionMark_1, &QPushButton::clicked,
             this, &AdvOutputOptions::onlineHelpTrigger_1);
@@ -1469,22 +1471,22 @@ void AdvOutputOptions::createQuestionMark()
 
 void AdvOutputOptions::onlineHelpTrigger_1()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Output_Files_Overview.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Output_Files_Overview.html")));
 }
 
 void AdvOutputOptions::onlineHelpTrigger_2()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Output_Files.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Output_Files.html")));
 }
 
 void AdvOutputOptions::onlineHelpTrigger_4()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Output_Files_Full_Output.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Output_Files_Full_Output.html")));
 }
 
 void AdvOutputOptions::onlineHelpTrigger_5()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Calculating_Spectra_Cospectra_and_Ogives.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Calculating_Spectra_Cospectra_and_Ogives.html")));
 }
 
 void AdvOutputOptions::onlineHelpTrigger_6()
@@ -1499,12 +1501,12 @@ void AdvOutputOptions::onlineHelpTrigger_7()
 
 void AdvOutputOptions::onlineHelpTrigger_8()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Output_Files_The_Stats_Folder.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Output_Files_The_Stats_Folder.html")));
 }
 
 void AdvOutputOptions::onlineHelpTrigger_9()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Output_Files.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Output_Files.html")));
 }
 
 void AdvOutputOptions::onClickerrorFormatLabel()
@@ -1546,7 +1548,4 @@ void AdvOutputOptions::setOutputBiomet()
     ecProject_->blockSignals(false);
 }
 
-void AdvOutputOptions::openToviHomepage()
-{
-    QDesktopServices::openUrl(QUrl(QStringLiteral("https://tovi.io/?utm_source=EddyPro%20Software&utm_medium=Tovi%20Ads&utm_campaign=EP_Tovi_ads")));
-}
+

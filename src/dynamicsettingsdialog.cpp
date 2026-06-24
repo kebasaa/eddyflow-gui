@@ -3,23 +3,26 @@
   -------------------
   A dialog for the generic binary file settings
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011, LI-COR Biosciences
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011, LI-COR Biosciences
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (TM).
+  This file is part of EddyFlow®.
 
-  EddyPro (TM) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (TM) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (TM). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include <QtCore/QDebug>
@@ -75,7 +78,7 @@ DynamicSettingsDialog::DynamicSettingsDialog(QWidget* parent, EcProject *ecProje
     dynPropertiesLayout->addWidget(meteoFileEdit, 2, 1, 1, 2);
     dynPropertiesLayout->addWidget(meteoFileLoad, 2, 3, 1, 1);
     dynPropertiesLayout->setVerticalSpacing(3);
-    dynPropertiesLayout->setMargin(3);
+    dynPropertiesLayout->setContentsMargins(3,3,3,3);
     dynPropertiesLayout->setRowMinimumHeight(1, 20);
     dynPropertiesLayout->setColumnMinimumWidth(1, 250);
 
@@ -96,32 +99,32 @@ DynamicSettingsDialog::DynamicSettingsDialog(QWidget* parent, EcProject *ecProje
     dynSettingsLayout->addWidget(dynPropertiesFrame, 1, 0);
     dynSettingsLayout->addWidget(okButton, 2, 0, 1, 1, Qt::AlignCenter);
     dynSettingsLayout->setVerticalSpacing(10);
-    dynSettingsLayout->setMargin(10);
+    dynSettingsLayout->setContentsMargins(10,10,10,10);
     dynSettingsLayout->setSizeConstraint(QLayout::SetFixedSize);
     dynSettingsLayout->setRowMinimumHeight(0, 25);
     setLayout(dynSettingsLayout);
 
-    connect(timelineFileCheckBox, SIGNAL(toggled(bool)),
-            this, SLOT(onTimelineFileCheckBoxClicked(bool)));
-    connect(timelineFileCheckBox, SIGNAL(toggled(bool)),
-            this, SLOT(updateUseTimelineFile(bool)));
-    connect(timelineFileEdit, SIGNAL(textChanged(const QString &)),
-            this, SLOT(updateTimelineFile(const QString &)));
-    connect(timelineFileLoad, SIGNAL(clicked()),
-            this, SLOT(timelineFileLoad_clicked()));
+    connect(timelineFileCheckBox, &QCheckBox::toggled,
+            this, &DynamicSettingsDialog::onTimelineFileCheckBoxClicked);
+    connect(timelineFileCheckBox, &QCheckBox::toggled,
+            this, &DynamicSettingsDialog::updateUseTimelineFile);
+    connect(timelineFileEdit, &QLineEdit::textChanged,
+            this, &DynamicSettingsDialog::updateTimelineFile);
+    connect(timelineFileLoad, &QPushButton::clicked,
+            this, &DynamicSettingsDialog::timelineFileLoad_clicked);
 
-    connect(meteoFileCheckBox, SIGNAL(toggled(bool)),
-            this, SLOT(onMeteoFileCheckBoxClicked(bool)));
-    connect(meteoFileCheckBox, SIGNAL(toggled(bool)),
-            this, SLOT(updateUseMeteoFile(bool)));
-    connect(meteoFileEdit, SIGNAL(textChanged(const QString &)),
-            this, SLOT(updateMeteoFile(const QString &)));
-    connect(meteoFileLoad, SIGNAL(clicked()),
-            this, SLOT(meteoFileLoad_clicked()));
+    connect(meteoFileCheckBox, &QCheckBox::toggled,
+            this, &DynamicSettingsDialog::onMeteoFileCheckBoxClicked);
+    connect(meteoFileCheckBox, &QCheckBox::toggled,
+            this, &DynamicSettingsDialog::updateUseMeteoFile);
+    connect(meteoFileEdit, &QLineEdit::textChanged,
+            this, &DynamicSettingsDialog::updateMeteoFile);
+    connect(meteoFileLoad, &QPushButton::clicked,
+            this, &DynamicSettingsDialog::meteoFileLoad_clicked);
 
-    connect(okButton, SIGNAL(clicked()), this, SLOT(close()));
+    connect(okButton, &QPushButton::clicked, this, &DynamicSettingsDialog::close);
 
-    connect(ecProject_, SIGNAL(ecProjectNew()), this, SLOT(reset()));
+    connect(ecProject_, &EcProject::ecProjectNew, this, &DynamicSettingsDialog::reset);
 }
 
 DynamicSettingsDialog::~DynamicSettingsDialog()
@@ -240,3 +243,4 @@ void DynamicSettingsDialog::meteoFileLoad_clicked()
         meteoFileEdit->setText(QDir::toNativeSeparators(canonicalParamFile));
     }
 }
+

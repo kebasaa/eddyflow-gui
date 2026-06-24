@@ -1,0 +1,7 @@
+EddyFlow is an open source eddy covariance data processing application developed and maintained at ETH Zurich.
+
+It originates from EddyPro®, developed by LI-COR Biosciences, which itself is based on ECO₂S (Eddy COvariance COmmunity Software), a project developed as part of the IMECC-EU research project.
+
+We gratefully acknowledge LI-COR, the IMECC consortium, the ECO₂S development team, the University of Tuscia (Italy) and scientists around the world who assisted with development and testing of the original version of this software.
+
+See the About section for more information.

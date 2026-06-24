@@ -1,24 +1,26 @@
 /***************************************************************************
   ecproject.h
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
  ***************************************************************************/
 
 #ifndef ECPROJECT_H
@@ -71,6 +73,12 @@ public:
     // is the file in native format?
     bool nativeFormat(const QString &filename);
 
+    // is the file in EddyPro native format (import only)?
+    bool eddyProNativeFormat(const QString &filename);
+
+    // import an EddyPro project and migrate to EddyFlow format
+    bool importEddyProProject(const QString &filename, bool updateMode, bool *modified);
+
     // field comparison for previous data assessment
     bool fuzzyCompare(const EcProject& previousProject);
 
@@ -118,10 +126,13 @@ public:
     void setGeneralLfMethod(int n);
     void setGeneralWplMeth( int n);
     void setGeneralFpMeth(int n);
-    void setGeneralOutGhgEu(int n);
-    void setGeneralOutAmFluxOut(int n);
+
     void setGeneralOutRich(int n);
     void setGeneralOutMd(int n);
+    void setFluxnetStandardizeBiomet(int n);
+    void setFluxnetErrLabel(int n);
+    void setWindFilter(const WindFilterState &state);
+    void setWindFilterApply(int n);
     void setGeneralOutBiomet(int n);
     void setGeneralTob1Format(int n);
     void setGeneralOutPath(const QString &p);
@@ -490,8 +501,6 @@ public:
     int generalColTs() const { return ec_project_state_.projectGeneral.col_ts; }
     qreal generalGasMw() const { return ec_project_state_.projectGeneral.gas_mw; }
     qreal generalGasDiff() const { return ec_project_state_.projectGeneral.gas_diff; }
-    int generalOutGhgEu() const { return ec_project_state_.projectGeneral.out_ghg_eu; }
-    int generalOutAmFlux() const { return ec_project_state_.projectGeneral.out_amflux; }
     int generalOutRich() const { return ec_project_state_.projectGeneral.out_rich; }
     int generalOutMd() const { return ec_project_state_.projectGeneral.out_md; }
     int generalOutBiomet() const { return ec_project_state_.projectGeneral.out_biomet; }
@@ -523,6 +532,11 @@ public:
     int generalHfCorrectGhgBa() const { return ec_project_state_.projectGeneral.hf_correct_ghg_ba; }
     int generalHfCorrectGhgZoh() const { return ec_project_state_.projectGeneral.hf_correct_ghg_zoh; }
     int generalSonicOutputRate() const { return ec_project_state_.projectGeneral.sonic_output_rate; }
+    int fluxnetStandardizeBiomet() const { return ec_project_state_.projectGeneral.fluxnet_standardize_biomet; }
+    int fluxnetErrLabel() const { return ec_project_state_.projectGeneral.fluxnet_err_label; }
+    WindFilterState windFilter() const { return ec_project_state_.windFilter; }
+    int windFilterApply() const { return ec_project_state_.windFilter.apply; }
+    QList<SectorItem>* windFilterSectors() { return &ec_project_state_.windFilter.sectors; }
 
     const QString& screenDataPath() const { return ec_project_state_.screenGeneral.data_path; }
     int screenRecurse() const { return ec_project_state_.screenGeneral.recurse; }
@@ -821,7 +835,7 @@ public:
     double timelagOptGas4MaxLag() const { return ec_project_state_.timelagOpt.gas4_max_lag; }
     int timelagOptSubset() const { return ec_project_state_.timelagOpt.subset; }
 
-    int randErrorMethod() const { return ec_project_state_.randomError.method; }
+    int randErrorMethod() const { return ec_project_state_.randomError.ru_method; }
     int randErrorItsMehod() const { return ec_project_state_.randomError.its_method; }
     double randErrorTlagMax() const { return ec_project_state_.randomError.its_tlag_max; }
     double randErrorSecFactor() const { return ec_project_state_.randomError.its_sec_factor; }

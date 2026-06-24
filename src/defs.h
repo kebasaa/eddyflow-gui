@@ -1,33 +1,35 @@
 /***************************************************************************
   defs.h
-  -------------------
+  ------
   Global application resources. Constants, enumerations and strings.
-  -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2026, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026-    , ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
-***************************************************************************/
+****************************************************************************/
 
 #ifndef DEFS_H
 #define DEFS_H
 
 #include <QDataStream>
 #include <QDebug>
+#include <QObject>
 
 class QChar;
 class QString;
@@ -51,21 +53,19 @@ class QStringLiteral;
 /// \brief Contains global string literals
 namespace Defs
 {
-    const auto APP_VERSION = 0x060100;
-    const auto APP_VERSION_STR = QStringLiteral("6.2.2");
+    const auto APP_VERSION = 0x070100;
+    const auto APP_VERSION_STR = QStringLiteral("7.1.0");
     const auto APP_STAGE_STR = QStringLiteral(""); // -rc1
 
-    const auto PROJECT_FILE_VERSION = 0x040402;
-    const auto PROJECT_FILE_VERSION_STR = QStringLiteral("4.4.3");
+    const auto PROJECT_FILE_VERSION = 0x040500;
+    const auto PROJECT_FILE_VERSION_STR = QStringLiteral("4.5.0");
 
     const auto METADATA_FILE_VERSION = 0x030201;
     const auto METADATA_FILE_VERSION_STR = QStringLiteral("3.2.2");
 
-    const auto WIN_COMPILER = QStringLiteral("MinGW 5.3.0 x86_32 on Windows<sup>&reg;</sup> 10");
-    const auto MAC_COMPILER = QStringLiteral("Apple LLVM 9.1.0 (clang-902.0.39.1) x86_64 on macOS<sup>&reg;</sup> 10.13.4");
-    const auto LIN_COMPILER = QStringLiteral("GCC 4.8.5 x86-64 on Linux");
 
-    const auto CURRENT_COPYRIGHT_YEAR = QStringLiteral("2018");
+    const auto CURRENT_COPYRIGHT_YEAR = QStringLiteral("2019");
+    const auto LOG_FILE_MAX_SIZE = 1048576;
 
     enum class CurrPage
     {
@@ -138,15 +138,13 @@ namespace Defs
 #endif
 
     // strings
-    const auto APP_NAME       = QStringLiteral("EddyPro");
-    const auto APP_NAME_LCASE = QStringLiteral("eddypro");
-    const auto APP_NAME_UCASE = QStringLiteral("EDDYPRO");
-    const auto ORG_DOMAIN     = QStringLiteral("licor.com");
-    const auto ORG_NAME       = QStringLiteral("LI-COR");
-    const auto APP_URL        = QStringLiteral("http://www.licor.com/eddypro/");
-    const auto APP_FORUM_URL  = QStringLiteral("http://www.licor.com/env/forum/?forum=eddypro");
-    const auto CALIBRATION_API_URL
-        = QStringLiteral("http://envprod.licor.com:8080/api/2012-04/instruments/");
+    const auto APP_NAME       = QStringLiteral("EddyFlow");
+    const auto APP_NAME_LCASE = QStringLiteral("eddyflow");
+    const auto APP_NAME_UCASE = QStringLiteral("EDDYFLOW");
+    const auto ORG_DOMAIN     = QStringLiteral("github.com/kebasaa/eddyflow-gui");
+    const auto ORG_NAME       = QStringLiteral("EddyFlow");
+    const auto APP_URL        = QStringLiteral("https://keba_saa.github.io/eddyflow-documentation");
+    const auto APP_FORUM_URL  = QStringLiteral("https://keba_saa.github.io/eddyflow-documentation");
 
     // UTF-16 hex codes
     const auto DEGREE      = QChar(0x00B0);
@@ -202,7 +200,7 @@ namespace Defs
     const auto GAS4_STRING  = QStringLiteral("4<sup>th</sup>");
 
     const auto READY      = QObject::tr("Ready");
-    const auto ABOUT_DESC = QObject::tr("LI-COR EddyPro software suite.");
+    const auto ABOUT_DESC = QObject::tr("EddyFlow software suite.");
 
     // dirs
     const auto BIN_FILE_DIR         = QStringLiteral("bin");
@@ -214,14 +212,14 @@ namespace Defs
     const auto TRANSLATION_FILE_DIR = QStringLiteral("tra");
     const auto DOC_DIR              = QStringLiteral("docs");
     const auto TEMPLATE_FILE_DIR    = QStringLiteral("file-templates/");
-    const auto OUT_BINNED_COSPECTRA_DIR    = QStringLiteral("/eddypro_binned_cospectra");
+    const auto OUT_BINNED_COSPECTRA_DIR    = QStringLiteral("/EddyFlow_binned_cospectra");
 
 #if defined(Q_OS_WIN)
-    const auto LICOR_ENV_DIR        = QStringLiteral(".licor");
+    const auto EDDYFLOW_ENV_DIR     = QStringLiteral(".eddyflow");
 #elif defined(Q_OS_MACOS)
-    const auto LICOR_ENV_DIR        = QStringLiteral("licor");
+    const auto EDDYFLOW_ENV_DIR     = QStringLiteral("eddyflow");
 #elif defined(Q_OS_LINUX)
-    const auto LICOR_ENV_DIR        = ORG_NAME;
+    const auto EDDYFLOW_ENV_DIR     = ORG_NAME;
 #endif
 
     // file extensions
@@ -242,17 +240,12 @@ namespace Defs
     const auto CSS_FILE_EXT             = QStringLiteral("qss");
     const auto TEMPLATE_FILE_EXT        = QStringLiteral(".txt");
 
-    // eddypro engine
+    // EddyFlow engine
     const auto ENGINE_RP  = QStringLiteral("%1_rp%2").arg(APP_NAME_LCASE, EXEC_FILE_EXT);
     const auto ENGINE_FCC = QStringLiteral("%1_fcc%2").arg(APP_NAME_LCASE, EXEC_FILE_EXT);
 
     // helper tools
     const auto COMPRESSOR_BIN        = QStringLiteral("7z%1").arg(EXEC_FILE_EXT);
-#if defined(Q_OS_WIN)
-    const auto FREEZER_BIN           = QStringLiteral("pausep%1").arg(EXEC_FILE_EXT);
-#elif defined(Q_OS_MACOS) || defined(Q_OS_LINUX)
-    const auto FREEZER_BIN           = QStringLiteral("kill");
-#endif
 
     // auxiliary ini files
     const auto RS_INI = QStringLiteral("rssetup.%1").arg(AUX_FILE_EXT);
@@ -272,9 +265,9 @@ namespace Defs
     const auto DEFAULT_SMARTFLUX_SUFFIX = QStringLiteral("-smartflux");
     const auto DEFAULT_SMARTFLUX_PROJECT_FILENAME = QObject::tr("project-untitled%1.%2").arg(DEFAULT_SMARTFLUX_SUFFIX, PROJECT_FILE_EXT);
 
-    const auto SPECTRA_FILE_TEMPLATE = QStringLiteral("eddypro_sample_spectral_assessment");
-    const auto PLANAR_FIT_FILE_TEMPLATE = QStringLiteral("eddypro_sample_planar_fit");
-    const auto TIME_LAG_FILE_TEMPLATE = QStringLiteral("eddypro_sample_timelag_opt");
+    const auto SPECTRA_FILE_TEMPLATE = QStringLiteral("EddyFlow_sample_spectral_assessment");
+    const auto PLANAR_FIT_FILE_TEMPLATE = QStringLiteral("EddyFlow_sample_planar_fit");
+    const auto TIME_LAG_FILE_TEMPLATE = QStringLiteral("EddyFlow_sample_timelag_opt");
 
     // register configuration strings
     const auto CONFGROUP_GENERAL      = QStringLiteral("/program");
@@ -311,9 +304,9 @@ namespace Defs
     const auto CONF_WIN_NOAA_WEBSITE_MSG = QStringLiteral("/noaa_website_msg");
     const auto CONF_WIN_AOA_SELECTION_MSG = QStringLiteral("/aoa_selection_msg");
 
-    const auto LICOR_EP_VERSION_FILE = QStringLiteral("http://dl.licor.com/EddyPro/version");
-    const auto EP_SAMPLE_DATA_FILES  = QStringLiteral("http://dl.licor.com/EddyPro/data");
-    const QString EP_USER_AGENT = QStringLiteral("EddyPro ") + APP_VERSION_STR;
+    const auto LICOR_EP_VERSION_FILE = QStringLiteral("https://api.github.com/repos/kebasaa/eddyflow-gui/releases/latest");
+    const auto EP_SAMPLE_DATA_FILES  = QStringLiteral("https://github.com/kebasaa/eddyflow-gui/example-data");
+    const QString EP_USER_AGENT = QStringLiteral("EddyFlow ") + APP_VERSION_STR;
 
     const auto GHG_TIMESTAMP_FORMAT = QStringLiteral("yyyy-mm-ddTHHMM??_");
 

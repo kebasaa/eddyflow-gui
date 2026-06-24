@@ -1,24 +1,26 @@
 /***************************************************************************
   mainwindow.cpp
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "mainwindow.h"
@@ -57,7 +59,6 @@
 #include "clicklabel.h"
 #include "customsplashscreen.h"
 #include "detectdaterangedialog.h"
-#include "dbghelper.h"
 #include "dlproject.h"
 #include "ecproject.h"
 #include "globalsettings.h"
@@ -89,7 +90,6 @@ MainWindow::MainWindow(const QString& filename,
     ecProject_(nullptr),
     currEcProjectFilename_(filename),
     appEnvPath_(appEnvPath),
-    notificationTimer_(nullptr),
     newFlag_(true),
     modifiedFlag_(false),
     openingFlag_(false),
@@ -217,8 +217,8 @@ MainWindow::MainWindow(const QString& filename,
             this, &MainWindow::fileSaveSilently);
     connect(mainWidget_, &MainWidget::mdCleanupRequest,
             this, &MainWindow::scheduleMdCleanup);
-    connect(mainWidget_, SIGNAL(saveRequest()),
-            this, SLOT(fileSave()));
+    connect(mainWidget_, &MainWidget::saveRequest,
+            this, [this](){ fileSave(); });
 
     // dialogs connections
     connect(mainWidget_->projectPage(), &ProjectPage::connectBinarySettingsRequest,
@@ -242,36 +242,22 @@ MainWindow::MainWindow(const QString& filename,
     connectTimeLagDialog();
 
     // restore window state
-    QTimer::singleShot(0, this, SLOT(restorePreviousStatus()));
+    QTimer::singleShot(0, this, &MainWindow::restorePreviousStatus);
 
-    QTimer::singleShot(0, this, SLOT(initialize()));
+    QTimer::singleShot(0, this, &MainWindow::initialize);
 
-    QTimer::singleShot(0, this, SLOT(checkInternetConnection()));
+    QTimer::singleShot(0, this, &MainWindow::checkInternetConnection);
 
-    QTimer::singleShot(0, this, SLOT(showAutoUpdateDialog()));
-
-    // notify every 24 hrs from the last start
-    notificationTimer_ = new QTimer(this);
-    connect(notificationTimer_, &QTimer::timeout,
-            this, &MainWindow::showAutoUpdateDialog);
-    notificationTimer_->start(1000 * 60 * 60 * 24);
-
-    // NOTE: for testing only
-//    notificationTimer_->start(5000);
+    QTimer::singleShot(0, this, &MainWindow::showAutoUpdateDialog);
 
     // NOTE: for testing only
 //    QStringList list;
-//    Process::getProcessIdsByProcessName(QStringLiteral("eddypro_debug"), list);
-//    qDebug() << "eddypro_debug" << list;
+//    Process::getProcessIdsByProcessName(QStringLiteral("EddyFlow_debug"), list);
+//    qDebug() << "EddyFlow_debug" << list;
 }
 
 MainWindow::~MainWindow()
 {
-    if (notificationTimer_)
-    {
-        delete notificationTimer_;
-    }
-
     if (aboutDialog)
     {
         delete aboutDialog;
@@ -453,11 +439,18 @@ void MainWindow::fileOpen(const QString &fileName)
         fileStr = QFileDialog::getOpenFileName(this,
                         tr("Select an %1 Project File").arg(Defs::APP_NAME),
                         WidgetUtils::getSearchPathHint(),
-                        tr("%1 Project Files (*.%2);;All Files (*.*)").arg(Defs::APP_NAME, Defs::PROJECT_FILE_EXT),
+                        tr("%1 Project Files (*.%2 *.eddypro);;All Files (*.*)").arg(Defs::APP_NAME, Defs::PROJECT_FILE_EXT),
                         nullptr
                         // , QFileDialog::DontUseNativeDialog
                         );
         if (fileStr.isEmpty()) { return; }
+
+        // Redirect .eddypro files to the dedicated import path
+        if (QFileInfo(fileStr).suffix().toLower() == QLatin1String("eddypro"))
+        {
+            importEddyProFile(fileStr);
+            return;
+        }
     }
     // programmatically
     else
@@ -499,6 +492,47 @@ void MainWindow::fileOpen(const QString &fileName)
     openingFlag_ = false;
 
     silentMdClenaup();
+}
+
+void MainWindow::importEddyProFile(const QString& fileName)
+{
+    QString fileStr = fileName;
+    if (fileStr.isEmpty())
+    {
+        fileStr = QFileDialog::getOpenFileName(this,
+                        tr("Import an EddyPro Project File"),
+                        WidgetUtils::getSearchPathHint(),
+                        tr("EddyPro Project Files (*.eddypro);;All Files (*.*)"),
+                        nullptr);
+        if (fileStr.isEmpty()) { return; }
+    }
+
+    if (!QFile::exists(fileStr)) { return; }
+    if (!ecProject_->eddyProNativeFormat(fileStr)) { return; }
+
+    bool modified = false;
+    if (!ecProject_->importEddyProProject(fileStr, true, &modified)) { return; }
+
+    // Compute migration target: same base name, .eddyflow extension
+    QString targetFile = QFileInfo(fileStr).path()
+                         + QDir::separator()
+                         + QFileInfo(fileStr).completeBaseName()
+                         + QStringLiteral(".") + Defs::PROJECT_FILE_EXT;
+
+    if (!ecProject_->saveEcProject(targetFile))
+    {
+        WidgetUtils::warning(this, tr("Import Error"),
+                             tr("Could not save migrated project to:<br><b>%1</b>").arg(targetFile));
+        return;
+    }
+
+    WidgetUtils::warning(this,
+        tr("EddyPro Project Imported"),
+        tr("The project was imported from EddyPro format and saved as:"
+           "<br><b>%1</b>").arg(targetFile));
+
+    // Hand off to the normal open path to finalise UI state
+    openFile(targetFile);
 }
 
 //
@@ -747,7 +781,7 @@ bool MainWindow::fileSaveAs(const QString& fileName)
                                  tr("Make sure the file is not in use "
                                     "by another application."
                                     "If the problem persists, contact "
-                                    "envsupport@licor.com ."));
+                                    "jonathan.mueller@usys.ethz.ch ."));
             showStatusTip(tr("Error in saving project"));
             return false;
         }
@@ -762,18 +796,8 @@ bool MainWindow::fileSaveAs(const QString& fileName)
 // the only message being in case of error
 bool MainWindow::fileSaveSilently()
 {
-    if (newFlag_ && modifiedFlag_)
-    {
-        return fileSave();
-    }
-
-    // hack: in case of new flag (it should not be possible with old files,
-    // for which we shall make a silent saving) delete the flag
-    // TODO: prevent it
     if (newFlag_)
-    {
-        newFlag_ = false;
-    }
+        return fileSave();  // always prompt Save As for new (unsaved) projects
 
     if (modifiedFlag_)
     {
@@ -781,11 +805,6 @@ bool MainWindow::fileSaveSilently()
         return fileSave(quiet);
     }
 
-//    auto quiet = true;
-//    return fileSave(quiet);
-
-//    QMessageBox::warning(nullptr, QLatin1String(Q_FUNC_INFO),
-//    tr("New 2: %1\nModified: %2").arg(newFlag_, modifiedFlag_));
     return true;
 }
 
@@ -828,7 +847,7 @@ bool MainWindow::alertChangesWhileRunning()
         WidgetUtils::warning(this,
                              tr("Changes During Run"),
                              tr("You can not save changes "
-                                "while EddyPro is running. "),
+                                "while EddyFlow is running. "),
                              tr("Wait until run has finished "
                                 "before saving."),
                              QStringLiteral("saveDuringRunMessage"));
@@ -843,8 +862,8 @@ bool MainWindow::continueBeforeClose()
     if (currentStatus() != Defs::CurrStatus::Ready)
     {
         if (WidgetUtils::yesNoQuestion(this,
-                                  tr("Close EddyPro"),
-                                  tr("EddyPro is processing (running or in pause)."),
+                                  tr("Close EddyFlow"),
+                                  tr("EddyFlow is processing (running or in pause)."),
                                   tr("Do you want to stop the computations "
                                      "before proceeding?"),
                                   QStringLiteral("stopMessage")))
@@ -942,6 +961,10 @@ void MainWindow::createActions()
     openAction->setShortcut(QKeySequence(QKeySequence::Open));
     openAction->setToolTip(tr("Open an existing project. (%1)")
                            .arg((openAction->shortcut().toString())));
+
+    importEddyProAction = new QAction(this);
+    importEddyProAction->setText(tr("Import EddyPro Project..."));
+    importEddyProAction->setToolTip(tr("Import an EddyPro project file and convert it to EddyFlow format."));
 
     closeAction = new QAction(this);
     closeAction->setText(tr("&Close"));
@@ -1070,7 +1093,7 @@ void MainWindow::createActions()
                                       "can be examined (e.g., to create a "
                                       "time series of canopy heights at the "
                                       "site) and can also be provided to "
-                                      "EddyPro as a dynamic metadata file. (%1)")
+                                      "EddyFlow as a dynamic metadata file. (%1)")
                                       .arg((runRetrieverAction->shortcut().toString())));
 
     stopAction = new QAction(this);
@@ -1129,10 +1152,10 @@ void MainWindow::createActions()
     toggleOfflineHelpAct->setCheckable(true);
 
     appWebpageAction = new QAction(this);
-    appWebpageAction->setText(tr("EddyPro Web Page"));
+    appWebpageAction->setText(tr("EddyFlow Web Page"));
 
     forumWebpageAction = new QAction(this);
-    forumWebpageAction->setText(tr("EddyPro Forum"));
+    forumWebpageAction->setText(tr("EddyFlow Forum"));
 
     checkUpdateAction = new QAction(this);
     checkUpdateAction->setText(tr("Check for Updates..."));
@@ -1151,10 +1174,11 @@ void MainWindow::connectActions()
 {
     // File actions
     connect(newAction, &QAction::triggered, this, &MainWindow::fileNew);
-    connect(openAction, SIGNAL(triggered()), this, SLOT(fileOpen()));
+    connect(openAction, &QAction::triggered, this, [this](){ fileOpen(); });
+    connect(importEddyProAction, &QAction::triggered, this, [this]{ importEddyProFile(); });
     connect(closeAction, &QAction::triggered, this, &MainWindow::fileClose);
     connect(saveAction, &QAction::triggered, this, &MainWindow::fileSave);
-    connect(saveAsAction, SIGNAL(triggered()), this, SLOT(fileSaveAs()));
+    connect(saveAsAction, &QAction::triggered, this, [this](){ fileSaveAs(); });
     connect(quitAction, &QAction::triggered, this, &MainWindow::closeMainWindow);
 
     connect(smartfluxAction, &QAction::triggered,
@@ -1198,10 +1222,10 @@ void MainWindow::connectActions()
             this, &MainWindow::viewConsoleOutput);
 
     // test only
-//    connect(toggleConsoleOutputAct, SIGNAL(toggled(bool)),
-//            this, SLOT(dbgViewConsoleOutputToggled(bool)));
-//    connect(toggleConsoleOutputAct, SIGNAL(triggered(bool)),
-//            this, SLOT(dbgViewConsoleOutputTriggered(bool)));
+//    connect(toggleConsoleOutputAct, &QAction::toggled,
+//            this, &MainWindow::dbgViewConsoleOutputToggled);
+//    connect(toggleConsoleOutputAct, &QAction::triggered,
+//            this, &MainWindow::dbgViewConsoleOutputTriggered);
 
     connect(toggleInfoOutputAct, &QAction::toggled,
             this, &MainWindow::viewInfoOutput);
@@ -1239,6 +1263,7 @@ void MainWindow::createMenus()
     fileMenu = menuBar()->addMenu(tr("&File"));
     fileMenu->addAction(newAction);
     fileMenu->addAction(openAction);
+    fileMenu->addAction(importEddyProAction);
 
     // submenu open recent file
     fileMenuOpenRecent = fileMenu->addMenu(tr("&Open Recent"));
@@ -1360,15 +1385,6 @@ void MainWindow::createToolBars()
     viewToolBar->setIconSize(QSize(42, 40));
     runToolBar->setIconSize(QSize(32, 40));
 
-    // to add small licor logo right aligned
-    auto spacer = new QWidget;
-    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    auto licorLogo = new ClickLabel;
-    licorLogo->setObjectName(QStringLiteral("licorLogo"));
-
-    runToolBar->addWidget(spacer);
-    runToolBar->addWidget(licorLogo);
-    connect(licorLogo, &ClickLabel::clicked, this, &MainWindow::openLicorSite);
 }
 
 void MainWindow::createStatusBar()
@@ -1642,7 +1658,7 @@ void MainWindow::viewInfoOutput(bool on)
 
 void MainWindow::showHelp()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/EddyPro_Home.html"), QUrl::StrictMode));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/EddyFlow_Home.html"), QUrl::StrictMode));
 }
 
 void MainWindow::showPdfHelp()
@@ -2552,7 +2568,7 @@ void MainWindow::showGuidedModeMessages_2()
     if (!doFix && runAdvancedAvailable_ && !configState_.project.smartfluxMode)
     {
         intro = tr("You are ready to run in <span style=\"color: #52893c; \">Express Mode</span> using express default settings or <span style=\"color: #2986f5; \">Advanced Mode</span> using Advanced Settings.<br />"
-                    "Please note that running in <span style=\"color: #52893c; \">Express Mode</span> means EddyPro will ignore all your entries in the Advanced Settings pages. In this case, your settings will not be overridden. You will be able to retrieve them at any time, but they will not be used for the computations.");
+                    "Please note that running in <span style=\"color: #52893c; \">Express Mode</span> means EddyFlow will ignore all your entries in the Advanced Settings pages. In this case, your settings will not be overridden. You will be able to retrieve them at any time, but they will not be used for the computations.");
         msg = tr("<ul>");
         doFix = false;
     }
@@ -2695,7 +2711,7 @@ void MainWindow::showGuidedModeMessages_3()
     if (!doFix && runExpressAvailable_)
     {
         intro = tr("You are ready to run in <span style=\"color: #52893c; \">Express Mode</span> using express default settings or <span style=\"color: #2986f5; \">Advanced Mode</span> using Advanced Settings.<br />"
-                   "Please note that running in <span style=\"color: #52893c; \">Express Mode</span> means EddyPro will ignore all your entries in the Advanced Settings pages. In this case, your settings will not be overridden. You will be able to retrieve them at any time, but they will not be used for the computations.");
+                   "Please note that running in <span style=\"color: #52893c; \">Express Mode</span> means EddyFlow will ignore all your entries in the Advanced Settings pages. In this case, your settings will not be overridden. You will be able to retrieve them at any time, but they will not be used for the computations.");
         msg = tr("<ul>");
         doFix = false;
     }
@@ -2954,10 +2970,10 @@ void MainWindow::createEngineProcess()
     engineProcess_->setReadChannels(QProcess::StandardOutput);
 
     // add useful GFortran environment variables
-    QStringList env = QProcess::systemEnvironment();
-    env << QStringLiteral("GFORTRAN_UNBUFFERED_PRECONNECTED=y");
-    env << QStringLiteral("GFORTRAN_SHOW_LOCUS=n");
-    engineProcess_->setEnv(env);
+    auto env = QProcessEnvironment::systemEnvironment();
+    env.insert(QStringLiteral("GFORTRAN_UNBUFFERED_PRECONNECTED"), QStringLiteral("y"));
+    env.insert(QStringLiteral("GFORTRAN_SHOW_LOCUS"), QStringLiteral("n"));
+    engineProcess_->process()->setProcessEnvironment(env);
 
     connect(engineProcess_, &Process::processFailure,
             this, &MainWindow::displayExitDialog);
@@ -3014,7 +3030,7 @@ int MainWindow::testBeforeRunningPassed(int step)
                 int ret = QMessageBox::warning(QApplication::activeWindow(),
                               tr("No Previous Results Available"),
                               tr("It is not possible to use results from any previous run. "
-                                 "EddyPro will start the processing from the raw files."),
+                                 "EddyFlow will start the processing from the raw files."),
                               QMessageBox::Ok | QMessageBox::Cancel, QMessageBox::Ok);
 
                 switch (ret)
@@ -3061,7 +3077,7 @@ int MainWindow::testBeforeRunningPassed(int step)
                 int ret = QMessageBox::warning(QApplication::activeWindow(),
                               tr("No Previous Results Available"),
                               tr("It is not possible to use results from any previous run. "
-                                 "EddyPro will start the processing from the raw files."),
+                                 "EddyFlow will start the processing from the raw files."),
                               QMessageBox::Ok | QMessageBox::Cancel, QMessageBox::Ok);
 
                 switch (ret)
@@ -3248,7 +3264,7 @@ void MainWindow::getRunExpress()
         runExpressDialog.setType(InfoMessage::Type::RUN_EXPRESS);
         runExpressDialog.setIcon(QPixmap(QStringLiteral(":/icons/msg-question")));
         runExpressDialog.setMessage(tr("Note that running in Express Mode means "
-                                      "EddyPro will ignore all your entries in "
+                                      "EddyFlow will ignore all your entries in "
                                       "the Advanced Settings pages. <br />"
                                       "Your settings will not be overridden "
                                       "and you will be able to retrieve them "
@@ -3281,8 +3297,28 @@ void MainWindow::runExpress()
         QString workingDir = qApp->applicationDirPath() + QLatin1Char('/') + Defs::BIN_FILE_DIR;
         QString engineFilePath(workingDir + QLatin1Char('/') + Defs::ENGINE_RP);
 
+        if (!QFileInfo::exists(engineFilePath))
+        {
+            QMessageBox::critical(this, tr("Engine not found"),
+                tr("Processing engine not found at:\n%1\n\n"
+                   "Please place the engine binaries in the bin/ "
+                   "subdirectory next to the application.").arg(engineFilePath));
+            changePage(Defs::CurrPage::Welcome);
+            return;
+        }
+
         ecProject_->setGeneralRunMode(Defs::CurrRunMode::Express);
         if (!fileSaveSilently()) { return; }
+
+        const QString projFilePath = QFileInfo(ecProject_->generalFileName()).absoluteFilePath();
+        if (!QFileInfo::exists(projFilePath))
+        {
+            QMessageBox::critical(this, tr("Project Not Saved"),
+                tr("Please save the project to a file before running.\n\n"
+                   "Go to File > Save As... and choose a location."));
+            changePage(Defs::CurrPage::Welcome);
+            return;
+        }
 
         QStringList args;
 
@@ -3292,7 +3328,7 @@ void MainWindow::runExpress()
         args << Defs::HOST_OS;
         args << QStringLiteral("-e");
         args << appEnvPath_;
-        args << ecProject_->generalFileName();
+        args << projFilePath;
 
         engineProcess_->engineProcessStart(engineFilePath, workingDir, args);
 
@@ -3339,7 +3375,7 @@ void MainWindow::getRunAdvanced()
         runAdvancedDialog.setIcon(QPixmap(QStringLiteral(":/icons/msg-question")));
         runAdvancedDialog.setMessage(tr("Running in Advanced mode means you "
                                        "run using the <br />"
-                                       "advanced settings of EddyPro"));
+                                       "advanced settings of EddyFlow"));
         runAdvancedDialog.refresh();
 
         if (runAdvancedDialog.exec() == QMessageBox::Cancel)
@@ -3373,8 +3409,28 @@ void MainWindow::runAdvancedStep_1()
             QString workingDir = qApp->applicationDirPath() + QLatin1Char('/') + Defs::BIN_FILE_DIR;
             QString engine1FilePath(workingDir + QLatin1Char('/') + Defs::ENGINE_RP);
 
+            if (!QFileInfo::exists(engine1FilePath))
+            {
+                QMessageBox::critical(this, tr("Engine not found"),
+                    tr("Processing engine not found at:\n%1\n\n"
+                       "Please place the engine binaries in the bin/ "
+                       "subdirectory next to the application.").arg(engine1FilePath));
+                changePage(Defs::CurrPage::Welcome);
+                return;
+            }
+
             ecProject_->setGeneralRunMode(Defs::CurrRunMode::Advanced);
             if (!fileSaveSilently()) { return; }
+
+            const QString projFilePath1 = QFileInfo(ecProject_->generalFileName()).absoluteFilePath();
+            if (!QFileInfo::exists(projFilePath1))
+            {
+                QMessageBox::critical(this, tr("Project Not Saved"),
+                    tr("Please save the project to a file before running.\n\n"
+                       "Go to File > Save As... and choose a location."));
+                changePage(Defs::CurrPage::Welcome);
+                return;
+            }
 
             QStringList args;
             args << QStringLiteral("-c");
@@ -3383,7 +3439,7 @@ void MainWindow::runAdvancedStep_1()
             args << Defs::HOST_OS;
             args << QStringLiteral("-e");
             args << appEnvPath_;
-            args << ecProject_->generalFileName();
+            args << projFilePath1;
             engineProcess_->engineProcessStart(engine1FilePath, workingDir, args);
 
             // block until the process truly start to ensure reliable behavior
@@ -3425,9 +3481,29 @@ void MainWindow::runAdvancedStep_2()
         QString workingDir = qApp->applicationDirPath() + QLatin1Char('/') + Defs::BIN_FILE_DIR;
         QString engineFilePath(workingDir + QLatin1Char('/') + Defs::ENGINE_FCC);
 
+        if (!QFileInfo::exists(engineFilePath))
+        {
+            QMessageBox::critical(this, tr("Engine not found"),
+                tr("Processing engine not found at:\n%1\n\n"
+                   "Please place the engine binaries in the bin/ "
+                   "subdirectory next to the application.").arg(engineFilePath));
+            changePage(Defs::CurrPage::Welcome);
+            return;
+        }
+
         ecProject_->setGeneralRunMode(Defs::CurrRunMode::Advanced);
 
         if (!fileSaveSilently()) { return; }
+
+        const QString projFilePath2 = QFileInfo(ecProject_->generalFileName()).absoluteFilePath();
+        if (!QFileInfo::exists(projFilePath2))
+        {
+            QMessageBox::critical(this, tr("Project Not Saved"),
+                tr("Please save the project to a file before running.\n\n"
+                   "Go to File > Save As... and choose a location."));
+            changePage(Defs::CurrPage::Welcome);
+            return;
+        }
 
         QStringList args;
         args << QStringLiteral("-c");
@@ -3436,7 +3512,7 @@ void MainWindow::runAdvancedStep_2()
         args << Defs::HOST_OS;
         args << QStringLiteral("-e");
         args << appEnvPath_;
-        args << ecProject_->generalFileName();
+        args << projFilePath2;
         engineProcess_->engineProcessStart(engineFilePath, workingDir, args);
 
         // block until the process truly start to ensure reliable behavior
@@ -3508,9 +3584,29 @@ void MainWindow::runRetriever()
         QString workingDir = qApp->applicationDirPath() + QLatin1Char('/') + Defs::BIN_FILE_DIR;
         QString engineFilePath(workingDir + QLatin1Char('/') + Defs::ENGINE_RP);
 
+        if (!QFileInfo::exists(engineFilePath))
+        {
+            QMessageBox::critical(this, tr("Engine not found"),
+                tr("Processing engine not found at:\n%1\n\n"
+                   "Please place the engine binaries in the bin/ "
+                   "subdirectory next to the application.").arg(engineFilePath));
+            changePage(Defs::CurrPage::Welcome);
+            return;
+        }
+
         ecProject_->setGeneralRunMode(Defs::CurrRunMode::Retriever);
         emit checkMetadataOutputRequest();
         if (!fileSaveSilently()) { return; }
+
+        const QString projFilePath3 = QFileInfo(ecProject_->generalFileName()).absoluteFilePath();
+        if (!QFileInfo::exists(projFilePath3))
+        {
+            QMessageBox::critical(this, tr("Project Not Saved"),
+                tr("Please save the project to a file before running.\n\n"
+                   "Go to File > Save As... and choose a location."));
+            changePage(Defs::CurrPage::Welcome);
+            return;
+        }
 
         QStringList args;
         args << QStringLiteral("-c");
@@ -3519,7 +3615,7 @@ void MainWindow::runRetriever()
         args << Defs::HOST_OS;
         args << QStringLiteral("-e");
         args << appEnvPath_;
-        args << ecProject_->generalFileName();
+        args << projFilePath3;
         engineProcess_->engineProcessStart(engineFilePath, workingDir, args);
 
         // block until the process truly start to ensure reliable behavior
@@ -3742,7 +3838,7 @@ void MainWindow::displayExitMsg(Process::ExitStatus exitReason)
     WidgetUtils::removeContextHelpButton(&msgBox);
 
     msgBox.setTextFormat(Qt::RichText);
-    msgBox.setWindowTitle(tr("EddyPro Results"));
+    msgBox.setWindowTitle(tr("EddyFlow Results"));
 
     auto openOutDirButton = new QPushButton(tr("Open the output folder"));
     auto questionMark_1 = new QPushButton;
@@ -3768,7 +3864,7 @@ void MainWindow::displayExitMsg(Process::ExitStatus exitReason)
         msgBox.setEscapeButton(QMessageBox::Ok);
         break;
     case Process::ExitStatus::FailureToStart:
-        msgBox.setText(tr("<h3>Engine (eddypro_rp) not found</h3>"));
+        msgBox.setText(tr("<h3>Engine (eddyflow_rp) not found</h3>"));
         msgBox.setStandardButtons(QMessageBox::Ok);
         msgBox.setDefaultButton(QMessageBox::Ok);
         msgBox.setEscapeButton(QMessageBox::Ok);
@@ -3830,7 +3926,7 @@ void MainWindow::displayExitMsg(Process::ExitStatus exitReason)
                           "processing settings, these results may be fully "
                           "valid for analysis. You can remove the temporary "
                           "extension \".tmp\" and use them. However, the "
-                          "format of these files does not allow EddyPro to "
+                          "format of these files does not allow EddyFlow to "
                           "use them in subsequent runs.</p>"));
         msgBox.setStandardButtons(QMessageBox::Ok);
         msgBox.setDefaultButton(QMessageBox::Ok);
@@ -3870,7 +3966,7 @@ void MainWindow::displayExitMsg2(Process::ExitStatus exitReason)
     WidgetUtils::removeContextHelpButton(&msgBox);
 
     msgBox.setTextFormat(Qt::RichText);
-    msgBox.setWindowTitle(tr("EddyPro Results"));
+    msgBox.setWindowTitle(tr("EddyFlow Results"));
 
     auto questionMark_1 = new QPushButton;
     auto pixmap_2x = QPixmap(QStringLiteral(":/icons/qm-enabled"));
@@ -3891,7 +3987,7 @@ void MainWindow::displayExitMsg2(Process::ExitStatus exitReason)
         runAdvancedStep_2();
         break;
     case Process::ExitStatus::FailureToStart:
-        msgBox.setText(tr("<h3>Engine (eddypro_fcc) not found!</h3>"));
+        msgBox.setText(tr("<h3>Engine (EddyFlow_fcc) not found!</h3>"));
         msgBox.setStandardButtons(QMessageBox::Ok);
         msgBox.setDefaultButton(QMessageBox::Ok);
         msgBox.setEscapeButton(QMessageBox::Ok);
@@ -3953,7 +4049,7 @@ void MainWindow::displayExitMsg2(Process::ExitStatus exitReason)
                           "processing settings, these results may be fully "
                           "valid for analysis. You can remove the temporary "
                           "extension \".tmp\" and use them. However, the "
-                          "format of these files does not allow EddyPro to "
+                          "format of these files does not allow EddyFlow to "
                           "use them in subsequent runs.</p>"));
         msgBox.setStandardButtons(QMessageBox::Ok);
         msgBox.setDefaultButton(QMessageBox::Ok);
@@ -3979,7 +4075,7 @@ void MainWindow::displayExitMsg2(Process::ExitStatus exitReason)
 
 void MainWindow::onlineHelpTrigger_1()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Error_Codes.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Error_Codes.html")));
 }
 
 // qt5
@@ -4017,7 +4113,7 @@ bool MainWindow::okToStopRun()
 {
     return WidgetUtils::yesNoQuestion(this,
                                 tr("Stop Data Processing"),
-                                tr("EddyPro is processing (running or in pause)."),
+                                tr("EddyFlow is processing (running or in pause)."),
                                 tr("Do you really want to "
                                    "stop the computations?"),
                                 QStringLiteral("stopMessage"));
@@ -4135,7 +4231,7 @@ void MainWindow::updateSpectraPaths()
         }
         else
         {
-            ecProject_->setSpectraFullSpectra(ecProject_->generalOutPath() + QStringLiteral("/eddypro_full_cospectra"));
+            ecProject_->setSpectraFullSpectra(ecProject_->generalOutPath() + QStringLiteral("/EddyFlow_full_cospectra"));
         }
 
         fileSaveSilently();
@@ -4187,7 +4283,7 @@ void MainWindow::showAutoUpdateDialog()
     updateDialog->initialize();
     updateDialog->checkUpdate();
 
-    QTimer::singleShot(60000, this, SLOT(showAutoUpdateResults()));
+    QTimer::singleShot(60000, this, &MainWindow::showAutoUpdateResults);
 }
 
 void MainWindow::showAutoUpdateResults()
@@ -4286,11 +4382,6 @@ bool MainWindow::testForPreviousData()
     return test;
 }
 
-void MainWindow::openLicorSite() const
-{
-    QDesktopServices::openUrl(QUrl(QStringLiteral("http://www.licor.com/env/")));
-}
-
 void MainWindow::checkInternetConnection()
 {
 #if 0
@@ -4305,16 +4396,16 @@ void MainWindow::connectBinarySettingsDialog()
     BinarySettingsDialog* binary_settings_dialog =
             mainWidget_->projectPage()->getBinarySettingsDialog();
 
-    connect(binary_settings_dialog, SIGNAL(saveRequest()),
-            this, SLOT(fileSave()));
+    connect(binary_settings_dialog, &BinarySettingsDialog::saveRequest,
+            this, [this](){ fileSave(); });
 }
 
 void MainWindow::connectPlanarFitDialog()
 {
     PlanarFitSettingsDialog* planar_fit_dialog = mainWidget_->pfDialog();
 
-    bool c1 = connect(planar_fit_dialog, SIGNAL(saveRequest()),
-                      this, SLOT(fileSave()));
+    bool c1 = connect(planar_fit_dialog, &PlanarFitSettingsDialog::saveRequest,
+                      this, [this](){ fileSave(); });
     Q_ASSERT(c1);
 
     bool c2 = connect(mainWidget_->basicPage(), &BasicSettingsPage::setDateRangeRequest,
@@ -4326,8 +4417,8 @@ void MainWindow::connectTimeLagDialog()
 {
     TimeLagSettingsDialog* time_lag_dialog = mainWidget_->tlDialog();
 
-    bool c1 = connect(time_lag_dialog, SIGNAL(saveRequest()),
-                      this, SLOT(fileSave()));
+    bool c1 = connect(time_lag_dialog, &TimeLagSettingsDialog::saveRequest,
+                      this, [this](){ fileSave(); });
     Q_ASSERT(c1);
 
     bool c2 = connect(mainWidget_->basicPage(), &BasicSettingsPage::setDateRangeRequest,
@@ -4385,9 +4476,9 @@ bool MainWindow::queryEcProjectImport(const QString& filename)
            "and updated to a new version. "
            "If you proceed, you will "
            "lose your file and the "
-           "compatibility with previous versions of EddyPro "
+           "compatibility with previous versions of EddyFlow "
            "but you will have a smooth "
-           "transition to the new EddyPro version. "
+           "transition to the new EddyFlow version. "
            "If you are unsure, "
            "select 'No' and create a backup copy of your "
            "project file before proceeding.</p>"),
@@ -4408,3 +4499,4 @@ bool MainWindow::queryDlProjectImport()
            "<p>To cancel the import operation, simply close "
            "without pushing 'Ok'.</p>"));
 }
+

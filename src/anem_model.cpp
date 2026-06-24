@@ -1,24 +1,26 @@
 /***************************************************************************
   anem_model.cpp
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "anem_model.h"
@@ -26,7 +28,6 @@
 #include <QApplication>
 #include <QDebug>
 
-#include "dbghelper.h"
 #include "defs.h"
 #include "stringutils.h"
 #include "widget_utils.h"
@@ -528,6 +529,10 @@ QVariant AnemModel::data(const QModelIndex& index, int role) const
                 return QVariant(QColor(Qt::white));
         }
     }
+    else if (role == Qt::ForegroundRole)
+    {
+        return QVariant(QColor(Qt::black));
+    }
     // tooltips texts
     else if (role == Qt::ToolTipRole)
     {
@@ -600,6 +605,14 @@ bool AnemModel::setData(const QModelIndex& index, const QVariant& value, int rol
                 return false;
             }
             anemDesc.setModel(value.toString());
+            // auto-fill known path lengths and time response for CSAT-3A / IRGASON
+            if (value.toString() == AnemDesc::getANEM_MODEL_STRING_19()
+                || value.toString() == AnemDesc::getANEM_MODEL_STRING_20())
+            {
+                anemDesc.setVPathLength(11.547);
+                anemDesc.setHPathLength(0.8);
+                anemDesc.setTau(0.05);
+            }
             break;
         case SWVERSION:
             if (value == anemDesc.swVersion())
@@ -798,9 +811,9 @@ Qt::ItemFlags AnemModel::flags(const QModelIndex& index) const
         case VSEPARATION:
             if (column == 0)
             {
-                currentFlags &= !Qt::ItemIsEnabled;
-                currentFlags &= !Qt::ItemIsEditable;
-                currentFlags &= !Qt::ItemIsSelectable;
+                currentFlags &= ~Qt::ItemIsEnabled;
+                currentFlags &= ~Qt::ItemIsEditable;
+                currentFlags &= ~Qt::ItemIsSelectable;
                 return currentFlags;
             }
             else
@@ -812,9 +825,9 @@ Qt::ItemFlags AnemModel::flags(const QModelIndex& index) const
         case TAU:
             if (anemDesc.model() != AnemDesc::getANEM_MODEL_STRING_12())
             {
-                currentFlags &= !Qt::ItemIsEnabled;
-                currentFlags &= !Qt::ItemIsEditable;
-                currentFlags &= !Qt::ItemIsSelectable;
+                currentFlags &= ~Qt::ItemIsEnabled;
+                currentFlags &= ~Qt::ItemIsEditable;
+                currentFlags &= ~Qt::ItemIsSelectable;
                 return currentFlags;            }
             else
             {
@@ -838,3 +851,4 @@ int AnemModel::columnCount(const QModelIndex& parent) const
     Q_UNUSED(parent)
     return list_->count();
 }
+

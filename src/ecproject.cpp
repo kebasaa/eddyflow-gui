@@ -1,32 +1,36 @@
 /***************************************************************************
   ecproject.cpp
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "ecproject.h"
 
+#include <algorithm>
+
 #include <QDebug>
+#include <QSet>
 #include <QSettings>
 
-#include "dbghelper.h"
 #include "ecinidefs.h"
 #include "fileutils.h"
 #include "mainwindow.h"
@@ -673,10 +677,10 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
         }
     }
 
-    subTest = ec_project_state_.randomError.method == previousProject.ec_project_state_.randomError.method;
+    subTest = ec_project_state_.randomError.ru_method == previousProject.ec_project_state_.randomError.ru_method;
     advSettingsTest = advSettingsTest && subTest;
 
-    if (subTest && (ec_project_state_.randomError.method == 1 || ec_project_state_.randomError.method == 2))
+    if (subTest && (ec_project_state_.randomError.ru_method == 1 || ec_project_state_.randomError.ru_method == 2))
     {
         advSettingsTest = advSettingsTest
             && ec_project_state_.randomError.its_method == previousProject.ec_project_state_.randomError.its_method
@@ -693,6 +697,7 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
             return false;
     }
     Q_ASSERT(false);
+    return false;
 }
 
 // New project
@@ -743,8 +748,6 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.projectGeneral.col_ts = defaultEcProjectState.projectGeneral.col_ts;
     ec_project_state_.projectGeneral.gas_mw = defaultEcProjectState.projectGeneral.gas_mw;
     ec_project_state_.projectGeneral.gas_diff = defaultEcProjectState.projectGeneral.gas_diff;
-    ec_project_state_.projectGeneral.out_ghg_eu = defaultEcProjectState.projectGeneral.out_ghg_eu;
-    ec_project_state_.projectGeneral.out_amflux = defaultEcProjectState.projectGeneral.out_amflux;
     ec_project_state_.projectGeneral.out_rich = defaultEcProjectState.projectGeneral.out_rich;
     ec_project_state_.projectGeneral.out_md = defaultEcProjectState.projectGeneral.out_md;
     ec_project_state_.projectGeneral.out_biomet = defaultEcProjectState.projectGeneral.out_biomet;
@@ -1073,7 +1076,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.timelagOpt.gas4_max_lag = defaultEcProjectState.timelagOpt.gas4_max_lag;
     ec_project_state_.timelagOpt.subset  = defaultEcProjectState.timelagOpt.subset;
 
-    ec_project_state_.randomError.method = defaultEcProjectState.randomError.method;
+    ec_project_state_.randomError.ru_method = defaultEcProjectState.randomError.ru_method;
     ec_project_state_.randomError.its_method = defaultEcProjectState.randomError.its_method;
     ec_project_state_.randomError.its_tlag_max = defaultEcProjectState.randomError.its_tlag_max;
     ec_project_state_.randomError.its_sec_factor = defaultEcProjectState.randomError.its_sec_factor;
@@ -1177,9 +1180,9 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_PROJECT_31, QString::number(ec_project_state_.projectGeneral.gas_mw, 'f', 4));
         project_ini.setValue(EcIni::INI_PROJECT_32, QString::number(ec_project_state_.projectGeneral.gas_diff, 'f', 5));
         project_ini.setValue(EcIni::INI_PROJECT_36, ec_project_state_.projectGeneral.col_ts);
-        project_ini.setValue(EcIni::INI_PROJECT_37, ec_project_state_.projectGeneral.out_ghg_eu);
-        project_ini.setValue(EcIni::INI_PROJECT_38, ec_project_state_.projectGeneral.out_amflux);
         project_ini.setValue(EcIni::INI_PROJECT_39, ec_project_state_.projectGeneral.out_rich);
+        project_ini.setValue(EcIni::INI_PROJECT_70, ec_project_state_.projectGeneral.fluxnet_standardize_biomet);
+        project_ini.setValue(EcIni::INI_PROJECT_71, ec_project_state_.projectGeneral.fluxnet_err_label);
         project_ini.setValue(EcIni::INI_PROJECT_56, ec_project_state_.projectGeneral.out_md);
         project_ini.setValue(EcIni::INI_PROJECT_41, QVariant(ec_project_state_.projectGeneral.make_dataset).toInt());
         project_ini.setValue(EcIni::INI_PROJECT_54, ec_project_state_.projectGeneral.subset);
@@ -1551,7 +1554,7 @@ bool EcProject::saveEcProject(const QString &filename)
     // random error section
     project_ini.beginGroup(EcIni::INIGROUP_RAND_ERROR);
         project_ini.setValue(EcIni::INI_RAND_ERROR_0,
-                             ec_project_state_.randomError.method);
+                             ec_project_state_.randomError.ru_method);
         project_ini.setValue(EcIni::INI_RAND_ERROR_1,
                              ec_project_state_.randomError.its_method);
         project_ini.setValue(EcIni::INI_RAND_ERROR_2,
@@ -1576,54 +1579,15 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_BIOMET_9, ec_project_state_.biomParam.col_ppfd);
     project_ini.endGroup();
 
-    // drift correction section
-    project_ini.beginGroup(EcIni::INIGROUP_DRIFT);
-        project_ini.setValue(EcIni::INI_DRIFT_0, ec_project_state_.driftCorr.serial_number);
-        project_ini.setValue(EcIni::INI_DRIFT_1, ec_project_state_.driftCorr.calib_date);
-        project_ini.setValue(EcIni::INI_DRIFT_2, ec_project_state_.driftCorr.co2_0_dir);
-        project_ini.setValue(EcIni::INI_DRIFT_3, ec_project_state_.driftCorr.co2_1_dir);
-        project_ini.setValue(EcIni::INI_DRIFT_4, ec_project_state_.driftCorr.co2_2_dir);
-        project_ini.setValue(EcIni::INI_DRIFT_5, ec_project_state_.driftCorr.co2_3_dir);
-        project_ini.setValue(EcIni::INI_DRIFT_6, ec_project_state_.driftCorr.co2_4_dir);
-        project_ini.setValue(EcIni::INI_DRIFT_7, ec_project_state_.driftCorr.co2_5_dir);
-        project_ini.setValue(EcIni::INI_DRIFT_8, ec_project_state_.driftCorr.co2_6_dir);
-        project_ini.setValue(EcIni::INI_DRIFT_9, ec_project_state_.driftCorr.co2_0_inv);
-        project_ini.setValue(EcIni::INI_DRIFT_10, ec_project_state_.driftCorr.co2_1_inv);
-        project_ini.setValue(EcIni::INI_DRIFT_11, ec_project_state_.driftCorr.co2_2_inv);
-        project_ini.setValue(EcIni::INI_DRIFT_12, ec_project_state_.driftCorr.co2_3_inv);
-        project_ini.setValue(EcIni::INI_DRIFT_13, ec_project_state_.driftCorr.co2_4_inv);
-        project_ini.setValue(EcIni::INI_DRIFT_14, ec_project_state_.driftCorr.co2_5_inv);
-        project_ini.setValue(EcIni::INI_DRIFT_15, ec_project_state_.driftCorr.co2_6_inv);
-        project_ini.setValue(EcIni::INI_DRIFT_16, ec_project_state_.driftCorr.co2_Zero);
-        project_ini.setValue(EcIni::INI_DRIFT_17, ec_project_state_.driftCorr.co2_Zero_date);
-        project_ini.setValue(EcIni::INI_DRIFT_18, ec_project_state_.driftCorr.co2_Span);
-        project_ini.setValue(EcIni::INI_DRIFT_19, ec_project_state_.driftCorr.co2_Span_date);
-        project_ini.setValue(EcIni::INI_DRIFT_20, ec_project_state_.driftCorr.co2_Span_2);
-        project_ini.setValue(EcIni::INI_DRIFT_21, ec_project_state_.driftCorr.co2_Span_2_date);
-        project_ini.setValue(EcIni::INI_DRIFT_22, ec_project_state_.driftCorr.co2_CX);
-        project_ini.setValue(EcIni::INI_DRIFT_23, ec_project_state_.driftCorr.co2_CX_date);
-        project_ini.setValue(EcIni::INI_DRIFT_24, ec_project_state_.driftCorr.h2o_0_dir);
-        project_ini.setValue(EcIni::INI_DRIFT_25, ec_project_state_.driftCorr.h2o_1_dir);
-        project_ini.setValue(EcIni::INI_DRIFT_26, ec_project_state_.driftCorr.h2o_2_dir);
-        project_ini.setValue(EcIni::INI_DRIFT_27, ec_project_state_.driftCorr.h2o_3_dir);
-        project_ini.setValue(EcIni::INI_DRIFT_28, ec_project_state_.driftCorr.h2o_4_dir);
-        project_ini.setValue(EcIni::INI_DRIFT_29, ec_project_state_.driftCorr.h2o_5_dir);
-        project_ini.setValue(EcIni::INI_DRIFT_30, ec_project_state_.driftCorr.h2o_6_dir);
-        project_ini.setValue(EcIni::INI_DRIFT_31, ec_project_state_.driftCorr.h2o_0_inv);
-        project_ini.setValue(EcIni::INI_DRIFT_32, ec_project_state_.driftCorr.h2o_1_inv);
-        project_ini.setValue(EcIni::INI_DRIFT_33, ec_project_state_.driftCorr.h2o_2_inv);
-        project_ini.setValue(EcIni::INI_DRIFT_34, ec_project_state_.driftCorr.h2o_3_inv);
-        project_ini.setValue(EcIni::INI_DRIFT_35, ec_project_state_.driftCorr.h2o_4_inv);
-        project_ini.setValue(EcIni::INI_DRIFT_36, ec_project_state_.driftCorr.h2o_5_inv);
-        project_ini.setValue(EcIni::INI_DRIFT_37, ec_project_state_.driftCorr.h2o_6_inv);
-        project_ini.setValue(EcIni::INI_DRIFT_38, ec_project_state_.driftCorr.h2o_Zero);
-        project_ini.setValue(EcIni::INI_DRIFT_39, ec_project_state_.driftCorr.h2o_Zero_date);
-        project_ini.setValue(EcIni::INI_DRIFT_40, ec_project_state_.driftCorr.h2o_Span);
-        project_ini.setValue(EcIni::INI_DRIFT_41, ec_project_state_.driftCorr.h2o_Span_date);
-        project_ini.setValue(EcIni::INI_DRIFT_42, ec_project_state_.driftCorr.h2o_Span_2);
-        project_ini.setValue(EcIni::INI_DRIFT_43, ec_project_state_.driftCorr.h2o_Span_2_date);
-        project_ini.setValue(EcIni::INI_DRIFT_44, ec_project_state_.driftCorr.h2o_WX);
-        project_ini.setValue(EcIni::INI_DRIFT_45, ec_project_state_.driftCorr.h2o_WX_date);
+    // wind direction filter section
+    project_ini.beginGroup(EcIni::INIGROUP_WIND_FILTER);
+        project_ini.setValue(EcIni::INI_WIND_FILTER_APPLY, ec_project_state_.windFilter.apply);
+        const auto &sectors = ec_project_state_.windFilter.sectors;
+        for (int i = 0; i < sectors.size(); ++i) {
+            const QString prefix = EcIni::INI_WIND_FILTER_PREFIX + QString::number(i) + QLatin1Char('_');
+            project_ini.setValue(prefix + EcIni::INI_WIND_FILTER_START_SUFFIX, sectors.at(i).startAngle_);
+            project_ini.setValue(prefix + EcIni::INI_WIND_FILTER_END_SUFFIX,   sectors.at(i).endAngle_);
+        }
     project_ini.endGroup();
     project_ini.sync();
 
@@ -1820,12 +1784,12 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.projectGeneral.gas_diff
                 = project_ini.value(EcIni::INI_PROJECT_32,
                                     defaultEcProjectState.projectGeneral.gas_diff).toReal();
-        ec_project_state_.projectGeneral.out_ghg_eu
-                = project_ini.value(EcIni::INI_PROJECT_37,
-                                    defaultEcProjectState.projectGeneral.out_ghg_eu).toInt();
-        ec_project_state_.projectGeneral.out_amflux
-                = project_ini.value(EcIni::INI_PROJECT_38,
-                                    defaultEcProjectState.projectGeneral.out_amflux).toInt();
+        ec_project_state_.projectGeneral.fluxnet_standardize_biomet
+                = project_ini.value(EcIni::INI_PROJECT_70,
+                                    defaultEcProjectState.projectGeneral.fluxnet_standardize_biomet).toInt();
+        ec_project_state_.projectGeneral.fluxnet_err_label
+                = project_ini.value(EcIni::INI_PROJECT_71,
+                                    defaultEcProjectState.projectGeneral.fluxnet_err_label).toInt();
 
         // NOTE: backward compatibility change for 'out_rich' key
         if (project_ini.value(EcIni::INI_PROJECT_5,
@@ -2842,9 +2806,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
 
     // random error section
     project_ini.beginGroup(EcIni::INIGROUP_RAND_ERROR);
-        ec_project_state_.randomError.method
+        ec_project_state_.randomError.ru_method
                 = project_ini.value(EcIni::INI_RAND_ERROR_0,
-                                    defaultEcProjectState.randomError.method).toInt();
+                                    defaultEcProjectState.randomError.ru_method).toInt();
         ec_project_state_.randomError.its_method
                 = project_ini.value(EcIni::INI_RAND_ERROR_1,
                                     defaultEcProjectState.randomError.its_method).toInt();
@@ -2880,153 +2844,32 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
                                     defaultEcProjectState.biomParam.col_ppfd).toInt();
     project_ini.endGroup();
 
-    // drift correction section
-    project_ini.beginGroup(EcIni::INIGROUP_DRIFT);
-        ec_project_state_.driftCorr.serial_number
-                = project_ini.value(EcIni::INI_DRIFT_0,
-                                    defaultEcProjectState.driftCorr.serial_number).toString();
-        ec_project_state_.driftCorr.calib_date
-                = project_ini.value(EcIni::INI_DRIFT_1,
-                                    defaultEcProjectState.driftCorr.calib_date).toString();
+    // wind direction filter section
+    project_ini.beginGroup(EcIni::INIGROUP_WIND_FILTER);
+        ec_project_state_.windFilter.apply
+                = project_ini.value(EcIni::INI_WIND_FILTER_APPLY,
+                                    defaultEcProjectState.windFilter.apply).toInt();
 
-        ec_project_state_.driftCorr.co2_0_dir
-                = project_ini.value(EcIni::INI_DRIFT_2,
-                                    defaultEcProjectState.driftCorr.co2_0_dir).toDouble();
-        ec_project_state_.driftCorr.co2_1_dir
-                = project_ini.value(EcIni::INI_DRIFT_3,
-                                    defaultEcProjectState.driftCorr.co2_1_dir).toDouble();
-        ec_project_state_.driftCorr.co2_2_dir
-                = project_ini.value(EcIni::INI_DRIFT_4,
-                                    defaultEcProjectState.driftCorr.co2_2_dir).toDouble();
-        ec_project_state_.driftCorr.co2_3_dir
-                = project_ini.value(EcIni::INI_DRIFT_5,
-                                    defaultEcProjectState.driftCorr.co2_3_dir).toDouble();
-        ec_project_state_.driftCorr.co2_4_dir
-                = project_ini.value(EcIni::INI_DRIFT_6,
-                                    defaultEcProjectState.driftCorr.co2_4_dir).toDouble();
-        ec_project_state_.driftCorr.co2_5_dir
-                = project_ini.value(EcIni::INI_DRIFT_7,
-                                    defaultEcProjectState.driftCorr.co2_5_dir).toDouble();
-        ec_project_state_.driftCorr.co2_6_dir
-                = project_ini.value(EcIni::INI_DRIFT_8,
-                                    defaultEcProjectState.driftCorr.co2_6_dir).toDouble();
-
-        ec_project_state_.driftCorr.co2_0_inv
-                = project_ini.value(EcIni::INI_DRIFT_9,
-                                    defaultEcProjectState.driftCorr.co2_0_inv).toDouble();
-        ec_project_state_.driftCorr.co2_1_dir
-                = project_ini.value(EcIni::INI_DRIFT_10,
-                                    defaultEcProjectState.driftCorr.co2_1_inv).toDouble();
-        ec_project_state_.driftCorr.co2_2_dir
-                = project_ini.value(EcIni::INI_DRIFT_11,
-                                    defaultEcProjectState.driftCorr.co2_2_inv).toDouble();
-        ec_project_state_.driftCorr.co2_3_dir
-                = project_ini.value(EcIni::INI_DRIFT_12,
-                                    defaultEcProjectState.driftCorr.co2_3_inv).toDouble();
-        ec_project_state_.driftCorr.co2_4_dir
-                = project_ini.value(EcIni::INI_DRIFT_13,
-                                    defaultEcProjectState.driftCorr.co2_4_inv).toDouble();
-        ec_project_state_.driftCorr.co2_5_dir
-                = project_ini.value(EcIni::INI_DRIFT_14,
-                                    defaultEcProjectState.driftCorr.co2_5_inv).toDouble();
-        ec_project_state_.driftCorr.co2_6_dir
-                = project_ini.value(EcIni::INI_DRIFT_15,
-                                    defaultEcProjectState.driftCorr.co2_6_inv).toDouble();
-
-        ec_project_state_.driftCorr.co2_Zero
-                = project_ini.value(EcIni::INI_DRIFT_16,
-                                    defaultEcProjectState.driftCorr.co2_Zero).toDouble();
-        ec_project_state_.driftCorr.co2_Zero_date
-                = project_ini.value(EcIni::INI_DRIFT_17,
-                                    defaultEcProjectState.driftCorr.co2_Zero_date).toString();
-        ec_project_state_.driftCorr.co2_Span
-                = project_ini.value(EcIni::INI_DRIFT_18,
-                                    defaultEcProjectState.driftCorr.co2_Span).toDouble();
-        ec_project_state_.driftCorr.co2_Span_date
-                = project_ini.value(EcIni::INI_DRIFT_19,
-                                    defaultEcProjectState.driftCorr.co2_Span_date).toString();
-        ec_project_state_.driftCorr.co2_Span_2
-                = project_ini.value(EcIni::INI_DRIFT_20,
-                                    defaultEcProjectState.driftCorr.co2_Span_2).toDouble();
-        ec_project_state_.driftCorr.co2_Span_2_date
-                = project_ini.value(EcIni::INI_DRIFT_21,
-                                    defaultEcProjectState.driftCorr.co2_Span_2_date).toString();
-        ec_project_state_.driftCorr.co2_CX
-                = project_ini.value(EcIni::INI_DRIFT_22,
-                                    defaultEcProjectState.driftCorr.co2_CX).toDouble();
-        ec_project_state_.driftCorr.co2_CX_date
-                = project_ini.value(EcIni::INI_DRIFT_23,
-                                    defaultEcProjectState.driftCorr.co2_CX_date).toString();
-
-        ec_project_state_.driftCorr.h2o_0_dir
-                = project_ini.value(EcIni::INI_DRIFT_24,
-                                    defaultEcProjectState.driftCorr.h2o_0_dir).toDouble();
-        ec_project_state_.driftCorr.h2o_1_dir
-                = project_ini.value(EcIni::INI_DRIFT_25,
-                                    defaultEcProjectState.driftCorr.h2o_1_dir).toDouble();
-        ec_project_state_.driftCorr.h2o_2_dir
-                = project_ini.value(EcIni::INI_DRIFT_26,
-                                    defaultEcProjectState.driftCorr.h2o_2_dir).toDouble();
-        ec_project_state_.driftCorr.h2o_3_dir
-                = project_ini.value(EcIni::INI_DRIFT_27,
-                                    defaultEcProjectState.driftCorr.h2o_3_dir).toDouble();
-        ec_project_state_.driftCorr.h2o_4_dir
-                = project_ini.value(EcIni::INI_DRIFT_28,
-                                    defaultEcProjectState.driftCorr.h2o_4_dir).toDouble();
-        ec_project_state_.driftCorr.h2o_5_dir
-                = project_ini.value(EcIni::INI_DRIFT_29,
-                                    defaultEcProjectState.driftCorr.h2o_5_dir).toDouble();
-        ec_project_state_.driftCorr.h2o_6_dir
-                = project_ini.value(EcIni::INI_DRIFT_30,
-                                    defaultEcProjectState.driftCorr.h2o_6_dir).toDouble();
-
-        ec_project_state_.driftCorr.h2o_0_inv
-                = project_ini.value(EcIni::INI_DRIFT_31,
-                                    defaultEcProjectState.driftCorr.h2o_0_inv).toDouble();
-        ec_project_state_.driftCorr.h2o_1_dir
-                = project_ini.value(EcIni::INI_DRIFT_32,
-                                    defaultEcProjectState.driftCorr.h2o_1_inv).toDouble();
-        ec_project_state_.driftCorr.h2o_2_dir
-                = project_ini.value(EcIni::INI_DRIFT_33,
-                                    defaultEcProjectState.driftCorr.h2o_2_inv).toDouble();
-        ec_project_state_.driftCorr.h2o_3_dir
-                = project_ini.value(EcIni::INI_DRIFT_34,
-                                    defaultEcProjectState.driftCorr.h2o_3_inv).toDouble();
-        ec_project_state_.driftCorr.h2o_4_dir
-                = project_ini.value(EcIni::INI_DRIFT_35,
-                                    defaultEcProjectState.driftCorr.h2o_4_inv).toDouble();
-        ec_project_state_.driftCorr.h2o_5_dir
-                = project_ini.value(EcIni::INI_DRIFT_36,
-                                    defaultEcProjectState.driftCorr.h2o_5_inv).toDouble();
-        ec_project_state_.driftCorr.h2o_6_dir
-                = project_ini.value(EcIni::INI_DRIFT_37,
-                                    defaultEcProjectState.driftCorr.h2o_6_inv).toDouble();
-
-        ec_project_state_.driftCorr.h2o_Zero
-                = project_ini.value(EcIni::INI_DRIFT_38,
-                                    defaultEcProjectState.driftCorr.h2o_Zero).toDouble();
-        ec_project_state_.driftCorr.h2o_Zero_date
-                = project_ini.value(EcIni::INI_DRIFT_39,
-                                    defaultEcProjectState.driftCorr.h2o_Zero_date).toString();
-        ec_project_state_.driftCorr.h2o_Span
-                = project_ini.value(EcIni::INI_DRIFT_40,
-                                    defaultEcProjectState.driftCorr.h2o_Span).toDouble();
-        ec_project_state_.driftCorr.h2o_Span_date
-                = project_ini.value(EcIni::INI_DRIFT_41,
-                                    defaultEcProjectState.driftCorr.h2o_Span_date).toString();
-        ec_project_state_.driftCorr.h2o_Span_2
-                = project_ini.value(EcIni::INI_DRIFT_42,
-                                    defaultEcProjectState.driftCorr.h2o_Span_2).toDouble();
-        ec_project_state_.driftCorr.h2o_Span_2_date
-                = project_ini.value(EcIni::INI_DRIFT_43,
-                                    defaultEcProjectState.driftCorr.h2o_Span_2_date).toString();
-        ec_project_state_.driftCorr.h2o_WX
-                = project_ini.value(EcIni::INI_DRIFT_44,
-                                    defaultEcProjectState.driftCorr.h2o_WX).toDouble();
-        ec_project_state_.driftCorr.h2o_WX_date
-                = project_ini.value(EcIni::INI_DRIFT_45,
-                                    defaultEcProjectState.driftCorr.h2o_WX_date).toString();
-
+        ec_project_state_.windFilter.sectors.clear();
+        const QStringList allKeys = project_ini.allKeys();
+        QSet<int> sectorIndices;
+        for (const QString &key : allKeys) {
+            if (key.startsWith(EcIni::INI_WIND_FILTER_PREFIX)) {
+                const QString remainder = key.mid(EcIni::INI_WIND_FILTER_PREFIX.length());
+                const int sep = remainder.indexOf(QLatin1Char('_'));
+                if (sep > 0)
+                    sectorIndices.insert(remainder.left(sep).toInt());
+            }
+        }
+        QList<int> orderedIndices = sectorIndices.values();
+        std::sort(orderedIndices.begin(), orderedIndices.end());
+        for (int idx : orderedIndices) {
+            const QString prefix = EcIni::INI_WIND_FILTER_PREFIX + QString::number(idx) + QLatin1Char('_');
+            SectorItem sector;
+            sector.startAngle_ = project_ini.value(prefix + EcIni::INI_WIND_FILTER_START_SUFFIX, 0.0).toDouble();
+            sector.endAngle_   = project_ini.value(prefix + EcIni::INI_WIND_FILTER_END_SUFFIX,   10.0).toDouble();
+            ec_project_state_.windFilter.sectors.append(sector);
+        }
     project_ini.endGroup();
 
     datafile.close();
@@ -3100,6 +2943,40 @@ bool EcProject::tagProject(const QString &filename)
     app_tag += QLatin1String("\n");
 
     return FileUtils::prependToFile(app_tag, filename);
+}
+
+bool EcProject::eddyProNativeFormat(const QString &filename)
+{
+    QFile datafile(filename);
+    if (!datafile.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+        WidgetUtils::warning(nullptr,
+                             tr("Import Error"),
+                             tr("Cannot read file <p>%1:</p>\n<b>%2</b>")
+                             .arg(filename, datafile.errorString()));
+        return false;
+    }
+    QTextStream in(&datafile);
+    QString firstLine;
+    in >> firstLine;
+    datafile.close();
+
+    if (!firstLine.startsWith(QLatin1String(";EDDYPRO_PROCESSING")))
+    {
+        WidgetUtils::warning(nullptr,
+                             tr("Import Error"),
+                             tr("Cannot import file <p>%1:</p>\n"
+                                "<b>not in EddyPro native format.</b>").arg(filename));
+        return false;
+    }
+    return true;
+}
+
+bool EcProject::importEddyProProject(const QString &filename, bool updateMode, bool *modified)
+{
+    // Migration point: map .eddypro fields -> .eddyflow fields here when formats diverge.
+    // Currently the formats are identical, so delegate to the standard loader.
+    return loadEcProject(filename, updateMode, modified);
 }
 
 void EcProject::setModified(bool mod)
@@ -3986,21 +3863,33 @@ void EcProject::setGeneralTob1Format(int n)
     setModified(true);
 }
 
-void EcProject::setGeneralOutGhgEu(int n)
-{
-    ec_project_state_.projectGeneral.out_ghg_eu = n;
-    setModified(true);
-}
-
-void EcProject::setGeneralOutAmFluxOut(int n)
-{
-    ec_project_state_.projectGeneral.out_amflux = n;
-    setModified(true);
-}
-
 void EcProject::setGeneralOutRich(int n)
 {
     ec_project_state_.projectGeneral.out_rich = n;
+    setModified(true);
+}
+
+void EcProject::setFluxnetStandardizeBiomet(int n)
+{
+    ec_project_state_.projectGeneral.fluxnet_standardize_biomet = n;
+    setModified(true);
+}
+
+void EcProject::setFluxnetErrLabel(int n)
+{
+    ec_project_state_.projectGeneral.fluxnet_err_label = n;
+    setModified(true);
+}
+
+void EcProject::setWindFilter(const WindFilterState &state)
+{
+    ec_project_state_.windFilter = state;
+    setModified(true);
+}
+
+void EcProject::setWindFilterApply(int n)
+{
+    ec_project_state_.windFilter.apply = n;
     setModified(true);
 }
 
@@ -5245,7 +5134,7 @@ void EcProject::setTimelagOptGas4MaxLag(double d)
 
 void EcProject::setRandomErrorMethod(int n)
 {
-    ec_project_state_.randomError.method = n;
+    ec_project_state_.randomError.ru_method = n;
     setModified(true);
 }
 

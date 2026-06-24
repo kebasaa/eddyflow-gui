@@ -1,24 +1,26 @@
 /***************************************************************************
   dlsitetab.cpp
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
  ***************************************************************************/
 
 #include "dlsitetab.h"
@@ -28,6 +30,9 @@
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QLineEdit>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QRegularExpression>
@@ -39,7 +44,6 @@
 #include <cmath>
 
 #include "clicklabel.h"
-#include "dbghelper.h"
 #include "dlproject.h"
 #include "widget_utils.h"
 
@@ -52,7 +56,7 @@ DlSiteTab::DlSiteTab(QWidget *parent, DlProject *dlProject) :
     timestampRefLabel->setToolTip(tr("<b>Time stamp refers to:</b> Choose whether the timestamp provided in raw file names refers to the beginning or end of the data interval."));
     timestampRefStartRadio = new QRadioButton(tr("Beginning of dataset period"), this);
     timestampRefStartRadio->setChecked(true);
-    timestampRefStartRadio->setToolTip(tr("<b>Beginning of dataset period:</b> Select this option if timestamps in the raw file names refer to the beginning of the data interval. Note that timestamps on EddyPro output files always refer to the end of the averaging interval."));
+    timestampRefStartRadio->setToolTip(tr("<b>Beginning of dataset period:</b> Select this option if timestamps in the raw file names refer to the beginning of the data interval. Note that timestamps on EddyFlow output files always refer to the end of the averaging interval."));
     timestampRefEndRadio = new QRadioButton(tr("End of dataset period"), this);
     timestampRefEndRadio->setToolTip(tr("<b>End of dataset period:</b> Select this option if timestamps in the raw file names refer to the end of the data interval."));
 
@@ -102,7 +106,7 @@ DlSiteTab::DlSiteTab(QWidget *parent, DlProject *dlProject) :
 
     displacementLabel = new ClickLabel;
     displacementLabel->setText(tr("Displacement height :"));
-    displacementLabel->setToolTip(tr("<b>Displacement height:</b> Zero plane displacement height is the average level at which elements of the plant community absorb momentum. If left blank, this parameter is automatically estimated based on canopy height."));
+    displacementLabel->setToolTip(tr("<b>Displacement height:</b> Zero plane displacement height is the average level at which elements of the plant community absorb momentum. If Qt::left blank, this parameter is automatically estimated based on canopy height."));
     displacementLabel->setProperty("optionalField", true);
     displacementHeightSpin = new QDoubleSpinBox;
     displacementHeightSpin->setDecimals(2);
@@ -116,7 +120,7 @@ DlSiteTab::DlSiteTab(QWidget *parent, DlProject *dlProject) :
 
     roughnessLabel = new ClickLabel;
     roughnessLabel->setText(tr("Roughness length :"));
-    roughnessLabel->setToolTip(tr("<b>Roughness length:</b> Canopy roughness length is a quantification of the surface roughness. If left blank, this parameter is automatically estimated based on canopy height."));
+    roughnessLabel->setToolTip(tr("<b>Roughness length:</b> Canopy roughness length is a quantification of the surface roughness. If Qt::left blank, this parameter is automatically estimated based on canopy height."));
     roughnessLabel->setProperty("optionalField", true);
     roughnessLengthSpin = new QDoubleSpinBox;
     roughnessLengthSpin->setDecimals(2);
@@ -250,23 +254,23 @@ DlSiteTab::DlSiteTab(QWidget *parent, DlProject *dlProject) :
 
     connect(altitudeLabel, &ClickLabel::clicked,
             this, &DlSiteTab::onClickAltitudeLabel);
-    connect(altitudeSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateAltitude(double)));
+    connect(altitudeSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &DlSiteTab::updateAltitude);
 
     connect(canopyLabel, &ClickLabel::clicked,
             this, &DlSiteTab::onClickCanopyLabel);
-    connect(canopyHeightSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateCanopyHeight(double)));
+    connect(canopyHeightSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &DlSiteTab::updateCanopyHeight);
 
     connect(displacementLabel, &ClickLabel::clicked,
             this, &DlSiteTab::onClickDisplacementLabel);
-    connect(displacementHeightSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateDisplacementHeight(double)));
+    connect(displacementHeightSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &DlSiteTab::updateDisplacementHeight);
 
     connect(roughnessLabel, &ClickLabel::clicked,
             this, &DlSiteTab::onClickRoughnessLabel);
-    connect(roughnessLengthSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateRoughnessLength(double)));
+    connect(roughnessLengthSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &DlSiteTab::updateRoughnessLength);
 
     connect(latitudeLabel, &ClickLabel::clicked,
             this, &DlSiteTab::onClickLatitudeLabel);
@@ -285,15 +289,15 @@ DlSiteTab::DlSiteTab(QWidget *parent, DlProject *dlProject) :
 
     connect(freqLabel, &ClickLabel::clicked,
             this, &DlSiteTab::onClickFreqLabel);
-    connect(acquisitionFreqSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateAcquisitionFrequency(double)));
+    connect(acquisitionFreqSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &DlSiteTab::updateAcquisitionFrequency);
 
-    connect(timestampRadioGroup, SIGNAL(buttonClicked(int)),
-            this, SLOT(updateTimestampRef(int)));
+    connect(timestampRadioGroup, &QButtonGroup::idClicked,
+            this, &DlSiteTab::updateTimestampRef);
     connect(durationLabel, &ClickLabel::clicked,
             this, &DlSiteTab::onClickDurationLabel);
-    connect(fileDurationSpin, SIGNAL(valueChanged(int)),
-            this, SLOT(updateFileDuration(int)));
+    connect(fileDurationSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &DlSiteTab::updateFileDuration);
 }
 
 DlSiteTab::~DlSiteTab()
@@ -375,17 +379,17 @@ QString DlSiteTab::strLatitude(double lat)
     QTextStream d(&degrees_str);
     d << qSetFieldWidth(2)
         << qSetPadChar(QLatin1Char('0'))
-        << right
+        << Qt::right
         << qAbs( degrees );
 
     QString minutes_str;
     QTextStream m(&minutes_str);
-    m << qSetFieldWidth(2) << qSetPadChar(QLatin1Char('0')) << right << qAbs( minutes );
+    m << qSetFieldWidth(2) << qSetPadChar(QLatin1Char('0')) << Qt::right << qAbs( minutes );
 
     QString seconds_str;
     QTextStream s(&seconds_str);
     s << qSetFieldWidth(6) << qSetRealNumberPrecision(3) << qSetPadChar(QLatin1Char('0'))
-      << forcepoint << fixed << qAbs( seconds );
+      << Qt::forcepoint << Qt::fixed << qAbs( seconds );
 
     dms.append(degrees_str);
     dms.append(tr("%1 ").arg(Defs::DEGREE));
@@ -488,16 +492,16 @@ QString DlSiteTab::strLongitude(double lon)
 
     QString degrees_str;
     QTextStream d(&degrees_str);
-    d << qSetFieldWidth(3) << qSetPadChar(QLatin1Char('0')) << right << qAbs( degrees );
+    d << qSetFieldWidth(3) << qSetPadChar(QLatin1Char('0')) << Qt::right << qAbs( degrees );
 
     QString minutes_str;
     QTextStream m(&minutes_str);
-    m << qSetFieldWidth(2) << qSetPadChar(QLatin1Char('0')) << right << qAbs( minutes );
+    m << qSetFieldWidth(2) << qSetPadChar(QLatin1Char('0')) << Qt::right << qAbs( minutes );
 
     QString seconds_str;
     QTextStream s(&seconds_str);
     s << qSetFieldWidth(6) << qSetRealNumberPrecision(3) << qSetPadChar(QLatin1Char('0'))
-      << forcepoint << fixed << qAbs( seconds );
+      << Qt::forcepoint << Qt::fixed << qAbs( seconds );
 
     dms.append(degrees_str);
     dms.append(tr("%1 ").arg(Defs::DEGREE));
@@ -794,10 +798,19 @@ void DlSiteTab::createQuestionMark()
 {
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_1->setFlat(true);
+    questionMark_1->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_1->setIconSize(QSize(12, 12));
     questionMark_2 = new QPushButton;
     questionMark_2->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_2->setFlat(true);
+    questionMark_2->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_2->setIconSize(QSize(12, 12));
     questionMark_3 = new QPushButton;
     questionMark_3->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_3->setFlat(true);
+    questionMark_3->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_3->setIconSize(QSize(12, 12));
 
     connect(questionMark_1, &QPushButton::clicked,
             this, &DlSiteTab::onlineHelpTrigger_1);
@@ -809,15 +822,17 @@ void DlSiteTab::createQuestionMark()
 
 void DlSiteTab::onlineHelpTrigger_1()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Beginning_of_dataset.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Beginning_of_dataset.html")));
 }
 
 void DlSiteTab::onlineHelpTrigger_2()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Displacement_Height.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Displacement_Height.html")));
 }
 
 void DlSiteTab::onlineHelpTrigger_3()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Roughness_Length.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Roughness_Length.html")));
 }
+
+

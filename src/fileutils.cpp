@@ -1,23 +1,25 @@
 /***************************************************************************
   fileutils.cpp
   -------------------
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "fileutils.h"
@@ -32,7 +34,6 @@
 
 #include "JlCompress.h"
 
-#include "dbghelper.h"
 #include "defs.h"
 #include "widget_utils.h"
 
@@ -81,15 +82,11 @@ void FileUtils::createDir(const QString& dirName, const QString& absoluteDirDest
         dirPath = dirName;
 
     QDir dir;
-    if (!dir.exists(dirPath))
+    if (!dir.mkpath(dirPath))
     {
-        bool created = dir.mkdir(dirPath);
-        if (!created)
-        {
-            WidgetUtils::warning(nullptr,
-                                 QObject::tr("mkdir error"),
-                                 QObject::tr("Error creating dir %1").arg(dirPath));
-        }
+        WidgetUtils::warning(nullptr,
+                             QObject::tr("mkdir error"),
+                             QObject::tr("Error creating dir %1").arg(dirPath));
     }
 }
 
@@ -462,11 +459,11 @@ QString FileUtils::setupEnv()
     userHomePath = userHomePath + QStringLiteral("/") + configPath;
 #endif
 
-    FileUtils::createDir(Defs::LICOR_ENV_DIR, userHomePath);
-    QString licorDir = userHomePath + QLatin1Char('/') + Defs::LICOR_ENV_DIR;
-    FileUtils::createDir(Defs::APP_NAME_LCASE, licorDir);
+    FileUtils::createDir(Defs::EDDYFLOW_ENV_DIR, userHomePath);
+    QString eddyflowDir = userHomePath + QLatin1Char('/') + Defs::EDDYFLOW_ENV_DIR;
+    FileUtils::createDir(Defs::APP_NAME_LCASE, eddyflowDir);
 
-    QString appDir = licorDir + QLatin1Char('/') + Defs::APP_NAME_LCASE;
+    QString appDir = eddyflowDir + QLatin1Char('/') + Defs::APP_NAME_LCASE;
     FileUtils::createDir(Defs::APP_VERSION_STR, appDir);
 
     QString appVerDir = appDir + QLatin1Char('/') + Defs::APP_VERSION_STR;

@@ -1,23 +1,25 @@
 /***************************************************************************
   angles_view.cpp
   -------------------
-  Copyright (C) 2012-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2012-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "angles_view.h"
@@ -25,6 +27,7 @@
 #include <QDebug>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPen>
 #include <QScrollBar>
 #include <QToolTip>
@@ -35,7 +38,6 @@
 #define M_PI 3.1415927
 #endif
 
-#include "dbghelper.h"
 #include "angle_tablemodel.h"
 
 AnglesView::AnglesView(QWidget *parent) : QAbstractItemView(parent)
@@ -50,7 +52,7 @@ AnglesView::AnglesView(QWidget *parent) : QAbstractItemView(parent)
 }
 
 void AnglesView::dataChanged(const QModelIndex &topLeft,
-                          const QModelIndex &bottomRight, const QVector<int> & roles)
+                          const QModelIndex &bottomRight, const QList<int> &roles)
 {
     // NOTE: see if the new roles var is needed to updated the pie
     Q_UNUSED(roles)
@@ -144,7 +146,7 @@ QModelIndex AnglesView::indexAt(const QPoint &point) const
     }
     else
     {
-        double itemHeight = QFontMetrics(viewOptions().font).height();
+        double itemHeight = QFontMetrics(font()).height();
 
         double listItemDouble;
         modf((wy - margin) / itemHeight, &listItemDouble);
@@ -346,7 +348,7 @@ QModelIndex AnglesView::moveCursor(QAbstractItemView::CursorAction cursorAction,
 void AnglesView::paintEvent(QPaintEvent *event)
 {
     QItemSelectionModel *selections = selectionModel();
-    QStyleOptionViewItem option = viewOptions();
+    QStyleOption option; option.initFrom(this);
 
     QBrush background = option.palette.base();
     QPen foreground(Qt::gray);
@@ -686,3 +688,5 @@ bool AnglesView::viewportEvent(QEvent *event)
 //   else
        return QAbstractItemView::viewportEvent(event);
 }
+
+

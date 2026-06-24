@@ -3,24 +3,26 @@
   -------------------
   A process management class
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #ifndef PROCESS_H
@@ -61,7 +63,7 @@ public:
         Stopped
     };
 
-    Process(QWidget* parent = nullptr, const QString& fullPath = QString());
+    Process(QObject* parent = nullptr, const QString& fullPath = QString());
     ~Process();
 
     bool engineProcessStart(const QString& fullPath, const QString& workingDir, const QStringList& argList);
@@ -99,26 +101,15 @@ public:
     inline ExitStatus processExit() const { return processExit_; }
     bool isRunning() const { return (process_->state() == QProcess::Running); }
 
-#if 0
-    static unsigned int getProcessIdsByProcessName(const QString &processName, QStringList &listOfPids);
-#endif
-
 private slots:
-    void processError(QProcess::ProcessError error);
+    void onProcessError(QProcess::ProcessError error);
     void processFinished(int exitCode, QProcess::ExitStatus exitStatus);
-    void processPause_2();
-    void bufferFreezerOutput();
 
 private:
     QProcess* process_;
     QString fullPath_;
     ExitStatus processExit_;
     qint64 processPid_;
-    QString winPid_;
-    QProcess* freezerUtility_;
-    QByteArray rxBuffer_;
-
-    void parseFreezerPid(const QByteArray& data);
 
 signals:
     void readyReadStdOut();
@@ -128,3 +119,4 @@ signals:
 };
 
 #endif // PROCESS_H
+

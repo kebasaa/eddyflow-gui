@@ -1,24 +1,26 @@
 /***************************************************************************
   anem_desc.cpp
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "anem_desc.h"
@@ -167,6 +169,18 @@ const QString AnemDesc::getANEM_MODEL_STRING_17()
 const QString AnemDesc::getANEM_MODEL_STRING_18()
 {
     static const QString s(QStringLiteral("81000VRE"));
+    return s;
+}
+
+const QString AnemDesc::getANEM_MODEL_STRING_19()
+{
+    static const QString s(QStringLiteral("CSAT-3A"));
+    return s;
+}
+
+const QString AnemDesc::getANEM_MODEL_STRING_20()
+{
+    static const QString s(QStringLiteral("IRGASON"));
     return s;
 }
 
@@ -359,6 +373,8 @@ const QStringList AnemDesc::allModelStringList()
             << getANEM_MODEL_STRING_16()
             << getANEM_MODEL_STRING_17()
             << getANEM_MODEL_STRING_18()
+            << getANEM_MODEL_STRING_19()
+            << getANEM_MODEL_STRING_20()
             );
 }
 
@@ -368,6 +384,8 @@ const QStringList AnemDesc::campbellModelStringList()
     return (QStringList()
             << getANEM_MODEL_STRING_0()
             << getANEM_MODEL_STRING_13()
+            << getANEM_MODEL_STRING_19()
+            << getANEM_MODEL_STRING_20()
             << getANEM_MODEL_STRING_12());
 }
 
@@ -488,7 +506,9 @@ bool AnemDesc::isGoodAnemometer(AnemDesc anem)
         {
             isGoodModel = (model == getANEM_MODEL_STRING_0())
                            || (model == getANEM_MODEL_STRING_12())
-                           || (model == getANEM_MODEL_STRING_13());
+                           || (model == getANEM_MODEL_STRING_13())
+                           || (model == getANEM_MODEL_STRING_19())
+                           || (model == getANEM_MODEL_STRING_20());
         }
         else if (manufacturer == getANEM_MANUFACTURER_STRING_1())
         {

@@ -1,24 +1,26 @@
 /***************************************************************************
   dlproject.cpp
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
  ***************************************************************************/
 
 #include "dlproject.h"
@@ -27,7 +29,6 @@
 #include <QRegularExpression>
 #include <QSettings>
 
-#include "dbghelper.h"
 #include "dlinidefs.h"
 #include "fileutils.h"
 #include "mainwindow.h"
@@ -50,6 +51,9 @@ const QString DlProject::ANEM_NORTH_ALIGN_STRING_2 = QStringLiteral("na");
 
 const QString DlProject::IRGA_MANUFACTURER_STRING_0 = QStringLiteral("licor");
 const QString DlProject::IRGA_MANUFACTURER_STRING_1 = QStringLiteral("other_irga");
+const QString DlProject::IRGA_MANUFACTURER_STRING_2 = QStringLiteral("csi_irga");
+const QString DlProject::IRGA_MANUFACTURER_STRING_3 = QStringLiteral("miro");
+const QString DlProject::IRGA_MANUFACTURER_STRING_4 = QStringLiteral("aerodyne");
 
 const QString DlProject::IRGA_MODEL_STRING_0 = QStringLiteral("li6262");
 const QString DlProject::IRGA_MODEL_STRING_1 = QStringLiteral("li7000");
@@ -66,6 +70,12 @@ const QString DlProject::IRGA_MODEL_STRING_11 = QStringLiteral("closed_path_lyma
 const QString DlProject::IRGA_MODEL_STRING_12 = QStringLiteral("li7500rs");
 const QString DlProject::IRGA_MODEL_STRING_13 = QStringLiteral("li7200rs");
 const QString DlProject::IRGA_MODEL_STRING_14 = QStringLiteral("li7500ds");
+const QString DlProject::IRGA_MODEL_STRING_15 = QStringLiteral("ec150");
+const QString DlProject::IRGA_MODEL_STRING_16 = QStringLiteral("irgason");
+const QString DlProject::IRGA_MODEL_STRING_17 = QStringLiteral("spectronus");
+const QString DlProject::IRGA_MODEL_STRING_18 = QStringLiteral("miu1000");
+const QString DlProject::IRGA_MODEL_STRING_19 = QStringLiteral("miu2000");
+const QString DlProject::IRGA_MODEL_STRING_20 = QStringLiteral("aerodyne_qcls");
 
 const QString DlProject::IRGA_SW_VERSION_STRING_0 = QStringLiteral("0.0.0");
 const QString DlProject::IRGA_SW_VERSION_STRING_1 = QStringLiteral("5.0.3");
@@ -253,6 +263,18 @@ const QString DlProject::getANEM_MODEL_STRING_17()
 const QString DlProject::getANEM_MODEL_STRING_18()
 {
     static const QString s(QStringLiteral("81000vre"));
+    return s;
+}
+
+const QString DlProject::getANEM_MODEL_STRING_19()
+{
+    static const QString s(QStringLiteral("csat3a"));
+    return s;
+}
+
+const QString DlProject::getANEM_MODEL_STRING_20()
+{
+    static const QString s(QStringLiteral("irgason"));
     return s;
 }
 
@@ -1395,6 +1417,14 @@ const QString DlProject::toIniAnemModel(const QString& s)
     {
         return DlProject::getANEM_MODEL_STRING_18();
     }
+    else if (s == AnemDesc::getANEM_MODEL_STRING_19())
+    {
+        return DlProject::getANEM_MODEL_STRING_19();
+    }
+    else if (s == AnemDesc::getANEM_MODEL_STRING_20())
+    {
+        return DlProject::getANEM_MODEL_STRING_20();
+    }
     else
     {
         return QString();
@@ -1911,6 +1941,14 @@ const QString DlProject::fromIniAnemModel(const QString& s)
     {
         return AnemDesc::getANEM_MODEL_STRING_18();
     }
+    else if (s == DlProject::getANEM_MODEL_STRING_19())
+    {
+        return AnemDesc::getANEM_MODEL_STRING_19();
+    }
+    else if (s == DlProject::getANEM_MODEL_STRING_20())
+    {
+        return AnemDesc::getANEM_MODEL_STRING_20();
+    }
     else
     {
         return QString();
@@ -1949,7 +1987,9 @@ QString DlProject::fromIniAnemNorthAlign(const QString &model, const QString &s)
     {
         // NOTE: hack for bogus 'spar' value with csat/metek/young
         if (model == DlProject::getANEM_MODEL_STRING_0()
-            || model == DlProject::getANEM_MODEL_STRING_13())
+            || model == DlProject::getANEM_MODEL_STRING_13()
+            || model == DlProject::getANEM_MODEL_STRING_19()
+            || model == DlProject::getANEM_MODEL_STRING_20())
         {
             return AnemDesc::getANEM_NORTH_ALIGN_STRING_2();
         }
@@ -2313,6 +2353,18 @@ QString DlProject::fromIniIrgaManufacturer(const QString& s)
     {
         return IrgaDesc::getIRGA_MANUFACTURER_STRING_1();
     }
+    else if (s == DlProject::IRGA_MANUFACTURER_STRING_2)
+    {
+        return IrgaDesc::getIRGA_MANUFACTURER_STRING_2();
+    }
+    else if (s == DlProject::IRGA_MANUFACTURER_STRING_3)
+    {
+        return IrgaDesc::getIRGA_MANUFACTURER_STRING_3();
+    }
+    else if (s == DlProject::IRGA_MANUFACTURER_STRING_4)
+    {
+        return IrgaDesc::getIRGA_MANUFACTURER_STRING_4();
+    }
     else
     {
         return QString();
@@ -2381,6 +2433,30 @@ QString DlProject::fromIniIrgaModel(const QString& s)
     {
         return IrgaDesc::getIRGA_MODEL_STRING_14();
     }
+    else if (s == DlProject::IRGA_MODEL_STRING_15)
+    {
+        return IrgaDesc::getIRGA_MODEL_STRING_15();
+    }
+    else if (s == DlProject::IRGA_MODEL_STRING_16)
+    {
+        return IrgaDesc::getIRGA_MODEL_STRING_16();
+    }
+    else if (s == DlProject::IRGA_MODEL_STRING_17)
+    {
+        return IrgaDesc::getIRGA_MODEL_STRING_17();
+    }
+    else if (s == DlProject::IRGA_MODEL_STRING_18)
+    {
+        return IrgaDesc::getIRGA_MODEL_STRING_18();
+    }
+    else if (s == DlProject::IRGA_MODEL_STRING_19)
+    {
+        return IrgaDesc::getIRGA_MODEL_STRING_19();
+    }
+    else if (s == DlProject::IRGA_MODEL_STRING_20)
+    {
+        return IrgaDesc::getIRGA_MODEL_STRING_20();
+    }
     else
     {
         return QString();
@@ -2396,6 +2472,18 @@ QString DlProject::toIniIrgaManufacturer(const QString& s)
     else if (s == IrgaDesc::getIRGA_MANUFACTURER_STRING_1())
     {
         return DlProject::IRGA_MANUFACTURER_STRING_1;
+    }
+    else if (s == IrgaDesc::getIRGA_MANUFACTURER_STRING_2())
+    {
+        return DlProject::IRGA_MANUFACTURER_STRING_2;
+    }
+    else if (s == IrgaDesc::getIRGA_MANUFACTURER_STRING_3())
+    {
+        return DlProject::IRGA_MANUFACTURER_STRING_3;
+    }
+    else if (s == IrgaDesc::getIRGA_MANUFACTURER_STRING_4())
+    {
+        return DlProject::IRGA_MANUFACTURER_STRING_4;
     }
     else
     {
@@ -2464,6 +2552,30 @@ QString DlProject::toIniIrgaModel(const QString& s)
     else if (s == IrgaDesc::getIRGA_MODEL_STRING_14())
     {
         return DlProject::IRGA_MODEL_STRING_14;
+    }
+    else if (s == IrgaDesc::getIRGA_MODEL_STRING_15())
+    {
+        return DlProject::IRGA_MODEL_STRING_15;
+    }
+    else if (s == IrgaDesc::getIRGA_MODEL_STRING_16())
+    {
+        return DlProject::IRGA_MODEL_STRING_16;
+    }
+    else if (s == IrgaDesc::getIRGA_MODEL_STRING_17())
+    {
+        return DlProject::IRGA_MODEL_STRING_17;
+    }
+    else if (s == IrgaDesc::getIRGA_MODEL_STRING_18())
+    {
+        return DlProject::IRGA_MODEL_STRING_18;
+    }
+    else if (s == IrgaDesc::getIRGA_MODEL_STRING_19())
+    {
+        return DlProject::IRGA_MODEL_STRING_19;
+    }
+    else if (s == IrgaDesc::getIRGA_MODEL_STRING_20())
+    {
+        return DlProject::IRGA_MODEL_STRING_20;
     }
     else
     {
@@ -2600,7 +2712,7 @@ bool DlProject::hasGoodWindComponentsAndTemperature()
 
     QMultiHash<QString, int> var_hash;
     QMultiHash<QString, int> sonic_hash;
-    QList<QHash<QString, int>> comp_hash_list;
+    QList<AnemComponents> comp_hash_list;
 
     int i = 0;
     for (const auto &var : *variables())

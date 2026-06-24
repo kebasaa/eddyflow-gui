@@ -1,10 +1,10 @@
 *******************
-Executing EddyPro
+Executing EddyFlow
 *******************
 
-Reading EddyPro project file: C:\Users\ant\.licor\eddypro\5.1.0\ini\processing.eddypro..
+Reading EddyFlow project file: C:\Users\ant\.licor\EddyFlow\5.1.0\ini\processing.eddypro..
 done.
-Retrieving file names from directory: "C:\devel\eddypro\ep5\data\mead\"..
+Retrieving file names from directory: "C:\devel\EddyFlow\ep5\data\mead\"..
 1 files found.
 Retrieving timestamps from file names.. Done.
 Done.
@@ -103,6 +103,6 @@ Creating Biomet dataset.. Done.
 Done.
 
 ****************************************************
-Program EddyPro executed gracefully.
+Program EddyFlow executed gracefully.
 Check results in the selected output directory.
 ****************************************************

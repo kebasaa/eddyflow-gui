@@ -1,37 +1,40 @@
 /***************************************************************************
   updatedialog.cpp
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "updatedialog.h"
 
 #include <QDebug>
 #include <QDesktopServices>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLabel>
 #include <QGridLayout>
 #include <QPushButton>
 #include <QTimer>
 #include <QUrl>
 
-#include "dbghelper.h"
 #include "defs.h"
 #include "downloadmanager.h"
 #include "stringutils.h"
@@ -88,7 +91,7 @@ UpdateDialog::UpdateDialog(QWidget *parent) :
     connect(noButton, &QPushButton::clicked,
             this, &UpdateDialog::close);
 
-    QTimer::singleShot(0, this, SLOT(initialize()));
+    QTimer::singleShot(0, this, &UpdateDialog::initialize);
 
     downloadTimer_ = new QTimer(this);
     downloadTimer_->setInterval(10000);
@@ -127,16 +130,10 @@ void UpdateDialog::close()
 
 void UpdateDialog::getNewVersion(const QString& version)
 {
-    msgLabel->setText(tr("<p><b>A newer version of %1 (version %2) is available from %3.<br />"
-                         "Do you want to upgrade your copy?</b></p>"
-                         "<p>If you have the <b>SMARTFlux<sup>&reg;</sup> System</b>, we also "
-                         "recommend that you <br />"
-                         "<a href=\"http://www.licor.com/env/help/eddypro/topics_eddypro/SMARTFlux_Software_Update.html\">"
-                         "check for updates</a> to the embedded SMARTFlux firmware.</p>"
-                         "<p>%1 can automatically check for new and updated "
-                         "versions using <br />its Software Update Notification feature.<br />"
-                         "The new version does not overwrite previously installed versions."
-                         "</p>").arg(Defs::APP_NAME, version, Defs::ORG_NAME));
+    msgLabel->setText(tr("<p><b>A newer version of %1 (version %2) is available.<br />"
+                         "Do you want to open the releases page to download it?</b></p>"
+                         "<p>The new version does not overwrite previously installed versions.</p>"
+                         ).arg(Defs::APP_NAME, version));
     msgLabel->setOpenExternalLinks(true);
     okButton->setVisible(false);
     yesButton->setVisible(true);
@@ -173,10 +170,10 @@ void UpdateDialog::checkUpdate()
     {
         updateManager = new DownloadManager(this);
 
-        connect(updateManager, SIGNAL(downloadComplete()),
-                this, SLOT(useDownloadResults()));
+        connect(updateManager, &DownloadManager::downloadComplete,
+                this, &UpdateDialog::useDownloadResults);
     }
-    QTimer::singleShot(0, updateManager, SLOT(execute()));
+    QTimer::singleShot(0, updateManager, &DownloadManager::execute);
 
     downloadTimer_->start();
 }
@@ -188,7 +185,7 @@ bool UpdateDialog::hasNewVersion()
 
 void UpdateDialog::showDownloadPage()
 {
-    QDesktopServices::openUrl(QUrl(QStringLiteral("http://infoenv.licor.com/EddyProDownloads.html")));
+    QDesktopServices::openUrl(QUrl(QStringLiteral("https://github.com/kebasaa/eddyflow-gui/releases")));
     close();
 }
 
@@ -199,8 +196,18 @@ void UpdateDialog::downloadTimeout()
 
 void UpdateDialog::useDownloadResults()
 {
-    QByteArray versionNr = updateManager->getVersionNr();
-    QString newVersion(QLatin1String(versionNr.trimmed().constData()));
+    QByteArray data = updateManager->getVersionNr();
+
+    QString newVersion;
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
+    if (parseError.error == QJsonParseError::NoError && doc.isObject())
+    {
+        QString tag = doc.object().value(QStringLiteral("tag_name")).toString();
+        if (tag.startsWith(QLatin1Char('v')))
+            tag.remove(0, 1);
+        newVersion = tag.trimmed();
+    }
 
     if (!newVersion.isEmpty())
     {

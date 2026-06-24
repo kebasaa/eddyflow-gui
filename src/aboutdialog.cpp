@@ -1,32 +1,37 @@
 /***************************************************************************
   aboutdialog.cpp
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "aboutdialog.h"
 
 #include <QDebug>
 #include <QLabel>
+#include <QSysInfo>
 #include <QFile>
+#include <QPainter>
 #include <QPushButton>
+#include <QSvgRenderer>
 #include <QTabWidget>
 #include <QTextEdit>
 #include <QVBoxLayout>
@@ -50,6 +55,28 @@ AboutDialog::AboutDialog(QWidget* parent)
     setWindowTitle(titleText);
     WidgetUtils::removeContextHelpButton(this);
 
+#if defined(Q_CC_MSVC)
+    QString compilerStr = QStringLiteral("MSVC %1.%2")
+        .arg(_MSC_VER / 100).arg(_MSC_VER % 100);
+#elif defined(Q_CC_CLANG)
+    QString compilerStr = QStringLiteral("Clang %1.%2.%3")
+        .arg(__clang_major__).arg(__clang_minor__).arg(__clang_patchlevel__);
+#elif defined(Q_CC_GNU)
+  #if defined(__MINGW64__)
+    QString compilerStr = QStringLiteral("MinGW-w64 GCC %1.%2.%3")
+        .arg(__GNUC__).arg(__GNUC_MINOR__).arg(__GNUC_PATCHLEVEL__);
+  #elif defined(__MINGW32__)
+    QString compilerStr = QStringLiteral("MinGW GCC %1.%2.%3")
+        .arg(__GNUC__).arg(__GNUC_MINOR__).arg(__GNUC_PATCHLEVEL__);
+  #else
+    QString compilerStr = QStringLiteral("GCC %1.%2.%3")
+        .arg(__GNUC__).arg(__GNUC_MINOR__).arg(__GNUC_PATCHLEVEL__);
+  #endif
+#else
+    QString compilerStr = QStringLiteral("Unknown compiler");
+#endif
+    compilerStr += QStringLiteral(" on ") + QSysInfo::prettyProductName();
+
     auto introduction = new QLabel;
     introduction->setText(
         tr("<h2>%1<sup>&reg;</sup> v%2%3</h2>"
@@ -58,44 +85,34 @@ AboutDialog::AboutDialog(QWidget* parent)
             Defs::APP_VERSION_STR,
             Defs::APP_STAGE_STR,
             QStringLiteral(__DATE__),
-            QStringLiteral(__TIME__))
-        #if defined(Q_OS_WIN)
-            .arg(Defs::WIN_COMPILER)
-        #elif defined(Q_OS_MACOS)
-            .arg(Defs::MAC_COMPILER)
-        #elif defined(Q_OS_LINUX)
-            .arg(Defs::LIN_COMPILER)
-        #endif
+            QStringLiteral(__TIME__),
+            compilerStr)
         );
     auto icon = new QLabel;
-    auto app_logo_2x = QPixmap(QStringLiteral(":/icons/app-logo-about"));
-#if defined(Q_OS_MACOS)
-    app_logo_2x.setDevicePixelRatio(2.0);
-#endif
-    icon->setPixmap(app_logo_2x);
+    QPixmap app_logo(390, 70);
+    app_logo.fill(Qt::transparent);
+    {
+        QPainter p(&app_logo);
+        p.setRenderHint(QPainter::Antialiasing);
+        QSvgRenderer svgRenderer(QStringLiteral(":/icons/app-logo-svg"));
+        svgRenderer.render(&p);
+    }
+    icon->setPixmap(app_logo);
 
     // About information
     auto infoWidget = new QWidget;
     auto infoLabel = new QLabel;
     infoLabel-> setText(
-        tr("<br />%1 is an open source software application that is developed, "
-           "maintained, supported by LI-COR Biosciences. It originates from "
-           "ECO2S, the Eddy COvariance COmmunity Software project, which was "
-           "developed as part of the IMECC-EU research project.</p>"
-           "<p>We gratefully acknowledge the IMECC consortium, the ECO2S "
+        tr("<br />%1 is an open source software application originates from "
+           "EddyPro, which was developed by LI-COR Biosciences from 2011-2022,"
+		   "and before that was based on ECO2S, the Eddy COvariance COmmunity"
+		   "Software project, which was developed as part of the IMECC-EU"
+		   "research project.</p>"
+           "<p>We gratefully acknowledge LI-COR, the IMECC consortium, the ECO2S "
            "development team, the University of Tuscia (Italy) and scientists "
            "around the world who assisted with development and testing of the "
            "original version of this software."
-           "<p>Copyright &copy; 2011-%2 LI-COR Inc.</p>"
-           "<div>Contact LI-COR Inc.:</div><br />"
-           "<div style=\"text-indent: 20px;\">4647 Superior Street</div>"
-           "<div style=\"text-indent: 20px;\">P.O. Box 4000</div>"
-           "<div style=\"text-indent: 20px;\">Lincoln, Nebraska, 68504, USA</div><br />"
-           "<div style=\"text-indent: 20px;\">Phone: 1-402-467-3576</div>"
-           "<div style=\"text-indent: 20px;\">Toll Free: 800-447-3576</div>"
-           "<div style=\"text-indent: 20px;\">Fax: 1-402-467-2819</div>"
-           "<div style=\"text-indent: 20px;\">Email: <a href=\"mailto:envsupport@licor.com?subject=EddyPro %3\">envsupport@licor.com</a></div>"
-           "<div style=\"text-indent: 20px;\">Website: <a href=\"http://www.licor.com\">http://www.licor.com</a></div>"
+           "<p>Copyright &copy; 2026-%2 ETH Zurich</p>"
            ).arg(Defs::APP_NAME, Defs::CURRENT_COPYRIGHT_YEAR, Defs::APP_VERSION_STR)
         );
     infoLabel->setOpenExternalLinks(true);
@@ -121,13 +138,14 @@ AboutDialog::AboutDialog(QWidget* parent)
     thanksEdit->setText(
         tr("<h4>Original Authors</h4>"
            "<ul type=\"square\">"
-           "<li>Gerardo Fratini (gerardo.fratini@licor.com): processing engines designer and developer</li>"
-           "<li>Antonio Forgione (antonio.forgione@licor.com): GUI designer and developer</li>"
-           "<li>Dario Papale (darpap@unitus.it): project manager and coordinator</li>"
+           "<li>Jonathan Muller: EddyFlow development</li>"
            "</ul>"
 
            "<h4>Others contributors</h4>"
            "<ul type=\"square\">"
+           "<li>Gerardo Fratini (gerardo.fratini@licor.com): EddyPro processing engines designer and developer</li>"
+           "<li>Antonio Forgione (antonio.forgione@licor.com): EddyPro GUI designer and developer</li>"
+           "<li>Dario Papale (darpap@unitus.it): EddyPro project manager and coordinator</li>"
            "<li>Carlo Trotta: code harmonization and documentation</li>"
            "<li>Natascha Kljun: code for footprint estimation, Kljun et al. (2004, BLM)</li>"
            "<li>Taro Nakai: code for angle of attack correction, Nakai et al. (2006, AFM)</li>"
@@ -207,26 +225,25 @@ AboutDialog::AboutDialog(QWidget* parent)
     auto licenseWidget = new QWidget;
     auto licenseLabel = new QLabel;
     licenseLabel->setText(
-        tr("<br />The %1 software application is Copyright &copy; 2011-%2 "
-           "LI-COR Inc.\n\n"
+        tr("<br />The %1 software application is Copyright &copy; 2026-%2 "
+           "Jonathan Muller\n\n"
            "You may use, distribute and copy the %1 programs suite under "
            "the terms of the GNU General Public License version 3, "
            "which is displayed below. If you would like to obtain "
-           "a copy of the source package please contact LI-COR "
-           "Biosciences at "
-           "<a href=\"mailto:envsupport@licor.com?subject=%1 %3&body="
-           "Please, send me a copy of the source package."
-           "\">envsupport@licor.com</a>."
+           "a copy of the source code, see "
+           "<a href=\"https://github.com/kebasaa/eddyflow-engine\">EddyFlow-engine</a> and"
+		   "<a href=\"https://github.com/kebasaa/eddyflow-gui\">EddyFlow-GUI</a>."
         ).arg(Defs::APP_NAME, Defs::CURRENT_COPYRIGHT_YEAR, Defs::APP_VERSION_STR));
     licenseLabel->setWordWrap(true);
     licenseLabel->setOpenExternalLinks(true);
 
     auto licenseEdit = new QTextEdit;
     QFile licenseFile(QStringLiteral(":/docs/license"));
-    licenseFile.open(QIODevice::ReadOnly | QIODevice::Text);
-    licenseEdit->setText(QLatin1String(licenseFile.readAll()));
+    if (licenseFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        licenseEdit->setText(QLatin1String(licenseFile.readAll()));
+        licenseFile.close();
+    }
     licenseEdit->setReadOnly(true);
-    licenseFile.close();
 
     auto licenseLayout = new QVBoxLayout;
     licenseLayout->addWidget(licenseLabel);
@@ -245,10 +262,11 @@ AboutDialog::AboutDialog(QWidget* parent)
 
     auto changelogEdit = new QTextEdit;
     QFile changelogFile(QStringLiteral(":/docs/changelog"));
-    changelogFile.open(QIODevice::ReadOnly | QIODevice::Text);
-    changelogEdit->setText(QLatin1String(changelogFile.readAll()));
+    if (changelogFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        changelogEdit->setText(QLatin1String(changelogFile.readAll()));
+        changelogFile.close();
+    }
     changelogEdit->setReadOnly(true);
-    changelogFile.close();
 
     auto changelogLayout = new QVBoxLayout;
     changelogLayout->addWidget(changelogLabel);

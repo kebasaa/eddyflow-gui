@@ -1,42 +1,47 @@
 /***************************************************************************
   main.cpp
   -------------------
-  EddyPro is an evolution of the ECO2S Eddy Covariance programs suite
+  EddyFlow is an evolution of the ECO2S Eddy Covariance programs suite
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ***************************************************************************/
 
 #include <QApplication>
 #include <QBitmap>
 #include <QDebug>
-#include <QDesktopWidget>
 #include <QFile>
 #include <QFontDatabase>
+#include <QGuiApplication>
+#include <QPainter>
+#include <QPalette>
+#include <QStyleHints>
+#include <QSvgRenderer>
 #include <QtGlobal>
-#include <QTextCodec>
 #include <QTextStream>
 #include <QTranslator>
 
 #include "customsplashscreen.h"
-#include "dbghelper.h"
 #include "defs.h"
+#include "logging.h"
 #include "fileutils.h"
 #include "globalsettings.h"
 #include "JlCompress.h"
@@ -107,14 +112,12 @@ int main(int argc, char *argv[])
 
     // initialize resources at startup (qrc file loading)
 #if defined(Q_OS_MACOS)
-    Q_INIT_RESOURCE(eddypro_mac);
+    Q_INIT_RESOURCE(EddyFlow_mac);
 #elif defined(Q_OS_WIN)
-    Q_INIT_RESOURCE(eddypro_win);
+    Q_INIT_RESOURCE(EddyFlow_win);
 #else
-    Q_INIT_RESOURCE(eddypro_lin);
+    Q_INIT_RESOURCE(EddyFlow_lin);
 #endif
-
-    qApp->setAttribute(Qt::AA_UseHighDpiPixmaps);
 
 #if defined(Q_OS_MACOS)
     qApp->setAttribute(Qt::AA_DontShowIconsInMenus);
@@ -148,6 +151,8 @@ int main(int argc, char *argv[])
     app.setApplicationDisplayName(Defs::APP_NAME);
     app.setOrganizationName(Defs::ORG_NAME);
     app.setOrganizationDomain(Defs::ORG_DOMAIN);
+
+    qInstallMessageHandler(Logging::messageHandler);
 
     qDebug() << "currentUnicodeVersion" << QChar::currentUnicodeVersion();
 
@@ -216,12 +221,22 @@ int main(int argc, char *argv[])
     MyStyle myStyle(app.style()->objectName());
     QApplication::setStyle(&myStyle);
 
+    bool isDark = false;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    isDark = (QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark);
+#else
+    isDark = (QGuiApplication::palette().color(QPalette::Window).lightness() < 128);
+#endif
+
 #if defined(Q_OS_WIN)
-    FileUtils::loadStyleSheetFile(QStringLiteral(":/css/winstyle"));
+    FileUtils::loadStyleSheetFile(isDark ? QStringLiteral(":/css/winstyle_dark")
+                                         : QStringLiteral(":/css/winstyle"));
 #elif defined(Q_OS_MACOS)
-    FileUtils::loadStyleSheetFile(QStringLiteral(":/css/macstyle"));
+    FileUtils::loadStyleSheetFile(isDark ? QStringLiteral(":/css/macstyle_dark")
+                                         : QStringLiteral(":/css/macstyle"));
 #elif defined(Q_OS_LINUX)
-    FileUtils::loadStyleSheetFile(QStringLiteral(":/css/linstyle"));
+    FileUtils::loadStyleSheetFile(isDark ? QStringLiteral(":/css/linstyle_dark")
+                                         : QStringLiteral(":/css/linstyle"));
 #endif
 
     QString appEnvPath = FileUtils::setupEnv();
@@ -280,7 +295,38 @@ int main(int argc, char *argv[])
     }
 
     // create and show splash screen
-    QPixmap pixmap(QStringLiteral(":/icons/splash-img"));
+    constexpr int splashW = 600, splashH = 460;
+    QPixmap pixmap(splashW, splashH);
+    pixmap.fill(QColor(237, 237, 237));
+
+    {
+        QPainter p(&pixmap);
+        p.setRenderHint(QPainter::Antialiasing);
+        p.setRenderHint(QPainter::SmoothPixmapTransform);
+
+        // Draw SVG logo centered in upper portion
+        QSvgRenderer svgRenderer(QStringLiteral(":/icons/app-logo-svg"));
+        if (svgRenderer.isValid())
+            svgRenderer.render(&p, QRectF(40.0, 25.0, 520.0, 93.0));
+
+        // Read user-editable splash text: filesystem copy takes priority over embedded resource
+        QString splashText;
+        QFile textFile(QCoreApplication::applicationDirPath() + QStringLiteral("/splash-text.txt"));
+        if (!textFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            textFile.setFileName(QStringLiteral(":/icons/splash-text"));
+            (void)textFile.open(QIODevice::ReadOnly | QIODevice::Text);
+        }
+        if (textFile.isOpen())
+            splashText = QTextStream(&textFile).readAll().trimmed();
+
+        if (!splashText.isEmpty()) {
+            QFont textFont(QStringLiteral("Open Sans"), 10);
+            p.setFont(textFont);
+            p.setPen(QColor(60, 60, 60));
+            p.drawText(QRect(50, 140, 500, 270), Qt::AlignLeft | Qt::TextWordWrap, splashText);
+        }
+    }
+
 #if defined(Q_OS_MACOS)
     pixmap.setDevicePixelRatio(2.0);
 #endif
@@ -310,7 +356,7 @@ int main(int argc, char *argv[])
         splashFont.setPixelSize(12);
 
         splash.setFont(splashFont);
-        splash.setMessageRect(QRect(0, 427, 600, 25), Qt::AlignCenter); // Setting the message position.
+        splash.setMessageRect(QRect(0, splashH - 33, splashW, 25), Qt::AlignCenter);
         splash.show();
         splash.showStatusMessage(QObject::tr("Initializing..."));
     }
@@ -397,11 +443,9 @@ void logOutput(QtMsgType type, const QMessageLogContext &context, const QString 
     QString localMsg;
     switch (type)
     {
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 5, 0))
     case QtInfoMsg:
         localMsg = debugTimestamp + QStringLiteral("[I]");
         break;
-#endif
     case QtDebugMsg:
         localMsg = debugTimestamp + QStringLiteral("[D]");
         break;
@@ -429,25 +473,25 @@ void logOutput(QtMsgType type, const QMessageLogContext &context, const QString 
 ///
 void doHelp(QTextStream &stream)
 {
-    stream << endl;
+    stream << Qt::endl;
     stream << Defs::ABOUT_DESC;
-    stream << endl << endl;
+    stream << Qt::endl << Qt::endl;
     stream << QObject::tr("Usage: %1 [options] [file]").arg(Defs::APP_NAME);
-    stream << endl << endl;
+    stream << Qt::endl << Qt::endl;
     // doHelp() arguments
     stream << QObject::tr("Arguments [file]:");
-    stream << endl;
+    stream << Qt::endl;
     stream << QObject::tr("    file                  File to open");
-    stream << endl << endl;
+    stream << Qt::endl << Qt::endl;
     // general options
     stream << QObject::tr("Options [options]:");
-    stream << endl;
+    stream << Qt::endl;
 //    stream << QObject::tr("    --lang       xx       Start loading a specific language at start-up,\n");
 //    stream << QObject::tr("                          where \"xx\" is a valid locale (ex. \"it\").\n");
     stream << QObject::tr("    --help                Print the command line options.");
-    stream << endl;
+    stream << Qt::endl;
     stream << QObject::tr("    --version             Print the application version.");
-    stream << endl;
+    stream << Qt::endl;
 }
 
 ///////////////////////
@@ -456,9 +500,9 @@ void doHelp(QTextStream &stream)
 ///
 void doVersion(QTextStream &stream)
 {
-    stream << endl;
+    stream << Qt::endl;
     stream << Defs::APP_NAME << ' ' << Defs::APP_VERSION_STR << '\n';
-    stream << endl;
+    stream << Qt::endl;
 }
 
 /////////////////////
@@ -682,3 +726,6 @@ bool extractDocs(const QString& currentDir)
     auto extractedFiles = JlCompress::extractDir(docArchive, currentDir);
     return (!extractedFiles.isEmpty());
 }
+
+
+

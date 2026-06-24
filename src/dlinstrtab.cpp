@@ -1,24 +1,26 @@
 /***************************************************************************
   dlinstrtab.cpp
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
  ***************************************************************************/
 
 #include "dlinstrtab.h"
@@ -28,12 +30,14 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QScrollArea>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QToolButton>
 
 #include "anem_delegate.h"
 #include "anem_model.h"
 #include "anem_view.h"
-#include "dbghelper.h"
 #include "dlproject.h"
 #include "irga_delegate.h"
 #include "irga_model.h"
@@ -70,10 +74,14 @@ DlInstrTab::DlInstrTab(QWidget *parent, DlProject *dlProject) :
 
     auto addAnemButton = new QToolButton;
     addAnemButton->setObjectName(QStringLiteral("plusButton"));
+    addAnemButton->setAutoRaise(true);
+    { QIcon icon; icon.addPixmap(QPixmap(QStringLiteral(":/icons/plus")), QIcon::Normal, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/plus-hover")), QIcon::Active, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/plus-disabled")), QIcon::Disabled, QIcon::Off); addAnemButton->setIcon(icon); addAnemButton->setIconSize(QSize(18, 18)); }
     addAnemButton->setToolTip(tr("<b>+</b> Add a new anemometer."));
 
     auto removeAnemButton = new QToolButton;
     removeAnemButton->setObjectName(QStringLiteral("minusButton"));
+    removeAnemButton->setAutoRaise(true);
+    { QIcon icon; icon.addPixmap(QPixmap(QStringLiteral(":/icons/minus")), QIcon::Normal, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/minus-hover")), QIcon::Active, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/minus-disabled")), QIcon::Disabled, QIcon::Off); removeAnemButton->setIcon(icon); removeAnemButton->setIconSize(QSize(18, 18)); }
     removeAnemButton->setToolTip(tr("<b>-</b> Remove the currently selected anemometer."));
 
     auto anemButtonsLayout = new QVBoxLayout;
@@ -121,10 +129,14 @@ DlInstrTab::DlInstrTab(QWidget *parent, DlProject *dlProject) :
 
     auto addIrgaButton = new QToolButton;
     addIrgaButton->setObjectName(QStringLiteral("plusButton"));
+    addIrgaButton->setAutoRaise(true);
+    { QIcon icon; icon.addPixmap(QPixmap(QStringLiteral(":/icons/plus")), QIcon::Normal, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/plus-hover")), QIcon::Active, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/plus-disabled")), QIcon::Disabled, QIcon::Off); addIrgaButton->setIcon(icon); addIrgaButton->setIconSize(QSize(18, 18)); }
     addIrgaButton->setToolTip(tr("<b>+</b> Add a new gas analyzer."));
 
     auto removeIrgaButton = new QToolButton;
     removeIrgaButton->setObjectName(QStringLiteral("minusButton"));
+    removeIrgaButton->setAutoRaise(true);
+    { QIcon icon; icon.addPixmap(QPixmap(QStringLiteral(":/icons/minus")), QIcon::Normal, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/minus-hover")), QIcon::Active, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/minus-disabled")), QIcon::Disabled, QIcon::Off); removeIrgaButton->setIcon(icon); removeIrgaButton->setIconSize(QSize(18, 18)); }
     removeIrgaButton->setToolTip(tr("<b>-</b>Remove the currently selected gas analyzer."));
 
     auto irgaButtonsLayout = new QVBoxLayout;
@@ -183,10 +195,10 @@ DlInstrTab::DlInstrTab(QWidget *parent, DlProject *dlProject) :
     // NOTE: to trigger table editing with single click without altering the
     // editTriggers property, because that way the column selection
     // clicking on the header triggers the first cell editor
-    connect(anemView_, SIGNAL(clicked(const QModelIndex &)),
-            anemView_, SLOT(edit(const QModelIndex &)));
-    connect(irgaView_, SIGNAL(clicked(const QModelIndex &)),
-            irgaView_, SLOT(edit(const QModelIndex &)));
+    connect(anemView_, &QAbstractItemView::clicked,
+            anemView_, qOverload<const QModelIndex &>(&QAbstractItemView::edit));
+    connect(irgaView_, &QAbstractItemView::clicked,
+            irgaView_, qOverload<const QModelIndex &>(&QAbstractItemView::edit));
 }
 
 DlInstrTab::~DlInstrTab()

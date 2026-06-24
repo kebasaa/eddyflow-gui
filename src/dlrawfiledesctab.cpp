@@ -1,24 +1,26 @@
 /***************************************************************************
   dlrawfiledesctab.cpp
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
  ***************************************************************************/
 
 #include "dlrawfiledesctab.h"
@@ -29,9 +31,11 @@
 #include <QHeaderView>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QToolButton>
 
-#include "dbghelper.h"
 #include "dlproject.h"
 #include "rawfilesettingsdialog.h"
 #include "variable_delegate.h"
@@ -72,10 +76,14 @@ DlRawfileDescTab::DlRawfileDescTab(QWidget* parent, DlProject* dlProject) :
 
     auto addButton = new QToolButton;
     addButton->setObjectName(QStringLiteral("plusButton"));
+    addButton->setAutoRaise(true);
+    { QIcon icon; icon.addPixmap(QPixmap(QStringLiteral(":/icons/plus")), QIcon::Normal, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/plus-hover")), QIcon::Active, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/plus-disabled")), QIcon::Disabled, QIcon::Off); addButton->setIcon(icon); addButton->setIconSize(QSize(18, 18)); }
     addButton->setToolTip(tr("<b>+</b> Add a variable."));
 
     auto removeButton = new QToolButton;
     removeButton->setObjectName(QStringLiteral("minusButton"));
+    removeButton->setAutoRaise(true);
+    { QIcon icon; icon.addPixmap(QPixmap(QStringLiteral(":/icons/minus")), QIcon::Normal, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/minus-hover")), QIcon::Active, QIcon::Off); icon.addPixmap(QPixmap(QStringLiteral(":/icons/minus-disabled")), QIcon::Disabled, QIcon::Off); removeButton->setIcon(icon); removeButton->setIconSize(QSize(18, 18)); }
     removeButton->setToolTip(tr("<b>-</b> Remove a variable."));
 
     auto buttonsLayout = new QVBoxLayout;
@@ -141,8 +149,8 @@ DlRawfileDescTab::DlRawfileDescTab(QWidget* parent, DlProject* dlProject) :
     // to trigger table editing with single click without altering the
     // editTriggers property, because that way the column selection
     // clicking on the header trigger the first cell editor
-    connect(variableView_, SIGNAL(clicked(const QModelIndex &)),
-            variableView_, SLOT(edit(const QModelIndex &)));
+    connect(variableView_, &QAbstractItemView::clicked,
+            variableView_, qOverload<const QModelIndex &>(&QAbstractItemView::edit));
 }
 
 DlRawfileDescTab::~DlRawfileDescTab()
@@ -237,5 +245,5 @@ void DlRawfileDescTab::clearInstrModels()
 
 void DlRawfileDescTab::onlineHelpTrigger_1()
 {
-//    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/")));
+//    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/")));
 }

@@ -1,24 +1,26 @@
 /***************************************************************************
   variable_tableview.cpp
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "variable_tableview.h"
@@ -29,7 +31,6 @@
 #include <QScrollBar>
 
 #include "customheader.h"
-#include "dbghelper.h"
 
 VariableTableView::VariableTableView(QWidget *parent) :
     QTableView(parent)
@@ -44,8 +45,8 @@ VariableTableView::VariableTableView(QWidget *parent) :
     setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
 
     m_header = new CustomHeader(this);
-    m_header->addSection(tr("Ignore"), tr("<b>Ignore:</b> Select <i>no</i> to tell EddyPro that a column (variable) is not purely numeric. Purely numeric variables are strings included within two consecutive field separators and containing only digits from 0 to 9 and, at most, the decimal dot. Any other character makes a variable a <i>non-numeric</i> one. For example, time stamps in the form of 2011-09-26 or times as 23:20:562 are not numeric variables. Note that if a variable is not numeric, this must be specified even if you set <i>yes</i> in the ignore field."), CustomHeader::QuestionMarkHint::QuestionMark, ClickLabel::VarIgnoreDesc);
-    m_header->addSection(tr("Numeric"), tr("<b>Numeric:</b> Select 'no' to tell EddyPro that a column is not purely numeric. Purely numeric variables are strings included within two consecutive field separators and containing only digits from 0 to 9 and, at most, the decimal dot. Any other character makes a variable a not numeric one. For example, time stamps in the form of 2011-09-26 or times as 23:20:562 are not numeric variables. Note that if a variable is not numeric, this must be specified even if you set 'yes' in the ignore field."), CustomHeader::QuestionMarkHint::QuestionMark, ClickLabel::VarNumericDesc);
+    m_header->addSection(tr("Ignore"), tr("<b>Ignore:</b> Select <i>no</i> to tell EddyFlow that a column (variable) is not purely numeric. Purely numeric variables are strings included within two consecutive field separators and containing only digits from 0 to 9 and, at most, the decimal dot. Any other character makes a variable a <i>non-numeric</i> one. For example, time stamps in the form of 2011-09-26 or times as 23:20:562 are not numeric variables. Note that if a variable is not numeric, this must be specified even if you set <i>yes</i> in the ignore field."), CustomHeader::QuestionMarkHint::QuestionMark, ClickLabel::VarIgnoreDesc);
+    m_header->addSection(tr("Numeric"), tr("<b>Numeric:</b> Select 'no' to tell EddyFlow that a column is not purely numeric. Purely numeric variables are strings included within two consecutive field separators and containing only digits from 0 to 9 and, at most, the decimal dot. Any other character makes a variable a not numeric one. For example, time stamps in the form of 2011-09-26 or times as 23:20:562 are not numeric variables. Note that if a variable is not numeric, this must be specified even if you set 'yes' in the ignore field."), CustomHeader::QuestionMarkHint::QuestionMark, ClickLabel::VarNumericDesc);
     m_header->addSection(tr("Variable"), tr("<b>Variable:</b> Specify the variable that is contained in the current column of the raw files (or position, for binary files). Purely numerical variables only contain numbers and the decimal dot (full stop)."), CustomHeader::QuestionMarkHint::QuestionMark, ClickLabel::VarDesc);
     m_header->addSection(tr("Instrument"), tr("<b>Instrument:</b> Select the instrument that measured the current variable. Instruments listed here are those entered under the instruments tab."));
     m_header->addSection(tr("Measurement type"), tr("<b>Measurement type:</b> Only applicable to gas concentrations. Enter the description of the concentration measurement (either <i>Molar/Mass density</i>, <i>Mole fraction</i>, or <i>Mixing ratio</i>). For all other variables, either leave the field blank or select <i>Other</i>. <i>Molar/Mass density</i> is a measure of mass per unit volume of air. <i>Mole fraction</i> is a measure of mass per mass of wet air. <i>Mixing ratio</i> is a measure of mass per mass of dry air. Measures of mass can be expressed as number of moles, grams, etc."));

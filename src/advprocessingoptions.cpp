@@ -1,24 +1,26 @@
 /***************************************************************************
   advprocessingoptions.cpp
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "advprocessingoptions.h"
@@ -28,6 +30,9 @@
 #include <QComboBox>
 #include <QDebug>
 #include <QDoubleSpinBox>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScrollArea>
@@ -38,17 +43,9 @@
 #include <QVBoxLayout>
 #include <QDesktopServices>
 
-#include <fstream>
-#include <iostream>
-
-#include "xnode.hpp"
-#include "xtree.hpp"
-
-#include "calibrationdialog.h"
 #include "clicklabel.h"
 #include "configstate.h"
 #include "customresetlineedit.h"
-#include "dbghelper.h"
 #include "dlproject.h"
 #include "ecproject.h"
 #include "fileutils.h"
@@ -57,7 +54,6 @@
 #include "richtextcheckbox.h"
 #include "timelagsettingsdialog.h"
 #include "stringutils.h"
-#include "vector_utils.h"
 #include "widget_utils.h"
 
 AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
@@ -67,8 +63,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     QWidget(parent),
     dlProject_(dlProject),
     ecProject_(ecProject),
-    configState_(config),
-    calibration_info_()
+    configState_(config)
 {
     createQuestionMark();
 
@@ -140,13 +135,13 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
 
     wBoostCheckBox = new RichTextCheckBox;
     wBoostCheckBox->setText(tr("Fix 'w boost' bug (Gill WindMaster and WindMaster Pro only)"));
-    wBoostCheckBox->setToolTip(tr("<b>Fix 'w boost' bug:</b> Gill WindMaster and WindMaster Pro produced between 2006 and 2015 and identified by a firmware version of the form 2329.x.y with x &lt; 700, are affected by a bug such that the vertical wind speed is underestimated. Check this option to have EddyPro fix the bug. For more details, please visit <a href=\"http://gillinstruments.com/data/manuals/KN1509_WindMaster_WBug_info.pdf\">Gill's Technical Key Note</a>"));
-    wBoostCheckBox->setQuestionMark(QStringLiteral("https://www.licor.com/env/help/eddypro/topics_eddypro/w-boost_bug_correction.html"));
+    wBoostCheckBox->setToolTip(tr("<b>Fix 'w boost' bug:</b> Gill WindMaster and WindMaster Pro produced between 2006 and 2015 and identified by a firmware version of the form 2329.x.y with x &lt; 700, are affected by a bug such that the vertical wind speed is underestimated. Check this option to have EddyFlow fix the bug. For more details, please visit <a href=\"http://gillinstruments.com/data/manuals/KN1509_WindMaster_WBug_info.pdf\">Gill's Technical Key Note</a>"));
+    wBoostCheckBox->setQuestionMark(QStringLiteral("https://www.licor.com/env/help/EddyFlow/topics_EddyFlow/w-boost_bug_correction.html"));
 
     aoaCheckBox = new RichTextCheckBox;
     aoaCheckBox->setToolTip(tr("<b>Angle-of-attack correction:</b> Applies only to vertical mount Gill sonic anemometers with the same geometry of the R3 (e.g., R2, WindMaster, WindMaster Pro). This correction is meant to compensate the effects of flow distortion induced by the anemometer frame on the turbulent flow field. We recommend applying this correction whenever an R3-shaped anemometer was used."));
     aoaCheckBox->setText(tr("Angle-of-attack correction for wind components (Gill's only)"));
-    aoaCheckBox->setQuestionMark(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Angle_of_Attack_Correction.html"));
+    aoaCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Angle_of_Attack_Correction.html"));
 
     aoaMethLabel = new ClickLabel(tr("Method :"));
     aoaMethLabel->setEnabled(false);
@@ -154,7 +149,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     aoaMethCombo->addItem(tr("Select automatically"), -1);
     aoaMethCombo->addItem(tr("Field calibration (Nakai and Shimoyama, 2012)"), 1);
     aoaMethCombo->addItem(tr("Wind tunnel calibration (Nakai et al., 2006)"), 2);
-    aoaMethCombo->setItemData(0, tr("<b>Select automatically:</b> Select this option to allow EddyPro to choose the most appropriate angle of attack correction method based on the anemometer model and - in the case of the WindMaster<sup>%1</sup> or WindMaster Pro - its firmware version.").arg(Defs::TRADEMARK_SYMBOL), Qt::ToolTipRole);
+    aoaMethCombo->setItemData(0, tr("<b>Select automatically:</b> Select this option to allow EddyFlow to choose the most appropriate angle of attack correction method based on the anemometer model and - in the case of the WindMaster<sup>%1</sup> or WindMaster Pro - its firmware version.").arg(Defs::TRADEMARK_SYMBOL), Qt::ToolTipRole);
     aoaMethCombo->setItemData(1, tr("<b>Field calibration:</b> Select this option to apply the angle-of-attack correction according to the method described in the referenced paper, which makes use of a field calibration instead of the wind tunnel calibration."), Qt::ToolTipRole);
     aoaMethCombo->setItemData(2, tr("<b>Wind tunnel calibration:</b> Select this option to apply the angle-of-attack correction according to the method described in the referenced paper, which makes use of a wind tunnel calibration instead of the field calibration."), Qt::ToolTipRole);
     aoaMethCombo->setEnabled(false);
@@ -162,7 +157,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     rotCheckBox = new RichTextCheckBox;
     rotCheckBox->setToolTip(tr("<b>Axis rotation for tilt correction:</b> Select the appropriate method for compensating anemometer tilt with respect to local streamlines. Uncheck the box to <i>not perform</i> any rotation (not recommnended). If your site has a complex or sloping topography, a planar-fit method is advisable. Click on the <b><i>Planar Fit Settings...</i></b> to configure the procedure."));
     rotCheckBox->setText(tr("Axis rotations for tilt correction"));
-    rotCheckBox->setQuestionMark(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Anemometer_Tilt_Correction.html"));
+    rotCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Anemometer_Tilt_Correction.html"));
 
     rotMethLabel = new ClickLabel(tr("Rotation method :"));
     rotMethCombo = new QComboBox;
@@ -210,9 +205,9 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     timeConstantSpin->setMaximumWidth(timeConstantSpin->sizeHint().width());
 
     timeLagCheckBox = new RichTextCheckBox;
-    timeLagCheckBox->setToolTip(tr("<b>Time lags compensation:</b> Select the method to compensate time lags between anemometric measurements and any other high frequency measurements included in the raw files. Time lags arise due mainly to sensors physical distances and to the passage of air into sampling lines. Uncheck this box to instruct EddyPro not to compensate time lags (not recommended)."));
+    timeLagCheckBox->setToolTip(tr("<b>Time lags compensation:</b> Select the method to compensate time lags between anemometric measurements and any other high frequency measurements included in the raw files. Time lags arise due mainly to sensors physical distances and to the passage of air into sampling lines. Uncheck this box to instruct EddyFlow not to compensate time lags (not recommended)."));
     timeLagCheckBox->setText(tr("Time lags compensation"));
-    timeLagCheckBox->setQuestionMark(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Time_Lag_Detect_Correct.html"));
+    timeLagCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Time_Lag_Detect_Correct.html"));
 
     timeLagMethodLabel = new ClickLabel(tr("Time lag detection method :"));
     timeLagMethodCombo = new QComboBox;
@@ -220,10 +215,10 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     timeLagMethodCombo->addItem(tr("Covariance maximization with default"));
     timeLagMethodCombo->addItem(tr("Covariance maximization"));
     timeLagMethodCombo->addItem(tr("Automatic time lag optimization"));
-    timeLagMethodCombo->setItemData(0, tr("<b>Constant:</b> EddyPro will apply constant time lags for all flux averaging intervals, using the <b><i>Nominal time lag</i></b> stored inside the GHG files or in the <b><i>Alternative metadata file</i></b> (for files other than GHG). While it can speed up the computation, this method is not recommended for physically displaced sensors or closed/enclosed path gas analysers. It can be used for closed/enclosed analysers if flow rate in the sampling line is strictly controlled and the sampling tube is actively heated to keep relative humidity low and constant."), Qt::ToolTipRole);
+    timeLagMethodCombo->setItemData(0, tr("<b>Constant:</b> EddyFlow will apply constant time lags for all flux averaging intervals, using the <b><i>Nominal time lag</i></b> stored inside the GHG files or in the <b><i>Alternative metadata file</i></b> (for files other than GHG). While it can speed up the computation, this method is not recommended for physically displaced sensors or closed/enclosed path gas analysers. It can be used for closed/enclosed analysers if flow rate in the sampling line is strictly controlled and the sampling tube is actively heated to keep relative humidity low and constant."), Qt::ToolTipRole);
     timeLagMethodCombo->setItemData(1, tr("<b>Covariance maximization with default:</b> Similar to the <i>Covariance maximization</i>, this calculates the most likely time lag based on the circular correlation procedure. However, if a maximum of the covariance is not attained within the window (but at one of its ends), the time lag is set to the <b><i>Nominal time lag</i></b> value stored inside the GHG files or in the <b><i>Alternative metadata file</i></b> (for files other than GHG), for each variable. Recommended in most situations."), Qt::ToolTipRole);
     timeLagMethodCombo->setItemData(2, tr("<b>Covariance maximization:</b> Calculates the most likely time lag within a plausible window, based on the circular correlation procedure. The window is defined by the <i>Minimum time lags</i> and <i>Maximum time lags</i> stored inside the GHG files or in the <i>Alternative metadata file</i> (for files other than GHG), for each variable."), Qt::ToolTipRole);
-    timeLagMethodCombo->setItemData(3, tr("<b>Automatic time lag optimization:</b> Select this option and configure it clicking on the <b><i>Time Lag Optimization Settings...</i></b> to instruct EddyPro to perform a statistical optimization of time lags. It will calculate nominal time lags and plausibility windows and apply them in the raw data processing step. For water vapor, the assessment is performed as a function of relative humidity."), Qt::ToolTipRole);
+    timeLagMethodCombo->setItemData(3, tr("<b>Automatic time lag optimization:</b> Select this option and configure it clicking on the <b><i>Time Lag Optimization Settings...</i></b> to instruct EddyFlow to perform a statistical optimization of time lags. It will calculate nominal time lags and plausibility windows and apply them in the raw data processing step. For water vapor, the assessment is performed as a function of relative humidity."), Qt::ToolTipRole);
     timeLagMethodCombo->setEnabled(false);
 
     tlSettingsButton = new QPushButton(tr("Time Lag Optimization Settings..."));
@@ -233,7 +228,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     qcCheckBox = new RichTextCheckBox;
     qcCheckBox->setToolTip(tr("<b>Quality check:</b> Select the quality flagging policy. Flux quality flags are obtained from the combination of two partial flags that result from the application of the steady-state and the developed turbulence tests. Select the flag combination policy."));
     qcCheckBox->setText(tr("Quality check"));
-    qcCheckBox->setQuestionMark(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Flux_Quality_Flags.html"));
+    qcCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Flux_Quality_Flags.html"));
 
     qcLabel = new ClickLabel(tr("Flagging policy :"));
     qcMethodCombo = new QComboBox;
@@ -248,7 +243,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     fpCheckBox = new RichTextCheckBox;
     fpCheckBox->setToolTip(tr("<b>Footprint estimation:</b> Select whether to calculate flux footprint estimations and which method should be used. Flux crosswind-integrated footprints are provided as distances from the tower contributing for 10%, 30%, 50%, 70% and 90% to measured fluxes. Also, the location of the peak contribution is given."));
     fpCheckBox->setText(tr("Footprint estimation"));
-    fpCheckBox->setQuestionMark(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Estimating_Flux_Footprint.html"));
+    fpCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Estimating_Flux_Footprint.html"));
 
     fpLabel = new ClickLabel(tr("Footprint method :"));
     fpMethodCombo = new QComboBox;
@@ -263,13 +258,13 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     wplCheckBox = new RichTextCheckBox;
     wplCheckBox->setToolTip(tr("<b>Compensate density fluctuations:</b> This is the so-called WPL correction (Webb et al., 1980). Choose whether to apply the compensation of density fluctuations to raw gas concentrations available as molar densities or mole fractions (moles gas per mole of wet air). The correction does not apply if raw concentrations are available as mixing ratios (mole gas per mole dry air)."));
     wplCheckBox->setText(tr("Compensate density fluctuations (WPL terms)"));
-    wplCheckBox->setQuestionMark(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Converting_to_Mixing_Ratio.html"));
+    wplCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Converting_to_Mixing_Ratio.html"));
 
     // burba correction
     burbaCorrCheckBox = new RichTextCheckBox;
     burbaCorrCheckBox->setToolTip(tr("<b>Add instrument sensible heat components, only for LI-7500:</b> Only applies to the LI-7500. It takes into account air density fluctuations due to temperature fluctuations induced by heat exchange processes at the instrument surfaces, as from Burba et al. (2008)."));
     burbaCorrCheckBox->setText(tr("Add instrument sensible heat components, only for LI-7500 "));
-    burbaCorrCheckBox->setQuestionMark(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Calculating_Off-season_Uptake_Correction.html"));
+    burbaCorrCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Calculating_Off-season_Uptake_Correction.html"));
 
     burbaTypeLabel = new ClickLabel;
     burbaTypeLabel->setText(tr("Surface temperature estimation :"));
@@ -318,56 +313,6 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     burbaParamWidget->addWidget(burbaMultiTab);
     burbaParamWidget->setCurrentIndex(0);
 
-    // drift correction
-
-    auto driftTitle = new QLabel(tr("Correction of gas concentration errors (Fratini et al., 2014) – LI-7500/A/RS and LI-7200/RS only"));
-    driftTitle->setProperty("groupLabel", true);
-    driftTitle->setVisible(false);
-
-    noDriftCorrectionRadio = new QRadioButton;
-    noDriftCorrectionRadio->setText(tr("Do not correct"));
-    noDriftCorrectionRadio->setVisible(false);
-
-    linearDriftCorrectionRadio = new QRadioButton;
-    linearDriftCorrectionRadio->setText(tr("Linear interpolation"));
-    linearDriftCorrectionRadio->setVisible(false);
-
-    rssiDriftCorrectionRadio = new QRadioButton;
-    rssiDriftCorrectionRadio->setText(tr("RSSI-driven interpolation "
-                                         "(requires ‘raw counts’ in raw data files)"));
-    rssiDriftCorrectionRadio->setVisible(false);
-
-    driftCorrectionRadioGroup = new QButtonGroup(this);
-    driftCorrectionRadioGroup->addButton(noDriftCorrectionRadio, 0);
-    driftCorrectionRadioGroup->addButton(linearDriftCorrectionRadio, 1);
-    driftCorrectionRadioGroup->addButton(rssiDriftCorrectionRadio, 2);
-
-    auto retrieveCalibrationTitle = new QLabel;
-    retrieveCalibrationTitle->setText(tr("Calibration data"));
-    retrieveCalibrationTitle->setProperty("groupLabel", true);
-    retrieveCalibrationTitle->setVisible(false);
-
-    retrieveCalibrationButton = new QPushButton;
-    retrieveCalibrationButton->setProperty("mdButton", true);
-    retrieveCalibrationButton->setText(tr("Fetch from LI-COR"));
-    retrieveCalibrationButton->setVisible(false);
-
-    editCalibrationButton = new QPushButton;
-    editCalibrationButton->setText(tr("Calibration values"));
-    editCalibrationButton->setProperty("mdButton", true);
-    editCalibrationButton->setVisible(false);
-
-    auto serialNumberLabel = new QLabel;
-    serialNumberLabel->setText(tr("IRGA serial number: "));
-    serialNumberLabel->setVisible(false);
-
-    serialNumberEdit = new QLineEdit;
-    serialNumberEdit->setInputMask(QStringLiteral("00\\H-0000;_"));
-    serialNumberEdit->setText(QStringLiteral("00H0000"));
-    serialNumberEdit->setCursorPosition(0);
-    serialNumberEdit->setVisible(false);
-
-//
     auto wplTitle = new QLabel(tr("Compensation of density fluctuations"));
     wplTitle->setProperty("groupLabel", true);
 
@@ -378,10 +323,6 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     hrLabel->setObjectName(QStringLiteral("hrLabel"));
     auto hrLabel_2 = new QLabel;
     hrLabel_2->setObjectName(QStringLiteral("hrLabel"));
-    auto hrLabel_3 = new QLabel;
-    hrLabel_3->setObjectName(QStringLiteral("hrLabel"));
-    hrLabel_3->setVisible(false);
-
     auto qBox_1 = new QHBoxLayout;
     qBox_1->addWidget(windOffsetLabel);
     qBox_1->addWidget(questionMark_1);
@@ -391,22 +332,6 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     qBox_2->addWidget(detrendLabel);
     qBox_2->addWidget(questionMark_4);
     qBox_2->addStretch();
-
-//
-    auto toviLogo = new QPushButton;
-    toviLogo->setObjectName(QStringLiteral("toviLogoImg"));
-    connect(toviLogo, &QPushButton::clicked,
-            this, &AdvProcessingOptions::openToviHomepage);
-
-    auto toviAdsText = new QLabel(tr("For more advanced footprint tools and visualization, "
-                                     "try <a href=\"https://tovi.io/?utm_source=EddyPro%20Software&utm_medium=Tovi%20Ads&utm_campaign=EP_Tovi_ads\">Tovi</a>"));
-    toviAdsText->setProperty("toviAds", true);
-    toviAdsText->setOpenExternalLinks(true);
-
-    auto toviBox = new QHBoxLayout;
-    toviBox->addWidget(toviLogo);
-    toviBox->addWidget(toviAdsText);
-    toviBox->addStretch();
 
 //
     auto settingsLayout = new QGridLayout;
@@ -440,19 +365,6 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     settingsLayout->addWidget(burbaParamWidget, 14, 0, 1, 4);
     settingsLayout->addWidget(defaultContainer, 15, 0, 1, 4);
     settingsLayout->addWidget(hrLabel_2, 16, 0, 1, 4);
-
-    // NOTE: temporarly disabled because not complete
-//    settingsLayout->addWidget(driftTitle, 17, 0);
-//    settingsLayout->addWidget(noDriftCorrectionRadio, 18, 0);
-//    settingsLayout->addWidget(retrieveCalibrationTitle, 18, 1);
-//    settingsLayout->addWidget(linearDriftCorrectionRadio, 19, 0);
-//    settingsLayout->addWidget(serialNumberLabel, 19, 1, Qt::AlignRight);
-//    settingsLayout->addWidget(serialNumberEdit, 19, 2, Qt::AlignLeft);
-//    settingsLayout->addWidget(retrieveCalibrationButton, 19, 2, Qt::AlignCenter);
-//    settingsLayout->addWidget(rssiDriftCorrectionRadio, 20, 0);
-//    settingsLayout->addWidget(editCalibrationButton, 20, 2, Qt::AlignCenter);
-//    settingsLayout->addWidget(hrLabel_3, 21, 0, 1, 4);
-
     settingsLayout->addWidget(qcTitle, 22, 0);
     settingsLayout->addWidget(qcCheckBox, 23, 0);
     settingsLayout->addWidget(qcLabel, 23, 1, Qt::AlignRight);
@@ -460,7 +372,6 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     settingsLayout->addWidget(fpCheckBox, 24, 0);
     settingsLayout->addWidget(fpLabel, 24, 1, Qt::AlignRight);
     settingsLayout->addWidget(fpMethodCombo, 24, 2);
-    settingsLayout->addLayout(toviBox, 25, 0, 1, -1);
     settingsLayout->setRowStretch(26, 1);
     settingsLayout->setColumnStretch(4, 1);
 
@@ -499,12 +410,12 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     connect(wLabel, &ClickLabel::clicked,
             this, &AdvProcessingOptions::onWLabelClicked);
 
-    connect(uOffsetSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateUOffset(double)));
-    connect(vOffsetSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateVOffset(double)));
-    connect(wOffsetSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateWOffset(double)));
+    connect(uOffsetSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvProcessingOptions::updateUOffset);
+    connect(vOffsetSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvProcessingOptions::updateVOffset);
+    connect(wOffsetSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvProcessingOptions::updateWOffset);
 
     connect(wBoostCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateWBoost);
@@ -516,8 +427,8 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             this, &AdvProcessingOptions::onClickAoaMethLabel);
     connect(aoaCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateAoaMethod_1);
-    connect(aoaMethCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateAoaMethod_2(int)));
+    connect(aoaMethCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvProcessingOptions::updateAoaMethod_2);
 
     connect(rotCheckBox, &RichTextCheckBox::toggled,
             rotMethLabel, &ClickLabel::setEnabled);
@@ -527,8 +438,8 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             this, &AdvProcessingOptions::onClickRotMethLabel);
     connect(rotCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateRotMethod_1);
-    connect(rotMethCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateRotMethod_2(int)));
+    connect(rotMethCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvProcessingOptions::updateRotMethod_2);
     connect(rotCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updatePfSettingsButton);
 
@@ -536,20 +447,17 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             this, &AdvProcessingOptions::showPfSettingsDialog);
     connect(tlSettingsButton, &QPushButton::clicked,
             this, &AdvProcessingOptions::showTlSettingsDialog);
-    connect(editCalibrationButton, &QPushButton::clicked,
-            this, &AdvProcessingOptions::showCalibDialog);
-
     connect(detrendMethLabel, &ClickLabel::clicked,
             this, &AdvProcessingOptions::onClickDetrendLabel);
     connect(timeConstantLabel, &ClickLabel::clicked,
             this, &AdvProcessingOptions::onClickTimeConstantLabel);
-    connect(detrendCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(onClickDetrendCombo(int)));
-    connect(detrendCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateDetrendMeth(int)));
+    connect(detrendCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvProcessingOptions::onClickDetrendCombo);
+    connect(detrendCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvProcessingOptions::updateDetrendMeth);
 
-    connect(timeConstantSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateTimeConst(double)));
+    connect(timeConstantSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvProcessingOptions::updateTimeConst);
 
     connect(timeLagCheckBox, &RichTextCheckBox::toggled,
             timeLagMethodLabel, &ClickLabel::setEnabled);
@@ -561,8 +469,8 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             this, &AdvProcessingOptions::onClickTimeLagMethLabel);
     connect(timeLagCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateTlagMeth_1);
-    connect(timeLagMethodCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateTlagMeth_2(int)));
+    connect(timeLagMethodCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvProcessingOptions::updateTlagMeth_2);
 
     connect(qcCheckBox, &RichTextCheckBox::toggled,
             qcLabel, &ClickLabel::setEnabled);
@@ -572,8 +480,8 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             this, &AdvProcessingOptions::onClickQcMethodLabel);
     connect(qcCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateQcMeth_1);
-    connect(qcMethodCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateQcMeth_2(int)));
+    connect(qcMethodCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvProcessingOptions::updateQcMeth_2);
 
     connect(fpCheckBox, &RichTextCheckBox::toggled,
             fpLabel, &ClickLabel::setEnabled);
@@ -583,8 +491,8 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             this, &AdvProcessingOptions::onClickFpMethodLabel);
     connect(fpCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateFpMeth_1);
-    connect(fpMethodCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateFpMeth_2(int)));
+    connect(fpMethodCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvProcessingOptions::updateFpMeth_2);
 
     connect(wplCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateWplMeth_1);
@@ -596,13 +504,10 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             { ecProject_->setScreenBuCorr(checked); });
     connect(burbaCorrCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::enableBurbaCorrectionArea);
-    connect(burbaRadioGroup, SIGNAL(buttonClicked(int)),
-            this, SLOT(updateBurbaType_2(int)));
+    connect(burbaRadioGroup, &QButtonGroup::idClicked,
+            this, &AdvProcessingOptions::updateBurbaType_2);
     connect(setDefaultsButton, &QPushButton::clicked,
             this, &AdvProcessingOptions::on_setDefaultsButton_clicked);
-
-    connect(retrieveCalibrationButton, &QPushButton::clicked,
-            this, &AdvProcessingOptions::fetchCalibration);
 
     connect(ecProject_, &EcProject::ecProjectNew,
             this, &AdvProcessingOptions::reset);
@@ -618,14 +523,13 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     for (auto widget : combo_list)
     {
         auto combo = static_cast<QComboBox *>(widget);
-        connect(combo, SIGNAL(currentIndexChanged(int)),
-                this, SLOT(updateTooltip(int)));
+        connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, &AdvProcessingOptions::updateTooltip);
     }
 
     createPfSettingsDialog();
     createTlSettingsDialog();
-    createCalibDialog();
-    QTimer::singleShot(0, this, SLOT(reset()));
+    QTimer::singleShot(0, this, &AdvProcessingOptions::reset);
 }
 
 AdvProcessingOptions::~AdvProcessingOptions()
@@ -635,9 +539,6 @@ AdvProcessingOptions::~AdvProcessingOptions()
 
     if (tlDialog_)
         delete tlDialog_;
-
-    if (calibDialog_)
-        delete calibDialog_;
 }
 
 void AdvProcessingOptions::updateUOffset(double d)
@@ -899,7 +800,6 @@ void AdvProcessingOptions::reset()
 
     pfDialog_->reset();
     tlDialog_->reset();
-    calibDialog_->reset();
 
     qcLabel->setEnabled(true);
     qcCheckBox->setChecked(true);
@@ -1108,22 +1008,6 @@ void AdvProcessingOptions::showTlSettingsDialog()
     tlDialog_->show();
     tlDialog_->raise();
     tlDialog_->activateWindow();
-}
-
-void AdvProcessingOptions::createCalibDialog()
-{
-    if (!calibDialog_)
-    {
-        calibDialog_ = new CalibrationDialog(this, ecProject_, configState_);
-    }
-}
-
-void AdvProcessingOptions::showCalibDialog()
-{
-    calibDialog_->refresh();
-    calibDialog_->show();
-    calibDialog_->raise();
-    calibDialog_->activateWindow();
 }
 
 void AdvProcessingOptions::onClickQcMethodLabel()
@@ -1575,10 +1459,19 @@ void AdvProcessingOptions::createQuestionMark()
 {
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_1->setFlat(true);
+    questionMark_1->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_1->setIconSize(QSize(12, 12));
     questionMark_4 = new QPushButton;
     questionMark_4->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_4->setFlat(true);
+    questionMark_4->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_4->setIconSize(QSize(12, 12));
     questionMark_11 = new QPushButton;
     questionMark_11->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_11->setFlat(true);
+    questionMark_11->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_11->setIconSize(QSize(12, 12));
 
     connect(questionMark_1, &QPushButton::clicked,
             this, &AdvProcessingOptions::onlineHelpTrigger_1);
@@ -1590,17 +1483,17 @@ void AdvProcessingOptions::createQuestionMark()
 
 void AdvProcessingOptions::onlineHelpTrigger_1()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Wind_Speed_Offsets.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Wind_Speed_Offsets.html")));
 }
 
 void AdvProcessingOptions::onlineHelpTrigger_4()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Calculate_Turbulent_Flux.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Calculate_Turbulent_Flux.html")));
 }
 
 void AdvProcessingOptions::onlineHelpTrigger_11()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Raw_Processing_Options.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Raw_Processing_Options.html")));
 }
 
 void AdvProcessingOptions::updateTooltip(int i)
@@ -1618,170 +1511,4 @@ bool AdvProcessingOptions::requestBurbaSettingsReset()
                 tr("<p>You cannot undo this action.</p>"));
 }
 
-void AdvProcessingOptions::fetchCalibration()
-{
-    calibration_api_ = new CalibrationAPI(this);
 
-    connect(calibration_api_, &CalibrationAPI::calibrationInfoReady,
-            this, &AdvProcessingOptions::parseCalibrationInfo);
-    connect(calibration_api_, &CalibrationAPI::calibrationFileReady,
-            this, &AdvProcessingOptions::parseCalibrationFile);
-
-    calibration_api_->getCalibrationInfo(serialNumberEdit->text());
-}
-
-void AdvProcessingOptions::parseCalibrationInfo(const QByteArray &data)
-{
-    CalibrationInfo calResponse(data);
-    calibration_info_ = calResponse;
-
-    // get calibration date
-    calibration_.calib_date = StringUtils::fromUnixTimeToISOString(calibration_info_.calDate());
-
-    // get file
-    if (calibration_info_.responseCode() == 200.0)
-    {
-        calibration_api_->getCalibrationFile(calibration_info_.calLink());
-    }
-}
-
-void AdvProcessingOptions::parseCalibrationFile()
-{
-    auto calDir = configState_->general.env
-            + QLatin1Char('/')
-            + Defs::CAL_FILE_DIR
-            + QLatin1Char('/');
-
-    QString calFilename = calDir + QFileInfo(calibration_info_.calLink()).fileName();
-    FileUtils::zipExtract(calFilename, calDir);
-
-    // remove pdf's
-    FileUtils::cleanDirFromFiletypeRecursively(calDir, QStringList() << QStringLiteral("pdf"));
-
-    calibration_file_ = FileUtils::getFiles(calDir, QStringLiteral("*.l7x")).first();
-    FileUtils::chmod_644(calibration_file_);
-
-    // parsing calibration data
-
-    // precondition the file
-    FileUtils::prependToFile(QStringLiteral("(LI7200 "), calibration_file_);
-    FileUtils::prependToFile(QStringLiteral(")\n"), calibration_file_);
-
-    // read dtd file
-    std::string dtd_filename("li7200.dtd");
-    std::ifstream dtd(dtd_filename);
-
-    // After this attempt to open a file, we can safely use perror() only
-    // in case f.is_open() returns False.
-    if (!dtd.is_open())
-    {
-        qDebug() << "error while opening dtd file";
-        return;
-    }
-
-    // read cal file
-    std::string calname(calibration_file_.toStdString());
-    std::ifstream cal(calname);
-    if (!cal.is_open())
-    {
-        qDebug() << "error while opening cal file";
-        return;
-    }
-
-    if (dtd)
-    {
-        try
-        {
-            xtreefactory tree_factory;
-            xtree* parser = tree_factory.createTree(dtd);
-            parser->parse(cal);
-
-            calibration_.co2_1_dir = QString::fromStdString(parser->query("(LI7200(Coef(Current(CO2(A)")->getValue()).toDouble();
-            calibration_.co2_2_dir = QString::fromStdString(parser->query("(LI7200(Coef(Current(CO2(B)")->getValue()).toDouble();
-            calibration_.co2_3_dir = QString::fromStdString(parser->query("(LI7200(Coef(Current(CO2(C)")->getValue()).toDouble();
-            calibration_.co2_4_dir = QString::fromStdString(parser->query("(LI7200(Coef(Current(CO2(D)")->getValue()).toDouble();
-            calibration_.co2_5_dir = QString::fromStdString(parser->query("(LI7200(Coef(Current(CO2(E)")->getValue()).toDouble();
-            calibration_.co2_XS = QString::fromStdString(parser->query("(LI7200(Coef(Current(CO2(XS)")->getValue()).toDouble();
-            calibration_.co2_Z = QString::fromStdString(parser->query("(LI7200(Coef(Current(CO2(Z)")->getValue()).toDouble();
-            calibration_.co2_Zero = QString::fromStdString(parser->query("(LI7200(Calibrate(ZeroCO2(Val)")->getValue()).toDouble();
-            calibration_.co2_Zero_date = QString::fromStdString(parser->query("(LI7200(Calibrate(ZeroCO2(Date)")->getValue());
-            calibration_.co2_Span = QString::fromStdString(parser->query("(LI7200(Calibrate(SpanCO2(Val)")->getValue()).toDouble();
-            calibration_.co2_Span_date = QString::fromStdString(parser->query("(LI7200(Calibrate(SpanCO2(Date)")->getValue());
-            calibration_.co2_Span_2 = QString::fromStdString(parser->query("(LI7200(Calibrate(Span2CO2(Val)")->getValue()).toDouble();
-            calibration_.co2_Span_2_date = QString::fromStdString(parser->query("(LI7200(Calibrate(Span2CO2(Date)")->getValue());
-
-            calibration_.h2o_1_dir = QString::fromStdString(parser->query("(LI7200(Coef(Current(H2O(A)")->getValue()).toDouble();
-            calibration_.h2o_2_dir = QString::fromStdString(parser->query("(LI7200(Coef(Current(H2O(B)")->getValue()).toDouble();
-            calibration_.h2o_3_dir = QString::fromStdString(parser->query("(LI7200(Coef(Current(H2O(C)")->getValue()).toDouble();
-            calibration_.h2o_XS = QString::fromStdString(parser->query("(LI7200(Coef(Current(H2O(XS)")->getValue()).toDouble();
-            calibration_.h2o_Z = QString::fromStdString(parser->query("(LI7200(Coef(Current(H2O(Z)")->getValue()).toDouble();
-            calibration_.h2o_Zero = QString::fromStdString(parser->query("(LI7200(Calibrate(ZeroH2O(Val)")->getValue()).toDouble();
-            calibration_.h2o_Zero_date = QString::fromStdString(parser->query("(LI7200(Calibrate(ZeroH2O(Date)")->getValue());
-            calibration_.h2o_Span = QString::fromStdString(parser->query("(LI7200(Calibrate(SpanH2O(Val)")->getValue()).toDouble();
-            calibration_.h2o_Span_date = QString::fromStdString(parser->query("(LI7200(Calibrate(SpanH2O(Date)")->getValue());
-            calibration_.h2o_Span_2 = QString::fromStdString(parser->query("(LI7200(Calibrate(Span2H2O(Val)")->getValue()).toDouble();
-            calibration_.h2o_Span_2_date = QString::fromStdString(parser->query("(LI7200(Calibrate(Span2H2O(Date)")->getValue());
-
-            try
-            {
-                calibration_.co2_CX = QString::fromStdString(parser->query("(LI7200(Calibrate(MaxRef(CX)")->getValue()).toDouble();
-                calibration_.h2o_WX = QString::fromStdString(parser->query("(LI7200(Calibrate(MaxRef(WX)")->getValue()).toDouble();
-            }
-            catch(xmlError& e)
-            {
-                std::cout << "Could not query CX and WX: " << e.getError() << std::endl;
-                return;
-            }
-
-            try
-            {
-                calibration_.co2_CX = QString::fromStdString(parser->query("(LI7200(Coef(Current(MaxRef(CX)")->getValue()).toDouble();
-                calibration_.h2o_WX = QString::fromStdString(parser->query("(LI7200(Coef(Current(MaxRef(WX)")->getValue()).toDouble();
-            }
-            catch(xmlError& e)
-            {
-                std::cout << "Could not query CX and WX: " << e.getError() << std::endl;
-                return;
-            }
-        }
-        catch(xmlError& e)
-        {
-            std::cout << "Could not create parser: " << e.getError() << std::endl;
-            return;
-        }
-
-        computeInverseCoefficients(calibration_);
-    }
-}
-
-void AdvProcessingOptions::computeInverseCoefficients(Calibration &cal)
-{
-    auto x_range = VectorUtils::arange<double>(0.000416, 0.001192, 0.000004);
-
-    std::vector<double> co2_dir_coeffs = {0.0, cal.co2_1_dir, cal.co2_2_dir, cal.co2_3_dir, cal.co2_4_dir, cal.co2_5_dir, 0.0};
-    std::vector<double> h2o_dir_coeffs = {0.0, cal.h2o_1_dir, cal.h2o_2_dir, cal.h2o_3_dir, 0.0, 0.0, 0.0};
-
-    std::vector<double> co2_inv_coeffs = VectorUtils::poly_boost(x_range, co2_dir_coeffs, 6);
-    std::vector<double> h2o_inv_coeffs = VectorUtils::poly_boost(x_range, h2o_dir_coeffs, 6);
-
-    cal.co2_0_inv = co2_inv_coeffs.at(0);
-    cal.co2_1_inv = co2_inv_coeffs.at(1);
-    cal.co2_2_inv = co2_inv_coeffs.at(2);
-    cal.co2_3_inv = co2_inv_coeffs.at(3);
-    cal.co2_4_inv = co2_inv_coeffs.at(4);
-    cal.co2_5_inv = co2_inv_coeffs.at(5);
-    cal.co2_6_inv = co2_inv_coeffs.at(6);
-
-    cal.h2o_0_inv = h2o_inv_coeffs.at(0);
-    cal.h2o_1_inv = h2o_inv_coeffs.at(1);
-    cal.h2o_2_inv = h2o_inv_coeffs.at(2);
-    cal.h2o_3_inv = h2o_inv_coeffs.at(3);
-    cal.h2o_4_inv = h2o_inv_coeffs.at(4);
-    cal.h2o_5_inv = h2o_inv_coeffs.at(5);
-    cal.h2o_6_inv = h2o_inv_coeffs.at(6);
-}
-
-void AdvProcessingOptions::openToviHomepage()
-{
-    QDesktopServices::openUrl(QUrl(QStringLiteral("https://tovi.io/?utm_source=EddyPro%20Software&utm_medium=Tovi%20Ads&utm_campaign=EP_Tovi_ads")));
-}

@@ -1,24 +1,26 @@
 /***************************************************************************
   rawfilesettingsdialog.cpp
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "rawfilesettingsdialog.h"
@@ -26,13 +28,15 @@
 #include <QComboBox>
 #include <QDebug>
 #include <QGridLayout>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QPushButton>
 #include <QSpinBox>
 #include <QUrl>
 
 #include "clicklabel.h"
 #include "customclearlineedit.h"
-#include "dbghelper.h"
 #include "dlproject.h"
 #include "widget_utils.h"
 
@@ -80,6 +84,9 @@ RawFileSettingsDialog::RawFileSettingsDialog(QWidget* parent, DlProject *dlProje
     dataRecLabelEdit->setVisible(false);
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_1->setFlat(true);
+    questionMark_1->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_1->setIconSize(QSize(12, 12));
     questionMark_1->setVisible(false);
 
     auto rawPropertiesLayout = new QGridLayout;
@@ -110,13 +117,13 @@ RawFileSettingsDialog::RawFileSettingsDialog(QWidget* parent, DlProject *dlProje
 
     connect(fieldSepLabel, &ClickLabel::clicked,
             this, &RawFileSettingsDialog::onClickFieldSepLabel);
-    connect(fieldSepCombo, SIGNAL(currentIndexChanged(QString)),
-            this, SLOT(updateFieldSep(QString)));
+    connect(fieldSepCombo, &QComboBox::currentTextChanged,
+            this, &RawFileSettingsDialog::updateFieldSep);
 
     connect(headerRowsLabel, &ClickLabel::clicked,
             this, &RawFileSettingsDialog::onClickHeaderRowsLabel);
-    connect(headerRowsSpin, SIGNAL(valueChanged(int)),
-            this, SLOT(updateHeaderRows(int)));
+    connect(headerRowsSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &RawFileSettingsDialog::updateHeaderRows);
 
     connect(dataRecLabel, &ClickLabel::clicked,
             this, &RawFileSettingsDialog::onClickDataRecLabel);
@@ -188,5 +195,5 @@ void RawFileSettingsDialog::updateDataRecLabel(const QString& s)
 
 void RawFileSettingsDialog::onlineHelpTrigger_1()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Label_Data_Records.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Label_Data_Records.html")));
 }

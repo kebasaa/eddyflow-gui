@@ -1,23 +1,25 @@
 /***************************************************************************
   binarysettingsdialog.cpp
   -------------------
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "binarysettingsdialog.h"
@@ -109,23 +111,23 @@ BinarySettingsDialog::BinarySettingsDialog(QWidget* parent, EcProject *ecProject
 
     connect(binaryHLinesLabel, &ClickLabel::clicked,
             this, &BinarySettingsDialog::onBinaryHLinesLabelClicked);
-    connect(binaryHLinesSpin, SIGNAL(valueChanged(int)),
-            this, SLOT(updateBinaryHLine(int)));
+    connect(binaryHLinesSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &BinarySettingsDialog::updateBinaryHLine);
 
     connect(binaryEolLabel, &ClickLabel::clicked,
             this, &BinarySettingsDialog::onBinaryClickEolLabel);
-    connect(binaryEolCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateBinaryEol(int)));
+    connect(binaryEolCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &BinarySettingsDialog::updateBinaryEol);
 
     connect(binaryNBytesLabel, &ClickLabel::clicked,
             this, &BinarySettingsDialog::onBinaryNBytesLabelClicked);
-    connect(binaryNBytesSpin, SIGNAL(valueChanged(int)),
-            this, SLOT(updateBinaryNBytes(int)));
+    connect(binaryNBytesSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &BinarySettingsDialog::updateBinaryNBytes);
 
     connect(binaryEndianessLabel, &ClickLabel::clicked,
             this, &BinarySettingsDialog::onBinaryClickEndianessLabel);
-    connect(binaryEndianessCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateBinaryEndianess(int)));
+    connect(binaryEndianessCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &BinarySettingsDialog::updateBinaryEndianess);
 
     connect(okButton, &QPushButton::clicked,
             this, &BinarySettingsDialog::close);

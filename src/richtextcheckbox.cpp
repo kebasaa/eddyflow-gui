@@ -3,29 +3,34 @@
   -------------------
   Checkbox with rich text support
   -------------------
-  Copyright (C) 2016-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2016-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "richtextcheckbox.h"
 
 #include <QCheckBox>
 #include <QHBoxLayout>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QPushButton>
 #include <QTextDocument>
 
@@ -45,6 +50,9 @@ RichTextCheckBox::RichTextCheckBox(QWidget *parent) :
 
     questionMark = new QPushButton;
     questionMark->setObjectName(QLatin1String("questionMarkImg"));
+    questionMark->setFlat(true);
+    questionMark->setIcon(QIcon(QLatin1String(":/icons/qm-enabled")));
+    questionMark->setIconSize(QSize(12, 12));
     questionMark->setVisible(false);
 
     auto container = new QHBoxLayout(this);
@@ -133,7 +141,7 @@ void RichTextCheckBox::setChecked(bool checked)
     checkBox->setChecked(checked);
 }
 
-void RichTextCheckBox::enterEvent(QEvent* event)
+void RichTextCheckBox::enterEvent(QEnterEvent * event)
 {
     Q_UNUSED(event)
     checkBox->setHover();
@@ -149,3 +157,5 @@ void RichTextCheckBox::triggerOnlineHelp()
 {
     WidgetUtils::showHelp(questionMarkLink);
 }
+
+

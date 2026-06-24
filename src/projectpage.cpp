@@ -1,24 +1,26 @@
 /***************************************************************************
   projectpage.cpp
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "projectpage.h"
@@ -29,6 +31,9 @@
 #include <QComboBox>
 #include <QDebug>
 #include <QGridLayout>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScrollArea>
@@ -40,7 +45,6 @@
 #include "clicklabel.h"
 #include "configstate.h"
 #include "customclearlineedit.h"
-#include "dbghelper.h"
 #include "dirbrowsewidget.h"
 #include "dlinidialog.h"
 #include "dlproject.h"
@@ -51,6 +55,7 @@
 #include "globalsettings.h"
 #include "mytabwidget.h"
 //#include "slowmeasuretab.h"
+#include "mainwidget.h"
 #include "smartfluxbar.h"
 #include "splitter.h"
 #include "widget_utils.h"
@@ -66,8 +71,6 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
     configState_(config),
     helpGroup_(nullptr),
     dlIniDialog_(nullptr),
-    faderWidget_(nullptr),
-    fadingOn_(true),
     isMetadataEditorOn_(false),
     previousFileType_(0),
     currentFileType_(0),
@@ -98,15 +101,15 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
     asciiFileTypeRadio = new QRadioButton(tr("ASCII plain text"));
     asciiFileTypeRadio->setToolTip(tr("<b>ASCII plain text:</b> Any text file organized in data columns, with or without a header. All typical field separators (tab, space, comma, and semicolon) are supported. Campbell<sup>&reg;</sup> Scientific TOA5 format is an example of a supported ASCII data file."));
     tobFileTypeRadio = new QRadioButton(tr("TOB1"));
-    tobFileTypeRadio->setToolTip(tr("<b>TOB1:</b> Raw files in the Campbell<sup>&reg;</sup> Scientific binary format. Support of TOB1 format is limited to files containing only ULONG and IEEE4 fields, or ULONG and FP2 fields. In the second case, FP2 fields must follow any ULONG field, while for ULONG and IEEE4 there is no such limitation. Note also that ULONG fields are not interpreted by EddyPro, thus they can only be defined as <i>Ignore</i> variables."));
+    tobFileTypeRadio->setToolTip(tr("<b>TOB1:</b> Raw files in the Campbell<sup>&reg;</sup> Scientific binary format. Support of TOB1 format is limited to files containing only ULONG and IEEE4 fields, or ULONG and FP2 fields. In the second case, FP2 fields must follow any ULONG field, while for ULONG and IEEE4 there is no such limitation. Note also that ULONG fields are not interpreted by EddyFlow, thus they can only be defined as <i>Ignore</i> variables."));
     sltEddysoftFileTypeRadio = new QRadioButton(tr("SLT (EddySoft)"));
-    sltEddysoftFileTypeRadio->setToolTip(tr("<b>SLT (EddySoft):</b> Format of binary files created by EddyMeas, the data acquisition tool of the EddySoft suite, by O. Kolle and C. Rebmann (Max Planck Institute, Jena, Germany). This is a fixed-length binary format. It includes a binary header in each file that needs to be interpreted to correctly retrieve data. EddyPro interprets such header automatically, but you still need to describe the file content in the Raw File Description tab of the Metadata File Editor."));
+    sltEddysoftFileTypeRadio->setToolTip(tr("<b>SLT (EddySoft):</b> Format of binary files created by EddyMeas, the data acquisition tool of the EddySoft suite, by O. Kolle and C. Rebmann (Max Planck Institute, Jena, Germany). This is a fixed-length binary format. It includes a binary header in each file that needs to be interpreted to correctly retrieve data. EddyFlow interprets such header automatically, but you still need to describe the file content in the Raw File Description tab of the Metadata File Editor."));
     sltEdisolFileTypeRadio = new QRadioButton(tr("SLT (EdiSol)"));
-    sltEdisolFileTypeRadio->setToolTip(tr("<b>SLT (EdiSol):</b> Format of binary files created by EdiSol, the data acquisition tool developed by Univ. of Edinburg, UK. This is a fixed-length binary format. It includes a binary header in each file that needs to be interpreted to correctly retrieve data. EddyPro interprets such header automatically, but you still need to describe the file content in the Raw File Description tab of the Metadata File Editor."));
+    sltEdisolFileTypeRadio->setToolTip(tr("<b>SLT (EdiSol):</b> Format of binary files created by EdiSol, the data acquisition tool developed by Univ. of Edinburg, UK. This is a fixed-length binary format. It includes a binary header in each file that needs to be interpreted to correctly retrieve data. EddyFlow interprets such header automatically, but you still need to describe the file content in the Raw File Description tab of the Metadata File Editor."));
     binaryFileTypeRadio = new QRadioButton(tr("Generic binary"));
     binaryFileTypeRadio->setToolTip(tr("<b>Generic binary:</b> Generic binary (unformatted) raw data files. Limited to fixed-length binary words that contain data stored as single precision (real) numbers."));
 
-    fileTypeRadioGroup = new QButtonGroup(this);
+    fileTypeRadioGroup = new QButtonGroup;
     fileTypeRadioGroup->addButton(ghgFileTyperRadio, 0);
     fileTypeRadioGroup->addButton(asciiFileTypeRadio, 1);
     fileTypeRadioGroup->addButton(tobFileTypeRadio, 2);
@@ -114,19 +117,19 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
     fileTypeRadioGroup->addButton(sltEdisolFileTypeRadio, 4);
     fileTypeRadioGroup->addButton(binaryFileTypeRadio, 5);
 
-    tobSettingsCombo = new QComboBox(this);
+    tobSettingsCombo = new QComboBox;
     tobSettingsCombo->addItem(tr("Detect automatically"));
     tobSettingsCombo->addItem(tr("Only ULONG and IEEE4 fields"));
     tobSettingsCombo->addItem(tr("Only ULONG and FP2 fields"));
-    tobSettingsCombo->setItemData(0, tr("<b>Detect automatically:</b> Let EddyPro figure out whether TOB1 files contain (ULONG and) IEEE4 fields or (ULONG and) FP2 fields."), Qt::ToolTipRole);
-    tobSettingsCombo->setItemData(1, tr("<b>Only ULONG and IEEE4 fields:</b> Choose this option to specify that your TOB1 files contain only IEEE4 fields and possibly ULONG fields. Note that EddyPro does not interpret ULONG fields. This means that any variable stored in ULONG format must be marked with the <i>Ignore</i> option in the <b><i>Raw File Description</i></b> table. Typically ULONG format is used for timestamp information."), Qt::ToolTipRole);
-    tobSettingsCombo->setItemData(2, tr("<b>Only ULONG and FP2 fields:</b> Choose this option to specify that your TOB1 files contain only FP2 fields and possibly ULONG fields. Note that ULONG fields, if present, must come first in the sequence of fields. Note also that EddyPro does not interpret ULONG fields. This means that any variable stored in ULONG format must be marked with the <i>Ignore</i> option in the <b><i>Raw File Description</i></b> table. Typically ULONG format is used for timestamp information."), Qt::ToolTipRole);
+    tobSettingsCombo->setItemData(0, tr("<b>Detect automatically:</b> Let EddyFlow figure out whether TOB1 files contain (ULONG and) IEEE4 fields or (ULONG and) FP2 fields."), Qt::ToolTipRole);
+    tobSettingsCombo->setItemData(1, tr("<b>Only ULONG and IEEE4 fields:</b> Choose this option to specify that your TOB1 files contain only IEEE4 fields and possibly ULONG fields. Note that EddyFlow does not interpret ULONG fields. This means that any variable stored in ULONG format must be marked with the <i>Ignore</i> option in the <b><i>Raw File Description</i></b> table. Typically ULONG format is used for timestamp information."), Qt::ToolTipRole);
+    tobSettingsCombo->setItemData(2, tr("<b>Only ULONG and FP2 fields:</b> Choose this option to specify that your TOB1 files contain only FP2 fields and possibly ULONG fields. Note that ULONG fields, if present, must come first in the sequence of fields. Note also that EddyFlow does not interpret ULONG fields. This means that any variable stored in ULONG format must be marked with the <i>Ignore</i> option in the <b><i>Raw File Description</i></b> table. Typically ULONG format is used for timestamp information."), Qt::ToolTipRole);
     tobSettingsCombo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
 
     binSettingsButton = new QPushButton(tr("Settings..."));
-    binSettingsButton->setProperty("commonButton", true);
+    binSettingsButton->setProperty("mdButton", true);
     binSettingsButton->setMaximumWidth(binSettingsButton->sizeHint().width());
-    binSettingsButton->setToolTip(tr("<b>Generic Binary Settings:</b> Use the <b><i>Settings...</i></b> button to provide specifications of the binary format, to help EddyPro to correctly read the files."));
+    binSettingsButton->setToolTip(tr("<b>Generic Binary Settings:</b> Use the <b><i>Settings...</i></b> button to provide specifications of the binary format, to help EddyFlow to correctly read the files."));
 
     createMetadataEditor();
 
@@ -144,7 +147,7 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
     embMetadataFileRadio->setStyleSheet(tr(" QRadioButton { padding-left: 2px; } "));
     altMetadataFileRadio = new QRadioButton(tr("Use alternative file: "));
     altMetadataFileRadio->setToolTip(tr("<b>Use alternative metadata file:</b> Select this option to use an alternative metadata file. Note that in this case all GHG files are processed using the same meta-information, retrieved from the alternative metadata file. This file is created and/or edited in the <b><i>Metadata File Editor</i></b>. If you are about to process GHG files, you can speed up the completion of the alternative METADATA by unzipping any raw file and loading the extracted METADATA from the Metadata file: Use alternative file <b><i>Load</i></b> button. Make changes if needed and save the file."));
-    altMetadataFileRadio->setStyleSheet(tr(" QRadioButton { padding-left: 0px; } "));
+    altMetadataFileRadio->setStyleSheet(tr(" QRadioButton { padding-left: 2px; } "));
 
     metadataRadioGroup = new QButtonGroup(this);
     metadataRadioGroup->addButton(embMetadataFileRadio, 0);
@@ -164,14 +167,14 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
     dynamicMdCheckBox->setToolTip(tr("<b>Use dynamic metadata file:</b> "
                                      "Check this option and provide the "
                                      "corresponding path to instruct "
-                                     "EddyPro to use an externally-created "
+                                     "EddyFlow to use an externally-created "
                                      "file that contains time changing "
                                      "metadata, such as canopy height, "
                                      "instrument separations and more."
                                      "Click on the question mark at the right "
                                      "side of the <b>Load</b> button to learn "
                                      "more about dynamic metadata on the "
-                                     "EddyPro Help."));
+                                     "EddyFlow Help."));
     dynamicMdCheckBox->setProperty("optionalField", true);
 
     dynamicMdFileBrowse = new FileBrowseWidget;
@@ -187,10 +190,10 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
 
     biomEmbFileRadio = new QRadioButton(tr("Use embedded files "));
     biomEmbFileRadio->setChecked(true);
-    biomEmbFileRadio->setToolTip(tr("<b>Use embedded files:</b> Choose this option to use data from biomet files embedded in the LI-COR GHG files. This option is only available for GHG files collected with the LI-7550 embedded software version 6.0.0 or newer, provided a biomet system was used during data collection. EddyPro will automatically read biomet files from the GHG bundles, interpret them and extract relevant variables."));
+    biomEmbFileRadio->setToolTip(tr("<b>Use embedded files:</b> Choose this option to use data from biomet files embedded in the LI-COR GHG files. This option is only available for GHG files collected with the LI-7550 embedded software version 6.0.0 or newer, provided a biomet system was used during data collection. EddyFlow will automatically read biomet files from the GHG bundles, interpret them and extract relevant variables."));
 
     biomExtFileRadio = new QRadioButton(tr("Use external file:"));
-    biomExtFileRadio->setToolTip(tr("<b>Use external file:</b> Select this option if you have all biomet data collected in one only external file, and provide the path to this file by using the <b><i>Load...</i></b> button. <br /><b>IMPORTANT:</b> The biomet file must be formatted according the guidelines that you can find in EddyPro Help and User\'s Guide. Click on the question mark at the right side of the <b><i>Load...</i></b> button to access the guidelines on EddyPro Help."));
+    biomExtFileRadio->setToolTip(tr("<b>Use external file:</b> Select this option if you have all biomet data collected in one only external file, and provide the path to this file by using the <b><i>Load...</i></b> button. <br /><b>IMPORTANT:</b> The biomet file must be formatted according the guidelines that you can find in EddyFlow Help and User\'s Guide. Click on the question mark at the right side of the <b><i>Load...</i></b> button to access the guidelines on EddyFlow Help."));
 
     biometExtFileBrowse = new FileBrowseWidget;
     biometExtFileBrowse->setToolTip(tr("<b>Load:</b> Load an existing biomet external file"));
@@ -203,7 +206,7 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
 #endif
 
     biomExtDirRadio = new QRadioButton(tr("Use external directory:"));
-    biomExtDirRadio->setToolTip(tr("<b>Use external directory:</b> Select this option if you have biomet data collected in more than one external file, and provide the path to the directory that contains those files by using the <b><i>Browse...</i></b> button. <br /><b>IMPORTANT:</b> All biomet files must be formatted according the guidelines that you can find in EddyPro Help and User\'s Guide. Click on the question mark at the right side of the <b><i>Browse...</i></b> button to access the guidelines page on EddyPro Help."));
+    biomExtDirRadio->setToolTip(tr("<b>Use external directory:</b> Select this option if you have biomet data collected in more than one external file, and provide the path to the directory that contains those files by using the <b><i>Browse...</i></b> button. <br /><b>IMPORTANT:</b> All biomet files must be formatted according the guidelines that you can find in EddyFlow Help and User\'s Guide. Click on the question mark at the right side of the <b><i>Browse...</i></b> button to access the guidelines page on EddyFlow Help."));
 
     biometExtDirBrowse = new DirBrowseWidget;
     biometExtDirBrowse->setToolTip(tr("<b>Browse :</b> Use to specify the "
@@ -228,8 +231,8 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
                               << QStringLiteral("csv")
                               << QStringLiteral("met")
                               << QStringLiteral("meteo"));
-    biomExtDirCombo->setStyleSheet(QStringLiteral("QComboBox {min-width: 72px;"
-                                                 "max-width: 72px;}"));
+    biomExtDirCombo->setStyleSheet(QStringLiteral("QComboBox { min-width: 72px;"
+                                                 "max-width: 72px; }"));
     biomExtDirCombo->setToolTip(biomExtDirSuffixLabel->toolTip());
 
     biomRadioGroup = new QButtonGroup(this);
@@ -237,25 +240,18 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
     biomRadioGroup->addButton(biomExtFileRadio, 1);
     biomRadioGroup->addButton(biomExtDirRadio, 2);
 
-    auto altMetadataFileRadioBox = new QHBoxLayout;
-    altMetadataFileRadioBox->addWidget(altMetadataFileRadio);
-    altMetadataFileRadioBox->addWidget(questionMark_4);
-    altMetadataFileRadioBox->addStretch();
-//    altMetadataFileRadioBox->setSpacing(0);
-//    altMetadataFileRadioBox->setContentsMargins(0, 0, 0, 0);
-
     auto gridLeft = new QGridLayout;
     gridLeft->addWidget(titleLabel, 0, 0, Qt::AlignRight);
     gridLeft->addWidget(titleEdit, 0, 1, 1, 3);
     gridLeft->addWidget(fileTypeLabel, 1, 0, Qt::AlignRight);
     gridLeft->addWidget(ghgFileTyperRadio, 1, 1, Qt::AlignLeft);
-    gridLeft->addWidget(questionMark_2, 1, 2, Qt::AlignLeft);
+    gridLeft->addWidget(questionMark_1, 1, 2, Qt::AlignLeft);
     gridLeft->addWidget(asciiFileTypeRadio, 2, 1, Qt::AlignLeft);
     gridLeft->addWidget(binaryFileTypeRadio, 3, 1, Qt::AlignLeft);
-    gridLeft->addWidget(questionMark_6, 3, 2, 1, 1, Qt::AlignLeft);
+    gridLeft->addWidget(questionMark_5, 3, 2, 1, 1, Qt::AlignLeft);
     gridLeft->addWidget(binSettingsButton, 3, 3);
     gridLeft->addWidget(tobFileTypeRadio, 4, 1, Qt::AlignLeft);
-    gridLeft->addWidget(questionMark_5, 4, 2, 1, 1, Qt::AlignLeft);
+    gridLeft->addWidget(questionMark_4, 4, 2, 1, 1, Qt::AlignLeft);
     gridLeft->addWidget(tobSettingsCombo, 4, 3);
     gridLeft->addWidget(sltEddysoftFileTypeRadio, 5, 1, Qt::AlignLeft);
     gridLeft->addWidget(sltEdisolFileTypeRadio, 6, 1, Qt::AlignLeft);
@@ -272,19 +268,19 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
     auto gridRight = new QGridLayout;
     gridRight->addWidget(metadataLabel, 1, 0, Qt::AlignRight);
     gridRight->addWidget(embMetadataFileRadio, 1, 1, 1, 1, Qt::AlignLeft);
-    gridRight->addLayout(altMetadataFileRadioBox, 2, 1);
+    gridRight->addWidget(altMetadataFileRadio, 2, 1, 1, 1, Qt::AlignLeft);
+    gridRight->addWidget(questionMark_3, 2, 2, 1, 1, Qt::AlignLeft);
     gridRight->addWidget(metadataFileBrowse, 3, 1, 1, 3);
     gridRight->addWidget(dynamicMdCheckBox, 5, 0, Qt::AlignRight);
     gridRight->addWidget(dynamicMdFileBrowse, 5, 1, 1, 3);
-    gridRight->addWidget(questionMark_3, 5, 4);
+    gridRight->addWidget(questionMark_2, 5, 4);
     gridRight->addWidget(biomDataCheckBox, 7, 0, Qt::AlignRight);
     gridRight->addWidget(biomEmbFileRadio, 7, 1, 1, 1, Qt::AlignLeft);
     gridRight->addWidget(biomExtFileRadio, 8, 1, 1, 1, Qt::AlignLeft);
     gridRight->addWidget(biometExtFileBrowse, 8, 2, 1, 2);
-    gridRight->addWidget(questionMark_7, 8, 4);
+    gridRight->addWidget(questionMark_6, 8, 4);
     gridRight->addWidget(biomExtDirRadio, 9, 1, 1, 1, Qt::AlignLeft);
     gridRight->addWidget(biometExtDirBrowse, 9, 2, 1, 2);
-    gridRight->addWidget(questionMark_8, 9, 4);
     gridRight->addWidget(biomExtDirRecCheckBox, 10, 1, Qt::AlignRight);
     gridRight->addWidget(biomExtDirSuffixLabel, 10, 2, Qt::AlignRight);
     gridRight->addWidget(biomExtDirCombo, 10, 3);
@@ -345,29 +341,29 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
     connect(titleEdit, &QLineEdit::textChanged, [=](const QString& s)
             { ecProject_->setGeneralTitle(s); });
 
-    connect(fileTypeRadioGroup, SIGNAL(buttonClicked(int)),
-            this, SLOT(updateFileType(int)));
-    connect(fileTypeRadioGroup, SIGNAL(buttonClicked(int)),
-            this, SLOT(fileTypeRadioClicked_1(int)));
-    connect(fileTypeRadioGroup, SIGNAL(buttonClicked(int)),
-            this, SLOT(fileTypeRadioClicked_2(int)));
-    connect(fileTypeRadioGroup, SIGNAL(buttonClicked(int)),
-            this, SLOT(updateUseMetadataFile_1(int)));
-    connect(fileTypeRadioGroup, SIGNAL(buttonClicked(int)),
-            this, SLOT(fadeInWidget(int)));
+    connect(fileTypeRadioGroup, &QButtonGroup::idClicked,
+            this, &ProjectPage::updateFileType);
+    connect(fileTypeRadioGroup, &QButtonGroup::idClicked,
+            this, &ProjectPage::fileTypeRadioClicked_1);
+    connect(fileTypeRadioGroup, &QButtonGroup::idClicked,
+            this, &ProjectPage::fileTypeRadioClicked_2);
+    connect(fileTypeRadioGroup, &QButtonGroup::idClicked,
+            this, &ProjectPage::updateUseMetadataFile_1);
+    connect(fileTypeRadioGroup, &QButtonGroup::idClicked,
+            this, &ProjectPage::selectWidget);
 
-    connect(tobSettingsCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(tobSettingsUpdate(int)));
-    connect(tobSettingsCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateTooltip(int)));
+    connect(tobSettingsCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &ProjectPage::tobSettingsUpdate);
+    connect(tobSettingsCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &ProjectPage::updateTooltip);
 
     connect(binSettingsButton, &QPushButton::clicked,
             this, &ProjectPage::binSettingsDialog);
 
-    connect(metadataRadioGroup, SIGNAL(buttonClicked(int)),
-            this, SLOT(metadataRadioClicked(int)));
-    connect(metadataRadioGroup, SIGNAL(buttonClicked(int)),
-            this, SLOT(updateUseMetadataFile_2(int)));
+    connect(metadataRadioGroup, &QButtonGroup::idClicked,
+            this, &ProjectPage::metadataRadioClicked);
+    connect(metadataRadioGroup, &QButtonGroup::idClicked,
+            this, &ProjectPage::updateUseMetadataFile_2);
 
     connect(metadataFileBrowse, &FileBrowseWidget::clearRequested,
             this, &ProjectPage::mdResetRequest);
@@ -387,10 +383,10 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
 
     connect(biomDataCheckBox, &QCheckBox::toggled,
             this, &ProjectPage::on_biomDataCheckBox_clicked);
-    connect(biomRadioGroup, SIGNAL(buttonClicked(int)),
-            this, SLOT(on_biomRadioGroup_clicked_1(int)));
-    connect(biomRadioGroup, SIGNAL(buttonClicked(int)),
-            this, SLOT(on_biomRadioGroup_clicked_2(int)));
+    connect(biomRadioGroup, &QButtonGroup::idClicked,
+            this, &ProjectPage::on_biomRadioGroup_clicked_1);
+    connect(biomRadioGroup, &QButtonGroup::idClicked,
+            this, &ProjectPage::on_biomRadioGroup_clicked_2);
 
     connect(biometExtFileBrowse, &FileBrowseWidget::pathChanged,
             this, &ProjectPage::updateBiomFile);
@@ -407,27 +403,26 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
 
     connect(biomExtDirSuffixLabel, &ClickLabel::clicked,
             this, &ProjectPage::onBiomExtDirSuffixLabelClicked);
-    connect(biomExtDirCombo, SIGNAL(currentIndexChanged(QString)),
-            this, SLOT(updateExtDirSuffix(QString)));
+    connect(biomExtDirCombo, &QComboBox::currentTextChanged,
+            this, &ProjectPage::updateExtDirSuffix);
     connect(biomExtDirCombo, &QComboBox::editTextChanged,
             this, &ProjectPage::updateExtDirSuffix);
 
-    connect(smartfluxBar_, SIGNAL(showSmartfluxBarRequest(bool)),
-            parent, SIGNAL(showSmartfluxBarRequest(bool)));
+    connect(smartfluxBar_, &SmartFluxBar::showSmartfluxBarRequest,
+            this, [parent](bool on){ emit static_cast<MainWidget*>(parent)->showSmartfluxBarRequest(on); });
 
-    connect(smartfluxBar_, SIGNAL(saveSilentlyRequest()),
-            parent, SIGNAL(saveSilentlyRequest()));
+    connect(smartfluxBar_, &SmartFluxBar::saveSilentlyRequest,
+            this, [parent](){ emit static_cast<MainWidget*>(parent)->saveSilentlyRequest(); });
 
-    connect(smartfluxBar_, SIGNAL(saveRequest()),
-            parent, SIGNAL(saveRequest()));
+    connect(smartfluxBar_, &SmartFluxBar::saveRequest,
+            this, [parent](){ emit static_cast<MainWidget*>(parent)->saveRequest(); });
 
-    QTimer::singleShot(0, this, SLOT(reset()));
+    QTimer::singleShot(0, this, &ProjectPage::reset);
 }
 
 ProjectPage::~ProjectPage()
 {
-    if (binDialog_)
-        delete binDialog_;
+    delete binDialog_;
 }
 
 // modeless dialog
@@ -455,38 +450,25 @@ void ProjectPage::createMetadataEditor()
     metadataTab->setCurrentIndex(0);
 }
 
-void ProjectPage::fadeInWidget(int filetype)
+void ProjectPage::selectWidget(int filetype)
 {
-    Defs::RawFileType type
-            = static_cast<Defs::RawFileType>(filetype);
-    Defs::RawFileType previousType
-            = static_cast<Defs::RawFileType>(previousFileType_);
+    auto type = static_cast<Defs::RawFileType>(filetype);
+    auto previousType = static_cast<Defs::RawFileType>(previousFileType_);
 
-    if (fadingOn_ && (filetype != previousFileType_))
+    if (filetype != previousFileType_)
     {
-        if (faderWidget_)
-            faderWidget_->close();
-
         if (type == Defs::RawFileType::GHG)
         {
             if (!isMetadataEditorOn_)
             {
-                if (!faderWidget_)
-                {
-                    faderWidget_ = new FaderWidget(helpGroup_);
-                    faderWidget_->setFadeDuration(200);
-                }
-                faderWidget_->start();
+                helpGroup_->show();
+                dlIniDialog_->hide();
             }
         }
         else if (previousType == Defs::RawFileType::GHG)
         {
-            if (!faderWidget_)
-            {
-                faderWidget_ = new FaderWidget(dlIniDialog_);
-                faderWidget_->setFadeDuration(200);
-            }
-            faderWidget_->start();
+            helpGroup_->hide();
+            dlIniDialog_->show();
         }
     }
 }
@@ -505,7 +487,6 @@ void ProjectPage::metadataFileSelected(const QString& file_path)
         altMetadataFileRadio->setChecked(true);
         isMetadataEditorOn_ = true;
         metadataTab->setCurrentIndex(1);
-        fadeInWidget(1);
     }
 }
 
@@ -539,7 +520,7 @@ void ProjectPage::updateFileType(int filetype)
 
 void ProjectPage::updateUseMetadataFile_1(int filetype)
 {
-    Defs::RawFileType type = static_cast<Defs::RawFileType>(filetype);
+    auto type = static_cast<Defs::RawFileType>(filetype);
 
     if (type == Defs::RawFileType::GHG)
     {
@@ -758,7 +739,7 @@ void ProjectPage::updateMetadataLoading()
 
 void ProjectPage::fileTypeRadioClicked_1(int fileType)
 {
-    Defs::RawFileType type = static_cast<Defs::RawFileType>(fileType);
+    auto type = static_cast<Defs::RawFileType>(fileType);
     if (type == Defs::RawFileType::GHG)
     {
         if (ecProject_->generalMdFilepath().isEmpty())
@@ -784,7 +765,7 @@ void ProjectPage::fileTypeRadioClicked_1(int fileType)
 
 void ProjectPage::fileTypeRadioClicked_2(int fileType)
 {
-    Defs::RawFileType type = static_cast<Defs::RawFileType>(fileType);
+    auto type = static_cast<Defs::RawFileType>(fileType);
 
     // if licor
     if (type == Defs::RawFileType::GHG)
@@ -844,35 +825,49 @@ void ProjectPage::metadataRadioClicked(int b)
 
 void ProjectPage::createQuestionMark()
 {
+    questionMark_1 = new QPushButton;
+    questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_1->setFlat(true);
+    questionMark_1->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_1->setIconSize(QSize(12, 12));
     questionMark_2 = new QPushButton;
     questionMark_2->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_2->setFlat(true);
+    questionMark_2->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_2->setIconSize(QSize(12, 12));
     questionMark_3 = new QPushButton;
     questionMark_3->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_3->setFlat(true);
+    questionMark_3->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_3->setIconSize(QSize(12, 12));
     questionMark_4 = new QPushButton;
     questionMark_4->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_4->setFlat(true);
+    questionMark_4->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_4->setIconSize(QSize(12, 12));
     questionMark_5 = new QPushButton;
     questionMark_5->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_5->setFlat(true);
+    questionMark_5->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_5->setIconSize(QSize(12, 12));
     questionMark_6 = new QPushButton;
     questionMark_6->setObjectName(QStringLiteral("questionMarkImg"));
-    questionMark_7 = new QPushButton;
-    questionMark_7->setObjectName(QStringLiteral("questionMarkImg"));
-    questionMark_8 = new QPushButton;
-    questionMark_8->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_6->setFlat(true);
+    questionMark_6->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_6->setIconSize(QSize(12, 12));
 
-    connect(questionMark_2, &QPushButton::clicked,
+    connect(questionMark_1, &QPushButton::clicked,
             this, &ProjectPage::onlineHelpTrigger_2);
-    connect(questionMark_3, &QPushButton::clicked,
+    connect(questionMark_2, &QPushButton::clicked,
             this, &ProjectPage::onlineHelpTrigger_3);
-    connect(questionMark_4, &QPushButton::clicked,
+    connect(questionMark_3, &QPushButton::clicked,
             this, &ProjectPage::onlineHelpTrigger_4);
-    connect(questionMark_5, &QPushButton::clicked,
+    connect(questionMark_4, &QPushButton::clicked,
             this, &ProjectPage::onlineHelpTrigger_5);
-    connect(questionMark_6, &QPushButton::clicked,
+    connect(questionMark_5, &QPushButton::clicked,
             this, &ProjectPage::onlineHelpTrigger_6);
-    connect(questionMark_7, &QPushButton::clicked,
+    connect(questionMark_6, &QPushButton::clicked,
             this, &ProjectPage::onlineHelpTrigger_7);
-    connect(questionMark_8, &QPushButton::clicked,
-            this, &ProjectPage::onlineHelpTrigger_8);
 }
 
 // used to avoid loading projects with no ghg or with
@@ -914,37 +909,32 @@ void ProjectPage::setSmartfluxUI()
 
 void ProjectPage::onlineHelpTrigger_2()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/LI-COR_GHG_File_Format.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/support/EddyFlow/topics/ghg-file-format.html")));
 }
 
 void ProjectPage::onlineHelpTrigger_3()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Dynamic_Metadata.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/support/EddyFlow/topics/dynamic-metadata.html")));
 }
 
 void ProjectPage::onlineHelpTrigger_4()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Use_Alternative_Metadata_File.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/support/EddyFlow/topics/metadata-file-use-alternative.html")));
 }
 
 void ProjectPage::onlineHelpTrigger_5()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/TOB1_Files.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/support/EddyFlow/topics/tob1-files.html")));
 }
 
 void ProjectPage::onlineHelpTrigger_6()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Generic_Binary_Files.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/support/EddyFlow/topics/generic-binary-files.html")));
 }
 
 void ProjectPage::onlineHelpTrigger_7()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Biomet_Data_Format.html")));
-}
-
-void ProjectPage::onlineHelpTrigger_8()
-{
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Biomet_Data_Format.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/support/EddyFlow/topics/biomet-data-format.html")));
 }
 
 void ProjectPage::binSettingsDialog()
@@ -997,7 +987,7 @@ void ProjectPage::mdEditorReset()
 
 void ProjectPage::updateTooltip(int i)
 {
-    QComboBox* senderCombo = qobject_cast<QComboBox *>(sender());
+    auto senderCombo = qobject_cast<QComboBox *>(sender());
 
     WidgetUtils::updateComboItemTooltip(senderCombo, i);
 }
@@ -1107,3 +1097,5 @@ void ProjectPage::updateSmartfluxBar()
 {
     smartfluxBar_->setVisible(configState_->project.smartfluxMode);
 }
+
+

@@ -1,23 +1,25 @@
 /***************************************************************************
   smartfluxbar.cpp
   -------------------
-  Copyright (C) 2013-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2013-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
  ***************************************************************************/
 
 #include "smartfluxbar.h"
@@ -36,7 +38,6 @@
 
 #include "clicklabel.h"
 #include "createpackagedialog.h"
-#include "dbghelper.h"
 #include "defs.h"
 #include "ecproject.h"
 #include "fileutils.h"
@@ -69,7 +70,7 @@ SmartFluxBar::SmartFluxBar(EcProject* ecProject,
     createButton->setProperty("smartfluxButton", true);
     createButton->setToolTip(tr("Click to create the SMARTFlux configuration "
                                 "file package when you are done configuring "
-                                "EddyPro."));
+                                "EddyFlow."));
     connect(createButton, &QPushButton::clicked,
             this, &SmartFluxBar::showCreatePackageDialog);
 
@@ -99,7 +100,7 @@ SmartFluxBar::SmartFluxBar(EcProject* ecProject,
 
     makeCreatePackageDialog();
 
-    setToolTip(tr("EddyPro is in SMARTFlux "
+    setToolTip(tr("EddyFlow is in SMARTFlux "
                   "configuration mode (")
 #if defined(Q_OS_MACOS)
                                + Defs::MAC_COMMAND_KEY + tr("+F to exit)."));
@@ -125,7 +126,7 @@ void SmartFluxBar::paintEvent(QPaintEvent *event)
     Q_UNUSED(event)
 
     QStyleOption opt;
-    opt.init(this);
+    opt.initFrom(this);
     QPainter p(this);
     style()->drawPrimitive(QStyle::PE_Widget, &opt, &p, this);
 
@@ -355,3 +356,4 @@ void SmartFluxBar::showCreatePackageDialog()
     cpDialog_->raise();
     cpDialog_->activateWindow();
 }
+

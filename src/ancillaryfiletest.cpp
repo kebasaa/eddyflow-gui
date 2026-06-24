@@ -1,23 +1,25 @@
 /***************************************************************************
   ancillaryfiletest.cpp
   -------------------
-  Copyright (C) 2014-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2014-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "ancillaryfiletest.h"
@@ -34,17 +36,19 @@
 
 #include <algorithm>
 
-#include "dbghelper.h"
+#include "ecproject.h"
 #include "stringutils.h"
 #include "container_helpers.h"
 #include "widget_utils.h"
 
-const auto helpPage = QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Assessment_Tests.html");
+const auto helpPage = QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Assessment_Tests.html");
 
 AncillaryFileTest::AncillaryFileTest(FileType type,
+                                     EcProject* ecProject,
                                      QWidget *parent) :
     QDialog(parent),
-    type_(type)
+    type_(type),
+    ecProject_(ecProject)
 {
     setVisible(false);
 
@@ -168,7 +172,7 @@ bool AncillaryFileTest::testFile()
             tr("<b>The selected file does not match the expected "
                "formatting or scientific content. "
                "<p>If you would like to upload a different file or choose an alternate method, please click <i>Cancel</i>. "
-               "If you click <i>Continue</i>, EddyPro will probably not use the file and will resort to the default method.</p>"
+               "If you click <i>Continue</i>, EddyFlow will probably not use the file and will resort to the default method.</p>"
                "<p>More information about the testing performed "
                "can be found in the help.</b>&nbsp;"
                "<a href=\"%1\"><img src=\"qrc:/icons/qm-enabled\"></img></a>").arg(helpPage);
@@ -215,11 +219,11 @@ bool AncillaryFileTest::parseFile(const QString& filename, LineList *lines)
     if (line.isNull()) { return false; }
 
     const auto space = QLatin1Char(' ');
-    *lines << line.split(space, QString::SkipEmptyParts);
+    *lines << line.split(space, Qt::SkipEmptyParts);
     while (!line.isNull())
     {
         line = in.readLine();
-        *lines << line.split(space, QString::SkipEmptyParts);
+        *lines << line.split(space, Qt::SkipEmptyParts);
     }
 
     file.close();
@@ -279,15 +283,22 @@ bool AncillaryFileTest::testSpectraF(const LineList& templateList, const LineLis
                                   + formatPassFail(last_test()));
 
     // test CH4 TFP labels, rows 33-44
-    for (auto i = 32; i < 44; ++i)
+    if (ecProject_ && ecProject_->generalColCh4() <= 0)
     {
-        test << (StringUtils::subStringList(templateList.value(i), 0, 2)
-                == StringUtils::subStringList(actualList.value(i), 0, 2));
+        testResults_->append(tr("<u>CH<sub>4</sub></u>: not configured in this project — <b>skipped</b>"));
+    }
+    else
+    {
+        for (auto i = 32; i < 44; ++i)
+        {
+            test << (StringUtils::subStringList(templateList.value(i), 0, 2)
+                    == StringUtils::subStringList(actualList.value(i), 0, 2));
 
-        testResults_->append(QLatin1String("<u>CH<sub>4</sub></u> TFP label, row ")
-                                      + QString::number(i + 1)
-                                      + QStringLiteral(": ")
-                                      + formatPassFail(last_test()));
+            testResults_->append(QLatin1String("<u>CH<sub>4</sub></u> TFP label, row ")
+                                          + QString::number(i + 1)
+                                          + QStringLiteral(": ")
+                                          + formatPassFail(last_test()));
+        }
     }
 
     // test header row 45-46
@@ -295,16 +306,23 @@ bool AncillaryFileTest::testSpectraF(const LineList& templateList, const LineLis
     testResults_->append(QLatin1String("Header rows 45-46: ")
                                   + formatPassFail(last_test()));
 
-    // test other gas TFP labels, rows 19-30
-    for (auto i = 46; i < 58; ++i)
+    // test other gas TFP labels, rows 47-58
+    if (ecProject_ && ecProject_->generalColGas4() <= 0)
     {
-        test << (StringUtils::subStringList(templateList.value(i), 0, 2)
-                == StringUtils::subStringList(actualList.value(i), 0, 2));
+        testResults_->append(tr("<u>Other gas (N₂O)</u>: not configured in this project — <b>skipped</b>"));
+    }
+    else
+    {
+        for (auto i = 46; i < 58; ++i)
+        {
+            test << (StringUtils::subStringList(templateList.value(i), 0, 2)
+                    == StringUtils::subStringList(actualList.value(i), 0, 2));
 
-        testResults_->append(QLatin1String("<u>Other gas</u> TFP label, row ")
-                                      + QString::number(i + 1)
-                                      + QStringLiteral(": ")
-                                      + formatPassFail(last_test()));
+            testResults_->append(QLatin1String("<u>Other gas</u> TFP label, row ")
+                                          + QString::number(i + 1)
+                                          + QStringLiteral(": ")
+                                          + formatPassFail(last_test()));
+        }
     }
 
     // test header, rows 59-62
@@ -458,29 +476,37 @@ bool AncillaryFileTest::testSpectraS(const LineList &actualList)
                                    "be in the range [0.01; 10.0] for good values of column 'fc': ");
     testResults_->append(c3_label + formatPassFail(last_test()));
 
-    // test d.2
-    test << std::all_of(fcCh4.begin(), fcCh4.end(),
-                        [](double d){ return (d >= 0.001 && d <= 10); });
-    auto d2_label = QStringLiteral("<u>CH<sub>4</sub></u> All column 'fc' values "
-                                   "shall be in the range [0.001; 10.0]: ");
-    testResults_->append(d2_label + formatPassFail(last_test()));
-
-    // test d.3
-    test << true;
-    for (auto i = 0; i < 12; ++i)
+    // test d.2 and d.3 — skip if CH4 not configured
+    if (ecProject_ && ecProject_->generalColCh4() <= 0)
     {
-        if (fcCh4.value(i) >= 0.001 && fcCh4.value(i) <= 10.0)
+        testResults_->append(tr("<u>CH<sub>4</sub></u>: not configured in this project — <b>skipped</b>"));
+    }
+    else
+    {
+        // test d.2
+        test << std::all_of(fcCh4.begin(), fcCh4.end(),
+                            [](double d){ return (d >= 0.001 && d <= 10); });
+        auto d2_label = QStringLiteral("<u>CH<sub>4</sub></u> All column 'fc' values "
+                                       "shall be in the range [0.001; 10.0]: ");
+        testResults_->append(d2_label + formatPassFail(last_test()));
+
+        // test d.3
+        test << true;
+        for (auto i = 0; i < 12; ++i)
         {
-            if (FnCh4.value(i) < 0.01 || FnCh4.value(i) > 10.0)
+            if (fcCh4.value(i) >= 0.001 && fcCh4.value(i) <= 10.0)
             {
-                test.replace(last_test_index(), false);
-                break;
+                if (FnCh4.value(i) < 0.01 || FnCh4.value(i) > 10.0)
+                {
+                    test.replace(last_test_index(), false);
+                    break;
+                }
             }
         }
+        auto d3_label = QStringLiteral("<u>CH<sub>4</sub></u> All column 'Fn' "
+                                       "shall be in the range [0.01; 10.0] for good values of column 'fc': ");
+        testResults_->append(d3_label + formatPassFail(last_test()));
     }
-    auto d3_label = QStringLiteral("<u>CH<sub>4</sub></u> All column 'Fn' "
-                                   "shall be in the range [0.01; 10.0] for good values of column 'fc': ");
-    testResults_->append(d3_label + formatPassFail(last_test()));
 
     // test e.1
     test << std::all_of(modelParameters.begin(), modelParameters.end(),
@@ -1069,7 +1095,8 @@ void AncillaryFileTest::saveResults()
     if (!filename.isEmpty())
     {
         QSaveFile file(filename);
-        file.open(QIODevice::WriteOnly | QIODevice::Text);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+            return;
 
         QTextStream out(&file);
 
@@ -1097,3 +1124,4 @@ void AncillaryFileTest::saveResults()
         file.commit();
     }
 }
+

@@ -13,7 +13,7 @@ fi
 DEBUG_OR_RELEASE=$1
 
 # set environment for qt usage only if necessary
-# (if called by win-build-eddypro.sh it is already inherited
+# (if called by win-build-EddyFlow.sh it is already inherited
 QT_PATH="/c/qt/5.3.2/5.3/mingw482_32/bin"
 MINGW_PATH="/c/qt/5.3.2/tools/mingw482_32/bin"
 prepend_path()

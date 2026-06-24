@@ -1,23 +1,25 @@
 /***************************************************************************
   advspectraloptions.cpp
   -------------------
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "advspectraloptions.h"
@@ -30,6 +32,9 @@
 #include <QDoubleSpinBox>
 #include <QFileDialog>
 #include <QHBoxLayout>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScrollArea>
@@ -42,7 +47,6 @@
 #include "clicklabel.h"
 #include "customcombomodel.h"
 #include "customclearlineedit.h"
-#include "dbghelper.h"
 #include "dirbrowsewidget.h"
 #include "dlproject.h"
 #include "ecproject.h"
@@ -67,7 +71,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
 
     // spectra and cospectra section
     binnedSpectraNonExistingRadio = new QRadioButton(tr("Binned (co)spectra files not available"));
-    binnedSpectraNonExistingRadio->setToolTip(tr("<b>Binned (co)spectra files not available:</b> Select this option if you did not yet obtain <i>Binned spectra and cospectra files</i> for the current dataset in a previous run of EddyPro. Note that such binned (co)spectra files do not need to correspond exactly to the current dataset, rather they need to be representative of it. Binned (co)spectra files are used by certain spectral corrections procedures to quantify spectral attenuations, thus they must have been collected in conditions comparable to those of the current dataset (e.g., same EC system and similar canopy heights, measurement height, instrument spatial separations, etc.). At least one month of spectra files is needed for a robust spectral attenuation assessment. If you select this option, the option <i>All binned spectra and cospectra</i> in the Output Files page will be automatically selected."));
+    binnedSpectraNonExistingRadio->setToolTip(tr("<b>Binned (co)spectra files not available:</b> Select this option if you did not yet obtain <i>Binned spectra and cospectra files</i> for the current dataset in a previous run of EddyFlow. Note that such binned (co)spectra files do not need to correspond exactly to the current dataset, rather they need to be representative of it. Binned (co)spectra files are used by certain spectral corrections procedures to quantify spectral attenuations, thus they must have been collected in conditions comparable to those of the current dataset (e.g., same EC system and similar canopy heights, measurement height, instrument spatial separations, etc.). At least one month of spectra files is needed for a robust spectral attenuation assessment. If you select this option, the option <i>All binned spectra and cospectra</i> in the Output Files page will be automatically selected."));
 
 #if defined(Q_OS_MACOS)
     binnedSpectraNonExistingRadio->setStyleSheet(QStringLiteral("QRadioButton { margin-left: 5px; }"));
@@ -76,7 +80,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
 #endif
 
     binnedSpectraExistingRadio = new QRadioButton(tr("Binned (co)spectra files available for this dataset :"));
-    binnedSpectraExistingRadio->setToolTip(tr("<b>Binned (co)spectra files available:</b> Select this option if you already obtained <i>Binned spectra and cospectra files</i> for the current dataset in a previous run of EddyPro. Note that the binned (co)spectra files do not need to correspond exactly to the current dataset, rather they need to be representative of it. Binned (co)spectra are used here for quantification of spectral attenuations, thus they must have been collected in conditions comparable to those of the current dataset (e.g., the same EC system and similar canopy heights, measurement height, instrument spatial separations). At least one month of spectra files is needed for a robust spectral attenuation assessment. If you select this option, the option <i>All binned spectra and cospectra</i> in the Output Files page will be automatically deselected and activated."));
+    binnedSpectraExistingRadio->setToolTip(tr("<b>Binned (co)spectra files available:</b> Select this option if you already obtained <i>Binned spectra and cospectra files</i> for the current dataset in a previous run of EddyFlow. Note that the binned (co)spectra files do not need to correspond exactly to the current dataset, rather they need to be representative of it. Binned (co)spectra are used here for quantification of spectral attenuations, thus they must have been collected in conditions comparable to those of the current dataset (e.g., the same EC system and similar canopy heights, measurement height, instrument spatial separations). At least one month of spectra files is needed for a robust spectral attenuation assessment. If you select this option, the option <i>All binned spectra and cospectra</i> in the Output Files page will be automatically deselected and activated."));
     binnedSpectraExistingRadio->setStyleSheet(QStringLiteral("QRadioButton { margin-right: 0px; }"));
 
     binnedSpectraDirBrowse = new DirBrowseWidget;
@@ -147,7 +151,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     filterCombo->addItem(tr("Hann"));
 
     nBinsLabel = new ClickLabel(tr("Frequency bins for (co)spectra reduction :"));
-    nBinsLabel->setToolTip(tr("<b>Frequency bins for spectra and cospectra reduction:</b> Select the number of exponentially-spaced frequency bins to reduce spectra and cospectra. All spectral samples falling in a given bin are averaged, so that smoother curves result, greatly reduced in length. In EddyPro binned (co)spectra are used for in-situ spectral assessments and for calculation of ensemble averaged (co)spectra."));
+    nBinsLabel->setToolTip(tr("<b>Frequency bins for spectra and cospectra reduction:</b> Select the number of exponentially-spaced frequency bins to reduce spectra and cospectra. All spectral samples falling in a given bin are averaged, so that smoother curves result, greatly reduced in length. In EddyFlow binned (co)spectra are used for in-situ spectral assessments and for calculation of ensemble averaged (co)spectra."));
     nBinsSpin = new QSpinBox;
     nBinsSpin->setToolTip(nBinsLabel->toolTip());
     nBinsSpin->setRange(10, 3000);
@@ -156,7 +160,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     nBinsSpin->setValue(50);
 
     fftCheckBox = new QCheckBox(tr("Use power-of-two samples to speed up the FFT"));
-    fftCheckBox->setToolTip(tr("<b>Use power-of-two samples to speed up the FFT: </b>Check this box to instruct EddyPro to use a number of samples equal to the power-of-two closest to the currently available samples, for calculating spectra. This option greatly speeds up the FFT procedure and is therefore recommended."));
+    fftCheckBox->setToolTip(tr("<b>Use power-of-two samples to speed up the FFT: </b>Check this box to instruct EddyFlow to use a number of samples equal to the power-of-two closest to the currently available samples, for calculating spectra. This option greatly speeds up the FFT procedure and is therefore recommended."));
     fftCheckBox->setStyleSheet(QStringLiteral("QCheckBox { margin-left: 40px; }"));
 
     spin31Label = WidgetUtils::createBlueLabel(this, tr("%1").arg(Defs::CO2_STRING));
@@ -165,7 +169,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     spin34Label = WidgetUtils::createBlueLabel(this, tr("%4 Gas").arg(Defs::GAS4_STRING));
 
     spin30Label = new ClickLabel(tr("Lowest noise frequency :"));
-    spin30Label->setToolTip(tr("<b>Lowest noise frequency:</b> High-frequency noise (blue noise) can compromise the spectral assessment by modifying the shape of spectra. EddyPro has an option to eliminate such noise. Set the minimum frequency at which you expect the noise to start being relevant. EddyPro will linearly (in a log-log sense) interpolate the high frequency portion of the spectra and subtract it from the spectra before calculating transfer functions. Set 0 Hz to instruct EddyPro to not perform noise elimination. In this case the string <i>Do not remove noise</i> will appear in this field."));
+    spin30Label->setToolTip(tr("<b>Lowest noise frequency:</b> High-frequency noise (blue noise) can compromise the spectral assessment by modifying the shape of spectra. EddyFlow has an option to eliminate such noise. Set the minimum frequency at which you expect the noise to start being relevant. EddyFlow will linearly (in a log-log sense) interpolate the high frequency portion of the spectra and subtract it from the spectra before calculating transfer functions. Set 0 Hz to instruct EddyFlow to not perform noise elimination. In this case the string <i>Do not remove noise</i> will appear in this field."));
     spin31 = new QDoubleSpinBox;
     spin31->setRange(0.0, 50.0);
     spin31->setSingleStep(0.1);
@@ -442,7 +446,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
 ////////////////////////////////////////////////////////////////////////////////
 
     spectraExistingRadio = new QRadioButton(tr("Spectral assessment file available for this dataset :"));
-    spectraExistingRadio->setToolTip(tr("<b>Spectral assessment file available:</b> If you have a spectral assessment file from a previous run, and it applies to the current dataset, you can use the same file to by providing the path to the file named \"eddypro_spectral_assessment_ID.txt\". This file includes the results of the assessment. It can be used to shorten program execution time and assure full comparability between previous and current results."));
+    spectraExistingRadio->setToolTip(tr("<b>Spectral assessment file available:</b> If you have a spectral assessment file from a previous run, and it applies to the current dataset, you can use the same file to by providing the path to the file named \"EddyFlow_spectral_assessment_ID.txt\". This file includes the results of the assessment. It can be used to shorten program execution time and assure full comparability between previous and current results."));
 
     spectraNonExistingRadio = new QRadioButton(tr("Spectral assessment file not available"));
     spectraNonExistingRadio->setToolTip(tr("<b>Spectral assessment file not available:</b> Choose this option and provide the following information if you need to calculate cut-off frequencies for your system. The assessment will be performed as an intermediate step, after all binned (co)spectra for the current dataset are calculated and before calculating and correcting fluxes."));
@@ -539,10 +543,10 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     fratiniTitle->setProperty("groupLabel", true);
 
     fullSpectraExistingRadio = new QRadioButton(tr("Full w/Ts cospectra files available for this dataset :"));
-    fullSpectraExistingRadio->setToolTip(tr("<b>Full w/Ts cospectra files available:</b> Select this option if you already obtained <i>Full cospectra of w/T<sub>s</sub></i> for the current dataset (from a previous run of EddyPro). Note that the cospectra files need to correspond exactly to the current dataset. Full cospectra of w/T<sub>s</sub> (sensible heat) are used for definition of the spectral correction factor for each flux with the method by Fratini et al. (2012). If you select this option, the option <i>Full length cospectra w/T<sub>s</sub></i> in the Output Files page will be automatically deselected and activated."));
+    fullSpectraExistingRadio->setToolTip(tr("<b>Full w/Ts cospectra files available:</b> Select this option if you already obtained <i>Full cospectra of w/T<sub>s</sub></i> for the current dataset (from a previous run of EddyFlow). Note that the cospectra files need to correspond exactly to the current dataset. Full cospectra of w/T<sub>s</sub> (sensible heat) are used for definition of the spectral correction factor for each flux with the method by Fratini et al. (2012). If you select this option, the option <i>Full length cospectra w/T<sub>s</sub></i> in the Output Files page will be automatically deselected and activated."));
 
     fullSpectraNonExistingRadio = new QRadioButton(tr("Full w/Ts cospectra files not available"));
-    fullSpectraNonExistingRadio->setToolTip(tr("<b>Full w/T<sub>s</sub> cospectra files not available:</b> Select this option if you do not have <i>Full cospectra of w/T<sub>s</sub></i> for the current dataset (from a previous run of EddyPro). Note that existing cospectra files need to correspond exactly to the current dataset. Full cospectra of w/T<sub>s</sub> (sensible heat) are used for definition of the spectral correction factor for each flux with the method by Fratini et al. (2012). If you select this option, the option <i>Full length cospectra w/T<sub>s</sub></i> in the Output Files page will be automatically selected and deactivated."));
+    fullSpectraNonExistingRadio->setToolTip(tr("<b>Full w/T<sub>s</sub> cospectra files not available:</b> Select this option if you do not have <i>Full cospectra of w/T<sub>s</sub></i> for the current dataset (from a previous run of EddyFlow). Note that existing cospectra files need to correspond exactly to the current dataset. Full cospectra of w/T<sub>s</sub> (sensible heat) are used for definition of the spectral correction factor for each flux with the method by Fratini et al. (2012). If you select this option, the option <i>Full length cospectra w/T<sub>s</sub></i> in the Output Files page will be automatically selected and deactivated."));
 
     fullSpectraDirBrowse = new DirBrowseWidget;
     fullSpectraDirBrowse->setToolTip(tr("<b>Browse:</b> Specify the folder that contains the full w/T<sub>s</sub> cospectra files."));
@@ -554,7 +558,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     fullSpectraRadioGroup->addButton(fullSpectraExistingRadio, 1);
 
     addSonicCheck = new QCheckBox(tr("Include anemometer losses for path averaging and time response"));
-    addSonicCheck->setToolTip(tr("<b>Include anemometer losses for path averaging and time response:</b> Select this option to instruct EddyPro to correct sensible heat cospectra for those losses, before using them as a model to calculate correction factors according to Fratini et al. (2012)."));
+    addSonicCheck->setToolTip(tr("<b>Include anemometer losses for path averaging and time response:</b> Select this option to instruct EddyFlow to correct sensible heat cospectra for those losses, before using them as a model to calculate correction factors according to Fratini et al. (2012)."));
     addSonicCheck->setStyleSheet(QStringLiteral("QCheckBox { margin-left: 40px; }"));
 
     // horizontal rules
@@ -719,10 +723,10 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     setLayout(mainLayout);
 
     connect(binnedSpectraRadioGroup,
-            static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked),
+            &QButtonGroup::idClicked,
             [=](int radioButton){ ecProject_->setGeneralBinSpectraAvail(radioButton); });
-    connect(binnedSpectraRadioGroup, SIGNAL(buttonClicked(int)),
-            this, SLOT(binnedSpectraRadioClicked(int)));
+    connect(binnedSpectraRadioGroup, &QButtonGroup::idClicked,
+            this, &AdvSpectralOptions::binnedSpectraRadioClicked);
     connect(binnedSpectraDirBrowse, &DirBrowseWidget::pathChanged,
             this, &AdvSpectralOptions::updateBinnedSpectraFile);
     connect(binnedSpectraDirBrowse, &DirBrowseWidget::pathSelected,
@@ -746,12 +750,12 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
 
     connect(filterLabel, &ClickLabel::clicked, [=]()
             { if (filterCombo->isEnabled()) filterCombo->showPopup(); });
-    connect(filterCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateFilter(int)));
+    connect(filterCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvSpectralOptions::updateFilter);
     connect(nBinsLabel, &ClickLabel::clicked, [=]()
             { nBinsSpin->setFocus(); nBinsSpin->selectAll(); });
-    connect(nBinsSpin, SIGNAL(valueChanged(int)),
-            this, SLOT(updateNBins(int)));
+    connect(nBinsSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateNBins);
     connect(fftCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setScreenlPowerOfTwo(checked); });
 
@@ -830,8 +834,8 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             hfMethCombo, &QComboBox::setEnabled);
     connect(hfMethLabel, &ClickLabel::clicked,
             this, &AdvSpectralOptions::onClickHfMethLabel);
-    connect(hfMethCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateHfMethod_2(int)));
+    connect(hfMethCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvSpectralOptions::updateHfMethod_2);
     connect(horstCheck, &QCheckBox::toggled,
             horstMethodLabel, &ClickLabel::setEnabled);
     connect(horstCheck, &QCheckBox::toggled,
@@ -840,8 +844,8 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             this, &AdvSpectralOptions::onClickHorstLabel);
     connect(horstCheck, &QCheckBox::toggled,
             this, &AdvSpectralOptions::updateHorst_1);
-    connect(horstCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateHorst_2(int)));
+    connect(horstCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvSpectralOptions::updateHorst_2);
 
     connect(hfCorrectGhgBaCheck, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setGeneralHfCorrectGhgBa(checked); });
@@ -856,10 +860,10 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             [=](int value) { ecProject_->setGeneralSonicOutputRate(value); });
 
     connect(spectraRadioGroup,
-            static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked),
+            &QButtonGroup::idClicked,
             [=](int radioButton){ ecProject_->setSpectraMode(radioButton); });
     connect(spectraRadioGroup,
-            static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked),
+            &QButtonGroup::idClicked,
             [=](int radioButton){ spectraRadioClicked(radioButton); });
     connect(spectraFileBrowse, &FileBrowseWidget::pathChanged,
             this, &AdvSpectralOptions::updateSpectraFile);
@@ -867,8 +871,8 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             this, &AdvSpectralOptions::testSelectedSpectraFile);
     connect(minSmplLabel, &ClickLabel::clicked,
             this, &AdvSpectralOptions::onMinSmplLabelClicked);
-    connect(minSmplSpin, SIGNAL(valueChanged(int)),
-            this, SLOT(updateMinSmpl(int)));
+    connect(minSmplSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateMinSmpl);
     connect(minUnstableLabel, &ClickLabel::clicked,
             this, &AdvSpectralOptions::onMinCo2LabelClicked);
     connect(minStableLabel, &ClickLabel::clicked,
@@ -877,37 +881,37 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             this, &AdvSpectralOptions::onMinGas4LabelClicked);
     connect(spin10Label, &ClickLabel::clicked,
             this, &AdvSpectralOptions::onSpin10LabelClicked);
-    connect(spin11, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFminCo2(double)));
-    connect(spin12, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFminH2o(double)));
-    connect(spin13, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFminCh4(double)));
-    connect(spin14, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFminGas4(double)));
+    connect(spin11, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateFminCo2);
+    connect(spin12, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateFminH2o);
+    connect(spin13, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateFminCh4);
+    connect(spin14, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateFminGas4);
     connect(spin20Label, &ClickLabel::clicked,
             this, &AdvSpectralOptions::onSpin20LabelClicked);
-    connect(spin21, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFmaxCo2(double)));
-    connect(spin22, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFmaxH2o(double)));
-    connect(spin23, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFmaxCh4(double)));
-    connect(spin24, SIGNAL(valueChanged(double)),
-            this, SLOT(updateFmaxGas4(double)));
+    connect(spin21, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateFmaxCo2);
+    connect(spin22, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateFmaxH2o);
+    connect(spin23, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateFmaxCh4);
+    connect(spin24, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateFmaxGas4);
     connect(spin30Label, &ClickLabel::clicked,
             this, &AdvSpectralOptions::onSpin30LabelClicked);
-    connect(spin31, SIGNAL(valueChanged(double)),
-            this, SLOT(updateHfnCo2(double)));
-    connect(spin32, SIGNAL(valueChanged(double)),
-            this, SLOT(updateHfnH2o(double)));
-    connect(spin33, SIGNAL(valueChanged(double)),
-            this, SLOT(updateHfnCh4(double)));
-    connect(spin34, SIGNAL(valueChanged(double)),
-            this, SLOT(updateHfnGas4(double)));
+    connect(spin31, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateHfnCo2);
+    connect(spin32, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateHfnH2o);
+    connect(spin33, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateHfnCh4);
+    connect(spin34, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvSpectralOptions::updateHfnGas4);
 
-    connect(fullSpectraRadioGroup, SIGNAL(buttonClicked(int)),
-            this, SLOT(fullSpectraRadioClicked(int)));
+    connect(fullSpectraRadioGroup, &QButtonGroup::idClicked,
+            this, &AdvSpectralOptions::fullSpectraRadioClicked);
     connect(fullSpectraDirBrowse, &DirBrowseWidget::pathChanged,
             this, &AdvSpectralOptions::updateFullSpectraFile);
     connect(fullSpectraDirBrowse, &DirBrowseWidget::pathSelected,
@@ -925,8 +929,8 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     for (auto widget : combo_list)
     {
         auto combo = static_cast<QComboBox *>(widget);
-        connect(combo, SIGNAL(currentIndexChanged(int)),
-                this, SLOT(updateTooltip(int)));
+        connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, &AdvSpectralOptions::updateTooltip);
     }
 
     // fix layout alignment
@@ -948,7 +952,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
         w->setMaximumWidth(max_spin_width);
     }
 
-    QTimer::singleShot(0, this, SLOT(reset()));
+    QTimer::singleShot(0, this, &AdvSpectralOptions::reset);
 }
 
 AdvSpectralOptions::~AdvSpectralOptions()
@@ -1354,7 +1358,7 @@ void AdvSpectralOptions::testSelectedSpectraFile(const QString& fp)
     QFileInfo paramFilePath(fp);
     QString canonicalParamFile = paramFilePath.canonicalFilePath();
 
-    AncillaryFileTest test_dialog(AncillaryFileTest::FileType::Spectra, this);
+    AncillaryFileTest test_dialog(AncillaryFileTest::FileType::Spectra, ecProject_, this);
     test_dialog.refresh(canonicalParamFile);
 
     auto test_result = test_dialog.makeTest();
@@ -1907,16 +1911,34 @@ void AdvSpectralOptions::createQuestionMarks()
 {
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_1->setFlat(true);
+    questionMark_1->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_1->setIconSize(QSize(12, 12));
     questionMark_11 = new QPushButton;
     questionMark_11->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_11->setFlat(true);
+    questionMark_11->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_11->setIconSize(QSize(12, 12));
     questionMark_22 = new QPushButton;
     questionMark_22->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_22->setFlat(true);
+    questionMark_22->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_22->setIconSize(QSize(12, 12));
     questionMark_33 = new QPushButton;
     questionMark_33->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_33->setFlat(true);
+    questionMark_33->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_33->setIconSize(QSize(12, 12));
     questionMark_44 = new QPushButton;
     questionMark_44->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_44->setFlat(true);
+    questionMark_44->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_44->setIconSize(QSize(12, 12));
     questionMark_55 = new QPushButton;
     questionMark_55->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_55->setFlat(true);
+    questionMark_55->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_55->setIconSize(QSize(12, 12));
 
     connect(questionMark_1, &QPushButton::clicked,
             this, &AdvSpectralOptions::onlineHelpTrigger_11);
@@ -1934,32 +1956,32 @@ void AdvSpectralOptions::createQuestionMarks()
 
 void AdvSpectralOptions::onlineHelpTrigger_11()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Ensemble_Averages.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Ensemble_Averages.html")));
 }
 
 void AdvSpectralOptions::onlineHelpTrigger_1()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Calculating_Spectral_Correction_Factors.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Calculating_Spectral_Correction_Factors.html")));
 }
 
 void AdvSpectralOptions::onlineHelpTrigger_2()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/High-pass_Filtering.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/High-pass_Filtering.html")));
 }
 
 void AdvSpectralOptions::onlineHelpTrigger_3()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Low-pass_Filtering.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Low-pass_Filtering.html")));
 }
 
 void AdvSpectralOptions::onlineHelpTrigger_4()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Spectral_Corrections.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Spectral_Corrections.html")));
 }
 
 void AdvSpectralOptions::onlineHelpTrigger_5()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Calculating_Spectra_Cospectra_and_Ogives.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Calculating_Spectra_Cospectra_and_Ogives.html")));
 }
 
 void AdvSpectralOptions::updateTooltip(int i)
@@ -1993,3 +2015,4 @@ void AdvSpectralOptions::updateNBins(int n)
 {
     ecProject_->setScreenNBins(n);
 }
+

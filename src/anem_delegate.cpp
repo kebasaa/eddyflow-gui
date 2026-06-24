@@ -1,24 +1,26 @@
 /***************************************************************************
   anem_delegate.cpp
   -------------------
-  Copyright (C) 2007-2011, Eco2s team, Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011, Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "anem_delegate.h"
@@ -33,7 +35,6 @@
 #include "anem_desc.h"
 #include "anem_model.h"
 #include "defs.h"
-#include "dbghelper.h"
 
 AnemDelegate::AnemDelegate(QObject *parent) : QStyledItemDelegate(parent)
 {
@@ -68,8 +69,8 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
           combo->setEditable(false);
           combo->addItems(AnemDesc::manufacturerStringList());
           combo->view()->setTextElideMode(Qt::ElideNone);
-          connect(combo, SIGNAL(activated(int)),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(combo, QOverload<int>::of(&QComboBox::activated),
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
           return combo;
       case AnemModel::MODEL:
           combo = new QComboBox(parent);
@@ -100,20 +101,20 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
           }
           combo->view()->setTextElideMode(Qt::ElideNone);
           combo->setMaxVisibleItems(15);
-          connect(combo, SIGNAL(activated(int)),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(combo, QOverload<int>::of(&QComboBox::activated),
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
           return combo;
       case AnemModel::SWVERSION:
           ledit = new QLineEdit(parent);
           ledit->setPlaceholderText(QStringLiteral("2329-660-01"));
-          connect(ledit, SIGNAL(editingFinished()),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(ledit, &QLineEdit::editingFinished,
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
           return ledit;
       case AnemModel::ID:
           ledit = new QLineEdit(parent);
           ledit->setPlaceholderText(QStringLiteral("Alphanumeric ID"));
-          connect(ledit, SIGNAL(editingFinished()),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(ledit, &QLineEdit::editingFinished,
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
           return ledit;
       case AnemModel::HEIGHT:
           dspin = new QDoubleSpinBox(parent);
@@ -122,8 +123,8 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
           dspin->setSingleStep(1.0);
           dspin->setAccelerated(true);
           dspin->setSuffix(QStringLiteral(" [m]"));
-          connect(dspin, SIGNAL(editingFinished()),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(dspin, &QDoubleSpinBox::editingFinished,
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
           return dspin;
       case AnemModel::WINDFORMAT:
           combo = new QComboBox(parent);
@@ -142,8 +143,8 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
               combo->addItems(AnemDesc::commonWindFormatStringList());
           }
           combo->view()->setTextElideMode(Qt::ElideNone);
-          connect(combo, SIGNAL(activated(int)),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(combo, QOverload<int>::of(&QComboBox::activated),
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
           return combo;
       case AnemModel::NORTHALIGNMENT:
           combo = new QComboBox(parent);
@@ -162,8 +163,8 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
               combo->addItems(AnemDesc::naNorthAlignmentStringList());
           }
           combo->view()->setTextElideMode(Qt::ElideNone);
-          connect(combo, SIGNAL(activated(int)),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(combo, QOverload<int>::of(&QComboBox::activated),
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
           return combo;
       case AnemModel::NORTHOFFSET:
           dspin = new QDoubleSpinBox(parent);
@@ -172,8 +173,8 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
           dspin->setSingleStep(1.0);
           dspin->setAccelerated(true);
           dspin->setSuffix(tr("  [%1]", "Degrees").arg(Defs::DEGREE));
-          connect(dspin, SIGNAL(editingFinished()),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(dspin, &QDoubleSpinBox::editingFinished,
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
           return dspin;
       case AnemModel::NSEPARATION:
       case AnemModel::ESEPARATION:
@@ -191,8 +192,8 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
               dspin->setSingleStep(1.0);
               dspin->setAccelerated(true);
               dspin->setSuffix(QStringLiteral(" [cm]"));
-              connect(dspin, SIGNAL(editingFinished()),
-                      this, SLOT(commitAndCloseEditor()));
+              connect(dspin, &QDoubleSpinBox::editingFinished,
+                      this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
               return dspin;
           }
       case AnemModel::VPATHLENGTH:
@@ -210,8 +211,8 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
           dspin->setSingleStep(1.0);
           dspin->setAccelerated(true);
           dspin->setSuffix(QStringLiteral(" [cm]"));
-          connect(dspin, SIGNAL(editingFinished()),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(dspin, &QDoubleSpinBox::editingFinished,
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
           return dspin;
         }
       case AnemModel::TAU:
@@ -228,8 +229,8 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
           dspin->setSingleStep(1.0);
           dspin->setAccelerated(true);
           dspin->setSuffix(QStringLiteral(" [s]"));
-          connect(dspin, SIGNAL(editingFinished()),
-                  this, SLOT(commitAndCloseEditor()));
+          connect(dspin, &QDoubleSpinBox::editingFinished,
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
           return dspin;
         }
         default:
@@ -397,7 +398,8 @@ bool AnemDelegate::eventFilter(QObject* editor, QEvent* event)
 {
     QComboBox* combo = qobject_cast<QComboBox *>(editor);
     QEvent::Type eventType = event->type();
-    int eventKey = static_cast<const QKeyEvent*>(event)->key();
+    const QKeyEvent* keyEvent = dynamic_cast<const QKeyEvent*>(event);
+    int eventKey = keyEvent ? keyEvent->key() : 0;
     if (combo
          && (eventType == QEvent::MouseButtonRelease
              || (eventType == QEvent::KeyPress && (eventKey == Qt::Key_Space

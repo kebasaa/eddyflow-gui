@@ -1,24 +1,26 @@
 /***************************************************************************
   advstatisticaloptions.cpp
   -------------------
-  Copyright (C) 2007-2011 Eco2s team. Antonio Forgione
-  Copyright (C) 2011-2018, LI-COR Biosciences
-  Author: Antonio Forgione
+  Copyright © 2007-2011,  Eco2s team, Antonio Forgione
+  Copyright © 2011-2018, LI-COR Biosciences, Antonio Forgione
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
 
-  This file is part of EddyPro (R).
+  This file is part of EddyFlow®.
 
-  EddyPro (R) is free software: you can redistribute it and/or modify
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
 
-  EddyPro (R) is distributed in the hope that it will be useful,
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with EddyPro (R). If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
 
 #include "advstatisticaloptions.h"
@@ -28,6 +30,9 @@
 #include <QComboBox>
 #include <QDebug>
 #include <QGridLayout>
+#include <QIcon>
+#include <QPixmap>
+#include <QSize>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QResizeEvent>
@@ -38,7 +43,6 @@
 #include <QUrl>
 
 #include "clicklabel.h"
-#include "dbghelper.h"
 #include "ecproject.h"
 #include "splitter.h"
 #include "widget_utils.h"
@@ -139,7 +143,7 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
 //    upScrollArea->setWidgetResizable(true);
 
     randomErrorCheckBox = new QCheckBox(tr("Random uncertainty estimation"));
-    randomErrorCheckBox->setToolTip(tr("<b>Random uncertainty estimation:</b> Check this box to instruct EddyPro to calculate flux random uncertainty due to sampling error. Select the preferred method and adjust settings to adapt to the specificity of your site/setup."));
+    randomErrorCheckBox->setToolTip(tr("<b>Random uncertainty estimation:</b> Check this box to instruct EddyFlow to calculate flux random uncertainty due to sampling error. Select the preferred method and adjust settings to adapt to the specificity of your site/setup."));
     randomErrorCheckBox->setProperty("paddedCheckbox", true);
 
     randomMethodLabel = new ClickLabel(tr("Method :"));
@@ -279,26 +283,26 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     connect(nonSteadyCheckBox, &QCheckBox::toggled,
             this, &AdvStatisticalOptions::updateTestNs);
 
-    connect(despikingRadioGroup, SIGNAL(buttonClicked(int)),
-            this, SLOT(despikingRadioClicked(int)));
-    connect(despikingRadioGroup, SIGNAL(buttonClicked(int)),
-            this, SLOT(updateDespikingMethod(int)));
-    connect(despSpin_1, SIGNAL(valueChanged(int)),
-            this, SLOT(updateParamSrNumSpk(int)));
-    connect(despSpin_8, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamSrHfLim(double)));
-    connect(despSpin_3, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamSrWLim(double)));
-    connect(despSpin_4, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamSrCo2Lim(double)));
-    connect(despSpin_5, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamSrH2oLim(double)));
-    connect(despSpin_6, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamSrCh4Lim(double)));
-    connect(despSpin_7, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamSrN2oLim(double)));
-    connect(despSpin_2, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamSrULim(double)));
+    connect(despikingRadioGroup, QOverload<int>::of(&QButtonGroup::idClicked),
+            this, &AdvStatisticalOptions::despikingRadioClicked);
+    connect(despikingRadioGroup, QOverload<int>::of(&QButtonGroup::idClicked),
+            this, &AdvStatisticalOptions::updateDespikingMethod);
+    connect(despSpin_1, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamSrNumSpk);
+    connect(despSpin_8, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamSrHfLim);
+    connect(despSpin_3, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamSrWLim);
+    connect(despSpin_4, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamSrCo2Lim);
+    connect(despSpin_5, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamSrH2oLim);
+    connect(despSpin_6, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamSrCh4Lim);
+    connect(despSpin_7, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamSrN2oLim);
+    connect(despSpin_2, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamSrULim);
     connect(despFilterCheckBox, &QCheckBox::toggled,
             this, &AdvStatisticalOptions::updateDespFilter);
 
@@ -326,12 +330,12 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     connect(amplResLabel_3, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickAmplResLabel_3);
 
-    connect(amplResSpin_1, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamArLim(double)));
-    connect(amplResSpin_2, SIGNAL(valueChanged(int)),
-            this, SLOT(updateParamArBins(int)));
-    connect(amplResSpin_3, SIGNAL(valueChanged(int)),
-            this, SLOT(updateParamArHfLim(int)));
+    connect(amplResSpin_1, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamArLim);
+    connect(amplResSpin_2, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamArBins);
+    connect(amplResSpin_3, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamArHfLim);
 
     connect(dropoutsLabel_1, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickDropoutsLabel_1);
@@ -340,12 +344,12 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     connect(dropoutsLabel_3, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickDropoutsLabel_3);
 
-    connect(dropoutsSpin_1, SIGNAL(valueChanged(int)),
-            this, SLOT(updateParamDoExtLimDw(int)));
-    connect(dropoutsSpin_2, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamDoHf1Lim(double)));
-    connect(dropoutsSpin_3, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamDoHf2Lim(double)));
+    connect(dropoutsSpin_1, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamDoExtLimDw);
+    connect(dropoutsSpin_2, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamDoHf1Lim);
+    connect(dropoutsSpin_3, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamDoHf2Lim);
 
     connect(absLimLabel_1, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickAbsLimLabel_1);
@@ -362,34 +366,34 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     connect(absLimLabel_11, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickAbsLimLabel_11);
 
-    connect(absLimSpin_1, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamAlUMax(double)));
-    connect(absLimSpin_2, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamAlWMax(double)));
-    connect(absLimSpin_3, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamAlTsonMin(double)));
-    connect(absLimSpin_4, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamAlTsonMax(double)));
-    connect(absLimSpin_5, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamAlCo2Min(double)));
-    connect(absLimSpin_6, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamAlCo2Max(double)));
-    connect(absLimSpin_7, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamAlH2oMin(double)));
-    connect(absLimSpin_8, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamAlH2oMax(double)));
-    connect(absLimSpin_9, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamAlCh4Min(double)));
-    connect(absLimSpin_10, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamAlCh4Max(double)));
-    connect(absLimSpin_11, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamAlN2oMin(double)));
-    connect(absLimSpin_12, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamAlN2oMax(double)));
-    connect(absLimSpin_13, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamAlUMin(double)));
-    connect(absLimSpin_14, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamAlWMin(double)));
+    connect(absLimSpin_1, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamAlUMax);
+    connect(absLimSpin_2, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamAlWMax);
+    connect(absLimSpin_3, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamAlTsonMin);
+    connect(absLimSpin_4, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamAlTsonMax);
+    connect(absLimSpin_5, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamAlCo2Min);
+    connect(absLimSpin_6, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamAlCo2Max);
+    connect(absLimSpin_7, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamAlH2oMin);
+    connect(absLimSpin_8, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamAlH2oMax);
+    connect(absLimSpin_9, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamAlCh4Min);
+    connect(absLimSpin_10, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamAlCh4Max);
+    connect(absLimSpin_11, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamAlN2oMin);
+    connect(absLimSpin_12, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamAlN2oMax);
+    connect(absLimSpin_13, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamAlUMin);
+    connect(absLimSpin_14, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamAlWMin);
     connect(absLimFilterCheckBox, &QCheckBox::toggled,
             this, &AdvStatisticalOptions::updateAbsLimFilter);
 
@@ -402,22 +406,22 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     connect(skewnessLabel_6, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickSkewnessLabel_6);
 
-    connect(skewnessSpin_1, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamSkHfSkmin(double)));
-    connect(skewnessSpin_2, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamSkHfSkmax(double)));
-    connect(skewnessSpin_3, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamSkSfSkmin(double)));
-    connect(skewnessSpin_4, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamSkSfSkmax(double)));
-    connect(skewnessSpin_5, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamSkHfKumin(double)));
-    connect(skewnessSpin_6, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamSkHfKumax(double)));
-    connect(skewnessSpin_7, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamSkSfKumin(double)));
-    connect(skewnessSpin_8, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamSkSfKumax(double)));
+    connect(skewnessSpin_1, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamSkHfSkmin);
+    connect(skewnessSpin_2, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamSkHfSkmax);
+    connect(skewnessSpin_3, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamSkSfSkmin);
+    connect(skewnessSpin_4, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamSkSfSkmax);
+    connect(skewnessSpin_5, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamSkHfKumin);
+    connect(skewnessSpin_6, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamSkHfKumax);
+    connect(skewnessSpin_7, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamSkSfKumin);
+    connect(skewnessSpin_8, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamSkSfKumax);
 
     connect(discontLabel_1, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickDiscontLabel_1);
@@ -436,38 +440,38 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     connect(discontLabel_8, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickDiscontLabel_8);
 
-    connect(discontSpin_1, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamDsHfUV(double)));
-    connect(discontSpin_2, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamDsHfW(double)));
-    connect(discontSpin_3, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamDsHfT(double)));
-    connect(discontSpin_4, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamDsHfCo2(double)));
-    connect(discontSpin_5, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamDsHfH2o(double)));
-    connect(discontSpin_6, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamDsHfCh4(double)));
-    connect(discontSpin_7, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamDsHfN2o(double)));
-    connect(discontSpin_8, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamDsHfVar(double)));
-    connect(discontSpin_9, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamDsSfUV(double)));
-    connect(discontSpin_10, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamDsSfW(double)));
-    connect(discontSpin_11, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamDsSfT(double)));
-    connect(discontSpin_12, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamDsSfCo2(double)));
-    connect(discontSpin_13, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamDsSfH2o(double)));
-    connect(discontSpin_14, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamDsSfCh4(double)));
-    connect(discontSpin_15, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamDsSfN2o(double)));
-    connect(discontSpin_16, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamDsSfVar(double)));
+    connect(discontSpin_1, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamDsHfUV);
+    connect(discontSpin_2, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamDsHfW);
+    connect(discontSpin_3, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamDsHfT);
+    connect(discontSpin_4, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamDsHfCo2);
+    connect(discontSpin_5, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamDsHfH2o);
+    connect(discontSpin_6, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamDsHfCh4);
+    connect(discontSpin_7, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamDsHfN2o);
+    connect(discontSpin_8, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamDsHfVar);
+    connect(discontSpin_9, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamDsSfUV);
+    connect(discontSpin_10, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamDsSfW);
+    connect(discontSpin_11, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamDsSfT);
+    connect(discontSpin_12, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamDsSfCo2);
+    connect(discontSpin_13, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamDsSfH2o);
+    connect(discontSpin_14, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamDsSfCh4);
+    connect(discontSpin_15, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamDsSfN2o);
+    connect(discontSpin_16, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamDsSfVar);
 
     connect(timeLagLabel_1, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickTimeLagLabel_1);
@@ -482,18 +486,18 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     connect(timeLagLabel_6, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickTimeLagLabel_6);
 
-    connect(timeLagSpin_1, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamTlHfLim(double)));
-    connect(timeLagSpin_2, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamTlSfLim(double)));
-    connect(timeLagSpin_3, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamTlDefCo2(double)));
-    connect(timeLagSpin_4, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamTlDefH2o(double)));
-    connect(timeLagSpin_5, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamTlDefCh4(double)));
-    connect(timeLagSpin_6, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamTlDefN2o(double)));
+    connect(timeLagSpin_1, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamTlHfLim);
+    connect(timeLagSpin_2, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamTlSfLim);
+    connect(timeLagSpin_3, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamTlDefCo2);
+    connect(timeLagSpin_4, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamTlDefH2o);
+    connect(timeLagSpin_5, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamTlDefCh4);
+    connect(timeLagSpin_6, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamTlDefN2o);
 
     connect(attackAngleLabel_1, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickAttackAngleLabel_1);
@@ -502,40 +506,40 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     connect(attackAngleLabel_3, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickAttackAngleLabel_3);
 
-    connect(attackAngleSpin_1, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamAaMin(double)));
-    connect(attackAngleSpin_2, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamAaMax(double)));
-    connect(attackAngleSpin_3, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamAaLim(double)));
+    connect(attackAngleSpin_1, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamAaMin);
+    connect(attackAngleSpin_2, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamAaMax);
+    connect(attackAngleSpin_3, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamAaLim);
 
     connect(nonSteadyLabel_1, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickNonSteadyLabel_1);
-    connect(nonSteadySpin_1, SIGNAL(valueChanged(double)),
-            this, SLOT(updateParamNsHfLim(double)));
+    connect(nonSteadySpin_1, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateParamNsHfLim);
 
     connect(randomErrorCheckBox, &QCheckBox::toggled,
             this, &AdvStatisticalOptions::updateRandomErrorArea);
 
     connect(randomMethodLabel, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickRandomMethodLabel);
-    connect(randomMethodCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateRandomMethod(int)));
+    connect(randomMethodCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvStatisticalOptions::updateRandomMethod);
 
     connect(itsDefinitionLabel, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickItsDefinitionLabel);
-    connect(itsDefinitionCombo, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(updateItsDefinition(int)));
+    connect(itsDefinitionCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvStatisticalOptions::updateItsDefinition);
     connect(timelagMaxLabel, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onTimelagMaxLabelCLicked);
-    connect(timelagMaxSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateTimelagMax(double)));
+    connect(timelagMaxSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateTimelagMax);
 
     // NOTE: temporarly disabled
     connect(securityCoeffLabel, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onSecurityCoeffLabelCLicked);
-    connect(securityCoeffSpin, SIGNAL(valueChanged(double)),
-            this, SLOT(updateSecurityCoeff(double)));
+    connect(securityCoeffSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &AdvStatisticalOptions::updateSecurityCoeff);
 
     connect(ecProject_, &EcProject::ecProjectNew,
             this, &AdvStatisticalOptions::reset);
@@ -547,12 +551,12 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     for (auto widget : combo_list)
     {
         auto combo = static_cast<QComboBox *>(widget);
-        connect(combo, SIGNAL(currentIndexChanged(int)),
-                this, SLOT(updateTooltip(int)));
+        connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, &AdvStatisticalOptions::updateTooltip);
     }
 
     // init
-    QTimer::singleShot(0, this, SLOT(reset()));
+    QTimer::singleShot(0, this, &AdvStatisticalOptions::reset);
 }
 
 AdvStatisticalOptions::~AdvStatisticalOptions()
@@ -592,7 +596,7 @@ void AdvStatisticalOptions::createTabWidget()
     despSpin_8->setToolTip(despLabel_8->toolTip());
 
     despFilterCheckBox = new QCheckBox;
-    despFilterCheckBox->setToolTip(tr("<b>Replace spikes with linear interpolation:</b> Check this option to instruct EddyPro to replace spikes with linear interpolation of neighboring data points."));
+    despFilterCheckBox->setToolTip(tr("<b>Replace spikes with linear interpolation:</b> Check this option to instruct EddyFlow to replace spikes with linear interpolation of neighboring data points."));
     despFilterCheckBox->setText(tr("Replace spikes with linear interpolation"));
 
     spikeGraphLabel = new QLabel;
@@ -929,7 +933,7 @@ void AdvStatisticalOptions::createTabWidget()
 
     absLimFilterCheckBox = new QCheckBox;
     absLimFilterCheckBox->setText(tr("Filter outranged values"));
-    absLimFilterCheckBox->setToolTip(tr("<b>Filter outranged values:</b> Check this option to instruct EddyPro to eliminate values outside the plausibility range. When values are eliminated, all other variables are preserved and a lag is avoided by replacing the value with EddyPro\'s error code."));
+    absLimFilterCheckBox->setToolTip(tr("<b>Filter outranged values:</b> Check this option to instruct EddyFlow to eliminate values outside the plausibility range. When values are eliminated, all other variables are preserved and a lag is avoided by replacing the value with EddyFlow\'s error code."));
 
     absLimGraphLabel = new QLabel;
     absLimGraphLabel->setPixmap(QPixmap(QStringLiteral(":/icons/range")));
@@ -2416,9 +2420,9 @@ void AdvStatisticalOptions::reset()
 
     // NOTE: hack to prevent side effect setting from calling
     // WidgetUtils::resetComboToItem(randomMethodCombo, 0)
-    ecProject_->setRandomErrorMethod(ecProject_->defaultSettings.randomError.method);
+    ecProject_->setRandomErrorMethod(ecProject_->defaultSettings.randomError.ru_method);
 
-    timelagMaxSpin->setValue(ecProject_->defaultSettings.randomError.its_tlag_max);
+    timelagMaxSpin->setValue(ecProject_->defaultSettings.projectGeneral.its_tlag_max);
     securityCoeffSpin->setValue(ecProject_->defaultSettings.randomError.its_sec_factor);
 
     // restore modified flag
@@ -2749,26 +2753,59 @@ void AdvStatisticalOptions::createQuestionMark()
 {
     questionMark_1 = new QPushButton;
     questionMark_1->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_1->setFlat(true);
+    questionMark_1->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_1->setIconSize(QSize(12, 12));
     questionMark_2 = new QPushButton;
     questionMark_2->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_2->setFlat(true);
+    questionMark_2->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_2->setIconSize(QSize(12, 12));
     questionMark_3 = new QPushButton;
     questionMark_3->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_3->setFlat(true);
+    questionMark_3->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_3->setIconSize(QSize(12, 12));
     questionMark_4 = new QPushButton;
     questionMark_4->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_4->setFlat(true);
+    questionMark_4->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_4->setIconSize(QSize(12, 12));
     questionMark_5 = new QPushButton;
     questionMark_5->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_5->setFlat(true);
+    questionMark_5->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_5->setIconSize(QSize(12, 12));
     questionMark_6 = new QPushButton;
     questionMark_6->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_6->setFlat(true);
+    questionMark_6->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_6->setIconSize(QSize(12, 12));
     questionMark_7 = new QPushButton;
     questionMark_7->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_7->setFlat(true);
+    questionMark_7->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_7->setIconSize(QSize(12, 12));
     questionMark_8 = new QPushButton;
     questionMark_8->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_8->setFlat(true);
+    questionMark_8->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_8->setIconSize(QSize(12, 12));
     questionMark_9 = new QPushButton;
     questionMark_9->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_9->setFlat(true);
+    questionMark_9->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_9->setIconSize(QSize(12, 12));
     questionMark_10 = new QPushButton;
     questionMark_10->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_10->setFlat(true);
+    questionMark_10->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_10->setIconSize(QSize(12, 12));
     questionMark_11 = new QPushButton;
     questionMark_11->setObjectName(QStringLiteral("questionMarkImg"));
+    questionMark_11->setFlat(true);
+    questionMark_11->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    questionMark_11->setIconSize(QSize(12, 12));
 
     connect(questionMark_1, &QPushButton::clicked,
             this, &AdvStatisticalOptions::onlineHelpTrigger_1);
@@ -2796,57 +2833,57 @@ void AdvStatisticalOptions::createQuestionMark()
 
 void AdvStatisticalOptions::onlineHelpTrigger_1()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_2()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_3()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_4()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_5()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_6()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_7()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_8()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_9()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_10()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_11()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/help/eddypro/topics_eddypro/Random_Uncertainty_Estimation.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Random_Uncertainty_Estimation.html")));
 }
 
 void AdvStatisticalOptions::updateRandomErrorArea(bool b)
@@ -3218,3 +3255,4 @@ void AdvStatisticalOptions::updateDespikingMethod(int b)
 {
     ecProject_->setScreenParamDespikeVm(b);
 }
+
