@@ -231,8 +231,6 @@ DlSiteTab::DlSiteTab(QWidget *parent, DlProject *dlProject) :
     auto siteGroup = new QGroupBox(tr("Station Info"));
     siteGroup->setObjectName(QStringLiteral("simpleGroupBox"));
     siteGroup->setFlat(true);
-    siteGroup->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
-    siteGroup->setIconSize(QSize(12, 12));
     siteGroup->setLayout(infoLayout);
 
     auto siteLayout = new QVBoxLayout;
