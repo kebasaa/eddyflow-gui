@@ -761,6 +761,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.projectGeneral.lf_meth = defaultEcProjectState.projectGeneral.lf_meth;
     ec_project_state_.projectGeneral.wpl_meth = defaultEcProjectState.projectGeneral.wpl_meth;
     ec_project_state_.projectGeneral.foot_meth = defaultEcProjectState.projectGeneral.foot_meth;
+    ec_project_state_.projectGeneral.cec_meth = defaultEcProjectState.projectGeneral.cec_meth;
     ec_project_state_.projectGeneral.tob1_format = defaultEcProjectState.projectGeneral.tob1_format;
     ec_project_state_.projectGeneral.out_path.clear();
     ec_project_state_.projectGeneral.fix_out_format = defaultEcProjectState.projectGeneral.fix_out_format;
@@ -1194,6 +1195,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_PROJECT_47, ec_project_state_.projectGeneral.lf_meth);
         project_ini.setValue(EcIni::INI_PROJECT_48, ec_project_state_.projectGeneral.wpl_meth);
         project_ini.setValue(EcIni::INI_PROJECT_49, ec_project_state_.projectGeneral.foot_meth);
+        project_ini.setValue(EcIni::INI_PROJECT_72, ec_project_state_.projectGeneral.cec_meth);
         project_ini.setValue(EcIni::INI_PROJECT_50, ec_project_state_.projectGeneral.tob1_format);
         project_ini.setValue(EcIni::INI_PROJECT_51, QDir::fromNativeSeparators(ec_project_state_.projectGeneral.out_path));
         project_ini.setValue(EcIni::INI_PROJECT_52, ec_project_state_.projectGeneral.fix_out_format);
@@ -1852,6 +1854,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.projectGeneral.foot_meth
                 = project_ini.value(EcIni::INI_PROJECT_49,
                                     defaultEcProjectState.projectGeneral.foot_meth).toInt();
+        ec_project_state_.projectGeneral.cec_meth
+                = project_ini.value(EcIni::INI_PROJECT_72,
+                                    defaultEcProjectState.projectGeneral.cec_meth).toInt();
         ec_project_state_.projectGeneral.tob1_format
                 = project_ini.value(EcIni::INI_PROJECT_50,
                                     defaultEcProjectState.projectGeneral.tob1_format).toInt();
@@ -3854,6 +3859,12 @@ void EcProject::setScreenOutFullCospectraN2o(int n)
 void EcProject::setGeneralFpMeth(int n)
 {
     ec_project_state_.projectGeneral.foot_meth = n;
+    setModified(true);
+}
+
+void EcProject::setGeneralCecMeth(int n)
+{
+    ec_project_state_.projectGeneral.cec_meth = n;
     setModified(true);
 }
 
