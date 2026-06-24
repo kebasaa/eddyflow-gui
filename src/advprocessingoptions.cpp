@@ -255,6 +255,20 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     fpMethodCombo->setItemData(1, tr("<b>Kormann and Meixner (2001):</b> A cross-wind integrated model based on the solution of the two dimensional advection-diffusion equation given by van Ulden (1978) and others for power-law profiles in wind velocity and eddy diffusivity."), Qt::ToolTipRole);
     fpMethodCombo->setItemData(2, tr("<b>Hsien et al. (2000):</b> A cross-wind integrated model based based on the former model of Gash (1986) and on simulations with a Lagrangian stochastic model."), Qt::ToolTipRole);
 
+    cecCheckBox = new RichTextCheckBox;
+    cecCheckBox->setToolTip(tr("<b>Conditional Eddy Covariance:</b> Partitions H\xe2\x82\x82O and/or CO\xe2\x82\x82 fluxes into stomatal and non-stomatal components using the octant-based conditional statistics method of Zahn et al. (2022). When enabled, evaporation (E), transpiration (T), respiration (R), and photosynthesis (P) columns with a <i>_cec</i> suffix are added to the full output file."));
+    cecCheckBox->setText(tr("Conditional Eddy Covariance"));
+
+    cecLabel = new ClickLabel(tr("Flux partitioning :"));
+
+    cecMethodCombo = new QComboBox;
+    cecMethodCombo->addItem(tr("H\xe2\x82\x82O and CO\xe2\x82\x82 fluxes"));
+    cecMethodCombo->addItem(tr("H\xe2\x82\x82O flux only"));
+    cecMethodCombo->addItem(tr("CO\xe2\x82\x82 flux only"));
+    cecMethodCombo->setItemData(0, tr("<b>H\xe2\x82\x82O and CO\xe2\x82\x82 fluxes:</b> Partition total ET into evaporation and transpiration, and total NEE into ecosystem respiration and gross primary production."), Qt::ToolTipRole);
+    cecMethodCombo->setItemData(1, tr("<b>H\xe2\x82\x82O flux only:</b> Partition total ET into evaporation (E) and transpiration (T) only."), Qt::ToolTipRole);
+    cecMethodCombo->setItemData(2, tr("<b>CO\xe2\x82\x82 flux only:</b> Partition total NEE into ecosystem respiration (R) and gross primary production (P) only."), Qt::ToolTipRole);
+
     wplCheckBox = new RichTextCheckBox;
     wplCheckBox->setToolTip(tr("<b>Compensate density fluctuations:</b> This is the so-called WPL correction (Webb et al., 1980). Choose whether to apply the compensation of density fluctuations to raw gas concentrations available as molar densities or mole fractions (moles gas per mole of wet air). The correction does not apply if raw concentrations are available as mixing ratios (mole gas per mole dry air)."));
     wplCheckBox->setText(tr("Compensate density fluctuations (WPL terms)"));
@@ -372,7 +386,10 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     settingsLayout->addWidget(fpCheckBox, 24, 0);
     settingsLayout->addWidget(fpLabel, 24, 1, Qt::AlignRight);
     settingsLayout->addWidget(fpMethodCombo, 24, 2);
-    settingsLayout->setRowStretch(26, 1);
+    settingsLayout->addWidget(cecCheckBox,    25, 0);
+    settingsLayout->addWidget(cecLabel,       25, 1, Qt::AlignRight);
+    settingsLayout->addWidget(cecMethodCombo, 25, 2);
+    settingsLayout->setRowStretch(27, 1);
     settingsLayout->setColumnStretch(4, 1);
 
 //    auto overallFrame = new QWidget;
@@ -493,6 +510,17 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             this, &AdvProcessingOptions::updateFpMeth_1);
     connect(fpMethodCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &AdvProcessingOptions::updateFpMeth_2);
+
+    connect(cecCheckBox, &RichTextCheckBox::toggled,
+            cecLabel, &ClickLabel::setEnabled);
+    connect(cecCheckBox, &RichTextCheckBox::toggled,
+            cecMethodCombo, &QComboBox::setEnabled);
+    connect(cecLabel, &ClickLabel::clicked,
+            this, &AdvProcessingOptions::onClickCecMethodLabel);
+    connect(cecCheckBox, &RichTextCheckBox::toggled,
+            this, &AdvProcessingOptions::updateCecMeth_1);
+    connect(cecMethodCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &AdvProcessingOptions::updateCecMeth_2);
 
     connect(wplCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateWplMeth_1);
@@ -809,6 +837,11 @@ void AdvProcessingOptions::reset()
     fpCheckBox->setChecked(true);
     fpMethodCombo->setCurrentIndex(0);
 
+    cecCheckBox->setChecked(false);
+    cecLabel->setEnabled(false);
+    cecMethodCombo->setEnabled(false);
+    cecMethodCombo->setCurrentIndex(0);
+
     wplCheckBox->setChecked(ecProject_->defaultSettings.projectGeneral.wpl_meth);
 
     setBurbaDefaultValues();
@@ -918,6 +951,13 @@ void AdvProcessingOptions::refresh()
     {
         fpMethodCombo->setCurrentIndex(0);
     }
+
+    cecCheckBox->setChecked(ecProject_->generalCecMeth() > 0);
+    cecLabel->setEnabled(ecProject_->generalCecMeth() > 0);
+    cecMethodCombo->setEnabled(ecProject_->generalCecMeth() > 0);
+    cecMethodCombo->setCurrentIndex(ecProject_->generalCecMeth() > 0
+                                    ? ecProject_->generalCecMeth() - 1
+                                    : 0);
 
     wplCheckBox->setChecked(ecProject_->generalWplMeth());
 
@@ -1060,6 +1100,32 @@ void AdvProcessingOptions::updateFpMeth_1(bool b)
 void AdvProcessingOptions::updateFpMeth_2(int n)
 {
     ecProject_->setGeneralFpMeth(n + 1);
+}
+
+void AdvProcessingOptions::onClickCecMethodLabel()
+{
+    if (cecMethodCombo->isEnabled())
+    {
+        cecMethodCombo->showPopup();
+    }
+}
+
+void AdvProcessingOptions::updateCecMeth_1(bool b)
+{
+    if (b)
+    {
+        ecProject_->setGeneralCecMeth(cecMethodCombo->currentIndex() + 1);
+    }
+    else
+    {
+        ecProject_->setGeneralCecMeth(0);
+    }
+}
+
+void AdvProcessingOptions::updateCecMeth_2(int n)
+{
+    if (cecCheckBox->isChecked())
+        ecProject_->setGeneralCecMeth(n + 1);
 }
 
 void AdvProcessingOptions::createBurbaParamItems()

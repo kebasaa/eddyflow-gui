@@ -126,6 +126,7 @@ public:
     void setGeneralLfMethod(int n);
     void setGeneralWplMeth( int n);
     void setGeneralFpMeth(int n);
+    void setGeneralCecMeth(int n);
 
     void setGeneralOutRich(int n);
     void setGeneralOutMd(int n);
@@ -513,6 +514,7 @@ public:
     int generalLfMethod() const { return ec_project_state_.projectGeneral.lf_meth; }
     int generalWplMeth() const { return ec_project_state_.projectGeneral.wpl_meth; }
     int generalFpMeth() const { return ec_project_state_.projectGeneral.foot_meth; }
+    int generalCecMeth() const { return ec_project_state_.projectGeneral.cec_meth; }
     int generalTob1Format() const { return ec_project_state_.projectGeneral.tob1_format; }
     const QString& generalOutPath() const { return ec_project_state_.projectGeneral.out_path; }
     int generalFixedOutFormat() const { return ec_project_state_.projectGeneral.fix_out_format; }

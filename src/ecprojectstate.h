@@ -85,6 +85,7 @@ struct ProjectGeneralState
     int lf_meth = 1;
     int wpl_meth = 1;
     int foot_meth = 1;
+    int cec_meth = 0;
     int tob1_format = 0;
     QString out_path = QString();
     int fix_out_format = 0;
