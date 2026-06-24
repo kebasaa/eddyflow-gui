@@ -3292,6 +3292,7 @@ void BasicSettingsPage::updateDiag7700Combo(int i)
 void BasicSettingsPage::updateTsRefCombo(int i)
 {
     ecProject_->setGeneralColTs(tsRefCombo->itemData(i).toInt());
+    emit fastTemperatureSelected();
 }
 
 void BasicSettingsPage::updateFlagUnit(int i)

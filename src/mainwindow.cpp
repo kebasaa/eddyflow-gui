@@ -227,6 +227,8 @@ MainWindow::MainWindow(const QString& filename,
     // from BasicSettingsPage
     connect(mainWidget_, &MainWidget::updateMetadataReadResult,
             this, &MainWindow::setMetadataRead);
+    connect(mainWidget_, &MainWidget::fastTemperatureSelected,
+            this, &MainWindow::onFastTemperatureSelected);
 
     connect(this, &MainWindow::recentUpdated,
             mainWidget_, &MainWidget::recentUpdated);
@@ -2551,18 +2553,6 @@ void MainWindow::showGuidedModeMessages_2()
                     }
                 }
 
-                if (anem.hasGoodTemp() && dlProject_->hasOneFastTemperature())
-                {
-                    WidgetUtils::warning(QApplication::activeWindow(),
-                        tr("Temperature Source Ambiguity"),
-                        tr("The raw files contain both a speed-of-sound or sonic "
-                           "temperature measurement (from the anemometer) and a fast "
-                           "ambient temperature reading (fast_t). When both are present, "
-                           "the engine will use the fast ambient temperature and rename "
-                           "it to 'ts' internally, overriding the anemometer's measurement. "
-                           "If this is not intended, go to the Raw File Description and "
-                           "set the fast_t column to \"Do not use\"."));
-                }
             }
         }
     }
@@ -2744,6 +2734,33 @@ void MainWindow::showGuidedModeMessages_3()
     updateMenuActionStatus(currentPage());
 
     updateHtmlDock(infoOutput, intro + msg);
+}
+
+void MainWindow::onFastTemperatureSelected()
+{
+    const AnemDescList* adl = dlProject_->masterAnemList();
+    if (!adl || adl->isEmpty())
+        return;
+
+    const QString anemModel = ecProject_->generalColMasterSonic();
+    int anemIndex = anemModel.mid(anemModel.lastIndexOf(QLatin1Char('_')) + 1).toInt();
+    int i = anemIndex - 1;
+    if (i < 0 || i >= adl->size())
+        return;
+
+    const AnemDesc anem = adl->at(i);
+    if (anem.hasGoodTemp() && dlProject_->hasOneFastTemperature())
+    {
+        WidgetUtils::warning(QApplication::activeWindow(),
+            tr("Temperature Source Ambiguity"),
+            tr("The raw files contain both a speed-of-sound or sonic "
+               "temperature measurement (from the anemometer) and a fast "
+               "ambient temperature reading (fast_t). When both are present, "
+               "the engine will use the fast ambient temperature and rename "
+               "it to 'ts' internally, overriding the anemometer's measurement. "
+               "If this is not intended, go to the Raw File Description and "
+               "set the fast_t column to \"Do not use\"."));
+    }
 }
 
 void MainWindow::updateRunButtonsAvailability()

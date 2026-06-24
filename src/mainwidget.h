@@ -128,6 +128,7 @@ signals:
     void showSmartfluxBarRequest(bool on);
     void saveSilentlyRequest();
     void saveRequest();
+    void fastTemperatureSelected();
     void mdCleanupRequest();
     void showSetPrototypeRequest();
 };

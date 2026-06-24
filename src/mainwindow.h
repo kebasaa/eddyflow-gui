@@ -169,6 +169,7 @@ private slots:
     void showGuidedModeMessages_1();
     void showGuidedModeMessages_2();
     void showGuidedModeMessages_3();
+    void onFastTemperatureSelected();
 
     // restore application state
     void restorePreviousStatus();

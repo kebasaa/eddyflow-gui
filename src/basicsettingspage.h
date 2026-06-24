@@ -498,6 +498,7 @@ signals:
     void updateMetadataReadResult(bool b);
     void setDateRangeRequest(FileUtils::DateRange);
     void saveSilentlyRequest();
+    void fastTemperatureSelected();
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(BasicSettingsPage::EmbeddedFileFlags)

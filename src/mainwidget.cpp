@@ -115,6 +115,8 @@ MainWidget::MainWidget(QWidget *parent, DlProject *dlProject, EcProject *ecProje
 
     connect(basicSettingsPage_, &BasicSettingsPage::saveSilentlyRequest,
             this, &MainWidget::saveSilentlyRequest);
+    connect(basicSettingsPage_, &BasicSettingsPage::fastTemperatureSelected,
+            this, &MainWidget::fastTemperatureSelected);
 
     connect(welcomePage_, &WelcomePage::openProjectRequest,
             this, &MainWidget::openProjectRequest);
