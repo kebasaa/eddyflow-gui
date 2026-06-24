@@ -2550,6 +2550,19 @@ void MainWindow::showGuidedModeMessages_2()
                         doFix = true;
                     }
                 }
+
+                if (anem.hasGoodTemp() && dlProject_->hasOneFastTemperature())
+                {
+                    WidgetUtils::warning(QApplication::activeWindow(),
+                        tr("Temperature Source Ambiguity"),
+                        tr("The raw files contain both a speed-of-sound or sonic "
+                           "temperature measurement (from the anemometer) and a fast "
+                           "ambient temperature reading (fast_t). When both are present, "
+                           "the engine will use the fast ambient temperature and rename "
+                           "it to 'ts' internally, overriding the anemometer's measurement. "
+                           "If this is not intended, go to the Raw File Description and "
+                           "set the fast_t column to \"Do not use\"."));
+                }
             }
         }
     }
