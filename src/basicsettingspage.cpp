@@ -3124,7 +3124,7 @@ QString normaliseGasFormula(const QString& s)
     r.reserve(s.size());
     for (const QChar& c : s) {
         const ushort u = c.unicode();
-        r += (u >= 0x2080 && u <= 0x2089) ? QChar(static_cast<char>('0' + u - 0x2080)) : c;
+        r += (u >= 0x2080 && u <= 0x2089) ? QChar(static_cast<char16_t>(u'0' + u - 0x2080)) : c;
     }
     return r.toLower();
 }
