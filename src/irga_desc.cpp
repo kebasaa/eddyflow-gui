@@ -186,7 +186,7 @@ const QString IrgaDesc::getIRGA_MODEL_STRING_19()
 
 const QString IrgaDesc::getIRGA_MODEL_STRING_20()
 {
-    static const QString s(QStringLiteral("Aerodyne QCLS"));
+    static const QString s(QStringLiteral("TILDAS Analyzer"));
     return s;
 }
 

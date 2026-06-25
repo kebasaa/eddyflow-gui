@@ -119,6 +119,7 @@ private slots:
     void onClickCecMethodLabel();
     void updateCecMeth_1(bool b);
     void updateCecMeth_2(int n);
+    void updateCecAvailability();
 
     void updateWplMeth_1(bool b);
     void updateBurbaGroup(bool b);

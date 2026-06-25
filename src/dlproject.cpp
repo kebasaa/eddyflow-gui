@@ -75,7 +75,7 @@ const QString DlProject::IRGA_MODEL_STRING_16 = QStringLiteral("irgason");
 const QString DlProject::IRGA_MODEL_STRING_17 = QStringLiteral("spectronus");
 const QString DlProject::IRGA_MODEL_STRING_18 = QStringLiteral("miu1000");
 const QString DlProject::IRGA_MODEL_STRING_19 = QStringLiteral("miu2000");
-const QString DlProject::IRGA_MODEL_STRING_20 = QStringLiteral("aerodyne_qcls");
+const QString DlProject::IRGA_MODEL_STRING_20 = QStringLiteral("aerodyne_tildas");
 
 const QString DlProject::IRGA_SW_VERSION_STRING_0 = QStringLiteral("0.0.0");
 const QString DlProject::IRGA_SW_VERSION_STRING_1 = QStringLiteral("5.0.3");

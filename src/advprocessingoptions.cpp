@@ -958,6 +958,7 @@ void AdvProcessingOptions::refresh()
     cecMethodCombo->setCurrentIndex(ecProject_->generalCecMeth() > 0
                                     ? ecProject_->generalCecMeth() - 1
                                     : 0);
+    updateCecAvailability();
 
     wplCheckBox->setChecked(ecProject_->generalWplMeth());
 
@@ -1114,11 +1115,40 @@ void AdvProcessingOptions::updateCecMeth_1(bool b)
 {
     if (b)
     {
+        updateCecAvailability();
         ecProject_->setGeneralCecMeth(cecMethodCombo->currentIndex() + 1);
     }
     else
     {
         ecProject_->setGeneralCecMeth(0);
+    }
+}
+
+void AdvProcessingOptions::updateCecAvailability()
+{
+    const bool hasCo2 = ecProject_->generalColCo2() != -1;
+    const bool hasH2o = ecProject_->generalColH2o() != -1;
+    const bool hasAny = hasCo2 || hasH2o;
+
+    cecCheckBox->setEnabled(hasAny);
+
+    if (!hasAny)
+    {
+        QSignalBlocker blocker(cecCheckBox);
+        cecCheckBox->setChecked(false);
+        cecLabel->setEnabled(false);
+        cecMethodCombo->setEnabled(false);
+        ecProject_->setGeneralCecMeth(0);
+        return;
+    }
+
+    if (!hasCo2 || !hasH2o)
+    {
+        const int forcedIndex = hasH2o ? 1 : 2;
+        QSignalBlocker comboBlocker(cecMethodCombo);
+        cecMethodCombo->setCurrentIndex(forcedIndex);
+        if (cecCheckBox->isChecked())
+            ecProject_->setGeneralCecMeth(forcedIndex + 1);
     }
 }
 
