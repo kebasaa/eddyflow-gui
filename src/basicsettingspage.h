@@ -403,6 +403,7 @@ private slots:
     void updateGasDiff(double value);
     void updateFourthGasRefCombo(int);
     void updateFourthGasSettings(const QString& s);
+    void showFourthGasDiffWarning(int index);
     void updateIntTcRefCombo(int i);
     void updateIntT1RefCombo(int i);
     void updateIntT2RefCombo(int);

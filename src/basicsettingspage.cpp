@@ -1067,6 +1067,8 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
             this, &BasicSettingsPage::onClickFourthGasRefLabel);
     connect(fourthGasRefCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateFourthGasRefCombo);
+    connect(fourthGasRefCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::showFourthGasDiffWarning);
     connect(fourthGasRefCombo, &QComboBox::currentTextChanged,
             this, &BasicSettingsPage::updateFourthGasSettings);
 
@@ -3112,77 +3114,188 @@ void BasicSettingsPage::updateFourthGasRefCombo(int i)
     ecProject_->setGeneralColGas4(fourthGasRefCombo->itemData(i).toInt());
 }
 
+namespace {
+
+// Normalise a gas formula string to plain lowercase ASCII for registry lookup.
+// Maps Unicode subscript digits (U+2080–U+2089) to '0'–'9', then lower-cases.
+QString normaliseGasFormula(const QString& s)
+{
+    QString r;
+    r.reserve(s.size());
+    for (const QChar& c : s) {
+        const ushort u = c.unicode();
+        r += (u >= 0x2080 && u <= 0x2089) ? QChar(static_cast<char>('0' + u - 0x2080)) : c;
+    }
+    return r.toLower();
+}
+
+struct GasEntry {
+    double mw;    // g/mol (0 = unknown/ambiguous)
+    double diff;  // cm²/s (0 = not available)
+    int    status; // 0=reviewed, 1=model, 2=calculated, 3=mw_only
+};
+
+// Build registry once (keyed by normalised ASCII formula).
+const QMap<QString, GasEntry>& gasRegistry()
+{
+    static const QMap<QString, GasEntry> reg = {
+        // --- reviewed_default: auto-fill, no warning ---
+        { QStringLiteral("n2o"),           { 44.01,    0.1436,  0 } },
+        { QStringLiteral("co"),            { 28.0101,  0.1807,  0 } },
+        { QStringLiteral("so2"),           { 64.066,   0.1089,  0 } },
+        { QStringLiteral("nh3"),           { 17.0305,  0.1978,  0 } },
+        // --- model_default: auto-fill, warn model-based ---
+        { QStringLiteral("o3"),            { 47.9982,  0.1444,  1 } },
+        { QStringLiteral("no2"),           { 46.0055,  0.1361,  1 } },
+        // --- calculated_default: auto-fill, warn calculated ---
+        { QStringLiteral("no"),            { 30.0061,  0.1988,  2 } },  // retained original value
+        { QStringLiteral("n2"),            { 28.0134,  0.19939, 2 } },
+        { QStringLiteral("o2"),            { 31.9988,  0.20255, 2 } },
+        { QStringLiteral("ar"),            { 39.948,   0.19064, 2 } },
+        { QStringLiteral("cos"),           { 60.075,   0.12344, 2 } },
+        // --- mw_only: fill MW, enable diff spinbox, warn missing ---
+        { QStringLiteral("ne"),            { 20.1797,  0.0, 3 } },
+        { QStringLiteral("he"),            {  4.0026,  0.0, 3 } },
+        { QStringLiteral("kr"),            { 83.798,   0.0, 3 } },
+        { QStringLiteral("xe"),            { 131.293,  0.0, 3 } },
+        { QStringLiteral("h2"),            {  2.0159,  0.0, 3 } },
+        { QStringLiteral("no3"),           { 62.0049,  0.0, 3 } },
+        { QStringLiteral("n2o5"),          { 108.0104, 0.0, 3 } },
+        { QStringLiteral("hono"),          { 47.0134,  0.0, 3 } },
+        { QStringLiteral("hno3"),          { 63.0128,  0.0, 3 } },
+        { QStringLiteral("pan"),           { 121.0489, 0.0, 3 } },
+        { QStringLiteral("h2s"),           { 34.0809,  0.0, 3 } },
+        { QStringLiteral("cs2"),           { 76.1407,  0.0, 3 } },
+        { QStringLiteral("dms"),           { 62.134,   0.0, 3 } },
+        { QStringLiteral("dmso"),          { 78.133,   0.0, 3 } },
+        { QStringLiteral("ch3sh"),         { 48.107,   0.0, 3 } },
+        { QStringLiteral("dmds"),          { 94.199,   0.0, 3 } },
+        { QStringLiteral("isoprene"),      { 68.117,   0.0, 3 } },
+        { QStringLiteral("alpha-pinene"),  { 136.238,  0.0, 3 } },
+        { QStringLiteral("methanol"),      { 32.042,   0.0, 3 } },
+        { QStringLiteral("acetone"),       { 58.080,   0.0, 3 } },
+        { QStringLiteral("formaldehyde"),  { 30.026,   0.0, 3 } },
+        { QStringLiteral("acetaldehyde"),  { 44.053,   0.0, 3 } },
+        { QStringLiteral("glyoxal"),       { 58.036,   0.0, 3 } },
+        { QStringLiteral("benzene"),       { 78.114,   0.0, 3 } },
+        { QStringLiteral("toluene"),       { 92.141,   0.0, 3 } },
+        { QStringLiteral("cfc-11"),        { 137.368,  0.0, 3 } },
+        { QStringLiteral("cfc-12"),        { 120.913,  0.0, 3 } },
+        { QStringLiteral("hcfc-22"),       { 86.468,   0.0, 3 } },
+        { QStringLiteral("hfc-134a"),      { 102.03,   0.0, 3 } },
+        { QStringLiteral("hfc-23"),        { 70.014,   0.0, 3 } },
+        { QStringLiteral("sf6"),           { 146.055,  0.0, 3 } },
+        { QStringLiteral("nf3"),           { 71.0019,  0.0, 3 } },
+        { QStringLiteral("cf4"),           { 88.0043,  0.0, 3 } },
+        { QStringLiteral("c2f6"),          { 138.0118, 0.0, 3 } },
+        { QStringLiteral("ccl4"),          { 153.823,  0.0, 3 } },
+        { QStringLiteral("ch3cl"),         { 50.487,   0.0, 3 } },
+        { QStringLiteral("ch3br"),         { 94.939,   0.0, 3 } },
+        { QStringLiteral("ch3i"),          { 141.939,  0.0, 3 } },
+        { QStringLiteral("halon-1211"),    { 165.364,  0.0, 3 } },
+        { QStringLiteral("halon-1301"),    { 148.91,   0.0, 3 } },
+        { QStringLiteral("halon-2402"),    { 259.823,  0.0, 3 } },
+        { QStringLiteral("hcl"),           { 36.458,   0.0, 3 } },
+        { QStringLiteral("hbr"),           { 80.912,   0.0, 3 } },
+        { QStringLiteral("hocl"),          { 52.460,   0.0, 3 } },
+        { QStringLiteral("hobr"),          { 96.912,   0.0, 3 } },
+        { QStringLiteral("clo"),           { 51.452,   0.0, 3 } },
+        { QStringLiteral("bro"),           { 95.904,   0.0, 3 } },
+        { QStringLiteral("io"),            { 142.904,  0.0, 3 } },
+        { QStringLiteral("oh"),            { 17.007,   0.0, 3 } },
+        { QStringLiteral("ho2"),           { 33.0067,  0.0, 3 } },
+        { QStringLiteral("hg0"),           { 200.592,  0.0, 3 } },
+        { QStringLiteral("rn"),            { 222.0,    0.0, 3 } },
+        { QStringLiteral("hcn"),           { 27.0253,  0.0, 3 } },
+        { QStringLiteral("ch3cn"),         { 41.052,   0.0, 3 } },
+    };
+    return reg;
+}
+
+} // anonymous namespace
+
 void BasicSettingsPage::updateFourthGasSettings(const QString& s)
 {
-    if (s.isEmpty())
+    if (s.isEmpty()) { return; }
+
+    const QString gasStr = s.split(QLatin1Char(' ')).first();
+    const QString key    = normaliseGasFormula(gasStr);
+
+    const auto& reg = gasRegistry();
+    const auto  it  = reg.find(key);
+
+    if (it == reg.end())
     {
+        // Unknown gas — let the user fill in everything manually
+        gasMw->setEnabled(true);
+        gasDiff->setEnabled(true);
         return;
     }
 
-    const auto N2OStr = QLatin1Char('N') + Defs::SUBTWO + QLatin1Char('O');
-    const auto COStr = QStringLiteral("CO");
-    const auto SO2Str = QStringLiteral("SO") + Defs::SUBTWO;
-    const auto O3Str = QLatin1Char('O') + Defs::SUBTHREE;
-    const auto NH3Str = QStringLiteral("NH") + Defs::SUBTHREE;
-    const auto NOStr = QStringLiteral("NO");
-    const auto NO2Str = QStringLiteral("NO") + Defs::SUBTWO;
+    const GasEntry& e = it.value();
+    switch (e.status)
+    {
+        case 0: // reviewed — auto-fill, no warning
+        case 1: // model — auto-fill
+        case 2: // calculated — auto-fill
+            gasMw->setEnabled(false);
+            gasMw->setValue(e.mw);
+            gasDiff->setEnabled(false);
+            gasDiff->setValue(e.diff);
+            break;
+        case 3: // mw_only — fill MW, enable diff spinbox
+            gasMw->setEnabled(false);
+            gasMw->setValue(e.mw);
+            gasDiff->setValue(0.0);
+            gasDiff->setEnabled(true);
+            break;
+        default:
+            gasMw->setEnabled(true);
+            gasDiff->setEnabled(true);
+            break;
+    }
+}
 
-    QString gasStr(s.split(QLatin1Char(' ')).first());
+void BasicSettingsPage::showFourthGasDiffWarning(int /*index*/)
+{
+    const QString s = fourthGasRefCombo->currentText();
+    if (s.isEmpty()) { return; }
 
-    if (gasStr == N2OStr)
+    const QString gasStr = s.split(QLatin1Char(' ')).first();
+    const QString key    = normaliseGasFormula(gasStr);
+
+    const auto& reg = gasRegistry();
+    const auto  it  = reg.find(key);
+    if (it == reg.end()) { return; }
+
+    const int status = it.value().status;
+    if (status == 0) { return; }  // reviewed — no warning needed
+
+    QString title, msg;
+    switch (status)
     {
-        gasMw->setEnabled(false);
-        gasMw->setValue(44.01);
-        gasDiff->setEnabled(false);
-        gasDiff->setValue(0.1436);
+        case 1:
+            title = tr("Model-Based Diffusivity");
+            msg   = tr("The diffusivity of <b>%1</b> used by EddyFlow is a model-based estimate "
+                       "(Massman 1998). It has never been directly measured in air. "
+                       "You can override it in the spinbox below.").arg(gasStr);
+            break;
+        case 2:
+            title = tr("Calculated Diffusivity");
+            msg   = tr("The diffusivity of <b>%1</b> was calculated using the Chapman-Enskog "
+                       "equation. If you have a measured value, you can override it in the "
+                       "spinbox below.").arg(gasStr);
+            break;
+        case 3:
+            title = tr("Diffusivity Not Available");
+            msg   = tr("No diffusivity data is available for <b>%1</b>. "
+                       "Please enter the diffusivity in cm²/s manually in the spinbox "
+                       "below.").arg(gasStr);
+            break;
+        default:
+            return;
     }
-    else if (gasStr == COStr)
-    {
-        gasMw->setEnabled(false);
-        gasMw->setValue(28.01);
-        gasDiff->setEnabled(false);
-        gasDiff->setValue(0.1807);
-    }
-    else if (gasStr == SO2Str)
-    {
-        gasMw->setEnabled(false);
-        gasMw->setValue(64.06);
-        gasDiff->setEnabled(false);
-        gasDiff->setValue(0.1089);
-    }
-    else if (gasStr == O3Str)
-    {
-        gasMw->setEnabled(false);
-        gasMw->setValue(48.00);
-        gasDiff->setEnabled(false);
-        gasDiff->setValue(0.1444);
-    }
-    else if (gasStr == NH3Str)
-    {
-        gasMw->setEnabled(false);
-        gasMw->setValue(17.03);
-        gasDiff->setEnabled(false);
-        gasDiff->setValue(0.1908);
-    }
-    else if (gasStr == NOStr)
-    {
-        gasMw->setEnabled(false);
-        gasMw->setValue(30.00);
-        gasDiff->setEnabled(false);
-        gasDiff->setValue(0.1988);
-    }
-    else if (gasStr == NO2Str)
-    {
-        gasMw->setEnabled(false);
-        gasMw->setValue(46.00);
-        gasDiff->setEnabled(false);
-        gasDiff->setValue(0.1361);
-    }
-    else
-    {
-        gasMw->setEnabled(true);
-        gasDiff->setEnabled(true);
-    }
+    WidgetUtils::information(QApplication::activeWindow(), title, msg);
 }
 
 void BasicSettingsPage::updateIntTcRefCombo(int i)

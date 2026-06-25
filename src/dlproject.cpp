@@ -147,6 +147,7 @@ const QString DlProject::VARIABLE_MEASURE_UNIT_STRING_24 = QStringLiteral("cm3_s
 const QString DlProject::VARIABLE_MEASURE_UNIT_STRING_25 = QStringLiteral("ft3_s");
 const QString DlProject::VARIABLE_MEASURE_UNIT_STRING_26 = QStringLiteral("in3_s");
 const QString DlProject::VARIABLE_MEASURE_UNIT_STRING_27 = QStringLiteral("degrees");
+const QString DlProject::VARIABLE_MEASURE_UNIT_STRING_28 = QStringLiteral("pmol_mol");
 
 const QString DlProject::VARIABLE_CONVERSION_TYPE_STRING_0 = QStringLiteral("zero_fullscale");
 const QString DlProject::VARIABLE_CONVERSION_TYPE_STRING_1 = QStringLiteral("gain_offset");
@@ -1741,6 +1742,10 @@ QString DlProject::toIniVariableMeasureUnit(const QString& s)
     {
         return DlProject::VARIABLE_MEASURE_UNIT_STRING_27;
     }
+    else if (s == VariableDesc::getVARIABLE_MEASURE_UNIT_STRING_28())
+    {
+        return DlProject::VARIABLE_MEASURE_UNIT_STRING_28;
+    }
     else
     {
         return QString();
@@ -2278,6 +2283,10 @@ QString DlProject::fromIniVariableMeasureUnit(const QString& s)
     else if (s == DlProject::VARIABLE_MEASURE_UNIT_STRING_27)
     {
         return VariableDesc::getVARIABLE_MEASURE_UNIT_STRING_27();
+    }
+    else if (s == DlProject::VARIABLE_MEASURE_UNIT_STRING_28)
+    {
+        return VariableDesc::getVARIABLE_MEASURE_UNIT_STRING_28();
     }
     else
     {
