@@ -235,6 +235,16 @@ void WidgetUtils::showCalendarOf(QWidget* widget)
                                                 Qt::NoModifier));
 }
 
+QString WidgetUtils::eddyDateFormat()
+{
+    const QString fmt = QLocale::system().dateFormat(QLocale::ShortFormat);
+    QChar sep = QLatin1Char('/');
+    for (const QChar c : fmt)
+        if (c != QLatin1Char('d') && c != QLatin1Char('M') && c != QLatin1Char('y') && !c.isLetter())
+            { sep = c; break; }
+    return QString(QLatin1String("dd") + sep + QLatin1String("MM") + sep + QLatin1String("yyyy"));
+}
+
 // Append a horizontal rule <hr> to QTextEdit.
 // NOTE: never used yet.
 void WidgetUtils::appendHrToTextEdit(QTextEdit* te)

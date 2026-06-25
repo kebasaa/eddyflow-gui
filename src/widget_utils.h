@@ -80,6 +80,7 @@ namespace WidgetUtils
     // calendar
     void customizeCalendar(QCalendarWidget* cal);
     void showCalendarOf(QWidget* widget);
+    QString eddyDateFormat();
 
     // textedit
     void appendHrToTextEdit(QTextEdit* te);
