@@ -1,3 +1,21 @@
+7.2.0 (2026-06-25)
+
+    GUI:
+	- New feature: Implement conditional eddy covariance (CEC) by Zahn et al. (2022)
+	- Add warning when both fast_t & sos/ts are available in data files
+	- Update copyright notice
+	
+    Engine:
+	- New feature: Implement additional gases
+	- New feature: Implement conditional eddy covariance (CEC) by Zahn et al. (2022)
+      - Extract CEC partition descriptors before spectral interpolation and apply them
+           to the authoritative RP or FCC corrected totals
+	  - Report CEC net photosynthesis as P_cec and partition the authoritative
+           H2O flux into E_cec/Tr_cec [mmol m-2 s-1], with additional
+           E_cec_ET/Tr_cec_ET [mm hour-1] outputs.
+	- Fix: NH3 diffusivity corrected from 0.1908 → 0.1978
+    - Fix: prevent a CEC segmentation fault by providing module-based procedure interfaces.
+
 7.0.4 (2026-06-20)
 
     GUI

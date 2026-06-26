@@ -240,7 +240,9 @@ QVariant AnemModel::data(const QModelIndex& index, int role) const
                 else
                     return QVariant(QString::number(anemDesc.vSeparation(), 'f', 2) + QStringLiteral(" [cm]"));
             case VPATHLENGTH:
-                if (anemDesc.model() != AnemDesc::getANEM_MODEL_STRING_12())
+                if (anemDesc.model() != AnemDesc::getANEM_MODEL_STRING_12()
+                    && anemDesc.model() != AnemDesc::getANEM_MODEL_STRING_19()
+                    && anemDesc.model() != AnemDesc::getANEM_MODEL_STRING_20())
                 {
                     return nullStrValue;
                 }
@@ -249,7 +251,9 @@ QVariant AnemModel::data(const QModelIndex& index, int role) const
                     return QVariant(QString::number(anemDesc.vPathLength(), 'f', 4) + QStringLiteral(" [cm]"));
                 }
             case HPATHLENGTH:
-                if (anemDesc.model() != AnemDesc::getANEM_MODEL_STRING_12())
+                if (anemDesc.model() != AnemDesc::getANEM_MODEL_STRING_12()
+                    && anemDesc.model() != AnemDesc::getANEM_MODEL_STRING_19()
+                    && anemDesc.model() != AnemDesc::getANEM_MODEL_STRING_20())
                 {
                     return nullStrValue;
                 }
@@ -258,7 +262,9 @@ QVariant AnemModel::data(const QModelIndex& index, int role) const
                     return QVariant(QString::number(anemDesc.hPathLength(), 'f', 4) + QStringLiteral(" [cm]"));
                 }
             case TAU:
-                if (anemDesc.model() != AnemDesc::getANEM_MODEL_STRING_12())
+                if (anemDesc.model() != AnemDesc::getANEM_MODEL_STRING_12()
+                    && anemDesc.model() != AnemDesc::getANEM_MODEL_STRING_19()
+                    && anemDesc.model() != AnemDesc::getANEM_MODEL_STRING_20())
                 {
                     return nullStrValue;
                 }

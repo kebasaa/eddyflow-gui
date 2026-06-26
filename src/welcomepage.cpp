@@ -53,6 +53,9 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     appLogoLabel = new ClickLabel;
     appLogoLabel->setProperty("applogoLabel", true);
     appLogoLabel->setProperty("applogoSmallLabel", false);
+    appLogoLabel->setPixmap(QPixmap(QStringLiteral(":/icons/app-logo-svg"))
+                                .scaled(780, 139, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    appLogoLabel->setAlignment(Qt::AlignCenter);
 
     connect(appLogoLabel, &ClickLabel::clicked,
             this, &WidgetUtils::openAppWebsite);
@@ -400,11 +403,15 @@ void WelcomePage::updateWelcomePage(bool small)
     {
         appLogoProp << WidgetUtils::PropertyList("applogoLabel", false)
                     << WidgetUtils::PropertyList("applogoSmallLabel", true);
+        appLogoLabel->setPixmap(QPixmap(QStringLiteral(":/icons/app-logo-svg"))
+                                    .scaled(390, 70, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
     else
     {
         appLogoProp << WidgetUtils::PropertyList("applogoLabel", true)
                     << WidgetUtils::PropertyList("applogoSmallLabel", false);
+        appLogoLabel->setPixmap(QPixmap(QStringLiteral(":/icons/app-logo-svg"))
+                                    .scaled(780, 139, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
 
     WidgetUtils::updatePropertyListAndStyle(appLogoLabel, appLogoProp);

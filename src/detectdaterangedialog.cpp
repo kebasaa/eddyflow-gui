@@ -161,6 +161,8 @@ void DetectDateRangeDialog::createDateSelectionWidget(DateRangeType type,
     auto startDateEdit = new QDateEdit;
     startDateEdit->setToolTip(startDateLabel->toolTip());
     startDateEdit->setCalendarPopup(true);
+    startDateEdit->setDisplayFormat(WidgetUtils::eddyDateFormat());
+    startDateEdit->setMinimumWidth(100);
     WidgetUtils::customizeCalendar(startDateEdit->calendarWidget());
     startDateEdit->setDate(subrange.first.date());
 
@@ -184,6 +186,8 @@ void DetectDateRangeDialog::createDateSelectionWidget(DateRangeType type,
     auto endDateEdit = new QDateEdit;
     endDateEdit->setToolTip(endDateLabel->toolTip());
     endDateEdit->setCalendarPopup(true);
+    endDateEdit->setDisplayFormat(WidgetUtils::eddyDateFormat());
+    endDateEdit->setMinimumWidth(100);
     WidgetUtils::customizeCalendar(endDateEdit->calendarWidget());
     endDateEdit->setDate(subrange.second.date());
 
@@ -422,6 +426,8 @@ void DetectDateRangeDialog::createCurrentRange()
     auto startDateEdit = new QDateEdit;
     startDateEdit->setToolTip(startDateLabel->toolTip());
     startDateEdit->setCalendarPopup(true);
+    startDateEdit->setDisplayFormat(WidgetUtils::eddyDateFormat());
+    startDateEdit->setMinimumWidth(100);
     startDateEdit->setDate(availableDataRange_.first.date());
     startDateEdit->setReadOnly(true);
     startDateEdit->setStyleSheet(QStringLiteral("QDateEdit ")
@@ -449,6 +455,8 @@ void DetectDateRangeDialog::createCurrentRange()
     auto endDateEdit = new QDateEdit;
     endDateEdit->setToolTip(endDateLabel->toolTip());
     endDateEdit->setCalendarPopup(true);
+    endDateEdit->setDisplayFormat(WidgetUtils::eddyDateFormat());
+    endDateEdit->setMinimumWidth(100);
     endDateEdit->setDate(availableDataRange_.second.date());
     endDateEdit->setReadOnly(true);
     endDateEdit->setStyleSheet(QStringLiteral("QDateEdit ")

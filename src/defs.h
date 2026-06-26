@@ -64,7 +64,7 @@ namespace Defs
     const auto METADATA_FILE_VERSION_STR = QStringLiteral("3.2.2");
 
 
-    const auto CURRENT_COPYRIGHT_YEAR = QStringLiteral("2019");
+    const auto CURRENT_COPYRIGHT_YEAR = QStringLiteral(__DATE__).right(4);
     const auto LOG_FILE_MAX_SIZE = 1048576;
 
     enum class CurrPage

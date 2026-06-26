@@ -351,6 +351,7 @@ private:
     static const QString VARIABLE_MEASURE_UNIT_STRING_25;
     static const QString VARIABLE_MEASURE_UNIT_STRING_26;
     static const QString VARIABLE_MEASURE_UNIT_STRING_27;
+    static const QString VARIABLE_MEASURE_UNIT_STRING_28;
 
     static const QString VARIABLE_CONVERSION_TYPE_STRING_0;
     static const QString VARIABLE_CONVERSION_TYPE_STRING_1;

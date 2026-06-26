@@ -32,6 +32,7 @@
 #include <QIcon>
 #include <QPixmap>
 #include <QSize>
+#include <QGroupBox>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QVBoxLayout>
@@ -238,23 +239,17 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     outFullCospectraCheckBoxN2o = new RichTextCheckBox;
     outFullCospectraCheckBoxN2o->setText(tr("W/%1 Gas").arg(Defs::GAS4_STRING));
 
-    outGhgEuCheckBox = new QCheckBox;
-    outGhgEuCheckBox->setText(tr("GHG-Europe results (fluxes and more, "
-                                 "formatted for GHG-Europe database)"));
-    tooltipStr =
-        tr("<b>GHG-Europe results:</b> A selection of main results formatted "
-           "so as to be easily completed with missing variables and submitted "
-           "to the GHG-Europe database.");
-    outGhgEuCheckBox->setToolTip(tooltipStr);
+    fluxnetBiometCheckBox = new QCheckBox;
+    fluxnetBiometCheckBox->setText(tr("Use Fluxnet standard for biomet labels and units"));
 
-    outAmFluxCheckBox = new QCheckBox;
-    outAmFluxCheckBox->setText(tr("AmeriFlux results (fluxes and more, "
-                                  "formatted for AmeriFlux database)"));
-    tooltipStr =
-        tr("<b>AmeriFlux results:</b> A selection of main results formatted "
-           "so as to be easily completed with missing variables and submitted "
-           "to the AmeriFlux database.");
-    outAmFluxCheckBox->setToolTip(tooltipStr);
+    fluxnetErrLabelCheckBox = new QCheckBox;
+    fluxnetErrLabelCheckBox->setText(tr("Set error label in Fluxnet mode (-9999)"));
+
+    fluxnetGroupBox = new QGroupBox(tr("Fluxnet output settings"));
+    auto fluxnetLayout = new QVBoxLayout;
+    fluxnetLayout->addWidget(fluxnetBiometCheckBox);
+    fluxnetLayout->addWidget(fluxnetErrLabelCheckBox);
+    fluxnetGroupBox->setLayout(fluxnetLayout);
 
     outFullCheckBox = new QCheckBox;
     outFullCheckBox->setText(tr("Full output (fluxes, quality flags, "
@@ -504,81 +499,80 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     outputLayout->addLayout(qBox_2, 5, 2, Qt::AlignRight);
     outputLayout->addWidget(variableVarsOutputRadio, 5, 3, 1, 2, Qt::AlignLeft);
     outputLayout->addWidget(fixedVarsOutputRadio, 6, 3, 1, 2, Qt::AlignLeft);
-    outputLayout->addWidget(vrLabel_1, 5, 5, 8, 1);
+    outputLayout->addWidget(vrLabel_1, 5, 5, 7, 1);
     outputLayout->addLayout(qBox_4, 5, 6, 6, 2, Qt::AlignLeft);
     outputLayout->addLayout(qBox_3, 7, 2, Qt::AlignRight);
     outputLayout->addWidget(errorFormatCombo, 7, 3);
-    outputLayout->addWidget(outAmFluxCheckBox, 8, 0, 1, 4);
-    outputLayout->addWidget(outGhgEuCheckBox, 9, 0, 1, 4);
-    outputLayout->addWidget(outBiometCheckBox, 10, 0, 1, 4);
-    outputLayout->addWidget(outDetailsCheckBox, 11, 0, 1, 4);
-    outputLayout->addWidget(outMdCheckBox, 12, 0, 1, 4);
-    outputLayout->addWidget(hrLabel_2, 13, 0, 1, -1);
-    outputLayout->addLayout(qBox_10, 14, 0);
-    outputLayout->addLayout(qBox_5, 15, 0);
-    outputLayout->addWidget(outBinSpectraCheckBox, 16, 0);
-    outputLayout->addWidget(outBinOgivesCheckBox, 17, 0);
-    outputLayout->addWidget(outMeanSpectraCheckBox, 18, 0);
-    outputLayout->addWidget(outMeanCospCheckBox, 19, 0);
-    outputLayout->addLayout(qBox_6, 15, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxU, 16, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxV, 17, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxW, 18, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxTs, 19, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxCo2, 20, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxH2o, 21, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxCh4, 22, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxN2o, 23, 1, 1, 2);
-    outputLayout->addLayout(qBox_7, 15, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxU, 16, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxV, 17, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxTs, 18, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxCo2, 19, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxH2o, 20, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxCh4, 21, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxN2o, 22, 3, 1, 3);
-    outputLayout->addWidget(fullSpectraDescription, 24, 1, 1, 7);
-    outputLayout->addWidget(hrLabel_3, 25, 0, 1, -1);
-    outputLayout->addWidget(title_5, 26, 0);
-    outputLayout->addLayout(qBox_8, 27, 1, Qt::AlignRight);
-    outputLayout->addLayout(qBox_9, 27, 2, Qt::AlignRight);
-    outputLayout->addWidget(varLabel, 27, 3, 1, 2, Qt::AlignCenter);
-    outputLayout->addWidget(hrLabel_4, 28, 1, 1, 2);
-    outputLayout->addWidget(hrLabel_5, 28, 3, 1, 2);
-    outputLayout->addWidget(level1Label, 29, 0, Qt::AlignRight);
-    outputLayout->addWidget(level2Label, 30, 0, Qt::AlignRight);
-    outputLayout->addWidget(level3Label, 31, 0, Qt::AlignRight);
-    outputLayout->addWidget(level4Label, 32, 0, Qt::AlignRight);
-    outputLayout->addWidget(level5Label, 33, 0, Qt::AlignRight);
-    outputLayout->addWidget(level6Label, 34, 0, Qt::AlignRight);
-    outputLayout->addWidget(level7Label, 35, 0, Qt::AlignRight);
-    outputLayout->addWidget(outSt1CheckBox, 29, 1, Qt::AlignCenter);
-    outputLayout->addWidget(outSt2CheckBox, 30, 1, Qt::AlignCenter);
-    outputLayout->addWidget(outSt3CheckBox, 31, 1, Qt::AlignCenter);
-    outputLayout->addWidget(outSt4CheckBox, 32, 1, Qt::AlignCenter);
-    outputLayout->addWidget(outSt5CheckBox, 33, 1, Qt::AlignCenter);
-    outputLayout->addWidget(outSt6CheckBox, 34, 1, Qt::AlignCenter);
-    outputLayout->addWidget(outSt7CheckBox, 35, 1, Qt::AlignCenter);
-    outputLayout->addWidget(outRaw1CheckBox, 29, 2, Qt::AlignCenter);
-    outputLayout->addWidget(outRaw2CheckBox, 30, 2, Qt::AlignCenter);
-    outputLayout->addWidget(outRaw3CheckBox, 31, 2, Qt::AlignCenter);
-    outputLayout->addWidget(outRaw4CheckBox, 32, 2, Qt::AlignCenter);
-    outputLayout->addWidget(outRaw5CheckBox, 33, 2, Qt::AlignCenter);
-    outputLayout->addWidget(outRaw6CheckBox, 34, 2, Qt::AlignCenter);
-    outputLayout->addWidget(outRaw7CheckBox, 35, 2, Qt::AlignCenter);
-    outputLayout->addWidget(vrLabel_2, 29, 3, 7, 1, Qt::AlignLeft);
-    outputLayout->addWidget(outRawUCheckBox, 29, 3, 1, 2);
-    outputLayout->addWidget(outRawVCheckBox, 30, 3, 1, 2);
-    outputLayout->addWidget(outRawWCheckBox, 31, 3, 1, 2);
-    outputLayout->addWidget(outRawTsCheckBox, 32, 3, 1, 2);
-    outputLayout->addWidget(outRawCo2CheckBox, 33, 3, 1, 2);
-    outputLayout->addWidget(outRawH2oCheckBox, 29, 4, 1, 2);
-    outputLayout->addWidget(outRawCh4CheckBox, 30, 4, 1, 2);
-    outputLayout->addWidget(outRawGas4CheckBox, 31, 4, 1, 2);
-    outputLayout->addWidget(outRawTairCheckBox, 32, 4, 1, 2);
-    outputLayout->addWidget(outRawPairCheckBox, 33, 4, 1, 2);
-    outputLayout->addWidget(outVarsAllCheckBox, 35, 3, 1, 3);
-    outputLayout->setRowStretch(36, 1);
+    outputLayout->addWidget(fluxnetGroupBox, 8, 0, 1, 4);
+    outputLayout->addWidget(outBiometCheckBox, 9, 0, 1, 4);
+    outputLayout->addWidget(outDetailsCheckBox, 10, 0, 1, 4);
+    outputLayout->addWidget(outMdCheckBox, 11, 0, 1, 4);
+    outputLayout->addWidget(hrLabel_2, 12, 0, 1, -1);
+    outputLayout->addLayout(qBox_10, 13, 0);
+    outputLayout->addLayout(qBox_5, 14, 0);
+    outputLayout->addWidget(outBinSpectraCheckBox, 15, 0);
+    outputLayout->addWidget(outBinOgivesCheckBox, 16, 0);
+    outputLayout->addWidget(outMeanSpectraCheckBox, 17, 0);
+    outputLayout->addWidget(outMeanCospCheckBox, 18, 0);
+    outputLayout->addLayout(qBox_6, 14, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxU, 15, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxV, 16, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxW, 17, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxTs, 18, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxCo2, 19, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxH2o, 20, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxCh4, 21, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxN2o, 22, 1, 1, 2);
+    outputLayout->addLayout(qBox_7, 14, 3, 1, 3);
+    outputLayout->addWidget(outFullCospectraCheckBoxU, 15, 3, 1, 3);
+    outputLayout->addWidget(outFullCospectraCheckBoxV, 16, 3, 1, 3);
+    outputLayout->addWidget(outFullCospectraCheckBoxTs, 17, 3, 1, 3);
+    outputLayout->addWidget(outFullCospectraCheckBoxCo2, 18, 3, 1, 3);
+    outputLayout->addWidget(outFullCospectraCheckBoxH2o, 19, 3, 1, 3);
+    outputLayout->addWidget(outFullCospectraCheckBoxCh4, 20, 3, 1, 3);
+    outputLayout->addWidget(outFullCospectraCheckBoxN2o, 21, 3, 1, 3);
+    outputLayout->addWidget(fullSpectraDescription, 23, 1, 1, 7);
+    outputLayout->addWidget(hrLabel_3, 24, 0, 1, -1);
+    outputLayout->addWidget(title_5, 25, 0);
+    outputLayout->addLayout(qBox_8, 26, 1, Qt::AlignRight);
+    outputLayout->addLayout(qBox_9, 26, 2, Qt::AlignRight);
+    outputLayout->addWidget(varLabel, 26, 3, 1, 2, Qt::AlignCenter);
+    outputLayout->addWidget(hrLabel_4, 27, 1, 1, 2);
+    outputLayout->addWidget(hrLabel_5, 27, 3, 1, 2);
+    outputLayout->addWidget(level1Label, 28, 0, Qt::AlignRight);
+    outputLayout->addWidget(level2Label, 29, 0, Qt::AlignRight);
+    outputLayout->addWidget(level3Label, 30, 0, Qt::AlignRight);
+    outputLayout->addWidget(level4Label, 31, 0, Qt::AlignRight);
+    outputLayout->addWidget(level5Label, 32, 0, Qt::AlignRight);
+    outputLayout->addWidget(level6Label, 33, 0, Qt::AlignRight);
+    outputLayout->addWidget(level7Label, 34, 0, Qt::AlignRight);
+    outputLayout->addWidget(outSt1CheckBox, 28, 1, Qt::AlignCenter);
+    outputLayout->addWidget(outSt2CheckBox, 29, 1, Qt::AlignCenter);
+    outputLayout->addWidget(outSt3CheckBox, 30, 1, Qt::AlignCenter);
+    outputLayout->addWidget(outSt4CheckBox, 31, 1, Qt::AlignCenter);
+    outputLayout->addWidget(outSt5CheckBox, 32, 1, Qt::AlignCenter);
+    outputLayout->addWidget(outSt6CheckBox, 33, 1, Qt::AlignCenter);
+    outputLayout->addWidget(outSt7CheckBox, 34, 1, Qt::AlignCenter);
+    outputLayout->addWidget(outRaw1CheckBox, 28, 2, Qt::AlignCenter);
+    outputLayout->addWidget(outRaw2CheckBox, 29, 2, Qt::AlignCenter);
+    outputLayout->addWidget(outRaw3CheckBox, 30, 2, Qt::AlignCenter);
+    outputLayout->addWidget(outRaw4CheckBox, 31, 2, Qt::AlignCenter);
+    outputLayout->addWidget(outRaw5CheckBox, 32, 2, Qt::AlignCenter);
+    outputLayout->addWidget(outRaw6CheckBox, 33, 2, Qt::AlignCenter);
+    outputLayout->addWidget(outRaw7CheckBox, 34, 2, Qt::AlignCenter);
+    outputLayout->addWidget(vrLabel_2, 28, 3, 7, 1, Qt::AlignLeft);
+    outputLayout->addWidget(outRawUCheckBox, 28, 3, 1, 2);
+    outputLayout->addWidget(outRawVCheckBox, 29, 3, 1, 2);
+    outputLayout->addWidget(outRawWCheckBox, 30, 3, 1, 2);
+    outputLayout->addWidget(outRawTsCheckBox, 31, 3, 1, 2);
+    outputLayout->addWidget(outRawCo2CheckBox, 32, 3, 1, 2);
+    outputLayout->addWidget(outRawH2oCheckBox, 28, 4, 1, 2);
+    outputLayout->addWidget(outRawCh4CheckBox, 29, 4, 1, 2);
+    outputLayout->addWidget(outRawGas4CheckBox, 30, 4, 1, 2);
+    outputLayout->addWidget(outRawTairCheckBox, 31, 4, 1, 2);
+    outputLayout->addWidget(outRawPairCheckBox, 32, 4, 1, 2);
+    outputLayout->addWidget(outVarsAllCheckBox, 34, 3, 1, 3);
+    outputLayout->setRowStretch(35, 1);
     outputLayout->setColumnStretch(8, 1);
     outputLayout->setColumnMinimumWidth(4, 60);
 
@@ -620,7 +614,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
             { ecProject_->setGeneralOutMeanCosp(checked); });
     connect(outMeanCospCheckBox, &QCheckBox::toggled,
             this, &AdvOutputOptions::updateBinSpectra);
-    connect(outGhgEuCheckBox, &QCheckBox::toggled, [=](bool checked)
+    connect(fluxnetBiometCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setFluxnetStandardizeBiomet(checked); });
     connect(outDetailsCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setScreenlOutDetails(checked); });
@@ -630,8 +624,10 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
             { ecProject_->setGeneralOutBiomet(checked); });
     connect(createDatasetCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setGeneralMakeDataset(checked); });
-    connect(outAmFluxCheckBox, &QCheckBox::toggled, [=](bool checked)
+    connect(fluxnetErrLabelCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setFluxnetErrLabel(checked); });
+    connect(fluxnetErrLabelCheckBox, &QCheckBox::toggled,
+            this, &AdvOutputOptions::updateFluxnetErrLabelMode);
     connect(outFullCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setGeneralOutRich(checked); });
 
@@ -761,8 +757,9 @@ void AdvOutputOptions::setSmartfluxUI()
                       << createDatasetCheckBox
                       << outMeanSpectraCheckBox
                       << outMeanCospCheckBox
-                      << outAmFluxCheckBox
-                      << outGhgEuCheckBox
+                      << fluxnetGroupBox
+                      << fluxnetErrLabelCheckBox
+                      << fluxnetBiometCheckBox
                       << outBiometCheckBox
                       << outMdCheckBox
                       << outFullSpectraCheckBoxU
@@ -868,8 +865,8 @@ void AdvOutputOptions::setSmartfluxUI()
     }
 
     QList<QCheckBox *> uncheckableCheckbox;
-    uncheckableCheckbox << outAmFluxCheckBox
-                       << outGhgEuCheckBox
+    uncheckableCheckbox << fluxnetErrLabelCheckBox
+                       << fluxnetBiometCheckBox
                        << createDatasetCheckBox
                        << outMeanSpectraCheckBox
                        << outMeanCospCheckBox
@@ -998,8 +995,9 @@ void AdvOutputOptions::refresh()
     outFullCospectraCheckBoxCh4->setChecked(ecProject_->screenOutFullCospectraCh4());
     outFullCospectraCheckBoxN2o->setChecked(ecProject_->screenOutFullCospectraN2o());
 
-    outGhgEuCheckBox->setChecked(ecProject_->fluxnetStandardizeBiomet());
-    outAmFluxCheckBox->setChecked(ecProject_->fluxnetErrLabel());
+    fluxnetBiometCheckBox->setChecked(ecProject_->fluxnetStandardizeBiomet());
+    fluxnetErrLabelCheckBox->setChecked(ecProject_->fluxnetErrLabel());
+    updateFluxnetErrLabelMode(ecProject_->fluxnetErrLabel());
     outFullCheckBox->setChecked(ecProject_->generalOutRich());
     outDetailsCheckBox->setChecked(ecProject_->screenOutDetails());
     outMdCheckBox->setChecked(ecProject_->generalOutMd());
@@ -1247,8 +1245,8 @@ void AdvOutputOptions::checkVarsAll(bool b)
 void AdvOutputOptions::selectMin()
 {
     outFullCheckBox->setChecked(true);
-    outAmFluxCheckBox->setChecked(false);
-    outGhgEuCheckBox->setChecked(false);
+    fluxnetErrLabelCheckBox->setChecked(false);
+    fluxnetBiometCheckBox->setChecked(false);
     outDetailsCheckBox->setChecked(false);
     outMdCheckBox->setChecked(true);
     outBiometCheckBox->setChecked(false);
@@ -1269,8 +1267,8 @@ void AdvOutputOptions::selectMin()
 void AdvOutputOptions::selectTypical()
 {
     outFullCheckBox->setChecked(true);
-    outAmFluxCheckBox->setChecked(false);
-    outGhgEuCheckBox->setChecked(false);
+    fluxnetErrLabelCheckBox->setChecked(false);
+    fluxnetBiometCheckBox->setChecked(false);
     outDetailsCheckBox->setChecked(false);
     outMdCheckBox->setChecked(true);
     outBiometCheckBox->setChecked(true);
@@ -1290,8 +1288,8 @@ void AdvOutputOptions::selectTypical()
 void AdvOutputOptions::selectFull()
 {
     outFullCheckBox->setChecked(true);
-    outAmFluxCheckBox->setChecked(true);
-    outGhgEuCheckBox->setChecked(true);
+    fluxnetErrLabelCheckBox->setChecked(true);
+    fluxnetBiometCheckBox->setChecked(true);
     outDetailsCheckBox->setChecked(true);
     outMdCheckBox->setChecked(true);
     outBiometCheckBox->setChecked(true);
@@ -1420,6 +1418,12 @@ void AdvOutputOptions::updateErrorLabel(const QString& s)
         return;
     }
     ecProject_->setGeneralErrorLabel(s);
+}
+
+void AdvOutputOptions::updateFluxnetErrLabelMode(bool checked)
+{
+    errorFormatLabel->setEnabled(!checked);
+    errorFormatCombo->setEnabled(!checked);
 }
 
 void AdvOutputOptions::createQuestionMark()

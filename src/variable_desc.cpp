@@ -410,6 +410,12 @@ const QString VariableDesc::getVARIABLE_MEASURE_UNIT_STRING_27()
     return s;
 }
 
+const QString VariableDesc::getVARIABLE_MEASURE_UNIT_STRING_28()
+{
+    static const QString s(QStringLiteral("pmol/mol (ppt)"));
+    return s;
+}
+
 const QString VariableDesc::getVARIABLE_CONVERSION_TYPE_STRING_0()
 {
     static const QString s(tr("Zero (A) - Full scale (B)"));
@@ -603,6 +609,7 @@ const QStringList VariableDesc::inputUnitStringList()
             << getVARIABLE_MEASURE_UNIT_STRING_9()
             << getVARIABLE_MEASURE_UNIT_STRING_10()
             << getVARIABLE_MEASURE_UNIT_STRING_11()
+            << getVARIABLE_MEASURE_UNIT_STRING_28()
             << getVARIABLE_MEASURE_UNIT_STRING_12()
             << getVARIABLE_MEASURE_UNIT_STRING_13()
             << getVARIABLE_MEASURE_UNIT_STRING_19()
@@ -635,6 +642,7 @@ const QStringList VariableDesc::outputUnitStringList()
             << getVARIABLE_MEASURE_UNIT_STRING_9()
             << getVARIABLE_MEASURE_UNIT_STRING_10()
             << getVARIABLE_MEASURE_UNIT_STRING_11()
+            << getVARIABLE_MEASURE_UNIT_STRING_28()
             << getVARIABLE_MEASURE_UNIT_STRING_12()
             << getVARIABLE_MEASURE_UNIT_STRING_13()
             << getVARIABLE_MEASURE_UNIT_STRING_19()
@@ -765,7 +773,8 @@ bool isGoodGasUnit(const QString& unit, const QString& type)
         {
             isGoodUnit = (unit == VariableDesc::getVARIABLE_MEASURE_UNIT_STRING_9())
                                || (unit == VariableDesc::getVARIABLE_MEASURE_UNIT_STRING_10())
-                               || (unit == VariableDesc::getVARIABLE_MEASURE_UNIT_STRING_11());
+                               || (unit == VariableDesc::getVARIABLE_MEASURE_UNIT_STRING_11())
+                               || (unit == VariableDesc::getVARIABLE_MEASURE_UNIT_STRING_28());
         }
     }
     return isGoodUnit;
@@ -1346,6 +1355,7 @@ const QStringList VariableDesc::gasOutputUnitStringList()
             << getVARIABLE_MEASURE_UNIT_STRING_9()
             << getVARIABLE_MEASURE_UNIT_STRING_10()
             << getVARIABLE_MEASURE_UNIT_STRING_11()
+            << getVARIABLE_MEASURE_UNIT_STRING_28()
             << getVARIABLE_MEASURE_UNIT_STRING_12()
             << getVARIABLE_MEASURE_UNIT_STRING_13()
             << getVARIABLE_MEASURE_UNIT_STRING_19()
