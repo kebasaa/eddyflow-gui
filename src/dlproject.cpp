@@ -2360,14 +2360,11 @@ DlProject::InstrumentType DlProject::getInstrumentType(const QSettings& iniGroup
 
 DlProject::InstrumentType DlProject::getInstrumentTypeFromModel(const QString& model)
 {
-    if (model.contains(QRegularExpression(QStringLiteral("li*")))
-        || model.contains(QRegularExpression(QStringLiteral("open_path*")))
-        || model.contains(QRegularExpression(QStringLiteral("closed_path*")))
-        || model.contains(QRegularExpression(QStringLiteral("generic*path"))))
-    {
+    if (!fromIniIrgaModel(model).isEmpty())
         return InstrumentType::IRGA;
-    }
-    return InstrumentType::ANEM;
+    if (!fromIniAnemModel(model).isEmpty())
+        return InstrumentType::ANEM;
+    return InstrumentType::UNDEFINED;
 }
 
 QString DlProject::fromIniIrgaManufacturer(const QString& s)

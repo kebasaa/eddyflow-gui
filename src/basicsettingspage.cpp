@@ -1850,7 +1850,10 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                 || varName == VariableDesc::getVARIABLE_VAR_STRING_15()
                 || isCustomLabel)
             {
-                if (!instrType.isEmpty())
+                const bool isCellVar = (varName == VariableDesc::getVARIABLE_VAR_STRING_9()
+                                     || varName == VariableDesc::getVARIABLE_VAR_STRING_10()
+                                     || varName == VariableDesc::getVARIABLE_VAR_STRING_11());
+                if (!instrType.isEmpty() || isCustomLabel || isCellVar)
                 {
                     // CO2
                     // 1.2 and 1.3 conditions

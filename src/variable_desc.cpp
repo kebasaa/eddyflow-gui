@@ -846,7 +846,11 @@ bool VariableDesc::isGoodGas(const VariableDesc& var, bool isCustom)
 
     // 2
     bool isGoodInstrument = false;
-    if (!instrument.isEmpty())
+    if (isCustom)
+    {
+        isGoodInstrument = true;
+    }
+    else if (!instrument.isEmpty())
     {
         isGoodInstrument = instrument.contains(tr("Irga"));
     }
@@ -1048,13 +1052,7 @@ bool VariableDesc::isGoodTemperature(const VariableDesc& var, AnalogType type)
                 || name == getVARIABLE_VAR_STRING_10()
                 || name == getVARIABLE_VAR_STRING_15())
             {
-                isGoodInstrument = (instrument.contains(IrgaDesc::getIRGA_MODEL_STRING_0()))
-                                    || (instrument.contains(IrgaDesc::getIRGA_MODEL_STRING_1()))
-                                    || (instrument.contains(IrgaDesc::getIRGA_MODEL_STRING_4()))
-                                    || (instrument.contains(IrgaDesc::getIRGA_MODEL_STRING_7()))
-                                    || (instrument.contains(IrgaDesc::getIRGA_MODEL_STRING_10()))
-                                    || (instrument.contains(IrgaDesc::getIRGA_MODEL_STRING_11()))
-                                    || (instrument.contains(IrgaDesc::getIRGA_MODEL_STRING_13()));
+                isGoodInstrument = instrument.contains(tr("Irga"));
             }
             else
             {
@@ -1073,6 +1071,12 @@ bool VariableDesc::isGoodTemperature(const VariableDesc& var, AnalogType type)
                                 || (instrument.contains(IrgaDesc::getIRGA_MODEL_STRING_13()))
                                 || (instrument.contains(IrgaDesc::getIRGA_MODEL_STRING_14())));
         }
+    }
+    else if (type == AnalogType::SLOW)
+    {
+        // Allow cell temp with no instrument (e.g. user-managed column not assigned to an IRGA)
+        isGoodInstrument = (name == getVARIABLE_VAR_STRING_9()
+                         || name == getVARIABLE_VAR_STRING_10());
     }
 
     // 3
@@ -1148,18 +1152,17 @@ bool VariableDesc::isGoodPressure(const VariableDesc& var)
     {
         if (name == getVARIABLE_VAR_STRING_11())
         {
-            isGoodInstrument = (instrument.contains(IrgaDesc::getIRGA_MODEL_STRING_0()))
-                                || (instrument.contains(IrgaDesc::getIRGA_MODEL_STRING_1()))
-                                || (instrument.contains(IrgaDesc::getIRGA_MODEL_STRING_4()))
-                                || (instrument.contains(IrgaDesc::getIRGA_MODEL_STRING_7()))
-                                || (instrument.contains(IrgaDesc::getIRGA_MODEL_STRING_10()))
-                                || (instrument.contains(IrgaDesc::getIRGA_MODEL_STRING_11()))
-                                || (instrument.contains(IrgaDesc::getIRGA_MODEL_STRING_13()));
+            isGoodInstrument = instrument.contains(tr("Irga"));
         }
         else
         {
             isGoodInstrument = true;
         }
+    }
+    else
+    {
+        // Allow int_p with no instrument (e.g. user-managed column not assigned to an IRGA)
+        isGoodInstrument = (name == getVARIABLE_VAR_STRING_11());
     }
 
     // 3
