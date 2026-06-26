@@ -220,8 +220,8 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     outFullSpectraCheckBoxCh4 = new RichTextCheckBox;
     outFullSpectraCheckBoxCh4->setText(tr("%1 (concentration or density)")
                                        .arg(Defs::CH4_STRING));
-    outFullSpectraCheckBoxN2o = new RichTextCheckBox;
-    outFullSpectraCheckBoxN2o->setText(tr("%1 Gas (concentration or density)")
+    outFullSpectralCheckBoxGas4 = new RichTextCheckBox;
+    outFullSpectralCheckBoxGas4->setText(tr("%1 Gas (concentration or density)")
                                        .arg(Defs::GAS4_STRING));
 
     outFullCospectraCheckBoxU = new RichTextCheckBox;
@@ -236,8 +236,8 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     outFullCospectraCheckBoxH2o->setText(QStringLiteral("W/%1").arg(Defs::H2O_STRING));
     outFullCospectraCheckBoxCh4 = new RichTextCheckBox;
     outFullCospectraCheckBoxCh4->setText(QStringLiteral("W/%1").arg(Defs::CH4_STRING));
-    outFullCospectraCheckBoxN2o = new RichTextCheckBox;
-    outFullCospectraCheckBoxN2o->setText(tr("W/%1 Gas").arg(Defs::GAS4_STRING));
+    outFullCospectralCheckBoxGas4 = new RichTextCheckBox;
+    outFullCospectralCheckBoxGas4->setText(tr("W/%1 Gas").arg(Defs::GAS4_STRING));
 
     fluxnetBiometCheckBox = new QCheckBox;
     fluxnetBiometCheckBox->setText(tr("Use Fluxnet standard for biomet labels and units"));
@@ -522,7 +522,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     outputLayout->addWidget(outFullSpectraCheckBoxCo2, 19, 1, 1, 2);
     outputLayout->addWidget(outFullSpectraCheckBoxH2o, 20, 1, 1, 2);
     outputLayout->addWidget(outFullSpectraCheckBoxCh4, 21, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxN2o, 22, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectralCheckBoxGas4, 22, 1, 1, 2);
     outputLayout->addLayout(qBox_7, 14, 3, 1, 3);
     outputLayout->addWidget(outFullCospectraCheckBoxU, 15, 3, 1, 3);
     outputLayout->addWidget(outFullCospectraCheckBoxV, 16, 3, 1, 3);
@@ -530,7 +530,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     outputLayout->addWidget(outFullCospectraCheckBoxCo2, 18, 3, 1, 3);
     outputLayout->addWidget(outFullCospectraCheckBoxH2o, 19, 3, 1, 3);
     outputLayout->addWidget(outFullCospectraCheckBoxCh4, 20, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxN2o, 21, 3, 1, 3);
+    outputLayout->addWidget(outFullCospectralCheckBoxGas4, 21, 3, 1, 3);
     outputLayout->addWidget(fullSpectraDescription, 23, 1, 1, 7);
     outputLayout->addWidget(hrLabel_3, 24, 0, 1, -1);
     outputLayout->addWidget(title_5, 25, 0);
@@ -656,8 +656,8 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
             { ecProject_->setScreenOutFullSpectraH2o(checked); });
     connect(outFullSpectraCheckBoxCh4, &RichTextCheckBox::toggled, [=](bool checked)
             { ecProject_->setScreenOutFullSpectraCh4(checked); });
-    connect(outFullSpectraCheckBoxN2o, &RichTextCheckBox::toggled, [=](bool checked)
-            { ecProject_->setScreenOutFullSpectraN2o(checked); });
+    connect(outFullSpectralCheckBoxGas4, &RichTextCheckBox::toggled, [=](bool checked)
+            { ecProject_->setScreenOutFullSpectralGas4(checked); });
 
     connect(outFullCospectraCheckBoxU, &RichTextCheckBox::toggled, [=](bool checked)
             { ecProject_->setScreenOutFullCospectraU(checked); });
@@ -671,8 +671,8 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
             { ecProject_->setScreenOutFullCospectraH2o(checked); });
     connect(outFullCospectraCheckBoxCh4, &RichTextCheckBox::toggled, [=](bool checked)
             { ecProject_->setScreenOutFullCospectraCh4(checked); });
-    connect(outFullCospectraCheckBoxN2o, &RichTextCheckBox::toggled, [=](bool checked)
-            { ecProject_->setScreenOutFullCospectraN2o(checked); });
+    connect(outFullCospectralCheckBoxGas4, &RichTextCheckBox::toggled, [=](bool checked)
+            { ecProject_->setScreenOutFullCospectralGas4(checked); });
 
     connect(outSt1CheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setScreenOutSt1(checked); });
@@ -769,14 +769,14 @@ void AdvOutputOptions::setSmartfluxUI()
                       << outFullSpectraCheckBoxCo2
                       << outFullSpectraCheckBoxH2o
                       << outFullSpectraCheckBoxCh4
-                      << outFullSpectraCheckBoxN2o
+                      << outFullSpectralCheckBoxGas4
                       << outFullCospectraCheckBoxU
                       << outFullCospectraCheckBoxV
                       << outFullCospectraCheckBoxTs
                       << outFullCospectraCheckBoxCo2
                       << outFullCospectraCheckBoxH2o
                       << outFullCospectraCheckBoxCh4
-                      << outFullCospectraCheckBoxN2o
+                      << outFullCospectralCheckBoxGas4
                       << outSt1CheckBox
                       << outSt2CheckBox
                       << outSt3CheckBox
@@ -904,14 +904,14 @@ void AdvOutputOptions::setSmartfluxUI()
                        << outFullSpectraCheckBoxCo2
                        << outFullSpectraCheckBoxH2o
                        << outFullSpectraCheckBoxCh4
-                       << outFullSpectraCheckBoxN2o
+                       << outFullSpectralCheckBoxGas4
                        << outFullCospectraCheckBoxU
                        << outFullCospectraCheckBoxV
                        << outFullCospectraCheckBoxTs
                        << outFullCospectraCheckBoxCo2
                        << outFullCospectraCheckBoxH2o
                        << outFullCospectraCheckBoxCh4
-                       << outFullCospectraCheckBoxN2o
+                       << outFullCospectralCheckBoxGas4
                        << outRawUCheckBox
                        << outRawVCheckBox
                        << outRawWCheckBox
@@ -985,7 +985,7 @@ void AdvOutputOptions::refresh()
     outFullSpectraCheckBoxCo2->setChecked(ecProject_->screenOutFullSpectraCo2());
     outFullSpectraCheckBoxH2o->setChecked(ecProject_->screenOutFullSpectraH2o());
     outFullSpectraCheckBoxCh4->setChecked(ecProject_->screenOutFullSpectraCh4());
-    outFullSpectraCheckBoxN2o->setChecked(ecProject_->screenOutFullSpectraN2o());
+    outFullSpectralCheckBoxGas4->setChecked(ecProject_->screenOutFullSpectralGas4());
 
     outFullCospectraCheckBoxU->setChecked(ecProject_->screenOutFullCospectraU());
     outFullCospectraCheckBoxV->setChecked(ecProject_->screenOutFullCospectraV());
@@ -993,7 +993,7 @@ void AdvOutputOptions::refresh()
     outFullCospectraCheckBoxCo2->setChecked(ecProject_->screenOutFullCospectraCo2());
     outFullCospectraCheckBoxH2o->setChecked(ecProject_->screenOutFullCospectraH2o());
     outFullCospectraCheckBoxCh4->setChecked(ecProject_->screenOutFullCospectraCh4());
-    outFullCospectraCheckBoxN2o->setChecked(ecProject_->screenOutFullCospectraN2o());
+    outFullCospectralCheckBoxGas4->setChecked(ecProject_->screenOutFullCospectralGas4());
 
     fluxnetBiometCheckBox->setChecked(ecProject_->fluxnetStandardizeBiomet());
     fluxnetErrLabelCheckBox->setChecked(ecProject_->fluxnetErrLabel());
@@ -1178,7 +1178,7 @@ void AdvOutputOptions::checkFullSpectraAll(bool b)
     outFullSpectraCheckBoxCo2->setChecked(b);
     outFullSpectraCheckBoxH2o->setChecked(b);
     outFullSpectraCheckBoxCh4->setChecked(b);
-    outFullSpectraCheckBoxN2o->setChecked(b);
+    outFullSpectralCheckBoxGas4->setChecked(b);
 }
 
 bool AdvOutputOptions::areAllCheckedVars()
@@ -1203,7 +1203,7 @@ void AdvOutputOptions::checkFullCospectraAll(bool b)
     outFullCospectraCheckBoxCo2->setChecked(b);
     outFullCospectraCheckBoxH2o->setChecked(b);
     outFullCospectraCheckBoxCh4->setChecked(b);
-    outFullCospectraCheckBoxN2o->setChecked(b);
+    outFullCospectralCheckBoxGas4->setChecked(b);
 }
 
 void AdvOutputOptions::checkStAll(bool b)

@@ -26,6 +26,7 @@
 #include "welcomepage.h"
 
 #include <QCheckBox>
+#include <QCollator>
 #include <QDebug>
 #include <QDesktopServices>
 #include <QDir>
@@ -37,6 +38,7 @@
 #include <QPushButton>
 #include <QToolButton>
 #include <QUrl>
+#include <QVector>
 
 #include "clicklabel.h"
 #include "defs.h"
@@ -111,22 +113,11 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     smartfluxModeCheckbox_->setToolTip(smartfluxTooltip);
 
     auto title = new ClickLabel;
-    auto pixmap = QPixmap(QStringLiteral(":/icons/smartflux-grey"));
-#if defined(Q_OS_MACOS)
-    pixmap.setDevicePixelRatio(2.0);
-#endif
-    title->setPixmap(pixmap);
-    title->setProperty("smartfluxLogoGrey", true);
+    title->setText(tr("LI-COR Smartflux Configuration"));
+    title->setProperty("smartfluxConfigurationTitle", true);
     title->setToolTip(smartfluxTooltip);
 
-    auto subTitle = new ClickLabel;
-    subTitle->setObjectName(QStringLiteral("smartfluxSubtitle"));
-    subTitle->setText(tr("Configuration "));
-    subTitle->setToolTip(smartfluxTooltip);
-
     connect(title, &ClickLabel::clicked,
-            smartfluxModeCheckbox_, &QCheckBox::toggle);
-    connect(subTitle, &ClickLabel::clicked,
             smartfluxModeCheckbox_, &QCheckBox::toggle);
 
     createQuestionMark();
@@ -137,7 +128,6 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     smartfluxLabelContainerLayout->addSpacing(5);
     smartfluxLabelContainerLayout->addWidget(title, 0, Qt::AlignBottom);
     smartfluxLabelContainerLayout->addSpacing(5);
-    smartfluxLabelContainerLayout->addWidget(subTitle);
     smartfluxLabelContainerLayout->addWidget(questionMark_1);
     smartfluxLabelContainerLayout->addStretch();
     smartfluxLabelContainerLayout->setContentsMargins(0, 0, 0, 0);
@@ -155,66 +145,17 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     projectsWidget->setMinimumWidth(600);
     projectsWidget->setLayout(projectsLayout);
 
-    auto newsTitle = new QLabel(tr("What's New at LI-COR"));
-    newsTitle->setProperty("groupTitle3", true);
-
-    auto newsWidget = new QWidget;
-
-    newsListWidget = new QListWidget;
-    newsListWidget->setProperty("helpListItem", true);
-    newsListWidget->setMinimumWidth(730);
-    newsListWidget->setMinimumHeight(420);
-    newsListWidget->setAlternatingRowColors(true);
-    newsListWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    newsListWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-
-
-    auto rssItem_2 = new QListWidgetItem(QIcon(QStringLiteral(":/icons/article")), tr("New Trace Gas Analyzers – high performance in an entirely new, portable design"), newsListWidget);
-    rssItem_2->setData(Qt::UserRole, QStringLiteral("https://www.licor.com/env/products/trace_gas/"));
-
-    auto rssItem_3 = new QListWidgetItem(QIcon(QStringLiteral(":/icons/article")), tr("Simplified Biomet data collection with the LI-COR-designed Data Acquisition System"), newsListWidget);
-    rssItem_3->setData(Qt::UserRole, QStringLiteral("https://www.licor.com/env/products/eddy_covariance/daqm.html"));
-
-    auto rssItem_4 = new QListWidgetItem(QIcon(QStringLiteral(":/icons/article")), tr("New LI-7500DS CO2/H2O Analyzer features a lower price and runs on less power"), newsListWidget);
-    rssItem_4->setData(Qt::UserRole, QStringLiteral("https://www.licor.com/env/products/eddy_covariance/LI-7500DS.html"));
-
-    auto rssItem_5 = new QListWidgetItem(QIcon(QStringLiteral(":/icons/article")), tr("LI-6800 Portable Photosynthesis System – Fast response creates new research possibilities"), newsListWidget);
-    rssItem_5->setData(Qt::UserRole, QStringLiteral("https://www.licor.com/env/products/photosynthesis/LI-6800/"));
-
-    auto rssItem_6 = new QListWidgetItem(QIcon(QStringLiteral(":/icons/grad")), tr("Learn how to make accurate soil gas flux measurements in a free online training course"), newsListWidget);
-    rssItem_6->setData(Qt::UserRole, QStringLiteral("https://accounts.skilljar.com/accounts/signup/?next=%2Fauth%2Fendpoint%2Flogin%2Fresult%3Fd%3D2hffjl7lbimea%26next%3D%252F&d=2hffjl7lbimea&t=zhzzn654u9er"));
-
-    auto rssItem_7 = new QListWidgetItem(QIcon(QStringLiteral(":/icons/grad")), tr("See upcoming Eddy Covariance training courses"), newsListWidget);
-    rssItem_7->setData(Qt::UserRole, QStringLiteral("https://www.licor.com/env/products/eddy_covariance/resources.html#training"));
-
-    newsListWidget->addItem(rssItem_2);
-    newsListWidget->addItem(rssItem_3);
-    newsListWidget->addItem(rssItem_4);
-    newsListWidget->addItem(rssItem_5);
-    newsListWidget->addItem(rssItem_6);
-    newsListWidget->addItem(rssItem_7);
-
-    auto newsLayout = new QGridLayout;
-    newsLayout->addWidget(newsTitle, 0, 0);
-    newsLayout->addWidget(newsListWidget, 1, 0);
-    newsWidget->setLayout(newsLayout);
-    newsWidget->setMinimumWidth(600);
-
     auto helpWidget = new QWidget;
 
     auto helpTitle = new QLabel(tr("Help resources"));
     helpTitle->setProperty("groupTitle3", true);
 
     auto item_1 = new QListWidgetItem(tr("%1 Help").arg(Defs::APP_NAME));
-    item_1->setData(Qt::UserRole, QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/EddyFlow_Home.html"));
-    auto item_2 = new QListWidgetItem(tr("Getting started (PDF)"));
-    item_2->setData(Qt::UserRole, QStringLiteral("https://boxenterprise.net/s/qmhucid6g0hdvd3d13tk"));
-    auto item_3 = new QListWidgetItem(tr("Video tutorials"));
-    item_3->setData(Qt::UserRole, QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Video_Library.html"));
-    auto item_4 = new QListWidgetItem(tr("Printable manual (PDF)"));
-    item_4->setData(Qt::UserRole, QStringLiteral("https://boxenterprise.net/s/1ium2zmwm6hl36yz9bu4"));
-    auto item_5 = new QListWidgetItem(tr("Download sample data files"));
-    item_5->setData(Qt::UserRole, Defs::EP_SAMPLE_DATA_FILES);
+    item_1->setData(Qt::UserRole, QStringLiteral("https://github.com/kebasaa/eddyflow-documentation"));
+    auto item_2 = new QListWidgetItem(tr("Getting started"));
+    item_2->setData(Qt::UserRole, QStringLiteral("https://github.com/kebasaa/eddyflow-documentation"));
+    auto item_3 = new QListWidgetItem(tr("Download sample data files"));
+    item_3->setData(Qt::UserRole, Defs::EP_SAMPLE_DATA_FILES);
 
     helpListWidget = new QListWidget;
     helpListWidget->setProperty("helpListItem", true);
@@ -223,38 +164,47 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     helpListWidget->addItem(item_1);
     helpListWidget->addItem(item_2);
     helpListWidget->addItem(item_3);
-    helpListWidget->addItem(item_4);
-    helpListWidget->addItem(item_5);
 
-    auto supportTitle = new QLabel(tr("Support resources"));
-    supportTitle->setProperty("groupTitle3", true);
+    auto litTitle = new QLabel(tr("Literature"));
+    litTitle->setProperty("groupTitle3", true);
 
-    auto item_6 = new QListWidgetItem(tr("Forum"));
-    item_6->setData(Qt::UserRole, QStringLiteral("https://keba_saa.github.io/eddyflow-documentation"));
-    auto item_7 = new QListWidgetItem(tr("Eddy Covariance Glossary"));
-    item_7->setData(Qt::UserRole, QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Glossary.html"));
-    auto item_8 = new QListWidgetItem(tr("LI-COR Newsline (EddyFlow related articles and technical tips)"));
-    item_8->setData(Qt::UserRole, QStringLiteral("http://www.licor.com/env/newsline/tag/EddyFlow/"));
-    auto item_9 = new QListWidgetItem(tr("Features request"));
-    item_9->setData(Qt::UserRole, QStringLiteral("http://www.licor.com/env/forum/?topic=feature-requests"));
-    auto item_10 = new QListWidgetItem(tr("Check for updates"));
-    item_10->setData(Qt::UserRole, QStringLiteral("check_updates"));
+    struct LiteratureEntry {
+        QString title;
+        QString url;
+    };
+    QVector<LiteratureEntry> literatureEntries = {
+        {
+            tr("Conditional Eddy Covariance (Zahn et al. 2022)"),
+            QStringLiteral("https://www.sciencedirect.com/science/article/pii/S0168192321004767")
+        },
+        {
+            tr("Timelag correction using pre-whitening with block-bootstrap (Vitale et al. 2024)"),
+            QStringLiteral("https://link.springer.com/article/10.1007/s10651-024-00615-9")
+        },
+    };
+    QCollator literatureCollator;
+    literatureCollator.setCaseSensitivity(Qt::CaseInsensitive);
+    std::sort(literatureEntries.begin(), literatureEntries.end(),
+              [&literatureCollator](const LiteratureEntry& left, const LiteratureEntry& right) {
+                  return literatureCollator.compare(left.title, right.title) < 0;
+              });
 
-    supportListWidget = new QListWidget;
-    supportListWidget->setProperty("helpListItem", true);
-    supportListWidget->setAlternatingRowColors(true);
-    supportListWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    supportListWidget->addItem(item_6);
-    supportListWidget->addItem(item_7);
-    supportListWidget->addItem(item_8);
-    supportListWidget->addItem(item_9);
-    supportListWidget->addItem(item_10);
+    litListWidget = new QListWidget;
+    litListWidget->setProperty("helpListItem", true);
+    litListWidget->setAlternatingRowColors(true);
+    litListWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    for (const auto& entry : literatureEntries)
+    {
+        auto item = new QListWidgetItem(entry.title);
+        item->setData(Qt::UserRole, entry.url);
+        litListWidget->addItem(item);
+    }
 
     auto helpLayout = new QGridLayout;
-    helpLayout->addWidget(helpTitle, 0, 0);
+    helpLayout->addWidget(helpTitle,      0, 0);
     helpLayout->addWidget(helpListWidget, 1, 0);
-    helpLayout->addWidget(supportTitle, 0, 1);
-    helpLayout->addWidget(supportListWidget, 1, 1);
+    helpLayout->addWidget(litTitle,       0, 1);
+    helpLayout->addWidget(litListWidget,  1, 1);
     helpLayout->setRowMinimumHeight(0, 30);
     helpLayout->setColumnStretch(0, 1);
     helpLayout->setColumnStretch(1, 1);
@@ -264,7 +214,6 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
 //
     auto welcomeTab = new QTabWidget;
     welcomeTab->addTab(projectsWidget, tr("Manage Projects"));
-    welcomeTab->addTab(newsWidget, tr("News"));
     welcomeTab->addTab(helpWidget, tr("Help and Support"));
 
     smartfluxBar_ = new SmartFluxBar(ecProject_, configState_);
@@ -296,14 +245,11 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     connect(recentListWidget, &QListWidget::itemDoubleClicked,
             this, &WelcomePage::doNothing);
 
-    connect(newsListWidget, &QListWidget::itemClicked,
-            this, &WelcomePage::newsItemRequested);
-
     connect(helpListWidget, &QListWidget::itemClicked,
             this, &WelcomePage::helpItemRequested);
 
-    connect(supportListWidget, &QListWidget::itemClicked,
-            this, &WelcomePage::supportItemRequested);
+    connect(litListWidget, &QListWidget::itemClicked,
+            this, &WelcomePage::literatureItemRequested);
 
     auto mainWidget = static_cast<MainWidget*>(parent);
     connect(mainWidget, &MainWidget::recentUpdated,
@@ -355,7 +301,7 @@ void WelcomePage::doNothing(QListWidgetItem* item)
 #endif
 }
 
-void WelcomePage::newsItemRequested(QListWidgetItem* item)
+void WelcomePage::literatureItemRequested(QListWidgetItem* item)
 {
     QDesktopServices::openUrl(QUrl(item->data(Qt::UserRole).toString()));
 }
@@ -372,14 +318,6 @@ void WelcomePage::helpItemRequested(QListWidgetItem* item)
     }
 }
 
-void WelcomePage::supportItemRequested(QListWidgetItem* item)
-{
-    QDesktopServices::openUrl(QUrl(item->data(Qt::UserRole).toString()));
-    if (item->data(Qt::UserRole).toString() == QLatin1String("check_updates"))
-    {
-        emit checkUpdatesRequest();
-    }
-}
 
 void WelcomePage::updateRecentList()
 {

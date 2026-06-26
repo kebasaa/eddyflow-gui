@@ -26,16 +26,31 @@
 #include "irga_delegate.h"
 
 #include <QAbstractItemView>
+#include <QApplication>
 #include <QComboBox>
 #include <QDebug>
 #include <QDoubleSpinBox>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPainter>
+#include <QStyle>
+#include <QStyleOptionComboBox>
 
 #include "defs.h"
 #include "irga_desc.h"
 #include "irga_model.h"
+#include "table_delegate_utils.h"
+
+namespace {
+
+bool isComboRow(int row)
+{
+    return row == IrgaModel::MANUFACTURER
+           || row == IrgaModel::MODEL;
+}
+
+} // namespace
 
 IrgaDelegate::IrgaDelegate(QObject *parent) : QStyledItemDelegate(parent)
 {
@@ -70,6 +85,8 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
           combo->view()->setTextElideMode(Qt::ElideNone);
           connect(combo, QOverload<int>::of(&QComboBox::activated),
                   this, QOverload<>::of(&IrgaDelegate::commitAndCloseEditor));
+          TableDelegateUtils::prepareComboEditor(combo, parent);
+          TableDelegateUtils::showPopupQueued(combo);
           return combo;
       case IrgaModel::MODEL:
           combo = new QComboBox(parent);
@@ -102,6 +119,8 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
           combo->setMaxVisibleItems(15);
           connect(combo, QOverload<int>::of(&QComboBox::activated),
                   this, QOverload<>::of(&IrgaDelegate::commitAndCloseEditor));
+          TableDelegateUtils::prepareComboEditor(combo, parent);
+          TableDelegateUtils::showPopupQueued(combo);
           return combo;
       case IrgaModel::SWVERSION:
             ledit = new QLineEdit(parent);
@@ -192,6 +211,9 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_17()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_18()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_19()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_21()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_22()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_23()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_20())
             {
                 label = new QLabel(parent);
@@ -219,6 +241,9 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_17()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_18()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_19()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_21()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_22()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_23()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_20())
             {
                 label = new QLabel(parent);
@@ -306,6 +331,9 @@ void IrgaDelegate::setEditorData(QWidget* editor,
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_17()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_18()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_19()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_21()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_22()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_23()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_20())
             {
                 label = dynamic_cast<QLabel*>(editor);
@@ -409,6 +437,9 @@ void IrgaDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_17()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_18()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_19()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_21()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_22()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_23()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_20())
             {
                 label = dynamic_cast<QLabel*>(editor);
@@ -479,6 +510,32 @@ void IrgaDelegate::updateEditorGeometry(QWidget* editor,
     if (editor) editor->setGeometry(option.rect);
 }
 
+void IrgaDelegate::paint(QPainter* painter,
+                         const QStyleOptionViewItem& option,
+                         const QModelIndex& index) const
+{
+    if (isComboRow(index.row()) && (index.flags() & Qt::ItemIsEditable))
+    {
+        TableDelegateUtils::paintComboCell(painter, option, index);
+        return;
+    }
+
+    if (option.state & QStyle::State_Selected)
+    {
+        QStyleOptionViewItem selectedOption(option);
+        initStyleOption(&selectedOption, index);
+        painter->save();
+        TableDelegateUtils::prepareSelectedOption(&selectedOption,
+                                                  option.state & QStyle::State_Enabled);
+        painter->fillRect(option.rect, TableDelegateUtils::baseColor(selectedOption.palette, true));
+        QStyledItemDelegate::paint(painter, selectedOption, index);
+        painter->restore();
+        return;
+    }
+
+    QStyledItemDelegate::paint(painter, option, index);
+}
+
 void IrgaDelegate::commitAndCloseEditor()
 {
     QWidget* senderWidget = qobject_cast<QWidget *>(sender());
@@ -500,10 +557,9 @@ bool IrgaDelegate::eventFilter(QObject* editor, QEvent* event)
     const QKeyEvent* keyEvent = dynamic_cast<const QKeyEvent*>(event);
     int eventKey = keyEvent ? keyEvent->key() : 0;
     if (combo
-        && (eventType == QEvent::MouseButtonRelease
-            || (eventType == QEvent::KeyPress && (eventKey == Qt::Key_Space
-                                               || eventKey == Qt::Key_Enter
-                                               || eventKey == Qt::Key_Return))))
+        && (eventType == QEvent::KeyPress && (eventKey == Qt::Key_Space
+                                           || eventKey == Qt::Key_Enter
+                                           || eventKey == Qt::Key_Return)))
     {
         if (combo)
         {

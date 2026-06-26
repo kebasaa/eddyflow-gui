@@ -28,6 +28,8 @@
 
 #include <QStyledItemDelegate>
 
+class QPainter;
+
 class IrgaDelegate : public QStyledItemDelegate
 {
     Q_OBJECT
@@ -47,6 +49,9 @@ public:
     void updateEditorGeometry(QWidget* editor,
                               const QStyleOptionViewItem& option,
                               const QModelIndex& index) const override;
+    void paint(QPainter* painter,
+               const QStyleOptionViewItem& option,
+               const QModelIndex& index) const override;
 
 private slots:
     void commitAndCloseEditor();

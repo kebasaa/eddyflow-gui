@@ -300,7 +300,7 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     connect(despSpin_6, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvStatisticalOptions::updateParamSrCh4Lim);
     connect(despSpin_7, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamSrN2oLim);
+            this, &AdvStatisticalOptions::updateParamSrGas4Lim);
     connect(despSpin_2, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvStatisticalOptions::updateParamSrULim);
     connect(despFilterCheckBox, &QCheckBox::toggled,
@@ -387,9 +387,9 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     connect(absLimSpin_10, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvStatisticalOptions::updateParamAlCh4Max);
     connect(absLimSpin_11, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamAlN2oMin);
+            this, &AdvStatisticalOptions::updateParamAlGas4Min);
     connect(absLimSpin_12, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamAlN2oMax);
+            this, &AdvStatisticalOptions::updateParamAlGas4Max);
     connect(absLimSpin_13, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvStatisticalOptions::updateParamAlUMin);
     connect(absLimSpin_14, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
@@ -453,7 +453,7 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     connect(discontSpin_6, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvStatisticalOptions::updateParamDsHfCh4);
     connect(discontSpin_7, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamDsHfN2o);
+            this, &AdvStatisticalOptions::updateParamDsHfGas4);
     connect(discontSpin_8, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvStatisticalOptions::updateParamDsHfVar);
     connect(discontSpin_9, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
@@ -469,7 +469,7 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     connect(discontSpin_14, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvStatisticalOptions::updateParamDsSfCh4);
     connect(discontSpin_15, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamDsSfN2o);
+            this, &AdvStatisticalOptions::updateParamDsSfGas4);
     connect(discontSpin_16, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvStatisticalOptions::updateParamDsSfVar);
 
@@ -497,7 +497,7 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     connect(timeLagSpin_5, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvStatisticalOptions::updateParamTlDefCh4);
     connect(timeLagSpin_6, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamTlDefN2o);
+            this, &AdvStatisticalOptions::updateParamTlDefGas4);
 
     connect(attackAngleLabel_1, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickAttackAngleLabel_1);
@@ -1679,7 +1679,7 @@ void AdvStatisticalOptions::setTestDefaultValues()
     despSpin_4->setValue(ecProject_->defaultSettings.screenParam.sr_lim_co2);
     despSpin_5->setValue(ecProject_->defaultSettings.screenParam.sr_lim_h2o);
     despSpin_6->setValue(ecProject_->defaultSettings.screenParam.sr_lim_ch4);
-    despSpin_7->setValue(ecProject_->defaultSettings.screenParam.sr_lim_n2o);
+    despSpin_7->setValue(ecProject_->defaultSettings.screenParam.sr_lim_gas4);
     despSpin_8->setValue(ecProject_->defaultSettings.screenParam.sr_lim_hf);
     despFilterCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.filter_sr);
     updateParamSrNumSpk(ecProject_->defaultSettings.screenParam.sr_num_spk);
@@ -1688,7 +1688,7 @@ void AdvStatisticalOptions::setTestDefaultValues()
     updateParamSrCo2Lim(ecProject_->defaultSettings.screenParam.sr_lim_co2);
     updateParamSrH2oLim(ecProject_->defaultSettings.screenParam.sr_lim_h2o);
     updateParamSrCh4Lim(ecProject_->defaultSettings.screenParam.sr_lim_ch4);
-    updateParamSrN2oLim(ecProject_->defaultSettings.screenParam.sr_lim_n2o);
+    updateParamSrGas4Lim(ecProject_->defaultSettings.screenParam.sr_lim_gas4);
     updateParamSrHfLim(ecProject_->defaultSettings.screenParam.sr_lim_hf);
     updateDespFilter(ecProject_->defaultSettings.screenSetting.filter_sr);
     amplResSpin_1->setValue(ecProject_->defaultSettings.screenParam.ar_lim);
@@ -1715,8 +1715,8 @@ void AdvStatisticalOptions::setTestDefaultValues()
     absLimSpin_8->setValue(ecProject_->defaultSettings.screenParam.al_h2o_max);
     absLimSpin_9->setValue(ecProject_->defaultSettings.screenParam.al_ch4_min);
     absLimSpin_10->setValue(ecProject_->defaultSettings.screenParam.al_ch4_max);
-    absLimSpin_11->setValue(ecProject_->defaultSettings.screenParam.al_n2o_min);
-    absLimSpin_12->setValue(ecProject_->defaultSettings.screenParam.al_n2o_max);
+    absLimSpin_11->setValue(ecProject_->defaultSettings.screenParam.al_gas4_min);
+    absLimSpin_12->setValue(ecProject_->defaultSettings.screenParam.al_gas4_max);
     absLimFilterCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.filter_al);
     updateParamAlUMax(ecProject_->defaultSettings.screenParam.al_u_max);
     updateParamAlWMax(ecProject_->defaultSettings.screenParam.al_w_max);
@@ -1728,8 +1728,8 @@ void AdvStatisticalOptions::setTestDefaultValues()
     updateParamAlH2oMax(ecProject_->defaultSettings.screenParam.al_h2o_max);
     updateParamAlCh4Min(ecProject_->defaultSettings.screenParam.al_ch4_min);
     updateParamAlCh4Max(ecProject_->defaultSettings.screenParam.al_ch4_max);
-    updateParamAlN2oMin(ecProject_->defaultSettings.screenParam.al_n2o_min);
-    updateParamAlN2oMax(ecProject_->defaultSettings.screenParam.al_n2o_max);
+    updateParamAlGas4Min(ecProject_->defaultSettings.screenParam.al_gas4_min);
+    updateParamAlGas4Max(ecProject_->defaultSettings.screenParam.al_gas4_max);
     updateAbsLimFilter(ecProject_->defaultSettings.screenSetting.filter_al);
 
     skewnessSpin_1->setValue(ecProject_->defaultSettings.screenParam.sk_hf_skmin);
@@ -1755,7 +1755,7 @@ void AdvStatisticalOptions::setTestDefaultValues()
     discontSpin_4->setValue(ecProject_->defaultSettings.screenParam.ds_hf_co2);
     discontSpin_5->setValue(ecProject_->defaultSettings.screenParam.ds_hf_h2o);
     discontSpin_6->setValue(ecProject_->defaultSettings.screenParam.ds_hf_ch4);
-    discontSpin_7->setValue(ecProject_->defaultSettings.screenParam.ds_hf_n2o);
+    discontSpin_7->setValue(ecProject_->defaultSettings.screenParam.ds_hf_gas4);
     discontSpin_8->setValue(ecProject_->defaultSettings.screenParam.ds_hf_var);
     discontSpin_9->setValue(ecProject_->defaultSettings.screenParam.ds_sf_uv);
     discontSpin_10->setValue(ecProject_->defaultSettings.screenParam.ds_sf_w);
@@ -1763,7 +1763,7 @@ void AdvStatisticalOptions::setTestDefaultValues()
     discontSpin_12->setValue(ecProject_->defaultSettings.screenParam.ds_sf_co2);
     discontSpin_13->setValue(ecProject_->defaultSettings.screenParam.ds_sf_h2o);
     discontSpin_14->setValue(ecProject_->defaultSettings.screenParam.ds_sf_ch4);
-    discontSpin_15->setValue(ecProject_->defaultSettings.screenParam.ds_sf_n2o);
+    discontSpin_15->setValue(ecProject_->defaultSettings.screenParam.ds_sf_gas4);
     discontSpin_16->setValue(ecProject_->defaultSettings.screenParam.ds_sf_var);
     updateParamDsHfUV(ecProject_->defaultSettings.screenParam.ds_hf_uv);
     updateParamDsHfW(ecProject_->defaultSettings.screenParam.ds_hf_w);
@@ -1771,7 +1771,7 @@ void AdvStatisticalOptions::setTestDefaultValues()
     updateParamDsHfCo2(ecProject_->defaultSettings.screenParam.ds_hf_co2);
     updateParamDsHfH2o(ecProject_->defaultSettings.screenParam.ds_hf_h2o);
     updateParamDsHfCh4(ecProject_->defaultSettings.screenParam.ds_hf_ch4);
-    updateParamDsHfN2o(ecProject_->defaultSettings.screenParam.ds_hf_n2o);
+    updateParamDsHfGas4(ecProject_->defaultSettings.screenParam.ds_hf_gas4);
     updateParamDsHfVar(ecProject_->defaultSettings.screenParam.ds_hf_var);
     updateParamDsSfUV(ecProject_->defaultSettings.screenParam.ds_sf_uv);
     updateParamDsSfW(ecProject_->defaultSettings.screenParam.ds_sf_w);
@@ -1779,7 +1779,7 @@ void AdvStatisticalOptions::setTestDefaultValues()
     updateParamDsSfCo2(ecProject_->defaultSettings.screenParam.ds_sf_co2);
     updateParamDsSfH2o(ecProject_->defaultSettings.screenParam.ds_sf_h2o);
     updateParamDsSfCh4(ecProject_->defaultSettings.screenParam.ds_sf_ch4);
-    updateParamDsSfN2o(ecProject_->defaultSettings.screenParam.ds_sf_n2o);
+    updateParamDsSfGas4(ecProject_->defaultSettings.screenParam.ds_sf_gas4);
     updateParamDsSfVar(ecProject_->defaultSettings.screenParam.ds_sf_var);
 
     timeLagSpin_1->setValue(ecProject_->defaultSettings.screenParam.tl_hf_lim);
@@ -1787,13 +1787,13 @@ void AdvStatisticalOptions::setTestDefaultValues()
     timeLagSpin_3->setValue(ecProject_->defaultSettings.screenParam.tl_def_co2);
     timeLagSpin_4->setValue(ecProject_->defaultSettings.screenParam.tl_def_h2o);
     timeLagSpin_5->setValue(ecProject_->defaultSettings.screenParam.tl_def_ch4);
-    timeLagSpin_6->setValue(ecProject_->defaultSettings.screenParam.tl_def_n2o);
+    timeLagSpin_6->setValue(ecProject_->defaultSettings.screenParam.tl_def_gas4);
     updateParamTlHfLim(ecProject_->defaultSettings.screenParam.tl_hf_lim);
     updateParamTlSfLim(ecProject_->defaultSettings.screenParam.tl_sf_lim);
     updateParamTlDefCo2(ecProject_->defaultSettings.screenParam.tl_def_co2);
     updateParamTlDefH2o(ecProject_->defaultSettings.screenParam.tl_def_h2o);
     updateParamTlDefCh4(ecProject_->defaultSettings.screenParam.tl_def_ch4);
-    updateParamTlDefN2o(ecProject_->defaultSettings.screenParam.tl_def_n2o);
+    updateParamTlDefGas4(ecProject_->defaultSettings.screenParam.tl_def_gas4);
 
     attackAngleSpin_1->setValue(ecProject_->defaultSettings.screenParam.aa_min);
     attackAngleSpin_2->setValue(ecProject_->defaultSettings.screenParam.aa_max);
@@ -1889,9 +1889,9 @@ void AdvStatisticalOptions::updateParamSrCh4Lim(double n)
     ecProject_->setScreenParamSrCh4Lim(n);
 }
 
-void AdvStatisticalOptions::updateParamSrN2oLim(double n)
+void AdvStatisticalOptions::updateParamSrGas4Lim(double n)
 {
-    ecProject_->setScreenParamSrN2oLim(n);
+    ecProject_->setScreenParamSrGas4Lim(n);
 }
 
 void AdvStatisticalOptions::updateParamSrHfLim(double n)
@@ -2039,9 +2039,9 @@ void AdvStatisticalOptions::updateParamAlCh4Max(double n)
     }
 }
 
-void AdvStatisticalOptions::updateParamAlN2oMin(double n)
+void AdvStatisticalOptions::updateParamAlGas4Min(double n)
 {
-    ecProject_->setScreenParamAlN2oMin(n);
+    ecProject_->setScreenParamAlGas4Min(n);
 
     // min/max constraint
     if (n >= absLimSpin_12->value())
@@ -2050,9 +2050,9 @@ void AdvStatisticalOptions::updateParamAlN2oMin(double n)
     }
 }
 
-void AdvStatisticalOptions::updateParamAlN2oMax(double n)
+void AdvStatisticalOptions::updateParamAlGas4Max(double n)
 {
-    ecProject_->setScreenParamAlN2oMax(n);
+    ecProject_->setScreenParamAlGas4Max(n);
 
     // min/max constraint
     if (n <= absLimSpin_11->value())
@@ -2215,9 +2215,9 @@ void AdvStatisticalOptions::updateParamDsHfCh4(double n)
     }
 }
 
-void AdvStatisticalOptions::updateParamDsHfN2o(double n)
+void AdvStatisticalOptions::updateParamDsHfGas4(double n)
 {
-    ecProject_->setScreenParamDsHfN2o(n);
+    ecProject_->setScreenParamDsHfGas4(n);
 
     // min/max constraint
     if (n < discontSpin_15->value())
@@ -2303,9 +2303,9 @@ void AdvStatisticalOptions::updateParamDsSfCh4(double n)
     }
 }
 
-void AdvStatisticalOptions::updateParamDsSfN2o(double n)
+void AdvStatisticalOptions::updateParamDsSfGas4(double n)
 {
-    ecProject_->setScreenParamDsSfN2o(n);
+    ecProject_->setScreenParamDsSfGas4(n);
 
     // min/max constraint
     if (n > discontSpin_7->value())
@@ -2362,9 +2362,9 @@ void AdvStatisticalOptions::updateParamTlDefCh4(double n)
     ecProject_->setScreenParamTlDefCh4(n);
 }
 
-void AdvStatisticalOptions::updateParamTlDefN2o(double n)
+void AdvStatisticalOptions::updateParamTlDefGas4(double n)
 {
-    ecProject_->setScreenParamTlDefN2o(n);
+    ecProject_->setScreenParamTlDefGas4(n);
 }
 
 void AdvStatisticalOptions::updateParamAaMin(double n)
@@ -2456,7 +2456,7 @@ void AdvStatisticalOptions::refresh()
     despSpin_4->setValue(ecProject_->screenParamSrCo2Lim());
     despSpin_5->setValue(ecProject_->screenParamSrH2oLim());
     despSpin_6->setValue(ecProject_->screenParamSrCh4Lim());
-    despSpin_7->setValue(ecProject_->screenParamSrN2oLim());
+    despSpin_7->setValue(ecProject_->screenParamSrGas4Lim());
     despSpin_2->setValue(ecProject_->screenParamSrULim());
     despFilterCheckBox->setChecked(ecProject_->screenFilterSr());
 
@@ -2488,8 +2488,8 @@ void AdvStatisticalOptions::refresh()
     absLimSpin_8->setValue(ecProject_->screenParamAlH2oMax());
     absLimSpin_9->setValue(ecProject_->screenParamAlCh4Min());
     absLimSpin_10->setValue(ecProject_->screenParamAlCh4Max());
-    absLimSpin_11->setValue(ecProject_->screenParamAlN2oMin());
-    absLimSpin_12->setValue(ecProject_->screenParamAlN2oMax());
+    absLimSpin_11->setValue(ecProject_->screenParamAlGas4Min());
+    absLimSpin_12->setValue(ecProject_->screenParamAlGas4Max());
     absLimFilterCheckBox->setChecked(ecProject_->screenFilterAl());
 
     skewnessSpin_1->setValue(ecProject_->screenParamSkHfSkmin());
@@ -2507,7 +2507,7 @@ void AdvStatisticalOptions::refresh()
     discontSpin_4->setValue(ecProject_->screenParamDsHfCo2());
     discontSpin_5->setValue(ecProject_->screenParamDsHfH2o());
     discontSpin_6->setValue(ecProject_->screenParamDsHfCh4());
-    discontSpin_7->setValue(ecProject_->screenParamDsHfN2o());
+    discontSpin_7->setValue(ecProject_->screenParamDsHfGas4());
     discontSpin_8->setValue(ecProject_->screenParamDsHfVar());
     discontSpin_9->setValue(ecProject_->screenParamDsSfUV());
     discontSpin_10->setValue(ecProject_->screenParamDsSfW());
@@ -2515,7 +2515,7 @@ void AdvStatisticalOptions::refresh()
     discontSpin_12->setValue(ecProject_->screenParamDsSfCo2());
     discontSpin_13->setValue(ecProject_->screenParamDsSfH2o());
     discontSpin_14->setValue(ecProject_->screenParamDsSfCh4());
-    discontSpin_15->setValue(ecProject_->screenParamDsSfN2o());
+    discontSpin_15->setValue(ecProject_->screenParamDsSfGas4());
     discontSpin_16->setValue(ecProject_->screenParamDsSfVar());
 
     timeLagSpin_1->setValue(ecProject_->screenParamTlHfLim());
@@ -2523,7 +2523,7 @@ void AdvStatisticalOptions::refresh()
     timeLagSpin_3->setValue(ecProject_->screenParamTlDefCo2());
     timeLagSpin_4->setValue(ecProject_->screenParamTlDefH2o());
     timeLagSpin_5->setValue(ecProject_->screenParamTlDefCh4());
-    timeLagSpin_6->setValue(ecProject_->screenParamTlDefN2o());
+    timeLagSpin_6->setValue(ecProject_->screenParamTlDefGas4());
 
     attackAngleSpin_1->setValue(ecProject_->screenParamAaMin());
     attackAngleSpin_2->setValue(ecProject_->screenParamAaMax());

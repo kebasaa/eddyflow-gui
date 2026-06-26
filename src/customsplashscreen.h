@@ -34,6 +34,7 @@ class QCheckBox;
 class QPainter;
 class QPixmap;
 class QProgressBar;
+class QTimer;
 
 class CustomSplashScreen : public QSplashScreen
 {
@@ -62,6 +63,7 @@ private:
     QRect rect_;
     QProgressBar* progressBar_;
     QCheckBox* showSplashCheckbox_;
+    QTimer* autoCloseTimer_;
 };
 
 #endif // CUSTOMSPLASHSCREEN_H

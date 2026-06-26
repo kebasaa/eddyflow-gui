@@ -25,10 +25,36 @@
 
 #include "irga_desc.h"
 
+#include <algorithm>
+#include <QCollator>
 #include <QDebug>
 #include <QStringList>
 
 #include "defs.h"
+
+namespace {
+
+QStringList sortedWithOtherLast(QStringList list)
+{
+    QStringList otherItems;
+    for (int i = list.size() - 1; i >= 0; --i)
+    {
+        if (list.at(i) == IrgaDesc::tr("Other"))
+        {
+            otherItems.prepend(list.takeAt(i));
+        }
+    }
+
+    QCollator collator;
+    collator.setCaseSensitivity(Qt::CaseInsensitive);
+    std::sort(list.begin(), list.end(), [&collator](const QString& left, const QString& right) {
+        return collator.compare(left, right) < 0;
+    });
+    list.append(otherItems);
+    return list;
+}
+
+} // namespace
 
 const QString IrgaDesc::getIRGA_MANUFACTURER_STRING_0()
 {
@@ -168,25 +194,43 @@ const QString IrgaDesc::getIRGA_MODEL_STRING_16()
 
 const QString IrgaDesc::getIRGA_MODEL_STRING_17()
 {
-    static const QString s(QStringLiteral("Spectronus"));
+    static const QString s(QStringLiteral("MGA¹⁻⁵"));
     return s;
 }
 
 const QString IrgaDesc::getIRGA_MODEL_STRING_18()
 {
-    static const QString s(QStringLiteral("MIU1000"));
+    static const QString s(QStringLiteral("MGA⁶⁻⁸"));
     return s;
 }
 
 const QString IrgaDesc::getIRGA_MODEL_STRING_19()
 {
-    static const QString s(QStringLiteral("MIU2000"));
+    static const QString s(QStringLiteral("MGA⁹⁻¹⁰"));
     return s;
 }
 
 const QString IrgaDesc::getIRGA_MODEL_STRING_20()
 {
     static const QString s(QStringLiteral("TILDAS Analyzer"));
+    return s;
+}
+
+const QString IrgaDesc::getIRGA_MODEL_STRING_21()
+{
+    static const QString s(QStringLiteral("MGAⁱ – N₂O"));
+    return s;
+}
+
+const QString IrgaDesc::getIRGA_MODEL_STRING_22()
+{
+    static const QString s(QStringLiteral("EC155"));
+    return s;
+}
+
+const QString IrgaDesc::getIRGA_MODEL_STRING_23()
+{
+    static const QString s(QStringLiteral("TGA200A"));
     return s;
 }
 
@@ -305,7 +349,7 @@ bool IrgaDesc::operator==(const IrgaDesc& irga) const
 // Return string list of anem measures types
 const QStringList IrgaDesc::manufacturerStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getIRGA_MANUFACTURER_STRING_4()
             << getIRGA_MANUFACTURER_STRING_2()
             << getIRGA_MANUFACTURER_STRING_0()
@@ -316,7 +360,7 @@ const QStringList IrgaDesc::manufacturerStringList()
 // Return string list of usage types
 const QStringList IrgaDesc::allModelStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getIRGA_MODEL_STRING_0()
             << getIRGA_MODEL_STRING_1()
             << getIRGA_MODEL_STRING_2()
@@ -337,7 +381,7 @@ const QStringList IrgaDesc::allModelStringList()
 // Return string list of usage types
 const QStringList IrgaDesc::licorModelStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getIRGA_MODEL_STRING_0()
             << getIRGA_MODEL_STRING_1()
             << getIRGA_MODEL_STRING_2()
@@ -352,7 +396,7 @@ const QStringList IrgaDesc::licorModelStringList()
 // Return string list of usage types
 const QStringList IrgaDesc::otherModelStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getIRGA_MODEL_STRING_6()
             << getIRGA_MODEL_STRING_7()
             << getIRGA_MODEL_STRING_8()
@@ -363,22 +407,25 @@ const QStringList IrgaDesc::otherModelStringList()
 
 const QStringList IrgaDesc::campbellIrgaModelStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getIRGA_MODEL_STRING_15()
-            << getIRGA_MODEL_STRING_16());
+            << getIRGA_MODEL_STRING_16()
+            << getIRGA_MODEL_STRING_22()
+            << getIRGA_MODEL_STRING_23());
 }
 
 const QStringList IrgaDesc::miroModelStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getIRGA_MODEL_STRING_17()
             << getIRGA_MODEL_STRING_18()
-            << getIRGA_MODEL_STRING_19());
+            << getIRGA_MODEL_STRING_19()
+            << getIRGA_MODEL_STRING_21());
 }
 
 const QStringList IrgaDesc::aerodyneModelStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getIRGA_MODEL_STRING_20());
 }
 
@@ -413,13 +460,16 @@ bool IrgaDesc::isWellNamed(const IrgaDesc& irga)
         else if (manufacturer == getIRGA_MANUFACTURER_STRING_2())
         {
             isGoodModel = (model == getIRGA_MODEL_STRING_15())
-                           || (model == getIRGA_MODEL_STRING_16());
+                           || (model == getIRGA_MODEL_STRING_16())
+                           || (model == getIRGA_MODEL_STRING_22())
+                           || (model == getIRGA_MODEL_STRING_23());
         }
         else if (manufacturer == getIRGA_MANUFACTURER_STRING_3())
         {
             isGoodModel = (model == getIRGA_MODEL_STRING_17())
                            || (model == getIRGA_MODEL_STRING_18())
-                           || (model == getIRGA_MODEL_STRING_19());
+                           || (model == getIRGA_MODEL_STRING_19())
+                           || (model == getIRGA_MODEL_STRING_21());
         }
         else if (manufacturer == getIRGA_MANUFACTURER_STRING_4())
         {
@@ -464,7 +514,10 @@ bool IrgaDesc::isAGoodClosedPath(const IrgaDesc& irga)
                         || (model == getIRGA_MODEL_STRING_17())
                         || (model == getIRGA_MODEL_STRING_18())
                         || (model == getIRGA_MODEL_STRING_19())
-                        || (model == getIRGA_MODEL_STRING_20());
+                        || (model == getIRGA_MODEL_STRING_20())
+                        || (model == getIRGA_MODEL_STRING_21())
+                        || (model == getIRGA_MODEL_STRING_22())
+                        || (model == getIRGA_MODEL_STRING_23());
 
     auto isGoodClosedPath = false;
     if (isClosedPath)
@@ -494,7 +547,10 @@ bool IrgaDesc::hasGoodFlowRate(const IrgaDesc& irga)
                         || (model == getIRGA_MODEL_STRING_17())
                         || (model == getIRGA_MODEL_STRING_18())
                         || (model == getIRGA_MODEL_STRING_19())
-                        || (model == getIRGA_MODEL_STRING_20());
+                        || (model == getIRGA_MODEL_STRING_20())
+                        || (model == getIRGA_MODEL_STRING_21())
+                        || (model == getIRGA_MODEL_STRING_22())
+                        || (model == getIRGA_MODEL_STRING_23());
 
     auto hasGoodFlowRate = false;
     if (isClosedPath)

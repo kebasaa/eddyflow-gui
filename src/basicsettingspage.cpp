@@ -57,6 +57,8 @@
 
 #include <cmath>
 
+#include "gas_metadata.h"
+
 #if defined(Q_OS_MACOS)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wconversion"
@@ -1059,6 +1061,8 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
             this, &BasicSettingsPage::updateFourthGasRefCombo);
     connect(fourthGasRefCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::showFourthGasDiffWarning);
+    connect(fourthGasRefCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateFourthGasMinLimit);
     connect(fourthGasRefCombo, &QComboBox::currentTextChanged,
             this, &BasicSettingsPage::updateFourthGasSettings);
 
@@ -1848,7 +1852,10 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                 || varName == VariableDesc::getVARIABLE_VAR_STRING_15()
                 || isCustomLabel)
             {
-                if (!instrType.isEmpty())
+                const bool isCellVar = (varName == VariableDesc::getVARIABLE_VAR_STRING_9()
+                                     || varName == VariableDesc::getVARIABLE_VAR_STRING_10()
+                                     || varName == VariableDesc::getVARIABLE_VAR_STRING_11());
+                if (!instrType.isEmpty() || isCustomLabel || isCellVar)
                 {
                     // CO2
                     // 1.2 and 1.3 conditions
@@ -1892,6 +1899,8 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                         updateGeometry();
 
                         updateFourthGasSettings(fourthGasRefCombo->currentText());
+                        gas4WasN2o_ = fourthGasRefCombo->currentText().split(QLatin1Char(' ')).first()
+                                      == VariableDesc::getVARIABLE_VAR_STRING_8();
                     }
 
                     // cell temp in
@@ -3104,146 +3113,55 @@ void BasicSettingsPage::updateFourthGasRefCombo(int i)
     ecProject_->setGeneralColGas4(fourthGasRefCombo->itemData(i).toInt());
 }
 
-namespace {
-
-// Normalise a gas formula string to plain lowercase ASCII for registry lookup.
-// Maps Unicode subscript digits (U+2080–U+2089) to '0'–'9', then lower-cases.
-QString normaliseGasFormula(const QString& s)
-{
-    QString r;
-    r.reserve(s.size());
-    for (const QChar& c : s) {
-        const ushort u = c.unicode();
-        r += (u >= 0x2080 && u <= 0x2089) ? QChar(static_cast<char16_t>(u'0' + u - 0x2080)) : c;
-    }
-    return r.toLower();
-}
-
-struct GasEntry {
-    double mw;    // g/mol (0 = unknown/ambiguous)
-    double diff;  // cm²/s (0 = not available)
-    int    status; // 0=reviewed, 1=model, 2=calculated, 3=mw_only
-};
-
-// Build registry once (keyed by normalised ASCII formula).
-const QMap<QString, GasEntry>& gasRegistry()
-{
-    static const QMap<QString, GasEntry> reg = {
-        // --- reviewed_default: auto-fill, no warning ---
-        { QStringLiteral("n2o"),           { 44.01,    0.1436,  0 } },
-        { QStringLiteral("co"),            { 28.0101,  0.1807,  0 } },
-        { QStringLiteral("so2"),           { 64.066,   0.1089,  0 } },
-        { QStringLiteral("nh3"),           { 17.0305,  0.1978,  0 } },
-        // --- model_default: auto-fill, warn model-based ---
-        { QStringLiteral("o3"),            { 47.9982,  0.1444,  1 } },
-        { QStringLiteral("no2"),           { 46.0055,  0.1361,  1 } },
-        // --- calculated_default: auto-fill, warn calculated ---
-        { QStringLiteral("no"),            { 30.0061,  0.1988,  2 } },  // retained original value
-        { QStringLiteral("n2"),            { 28.0134,  0.19939, 2 } },
-        { QStringLiteral("o2"),            { 31.9988,  0.20255, 2 } },
-        { QStringLiteral("ar"),            { 39.948,   0.19064, 2 } },
-        { QStringLiteral("cos"),           { 60.075,   0.12344, 2 } },
-        // --- mw_only: fill MW, enable diff spinbox, warn missing ---
-        { QStringLiteral("ne"),            { 20.1797,  0.0, 3 } },
-        { QStringLiteral("he"),            {  4.0026,  0.0, 3 } },
-        { QStringLiteral("kr"),            { 83.798,   0.0, 3 } },
-        { QStringLiteral("xe"),            { 131.293,  0.0, 3 } },
-        { QStringLiteral("h2"),            {  2.0159,  0.0, 3 } },
-        { QStringLiteral("no3"),           { 62.0049,  0.0, 3 } },
-        { QStringLiteral("n2o5"),          { 108.0104, 0.0, 3 } },
-        { QStringLiteral("hono"),          { 47.0134,  0.0, 3 } },
-        { QStringLiteral("hno3"),          { 63.0128,  0.0, 3 } },
-        { QStringLiteral("pan"),           { 121.0489, 0.0, 3 } },
-        { QStringLiteral("h2s"),           { 34.0809,  0.0, 3 } },
-        { QStringLiteral("cs2"),           { 76.1407,  0.0, 3 } },
-        { QStringLiteral("dms"),           { 62.134,   0.0, 3 } },
-        { QStringLiteral("dmso"),          { 78.133,   0.0, 3 } },
-        { QStringLiteral("ch3sh"),         { 48.107,   0.0, 3 } },
-        { QStringLiteral("dmds"),          { 94.199,   0.0, 3 } },
-        { QStringLiteral("isoprene"),      { 68.117,   0.0, 3 } },
-        { QStringLiteral("alpha-pinene"),  { 136.238,  0.0, 3 } },
-        { QStringLiteral("methanol"),      { 32.042,   0.0, 3 } },
-        { QStringLiteral("acetone"),       { 58.080,   0.0, 3 } },
-        { QStringLiteral("formaldehyde"),  { 30.026,   0.0, 3 } },
-        { QStringLiteral("acetaldehyde"),  { 44.053,   0.0, 3 } },
-        { QStringLiteral("glyoxal"),       { 58.036,   0.0, 3 } },
-        { QStringLiteral("benzene"),       { 78.114,   0.0, 3 } },
-        { QStringLiteral("toluene"),       { 92.141,   0.0, 3 } },
-        { QStringLiteral("cfc-11"),        { 137.368,  0.0, 3 } },
-        { QStringLiteral("cfc-12"),        { 120.913,  0.0, 3 } },
-        { QStringLiteral("hcfc-22"),       { 86.468,   0.0, 3 } },
-        { QStringLiteral("hfc-134a"),      { 102.03,   0.0, 3 } },
-        { QStringLiteral("hfc-23"),        { 70.014,   0.0, 3 } },
-        { QStringLiteral("sf6"),           { 146.055,  0.0, 3 } },
-        { QStringLiteral("nf3"),           { 71.0019,  0.0, 3 } },
-        { QStringLiteral("cf4"),           { 88.0043,  0.0, 3 } },
-        { QStringLiteral("c2f6"),          { 138.0118, 0.0, 3 } },
-        { QStringLiteral("ccl4"),          { 153.823,  0.0, 3 } },
-        { QStringLiteral("ch3cl"),         { 50.487,   0.0, 3 } },
-        { QStringLiteral("ch3br"),         { 94.939,   0.0, 3 } },
-        { QStringLiteral("ch3i"),          { 141.939,  0.0, 3 } },
-        { QStringLiteral("halon-1211"),    { 165.364,  0.0, 3 } },
-        { QStringLiteral("halon-1301"),    { 148.91,   0.0, 3 } },
-        { QStringLiteral("halon-2402"),    { 259.823,  0.0, 3 } },
-        { QStringLiteral("hcl"),           { 36.458,   0.0, 3 } },
-        { QStringLiteral("hbr"),           { 80.912,   0.0, 3 } },
-        { QStringLiteral("hocl"),          { 52.460,   0.0, 3 } },
-        { QStringLiteral("hobr"),          { 96.912,   0.0, 3 } },
-        { QStringLiteral("clo"),           { 51.452,   0.0, 3 } },
-        { QStringLiteral("bro"),           { 95.904,   0.0, 3 } },
-        { QStringLiteral("io"),            { 142.904,  0.0, 3 } },
-        { QStringLiteral("oh"),            { 17.007,   0.0, 3 } },
-        { QStringLiteral("ho2"),           { 33.0067,  0.0, 3 } },
-        { QStringLiteral("hg0"),           { 200.592,  0.0, 3 } },
-        { QStringLiteral("rn"),            { 222.0,    0.0, 3 } },
-        { QStringLiteral("hcn"),           { 27.0253,  0.0, 3 } },
-        { QStringLiteral("ch3cn"),         { 41.052,   0.0, 3 } },
-    };
-    return reg;
-}
-
-} // anonymous namespace
-
 void BasicSettingsPage::updateFourthGasSettings(const QString& s)
 {
     if (s.isEmpty()) { return; }
 
     const QString gasStr = s.split(QLatin1Char(' ')).first();
-    const QString key    = normaliseGasFormula(gasStr);
+    const GasMetadata::GasEntry* gas = GasMetadata::findGas(gasStr);
 
-    const auto& reg = gasRegistry();
-    const auto  it  = reg.find(key);
-
-    if (it == reg.end())
+    if (!gas)
     {
-        // Unknown gas — let the user fill in everything manually
+        // Unknown gas: let the user fill in everything manually.
         gasMw->setEnabled(true);
         gasDiff->setEnabled(true);
         return;
     }
 
-    const GasEntry& e = it.value();
-    switch (e.status)
+    switch (gas->status)
     {
-        case 0: // reviewed — auto-fill, no warning
-        case 1: // model — auto-fill
-        case 2: // calculated — auto-fill
+        case GasMetadata::DiffusivityStatus::Reviewed:
+        case GasMetadata::DiffusivityStatus::ModelBased:
+        case GasMetadata::DiffusivityStatus::Calculated:
             gasMw->setEnabled(false);
-            gasMw->setValue(e.mw);
+            gasMw->setValue(gas->molecularWeight);
             gasDiff->setEnabled(false);
-            gasDiff->setValue(e.diff);
+            gasDiff->setValue(gas->diffusivity);
             break;
-        case 3: // mw_only — fill MW, enable diff spinbox
+        case GasMetadata::DiffusivityStatus::Manual:
             gasMw->setEnabled(false);
-            gasMw->setValue(e.mw);
+            gasMw->setValue(gas->molecularWeight);
             gasDiff->setValue(0.0);
             gasDiff->setEnabled(true);
             break;
-        default:
-            gasMw->setEnabled(true);
-            gasDiff->setEnabled(true);
-            break;
     }
+}
+
+void BasicSettingsPage::updateFourthGasMinLimit(int /*index*/)
+{
+    const QString s = fourthGasRefCombo->currentText();
+    if (s.isEmpty()) { return; }
+    const QString gasStr = s.split(QLatin1Char(' ')).first();
+    const bool isN2o = (gasStr == VariableDesc::getVARIABLE_VAR_STRING_8());
+
+    // Only apply the default when the gas *type* changes (N2O ↔ other).
+    // If the user has manually set a custom value and re-selects the same
+    // gas type, the value is left unchanged.
+    if (isN2o != gas4WasN2o_)
+    {
+        ecProject_->setScreenParamAlGas4Min(isN2o ? 0.032 : 0.0);
+    }
+    gas4WasN2o_ = isN2o;
 }
 
 void BasicSettingsPage::showFourthGasDiffWarning(int /*index*/)
@@ -3252,36 +3170,33 @@ void BasicSettingsPage::showFourthGasDiffWarning(int /*index*/)
     if (s.isEmpty()) { return; }
 
     const QString gasStr = s.split(QLatin1Char(' ')).first();
-    const QString key    = normaliseGasFormula(gasStr);
+    const GasMetadata::GasEntry* gas = GasMetadata::findGas(gasStr);
+    if (!gas) { return; }
 
-    const auto& reg = gasRegistry();
-    const auto  it  = reg.find(key);
-    if (it == reg.end()) { return; }
-
-    const int status = it.value().status;
-    if (status == 0) { return; }  // reviewed — no warning needed
+    if (gas->status == GasMetadata::DiffusivityStatus::Reviewed) { return; }
 
     QString title, msg;
-    switch (status)
+    switch (gas->status)
     {
-        case 1:
+        case GasMetadata::DiffusivityStatus::ModelBased:
             title = tr("Model-Based Diffusivity");
             msg   = tr("The diffusivity of <b>%1</b> used by EddyFlow is a model-based estimate "
                        "(Massman 1998). It has never been directly measured in air. "
                        "You can override it in the spinbox below.").arg(gasStr);
             break;
-        case 2:
+        case GasMetadata::DiffusivityStatus::Calculated:
             title = tr("Calculated Diffusivity");
             msg   = tr("The diffusivity of <b>%1</b> was calculated using the Chapman-Enskog "
                        "equation. If you have a measured value, you can override it in the "
                        "spinbox below.").arg(gasStr);
             break;
-        case 3:
+        case GasMetadata::DiffusivityStatus::Manual:
             title = tr("Diffusivity Not Available");
-            msg   = tr("No diffusivity data is available for <b>%1</b>. "
+            msg   = tr("Molecular weight is available for <b>%1</b>, but no diffusivity data is available. "
                        "Please enter the diffusivity in cm²/s manually in the spinbox "
                        "below.").arg(gasStr);
             break;
+        case GasMetadata::DiffusivityStatus::Reviewed:
         default:
             return;
     }

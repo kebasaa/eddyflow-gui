@@ -1,5 +1,5 @@
 <RCC>
-    <!-- Bumped: force rcc recompile when .qss files are updated -->
+    <!-- Bumped: force rcc recompile when .qss files are updated (2) -->
     <qresource prefix="/icons">
         <file alias="qm-enabled">img/help/help-enabled.png</file>
         <file alias="qm-hover">img/help/help-hover.png</file>
@@ -137,8 +137,6 @@
         <file alias="feedback-button">img/feedback/feedback-button.png</file>
         <file alias="feedback-button-hover">img/feedback/feedback-button-hover.png</file>
         <file alias="8100-app">img/news/8100A-apps-icon.png</file>
-        <file alias="smartflux-grey">img/smartflux/SMARTFlux-wordmark-grey.png</file>
-        <file alias="smartflux-white">img/smartflux/SMARTFlux-wordmark-white.png</file>
         <file alias="smartflux-close">img/smartflux/smartflux-close.png</file>
         <file alias="smartflux-close-hover">img/smartflux/smartflux-close-hover.png</file>
         <file alias="msg-critical">img/msgbox_icons/critical.png</file>

@@ -30,6 +30,8 @@
 
 #include <QStringList>
 
+class QPainter;
+
 class VariableDelegate : public QStyledItemDelegate
 {
     Q_OBJECT
@@ -47,6 +49,9 @@ public:
     void updateEditorGeometry(QWidget* editor,
                               const QStyleOptionViewItem& option,
                               const QModelIndex& index) const override;
+    void paint(QPainter* painter,
+               const QStyleOptionViewItem& option,
+               const QModelIndex& index) const override;
 
     void clearCustomVariableBuffer();
 

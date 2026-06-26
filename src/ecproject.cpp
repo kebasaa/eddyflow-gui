@@ -28,8 +28,10 @@
 #include <algorithm>
 
 #include <QDebug>
+#include <QRegularExpression>
 #include <QSet>
 #include <QSettings>
+#include <QTemporaryFile>
 
 #include "ecinidefs.h"
 #include "fileutils.h"
@@ -151,10 +153,10 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
         && (ec_project_state_.projectGeneral.col_co2 == previousProject.ec_project_state_.projectGeneral.col_co2)
         && (ec_project_state_.projectGeneral.col_h2o == previousProject.ec_project_state_.projectGeneral.col_h2o)
         && (ec_project_state_.projectGeneral.col_ch4 == previousProject.ec_project_state_.projectGeneral.col_ch4)
-        && previousFourthGasCompare(ec_project_state_.projectGeneral.col_n2o,
+        && previousFourthGasCompare(ec_project_state_.projectGeneral.col_gas4,
                                     ec_project_state_.projectGeneral.gas_mw,
                                     ec_project_state_.projectGeneral.gas_diff,
-                                    previousProject.ec_project_state_.projectGeneral.col_n2o,
+                                    previousProject.ec_project_state_.projectGeneral.col_gas4,
                                     previousProject.ec_project_state_.projectGeneral.gas_mw,
                                     previousProject.ec_project_state_.projectGeneral.gas_diff)
         && (ec_project_state_.projectGeneral.col_int_t_1 == previousProject.ec_project_state_.projectGeneral.col_int_t_1)
@@ -240,11 +242,11 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
         || ec_project_state_.screenSetting.out_full_sp_ch4 == 1
         || ec_project_state_.screenSetting.out_full_sp_co2 == 1
         || ec_project_state_.screenSetting.out_full_sp_h2o == 1
-        || ec_project_state_.screenSetting.out_full_sp_n2o == 1
+        || ec_project_state_.screenSetting.out_full_sp_gas4 == 1
         || ec_project_state_.screenSetting.out_full_cosp_ch4 == 1
         || ec_project_state_.screenSetting.out_full_cosp_co2 == 1
         || ec_project_state_.screenSetting.out_full_cosp_h2o == 1
-        || ec_project_state_.screenSetting.out_full_cosp_n2o == 1
+        || ec_project_state_.screenSetting.out_full_cosp_gas4 == 1
         || ec_project_state_.screenSetting.out_full_cosp_ts == 1
         || ec_project_state_.screenSetting.out_full_cosp_u == 1
         || ec_project_state_.screenSetting.out_full_cosp_v == 1
@@ -296,7 +298,7 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
         && previousSettingsCompare(ec_project_state_.screenSetting.out_full_sp_ch4, previousProject.ec_project_state_.screenSetting.out_full_sp_ch4);
 
     advSettingsTest = advSettingsTest
-        && previousSettingsCompare(ec_project_state_.screenSetting.out_full_sp_n2o, previousProject.ec_project_state_.screenSetting.out_full_sp_n2o);
+        && previousSettingsCompare(ec_project_state_.screenSetting.out_full_sp_gas4, previousProject.ec_project_state_.screenSetting.out_full_sp_gas4);
 
     advSettingsTest = advSettingsTest
         && previousSettingsCompare(ec_project_state_.screenSetting.out_full_cosp_u, previousProject.ec_project_state_.screenSetting.out_full_cosp_u);
@@ -317,7 +319,7 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
         && previousSettingsCompare(ec_project_state_.screenSetting.out_full_cosp_ch4, previousProject.ec_project_state_.screenSetting.out_full_cosp_ch4);
 
     advSettingsTest = advSettingsTest
-        && previousSettingsCompare(ec_project_state_.screenSetting.out_full_cosp_n2o, previousProject.ec_project_state_.screenSetting.out_full_cosp_n2o);
+        && previousSettingsCompare(ec_project_state_.screenSetting.out_full_cosp_gas4, previousProject.ec_project_state_.screenSetting.out_full_cosp_gas4);
 
     advSettingsTest = advSettingsTest
         && previousSettingsCompare(ec_project_state_.screenSetting.out_st_1, previousProject.ec_project_state_.screenSetting.out_st_1);
@@ -373,7 +375,7 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
                && qFuzzyCompare(ec_project_state_.screenParam.sr_lim_co2, previousProject.ec_project_state_.screenParam.sr_lim_co2)
                && qFuzzyCompare(ec_project_state_.screenParam.sr_lim_h2o, previousProject.ec_project_state_.screenParam.sr_lim_h2o)
                && qFuzzyCompare(ec_project_state_.screenParam.sr_lim_ch4, previousProject.ec_project_state_.screenParam.sr_lim_ch4)
-               && qFuzzyCompare(ec_project_state_.screenParam.sr_lim_n2o, previousProject.ec_project_state_.screenParam.sr_lim_n2o);
+               && qFuzzyCompare(ec_project_state_.screenParam.sr_lim_gas4, previousProject.ec_project_state_.screenParam.sr_lim_gas4);
     }
 
     subTest = (ec_project_state_.screenTest.test_ar && previousProject.ec_project_state_.screenTest.test_ar);
@@ -408,8 +410,8 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
                && qFuzzyCompare(ec_project_state_.screenParam.al_h2o_max, previousProject.ec_project_state_.screenParam.al_h2o_max)
                && qFuzzyCompare(ec_project_state_.screenParam.al_ch4_min, previousProject.ec_project_state_.screenParam.al_ch4_min)
                && qFuzzyCompare(ec_project_state_.screenParam.al_ch4_max, previousProject.ec_project_state_.screenParam.al_ch4_max)
-               && qFuzzyCompare(ec_project_state_.screenParam.al_n2o_min, previousProject.ec_project_state_.screenParam.al_n2o_min)
-               && qFuzzyCompare(ec_project_state_.screenParam.al_n2o_max, previousProject.ec_project_state_.screenParam.al_n2o_max)
+               && qFuzzyCompare(ec_project_state_.screenParam.al_gas4_min, previousProject.ec_project_state_.screenParam.al_gas4_min)
+               && qFuzzyCompare(ec_project_state_.screenParam.al_gas4_max, previousProject.ec_project_state_.screenParam.al_gas4_max)
                && (ec_project_state_.screenSetting.filter_al == previousProject.ec_project_state_.screenSetting.filter_al);
     }
 
@@ -434,7 +436,7 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_hf_ch4, previousProject.ec_project_state_.screenParam.ds_hf_ch4)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_hf_co2, previousProject.ec_project_state_.screenParam.ds_hf_co2)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_hf_h2o, previousProject.ec_project_state_.screenParam.ds_hf_h2o)
-               && qFuzzyCompare(ec_project_state_.screenParam.ds_hf_n2o, previousProject.ec_project_state_.screenParam.ds_hf_n2o)
+               && qFuzzyCompare(ec_project_state_.screenParam.ds_hf_gas4, previousProject.ec_project_state_.screenParam.ds_hf_gas4)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_hf_t, previousProject.ec_project_state_.screenParam.ds_hf_t)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_hf_uv, previousProject.ec_project_state_.screenParam.ds_hf_uv)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_hf_var, previousProject.ec_project_state_.screenParam.ds_hf_var)
@@ -442,7 +444,7 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_ch4, previousProject.ec_project_state_.screenParam.ds_sf_ch4)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_co2, previousProject.ec_project_state_.screenParam.ds_sf_co2)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_h2o, previousProject.ec_project_state_.screenParam.ds_sf_h2o)
-               && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_n2o, previousProject.ec_project_state_.screenParam.ds_sf_n2o)
+               && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_gas4, previousProject.ec_project_state_.screenParam.ds_sf_gas4)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_t, previousProject.ec_project_state_.screenParam.ds_sf_t)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_uv, previousProject.ec_project_state_.screenParam.ds_sf_uv)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_var, previousProject.ec_project_state_.screenParam.ds_sf_var)
@@ -457,7 +459,7 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
                && qFuzzyCompare(ec_project_state_.screenParam.tl_def_ch4, previousProject.ec_project_state_.screenParam.tl_def_ch4)
                && qFuzzyCompare(ec_project_state_.screenParam.tl_def_co2, previousProject.ec_project_state_.screenParam.tl_def_co2)
                && qFuzzyCompare(ec_project_state_.screenParam.tl_def_h2o, previousProject.ec_project_state_.screenParam.tl_def_h2o)
-               && qFuzzyCompare(ec_project_state_.screenParam.tl_def_n2o, previousProject.ec_project_state_.screenParam.tl_def_n2o)
+               && qFuzzyCompare(ec_project_state_.screenParam.tl_def_gas4, previousProject.ec_project_state_.screenParam.tl_def_gas4)
                && qFuzzyCompare(ec_project_state_.screenParam.tl_hf_lim, previousProject.ec_project_state_.screenParam.tl_hf_lim)
                && qFuzzyCompare(ec_project_state_.screenParam.tl_sf_lim, previousProject.ec_project_state_.screenParam.tl_sf_lim);
     }
@@ -734,7 +736,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.projectGeneral.col_co2 = defaultEcProjectState.projectGeneral.col_co2;
     ec_project_state_.projectGeneral.col_h2o = defaultEcProjectState.projectGeneral.col_h2o;
     ec_project_state_.projectGeneral.col_ch4 = defaultEcProjectState.projectGeneral.col_ch4;
-    ec_project_state_.projectGeneral.col_n2o = defaultEcProjectState.projectGeneral.col_n2o;
+    ec_project_state_.projectGeneral.col_gas4 = defaultEcProjectState.projectGeneral.col_gas4;
     ec_project_state_.projectGeneral.col_int_t_c = defaultEcProjectState.projectGeneral.col_int_t_c;
     ec_project_state_.projectGeneral.col_int_t_1 = defaultEcProjectState.projectGeneral.col_int_t_1;
     ec_project_state_.projectGeneral.col_int_t_2 = defaultEcProjectState.projectGeneral.col_int_t_2;
@@ -844,7 +846,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenSetting.out_full_sp_co2 = defaultEcProjectState.screenSetting.out_full_sp_co2;
     ec_project_state_.screenSetting.out_full_sp_h2o = defaultEcProjectState.screenSetting.out_full_sp_h2o;
     ec_project_state_.screenSetting.out_full_sp_ch4 = defaultEcProjectState.screenSetting.out_full_sp_ch4;
-    ec_project_state_.screenSetting.out_full_sp_n2o = defaultEcProjectState.screenSetting.out_full_sp_n2o;
+    ec_project_state_.screenSetting.out_full_sp_gas4 = defaultEcProjectState.screenSetting.out_full_sp_gas4;
     ec_project_state_.screenSetting.out_st_1 = defaultEcProjectState.screenSetting.out_st_1;
     ec_project_state_.screenSetting.out_st_2 = defaultEcProjectState.screenSetting.out_st_2;
     ec_project_state_.screenSetting.out_st_3 = defaultEcProjectState.screenSetting.out_st_3;
@@ -875,7 +877,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenSetting.out_full_cosp_co2 = defaultEcProjectState.screenSetting.out_full_cosp_co2;
     ec_project_state_.screenSetting.out_full_cosp_h2o = defaultEcProjectState.screenSetting.out_full_cosp_h2o;
     ec_project_state_.screenSetting.out_full_cosp_ch4 = defaultEcProjectState.screenSetting.out_full_cosp_ch4;
-    ec_project_state_.screenSetting.out_full_cosp_n2o = defaultEcProjectState.screenSetting.out_full_cosp_n2o;
+    ec_project_state_.screenSetting.out_full_cosp_gas4 = defaultEcProjectState.screenSetting.out_full_cosp_gas4;
     ec_project_state_.screenSetting.filter_sr = defaultEcProjectState.screenSetting.filter_sr;
     ec_project_state_.screenSetting.filter_al = defaultEcProjectState.screenSetting.filter_al;
     ec_project_state_.screenSetting.bu_corr = defaultEcProjectState.screenSetting.bu_corr;
@@ -940,8 +942,8 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenParam.al_h2o_max = defaultEcProjectState.screenParam.al_h2o_max;
     ec_project_state_.screenParam.al_ch4_min = defaultEcProjectState.screenParam.al_ch4_min;
     ec_project_state_.screenParam.al_ch4_max = defaultEcProjectState.screenParam.al_ch4_max;
-    ec_project_state_.screenParam.al_n2o_min = defaultEcProjectState.screenParam.al_n2o_min;
-    ec_project_state_.screenParam.al_n2o_max = defaultEcProjectState.screenParam.al_n2o_max;
+    ec_project_state_.screenParam.al_gas4_min = defaultEcProjectState.screenParam.al_gas4_min;
+    ec_project_state_.screenParam.al_gas4_max = defaultEcProjectState.screenParam.al_gas4_max;
     ec_project_state_.screenParam.al_tson_min = defaultEcProjectState.screenParam.al_tson_min;
     ec_project_state_.screenParam.al_tson_max = defaultEcProjectState.screenParam.al_tson_max;
     ec_project_state_.screenParam.al_u_max = defaultEcProjectState.screenParam.al_u_max;
@@ -955,7 +957,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenParam.ds_hf_co2 = defaultEcProjectState.screenParam.ds_hf_co2;
     ec_project_state_.screenParam.ds_hf_h2o = defaultEcProjectState.screenParam.ds_hf_h2o;
     ec_project_state_.screenParam.ds_hf_ch4 = defaultEcProjectState.screenParam.ds_hf_ch4;
-    ec_project_state_.screenParam.ds_hf_n2o = defaultEcProjectState.screenParam.ds_hf_n2o;
+    ec_project_state_.screenParam.ds_hf_gas4 = defaultEcProjectState.screenParam.ds_hf_gas4;
     ec_project_state_.screenParam.ds_hf_var = defaultEcProjectState.screenParam.ds_hf_var;
     ec_project_state_.screenParam.ds_sf_uv = defaultEcProjectState.screenParam.ds_sf_uv;
     ec_project_state_.screenParam.ds_sf_w = defaultEcProjectState.screenParam.ds_sf_w;
@@ -963,7 +965,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenParam.ds_sf_co2 = defaultEcProjectState.screenParam.ds_sf_co2;
     ec_project_state_.screenParam.ds_sf_h2o = defaultEcProjectState.screenParam.ds_sf_h2o;
     ec_project_state_.screenParam.ds_sf_ch4 = defaultEcProjectState.screenParam.ds_sf_ch4;
-    ec_project_state_.screenParam.ds_sf_n2o = defaultEcProjectState.screenParam.ds_sf_n2o;
+    ec_project_state_.screenParam.ds_sf_gas4 = defaultEcProjectState.screenParam.ds_sf_gas4;
     ec_project_state_.screenParam.ds_sf_var = defaultEcProjectState.screenParam.ds_sf_var;
     ec_project_state_.screenParam.despike_vm = defaultEcProjectState.screenParam.despike_vm;
     ec_project_state_.screenParam.do_extlim_dw = defaultEcProjectState.screenParam.do_extlim_dw;
@@ -984,13 +986,13 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenParam.sr_lim_co2 = defaultEcProjectState.screenParam.sr_lim_co2;
     ec_project_state_.screenParam.sr_lim_h2o = defaultEcProjectState.screenParam.sr_lim_h2o;
     ec_project_state_.screenParam.sr_lim_ch4 = defaultEcProjectState.screenParam.sr_lim_ch4;
-    ec_project_state_.screenParam.sr_lim_n2o = defaultEcProjectState.screenParam.sr_lim_n2o;
+    ec_project_state_.screenParam.sr_lim_gas4 = defaultEcProjectState.screenParam.sr_lim_gas4;
     ec_project_state_.screenParam.sr_lim_hf = defaultEcProjectState.screenParam.sr_lim_hf;
     ec_project_state_.screenParam.tl_hf_lim = defaultEcProjectState.screenParam.tl_hf_lim;
     ec_project_state_.screenParam.tl_def_co2 = defaultEcProjectState.screenParam.tl_def_co2;
     ec_project_state_.screenParam.tl_def_h2o = defaultEcProjectState.screenParam.tl_def_h2o;
     ec_project_state_.screenParam.tl_def_ch4 = defaultEcProjectState.screenParam.tl_def_ch4;
-    ec_project_state_.screenParam.tl_def_n2o = defaultEcProjectState.screenParam.tl_def_n2o;
+    ec_project_state_.screenParam.tl_def_gas4 = defaultEcProjectState.screenParam.tl_def_gas4;
     ec_project_state_.screenParam.tl_sf_lim = defaultEcProjectState.screenParam.tl_sf_lim;
 
     ec_project_state_.spectraSettings.start_sa_date = QDate(2000, 1, 1).toString(Qt::ISODate);
@@ -1167,7 +1169,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_PROJECT_18, ec_project_state_.projectGeneral.col_co2);
         project_ini.setValue(EcIni::INI_PROJECT_19, ec_project_state_.projectGeneral.col_h2o);
         project_ini.setValue(EcIni::INI_PROJECT_20, ec_project_state_.projectGeneral.col_ch4);
-        project_ini.setValue(EcIni::INI_PROJECT_21, ec_project_state_.projectGeneral.col_n2o);
+        project_ini.setValue(EcIni::INI_PROJECT_21, ec_project_state_.projectGeneral.col_gas4);
         project_ini.setValue(EcIni::INI_PROJECT_22, ec_project_state_.projectGeneral.col_int_t_1);
         project_ini.setValue(EcIni::INI_PROJECT_23, ec_project_state_.projectGeneral.col_int_t_2);
         project_ini.setValue(EcIni::INI_PROJECT_24, ec_project_state_.projectGeneral.col_int_p);
@@ -1340,7 +1342,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_20, ec_project_state_.screenSetting.out_full_sp_co2);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_21, ec_project_state_.screenSetting.out_full_sp_h2o);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_22, ec_project_state_.screenSetting.out_full_sp_ch4);
-        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_23, ec_project_state_.screenSetting.out_full_sp_n2o);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_23, ec_project_state_.screenSetting.out_full_sp_gas4);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_24, ec_project_state_.screenSetting.out_st_1);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_25, ec_project_state_.screenSetting.out_st_2);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_26, ec_project_state_.screenSetting.out_st_3);
@@ -1371,7 +1373,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_34, ec_project_state_.screenSetting.out_full_cosp_co2);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_35, ec_project_state_.screenSetting.out_full_cosp_h2o);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_36, ec_project_state_.screenSetting.out_full_cosp_ch4);
-        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_37, ec_project_state_.screenSetting.out_full_cosp_n2o);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_37, ec_project_state_.screenSetting.out_full_cosp_gas4);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_40, ec_project_state_.screenSetting.filter_sr);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_41, ec_project_state_.screenSetting.filter_al);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_44, ec_project_state_.screenSetting.bu_corr);
@@ -1437,7 +1439,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_46 , QString::number(ec_project_state_.screenParam.sr_lim_co2, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_47 , QString::number(ec_project_state_.screenParam.sr_lim_h2o, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_48 , QString::number(ec_project_state_.screenParam.sr_lim_ch4, 'f', 1));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_49 , QString::number(ec_project_state_.screenParam.sr_lim_n2o, 'f', 1));
+        project_ini.setValue(EcIni::INI_SCREEN_PARAM_49 , QString::number(ec_project_state_.screenParam.sr_lim_gas4, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_2 , QString::number(ec_project_state_.screenParam.sr_lim_hf, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_3 , QString::number(ec_project_state_.screenParam.ar_lim, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_4 , ec_project_state_.screenParam.ar_bins);
@@ -1455,8 +1457,8 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_16, QString::number(ec_project_state_.screenParam.al_h2o_max, 'f', 3));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_54, QString::number(ec_project_state_.screenParam.al_ch4_min, 'f', 3));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_55, QString::number(ec_project_state_.screenParam.al_ch4_max, 'f', 3));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_56, QString::number(ec_project_state_.screenParam.al_n2o_min, 'f', 3));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_57, QString::number(ec_project_state_.screenParam.al_n2o_max, 'f', 3));
+        project_ini.setValue(EcIni::INI_SCREEN_PARAM_56, QString::number(ec_project_state_.screenParam.al_gas4_min, 'f', 3));
+        project_ini.setValue(EcIni::INI_SCREEN_PARAM_57, QString::number(ec_project_state_.screenParam.al_gas4_max, 'f', 3));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_17, QString::number(ec_project_state_.screenParam.sk_hf_skmin, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_18, QString::number(ec_project_state_.screenParam.sk_hf_skmax, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_19, QString::number(ec_project_state_.screenParam.sk_sf_skmin, 'f', 1));
@@ -1471,7 +1473,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_28, QString::number(ec_project_state_.screenParam.ds_hf_co2, 'f', 2));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_29, QString::number(ec_project_state_.screenParam.ds_hf_h2o, 'f', 2));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_50, QString::number(ec_project_state_.screenParam.ds_hf_ch4, 'f', 2));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_51, QString::number(ec_project_state_.screenParam.ds_hf_n2o, 'f', 2));
+        project_ini.setValue(EcIni::INI_SCREEN_PARAM_51, QString::number(ec_project_state_.screenParam.ds_hf_gas4, 'f', 2));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_30, QString::number(ec_project_state_.screenParam.ds_hf_var, 'f', 2));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_31, QString::number(ec_project_state_.screenParam.ds_sf_uv, 'f', 2));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_32, QString::number(ec_project_state_.screenParam.ds_sf_w, 'f', 2));
@@ -1479,7 +1481,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_34, QString::number(ec_project_state_.screenParam.ds_sf_co2, 'f', 2));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_35, QString::number(ec_project_state_.screenParam.ds_sf_h2o, 'f', 2));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_52, QString::number(ec_project_state_.screenParam.ds_sf_ch4, 'f', 2));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_53, QString::number(ec_project_state_.screenParam.ds_sf_n2o, 'f', 2));
+        project_ini.setValue(EcIni::INI_SCREEN_PARAM_53, QString::number(ec_project_state_.screenParam.ds_sf_gas4, 'f', 2));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_36, QString::number(ec_project_state_.screenParam.ds_sf_var, 'f', 2));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_60, ec_project_state_.screenParam.despike_vm);
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_37, QString::number(ec_project_state_.screenParam.tl_hf_lim, 'f', 1));
@@ -1487,7 +1489,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_39, QString::number(ec_project_state_.screenParam.tl_def_co2, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_40, QString::number(ec_project_state_.screenParam.tl_def_h2o, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_58, QString::number(ec_project_state_.screenParam.tl_def_ch4, 'f', 1));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_59, QString::number(ec_project_state_.screenParam.tl_def_n2o, 'f', 1));
+        project_ini.setValue(EcIni::INI_SCREEN_PARAM_59, QString::number(ec_project_state_.screenParam.tl_def_gas4, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_41, QString::number(ec_project_state_.screenParam.aa_min, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_42, QString::number(ec_project_state_.screenParam.aa_max, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_43, QString::number(ec_project_state_.screenParam.aa_lim, 'f', 1));
@@ -1744,9 +1746,10 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.projectGeneral.col_ch4
                 = project_ini.value(EcIni::INI_PROJECT_20,
                                     defaultEcProjectState.projectGeneral.col_ch4).toInt();
-        ec_project_state_.projectGeneral.col_n2o
+        ec_project_state_.projectGeneral.col_gas4
                 = project_ini.value(EcIni::INI_PROJECT_21,
-                                    defaultEcProjectState.projectGeneral.col_n2o).toInt();
+                                    project_ini.value(QStringLiteral("col_n2o"),
+                                    defaultEcProjectState.projectGeneral.col_gas4)).toInt();
         ec_project_state_.projectGeneral.col_int_t_1
                 = project_ini.value(EcIni::INI_PROJECT_22,
                                     defaultEcProjectState.projectGeneral.col_int_t_1).toInt();
@@ -2241,9 +2244,10 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenSetting.out_full_sp_ch4
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_22,
                                     defaultEcProjectState.screenSetting.out_full_sp_ch4).toInt();
-        ec_project_state_.screenSetting.out_full_sp_n2o
+        ec_project_state_.screenSetting.out_full_sp_gas4
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_23,
-                                    defaultEcProjectState.screenSetting.out_full_sp_n2o).toInt();
+                                    project_ini.value(QStringLiteral("out_full_sp_n2o"),
+                                    defaultEcProjectState.screenSetting.out_full_sp_gas4)).toInt();
         ec_project_state_.screenSetting.out_full_cosp_u
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_31,
                                     defaultEcProjectState.screenSetting.out_full_cosp_u).toInt();
@@ -2262,9 +2266,10 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenSetting.out_full_cosp_ch4
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_36,
                                     defaultEcProjectState.screenSetting.out_full_cosp_ch4).toInt();
-        ec_project_state_.screenSetting.out_full_cosp_n2o
+        ec_project_state_.screenSetting.out_full_cosp_gas4
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_37,
-                                    defaultEcProjectState.screenSetting.out_full_cosp_n2o).toInt();
+                                    project_ini.value(QStringLiteral("out_full_cosp_w_n2o"),
+                                    defaultEcProjectState.screenSetting.out_full_cosp_gas4)).toInt();
         ec_project_state_.screenSetting.out_st_1
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_24,
                                     defaultEcProjectState.screenSetting.out_st_1).toInt();
@@ -2516,9 +2521,10 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenParam.sr_lim_ch4
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_48,
                                     defaultEcProjectState.screenParam.sr_lim_ch4).toDouble();
-        ec_project_state_.screenParam.sr_lim_n2o
+        ec_project_state_.screenParam.sr_lim_gas4
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_49,
-                                    defaultEcProjectState.screenParam.sr_lim_n2o).toDouble();
+                                    project_ini.value(QStringLiteral("sr_lim_n2o"),
+                                    defaultEcProjectState.screenParam.sr_lim_gas4)).toDouble();
         ec_project_state_.screenParam.sr_lim_hf
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_2,
                                     defaultEcProjectState.screenParam.sr_lim_hf).toDouble();
@@ -2570,12 +2576,14 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenParam.al_ch4_max
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_55,
                                     defaultEcProjectState.screenParam.al_ch4_max).toDouble();
-        ec_project_state_.screenParam.al_n2o_min
+        ec_project_state_.screenParam.al_gas4_min
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_56,
-                                    defaultEcProjectState.screenParam.al_n2o_min).toDouble();
-        ec_project_state_.screenParam.al_n2o_max
+                                    project_ini.value(QStringLiteral("al_n2o_min"),
+                                    defaultEcProjectState.screenParam.al_gas4_min)).toDouble();
+        ec_project_state_.screenParam.al_gas4_max
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_57,
-                                    defaultEcProjectState.screenParam.al_n2o_max).toDouble();
+                                    project_ini.value(QStringLiteral("al_n2o_max"),
+                                    defaultEcProjectState.screenParam.al_gas4_max)).toDouble();
         ec_project_state_.screenParam.sk_hf_skmin
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_17,
                                     defaultEcProjectState.screenParam.sk_hf_skmin).toDouble();
@@ -2618,9 +2626,10 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenParam.ds_hf_ch4
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_50,
                                     defaultEcProjectState.screenParam.ds_hf_ch4).toDouble();
-        ec_project_state_.screenParam.ds_hf_n2o
+        ec_project_state_.screenParam.ds_hf_gas4
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_51,
-                                    defaultEcProjectState.screenParam.ds_hf_n2o).toDouble();
+                                    project_ini.value(QStringLiteral("ds_hf_n2o"),
+                                    defaultEcProjectState.screenParam.ds_hf_gas4)).toDouble();
         ec_project_state_.screenParam.ds_hf_var
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_30,
                                     defaultEcProjectState.screenParam.ds_hf_var).toDouble();
@@ -2642,9 +2651,10 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenParam.ds_sf_ch4
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_52,
                                     defaultEcProjectState.screenParam.ds_sf_ch4).toDouble();
-        ec_project_state_.screenParam.ds_sf_n2o
+        ec_project_state_.screenParam.ds_sf_gas4
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_53,
-                                    defaultEcProjectState.screenParam.ds_sf_n2o).toDouble();
+                                    project_ini.value(QStringLiteral("ds_sf_n2o"),
+                                    defaultEcProjectState.screenParam.ds_sf_gas4)).toDouble();
         ec_project_state_.screenParam.ds_sf_var
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_36,
                                     defaultEcProjectState.screenParam.ds_sf_var).toDouble();
@@ -2666,9 +2676,10 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenParam.tl_def_ch4
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_58,
                                     defaultEcProjectState.screenParam.tl_def_ch4).toDouble();
-        ec_project_state_.screenParam.tl_def_n2o
+        ec_project_state_.screenParam.tl_def_gas4
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_59,
-                                    defaultEcProjectState.screenParam.tl_def_n2o).toDouble();
+                                    project_ini.value(QStringLiteral("tl_def_n2o"),
+                                    defaultEcProjectState.screenParam.tl_def_gas4)).toDouble();
         ec_project_state_.screenParam.aa_min
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_41,
                                     defaultEcProjectState.screenParam.aa_min).toDouble();
@@ -2979,9 +2990,49 @@ bool EcProject::eddyProNativeFormat(const QString &filename)
 
 bool EcProject::importEddyProProject(const QString &filename, bool updateMode, bool *modified)
 {
-    // Migration point: map .eddypro fields -> .eddyflow fields here when formats diverge.
-    // Currently the formats are identical, so delegate to the standard loader.
-    return loadEcProject(filename, updateMode, modified);
+    // Pre-process: upgrade old EddyPro Campbell model keys to EddyFlow campbell_* keys.
+    QFile srcFile(filename);
+    if (!srcFile.open(QIODevice::ReadOnly | QIODevice::Text))
+        return false;
+    QString content = QTextStream(&srcFile).readAll();
+    srcFile.close();
+
+    static const QVector<QPair<QRegularExpression, QString>> kModelRewrites = {
+        { QRegularExpression(QStringLiteral("(^|\\n)model=csat3(\\r?\\n)")),   QStringLiteral("\\1model=campbell_csat3\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=csat3a(\\r?\\n)")),  QStringLiteral("\\1model=campbell_csat3a\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=csat3b(\\r?\\n)")),  QStringLiteral("\\1model=campbell_csat3b\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=irgason(\\r?\\n)")), QStringLiteral("\\1model=campbell_irgason\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=ec150(\\r?\\n)")),   QStringLiteral("\\1model=campbell_ec150\\2") },
+        // Migrate EddyPro n2o-labelled project keys to gas4
+        { QRegularExpression(QStringLiteral("(^|\\n)col_n2o=")),              QStringLiteral("\\1col_gas4=") },
+        { QRegularExpression(QStringLiteral("(^|\\n)out_full_sp_n2o=")),      QStringLiteral("\\1out_full_sp_gas4=") },
+        { QRegularExpression(QStringLiteral("(^|\\n)out_full_cosp_w_n2o=")),  QStringLiteral("\\1out_full_cosp_w_gas4=") },
+        { QRegularExpression(QStringLiteral("(^|\\n)sr_lim_n2o=")),           QStringLiteral("\\1sr_lim_gas4=") },
+        { QRegularExpression(QStringLiteral("(^|\\n)ds_hf_n2o=")),            QStringLiteral("\\1ds_hf_gas4=") },
+        { QRegularExpression(QStringLiteral("(^|\\n)ds_sf_n2o=")),            QStringLiteral("\\1ds_sf_gas4=") },
+        { QRegularExpression(QStringLiteral("(^|\\n)al_n2o_min=")),           QStringLiteral("\\1al_gas4_min=") },
+        { QRegularExpression(QStringLiteral("(^|\\n)al_n2o_max=")),           QStringLiteral("\\1al_gas4_max=") },
+        { QRegularExpression(QStringLiteral("(^|\\n)tl_def_n2o=")),           QStringLiteral("\\1tl_def_gas4=") },
+    };
+
+    bool anyReplaced = false;
+    for (const auto& [re, replacement] : kModelRewrites)
+    {
+        QString updated = content;
+        updated.replace(re, replacement);
+        if (updated != content) { content = updated; anyReplaced = true; }
+    }
+
+    if (!anyReplaced)
+        return loadEcProject(filename, updateMode, modified);
+
+    QTemporaryFile tmpFile;
+    tmpFile.setAutoRemove(true);
+    if (!tmpFile.open())
+        return false;
+    QTextStream(&tmpFile) << content;
+    tmpFile.flush();
+    return loadEcProject(tmpFile.fileName(), updateMode, modified);
 }
 
 void EcProject::setModified(bool mod)
@@ -3666,9 +3717,9 @@ void EcProject::setScreenOutFullSpectraCh4(int n)
     setModified(true);
 }
 
-void EcProject::setScreenOutFullSpectraN2o(int n)
+void EcProject::setScreenOutFullSpectralGas4(int n)
 {
-    ec_project_state_.screenSetting.out_full_sp_n2o = n;
+    ec_project_state_.screenSetting.out_full_sp_gas4 = n;
     setModified(true);
 }
 
@@ -3850,9 +3901,9 @@ void EcProject::setScreenOutFullCospectraCh4(int n)
     setModified(true);
 }
 
-void EcProject::setScreenOutFullCospectraN2o(int n)
+void EcProject::setScreenOutFullCospectralGas4(int n)
 {
-    ec_project_state_.screenSetting.out_full_cosp_n2o = n;
+    ec_project_state_.screenSetting.out_full_cosp_gas4 = n;
     setModified(true);
 }
 
@@ -4012,9 +4063,9 @@ void EcProject::setScreenParamSrCh4Lim(double n)
     setModified(true);
 }
 
-void EcProject::setScreenParamSrN2oLim(double n)
+void EcProject::setScreenParamSrGas4Lim(double n)
 {
-    ec_project_state_.screenParam.sr_lim_n2o = n;
+    ec_project_state_.screenParam.sr_lim_gas4 = n;
     setModified(true);
 }
 
@@ -4114,15 +4165,15 @@ void EcProject::setScreenParamAlCh4Max(double n)
     setModified(true);
 }
 
-void EcProject::setScreenParamAlN2oMin(double n)
+void EcProject::setScreenParamAlGas4Min(double n)
 {
-    ec_project_state_.screenParam.al_n2o_min = n;
+    ec_project_state_.screenParam.al_gas4_min = n;
     setModified(true);
 }
 
-void EcProject::setScreenParamAlN2oMax(double n)
+void EcProject::setScreenParamAlGas4Max(double n)
 {
-    ec_project_state_.screenParam.al_n2o_max = n;
+    ec_project_state_.screenParam.al_gas4_max = n;
     setModified(true);
 }
 
@@ -4210,9 +4261,9 @@ void EcProject::setScreenParamDsHfCh4(double n)
     setModified(true);
 }
 
-void EcProject::setScreenParamDsHfN2o(double n)
+void EcProject::setScreenParamDsHfGas4(double n)
 {
-    ec_project_state_.screenParam.ds_hf_n2o = n;
+    ec_project_state_.screenParam.ds_hf_gas4 = n;
     setModified(true);
 }
 
@@ -4264,9 +4315,9 @@ void EcProject::setScreenParamDsSfCh4(double n)
     setModified(true);
 }
 
-void EcProject::setScreenParamDsSfN2o(double n)
+void EcProject::setScreenParamDsSfGas4(double n)
 {
-    ec_project_state_.screenParam.ds_sf_n2o = n;
+    ec_project_state_.screenParam.ds_sf_gas4 = n;
     setModified(true);
 }
 
@@ -4306,9 +4357,9 @@ void EcProject::setScreenParamTlDefCh4(double n)
     setModified(true);
 }
 
-void EcProject::setScreenParamTlDefN2o(double n)
+void EcProject::setScreenParamTlDefGas4(double n)
 {
-    ec_project_state_.screenParam.tl_def_n2o = n;
+    ec_project_state_.screenParam.tl_def_gas4 = n;
     setModified(true);
 }
 
@@ -4747,7 +4798,7 @@ void EcProject::setGeneralColCh4(int n)
 
 void EcProject::setGeneralColGas4(int n)
 {
-    ec_project_state_.projectGeneral.col_n2o = n;
+    ec_project_state_.projectGeneral.col_gas4 = n;
     setModified(true);
 }
 

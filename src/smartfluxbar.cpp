@@ -53,16 +53,8 @@ SmartFluxBar::SmartFluxBar(EcProject* ecProject,
     configState_(config),
     cpDialog_(nullptr)
 {
-    auto smartfluxLogo = new QLabel;
-    auto pixmap = QPixmap(QStringLiteral(":/icons/smartflux-white"));
-#if defined(Q_OS_MACOS)
-    pixmap.setDevicePixelRatio(2.0);
-#endif
-    smartfluxLogo->setPixmap(pixmap);
-    smartfluxLogo->setProperty("smartfluxLogoWhite", true);
-
     auto smartfluxTitle = new QLabel;
-    smartfluxTitle->setText(tr("Configuration"));
+    smartfluxTitle->setText(tr("LI-COR Smartflux Configuration"));
     smartfluxTitle->setProperty("smartfluxBarTitle", true);
 
     auto createButton = new QPushButton;
@@ -88,7 +80,6 @@ SmartFluxBar::SmartFluxBar(EcProject* ecProject,
             this, &SmartFluxBar::closeRequest);
 
     auto layout = new QHBoxLayout(this);
-    layout->addWidget(smartfluxLogo, 0, Qt::AlignLeft | Qt::AlignBottom);
     layout->addWidget(smartfluxTitle, 0, Qt::AlignLeft | Qt::AlignBottom);
     layout->addStretch(1);
     layout->addWidget(createButton, 0, Qt::AlignLeft);

@@ -1590,7 +1590,7 @@ ClickLabel {
     text-align: right;
 }
 
-ClickLabel#smartfluxSubtitle {
+ClickLabel[smartfluxConfigurationTitle="true"] {
     font: normal 400 34px "Open Sans";
     color: #a0a0a0;
     margin: 12px -5px 1px -5px;
@@ -2042,6 +2042,10 @@ QLabel#tableRefLabel {
 }
 
 QTableView {
+    background-color: #2a2a2a;
+    alternate-background-color: #252525;
+    color: #c0c0c0;
+    gridline-color: #444444;
     selection-color: white;
     selection-background-color: #318ef4;
 }
@@ -2356,10 +2360,11 @@ QProgressBar[retRun="true"]#mainProgress::chunk {
 
 QProgressBar[splash="true"] {
     background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1,
-                  stop:0 #252525, stop:1 #333333);
+                  stop:0 white, stop:1 #d8d8d8);
     border: 1px solid #333;
     border-radius: 4px;
     text-align: center;
+    color: #333333;
     font: normal normal 10px "Open Sans";
     max-height: 12px;
     max-width: 400px;
@@ -2374,7 +2379,8 @@ QProgressBar[splash="true"]::chunk {
 }
 
 QCheckBox#splashCheckbox {
-    margin: 35px 0px 5px 43px;
+    color: #333333;
+    margin: 8px 0px 5px 43px;
     font: normal normal 12px "Open Sans";
 }
 
@@ -2389,7 +2395,7 @@ QPushButton[okSplash="true"] {
     max-height: 17px;
     padding: 0px 10px;
     color: white;
-    margin: 35px 0px 5px 0px;
+    margin: 8px 0px 5px 0px;
 }
 
 QPushButton[okSplash="true"]:hover {
@@ -2413,16 +2419,6 @@ SmartFluxBar {
     background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
                              stop: 0 #30a0e7, stop: 0.7 #096cdb, stop: 1 #096cdb);
 }*/
-
-QLabel[smartfluxLogoWhite="true"] {
-    /*border: 1px solid red;*/
-    margin: 5px 0px;
-}
-
-QLabel[smartfluxLogoGrey="true"] {
-    /*border: 1px solid red;*/
-    margin: 5px 0px 10px 0px;
-}
 
 QLabel[smartfluxBarTitle="true"] {
     color: white;

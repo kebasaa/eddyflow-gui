@@ -140,7 +140,7 @@ private:
     RichTextCheckBox* outFullSpectraCheckBoxCo2;
     RichTextCheckBox* outFullSpectraCheckBoxH2o;
     RichTextCheckBox* outFullSpectraCheckBoxCh4;
-    RichTextCheckBox* outFullSpectraCheckBoxN2o;
+    RichTextCheckBox* outFullSpectralCheckBoxGas4;
 
     RichTextCheckBox* outFullCospectraCheckBoxU;
     RichTextCheckBox* outFullCospectraCheckBoxV;
@@ -148,7 +148,7 @@ private:
     RichTextCheckBox* outFullCospectraCheckBoxCo2;
     RichTextCheckBox* outFullCospectraCheckBoxH2o;
     RichTextCheckBox* outFullCospectraCheckBoxCh4;
-    RichTextCheckBox* outFullCospectraCheckBoxN2o;
+    RichTextCheckBox* outFullCospectralCheckBoxGas4;
 
     QCheckBox* outFullCospectraAll;
     QGroupBox* fluxnetGroupBox;

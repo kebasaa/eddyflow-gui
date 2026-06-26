@@ -237,9 +237,6 @@ MainWindow::MainWindow(const QString& filename,
             this, &MainWindow::fileOpenRequest);
     connect(mainWidget_, &MainWidget::newProjectRequest,
             this, &MainWindow::fileNewRequest);
-    connect(mainWidget_, &MainWidget::checkUpdatesRequest,
-            this, &MainWindow::showUpdateDialog);
-
     connectPlanarFitDialog();
     connectTimeLagDialog();
 
@@ -1146,7 +1143,7 @@ void MainWindow::createActions()
     pdfHelpAction->setShortcut(tr("Ctrl+M"));
 
     starterPdfHelpAction = new QAction(this);
-    starterPdfHelpAction->setText(tr("Getting Started (PDF)"));
+    starterPdfHelpAction->setText(tr("Getting Started"));
     starterPdfHelpAction->setIcon(QIcon(QStringLiteral(":/icons/img/menu-help.png")));
 
     toggleOfflineHelpAct = new QAction(this);
@@ -1660,7 +1657,7 @@ void MainWindow::viewInfoOutput(bool on)
 
 void MainWindow::showHelp()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/EddyFlow_Home.html"), QUrl::StrictMode));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://github.com/kebasaa/eddyflow-documentation"), QUrl::StrictMode));
 }
 
 void MainWindow::showPdfHelp()
@@ -1670,7 +1667,7 @@ void MainWindow::showPdfHelp()
 
 void MainWindow::showStarterPdfHelp()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://boxenterprise.net/s/qmhucid6g0hdvd3d13tk"), QUrl::StrictMode));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://github.com/kebasaa/eddyflow-documentation"), QUrl::StrictMode));
 }
 
 void MainWindow::setOfflineHelp(bool yes)

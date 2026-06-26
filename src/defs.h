@@ -305,7 +305,7 @@ namespace Defs
     const auto CONF_WIN_AOA_SELECTION_MSG = QStringLiteral("/aoa_selection_msg");
 
     const auto LICOR_EP_VERSION_FILE = QStringLiteral("https://api.github.com/repos/kebasaa/eddyflow-gui/releases/latest");
-    const auto EP_SAMPLE_DATA_FILES  = QStringLiteral("https://github.com/kebasaa/eddyflow-gui/example-data");
+    const auto EP_SAMPLE_DATA_FILES  = QStringLiteral("https://github.com/kebasaa/eddyflow-build-script/tree/main/example-data");
     const QString EP_USER_AGENT = QStringLiteral("EddyFlow ") + APP_VERSION_STR;
 
     const auto GHG_TIMESTAMP_FORMAT = QStringLiteral("yyyy-mm-ddTHHMM??_");

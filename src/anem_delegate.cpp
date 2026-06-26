@@ -26,15 +26,32 @@
 #include "anem_delegate.h"
 
 #include <QAbstractItemView>
+#include <QApplication>
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPainter>
+#include <QStyle>
+#include <QStyleOptionComboBox>
 
 #include "anem_desc.h"
 #include "anem_model.h"
 #include "defs.h"
+#include "table_delegate_utils.h"
+
+namespace {
+
+bool isComboRow(int row)
+{
+    return row == AnemModel::MANUFACTURER
+           || row == AnemModel::MODEL
+           || row == AnemModel::WINDFORMAT
+           || row == AnemModel::NORTHALIGNMENT;
+}
+
+} // namespace
 
 AnemDelegate::AnemDelegate(QObject *parent) : QStyledItemDelegate(parent)
 {
@@ -71,6 +88,8 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
           combo->view()->setTextElideMode(Qt::ElideNone);
           connect(combo, QOverload<int>::of(&QComboBox::activated),
                   this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
+          TableDelegateUtils::prepareComboEditor(combo, parent);
+          TableDelegateUtils::showPopupQueued(combo);
           return combo;
       case AnemModel::MODEL:
           combo = new QComboBox(parent);
@@ -103,6 +122,8 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
           combo->setMaxVisibleItems(15);
           connect(combo, QOverload<int>::of(&QComboBox::activated),
                   this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
+          TableDelegateUtils::prepareComboEditor(combo, parent);
+          TableDelegateUtils::showPopupQueued(combo);
           return combo;
       case AnemModel::SWVERSION:
           ledit = new QLineEdit(parent);
@@ -145,6 +166,8 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
           combo->view()->setTextElideMode(Qt::ElideNone);
           connect(combo, QOverload<int>::of(&QComboBox::activated),
                   this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
+          TableDelegateUtils::prepareComboEditor(combo, parent);
+          TableDelegateUtils::showPopupQueued(combo);
           return combo;
       case AnemModel::NORTHALIGNMENT:
           combo = new QComboBox(parent);
@@ -165,6 +188,8 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
           combo->view()->setTextElideMode(Qt::ElideNone);
           connect(combo, QOverload<int>::of(&QComboBox::activated),
                   this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
+          TableDelegateUtils::prepareComboEditor(combo, parent);
+          TableDelegateUtils::showPopupQueued(combo);
           return combo;
       case AnemModel::NORTHOFFSET:
           dspin = new QDoubleSpinBox(parent);
@@ -380,6 +405,32 @@ void AnemDelegate::updateEditorGeometry(QWidget* editor,
     if (editor) editor->setGeometry(option.rect);
 }
 
+void AnemDelegate::paint(QPainter* painter,
+                         const QStyleOptionViewItem& option,
+                         const QModelIndex& index) const
+{
+    if (isComboRow(index.row()) && (index.flags() & Qt::ItemIsEditable))
+    {
+        TableDelegateUtils::paintComboCell(painter, option, index);
+        return;
+    }
+
+    if (option.state & QStyle::State_Selected)
+    {
+        QStyleOptionViewItem selectedOption(option);
+        initStyleOption(&selectedOption, index);
+        painter->save();
+        TableDelegateUtils::prepareSelectedOption(&selectedOption,
+                                                  option.state & QStyle::State_Enabled);
+        painter->fillRect(option.rect, TableDelegateUtils::baseColor(selectedOption.palette, true));
+        QStyledItemDelegate::paint(painter, selectedOption, index);
+        painter->restore();
+        return;
+    }
+
+    QStyledItemDelegate::paint(painter, option, index);
+}
+
 void AnemDelegate::commitAndCloseEditor()
 {
     QWidget* senderWidget = qobject_cast<QWidget *>(sender());
@@ -401,10 +452,9 @@ bool AnemDelegate::eventFilter(QObject* editor, QEvent* event)
     const QKeyEvent* keyEvent = dynamic_cast<const QKeyEvent*>(event);
     int eventKey = keyEvent ? keyEvent->key() : 0;
     if (combo
-         && (eventType == QEvent::MouseButtonRelease
-             || (eventType == QEvent::KeyPress && (eventKey == Qt::Key_Space
-                                                || eventKey == Qt::Key_Enter
-                                                || eventKey == Qt::Key_Return))))
+         && (eventType == QEvent::KeyPress && (eventKey == Qt::Key_Space
+                                            || eventKey == Qt::Key_Enter
+                                            || eventKey == Qt::Key_Return)))
     {
         if (combo)
         {

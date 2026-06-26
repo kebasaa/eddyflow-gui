@@ -25,11 +25,37 @@
 
 #include "variable_model.h"
 
+#include <algorithm>
 #include <QApplication>
+#include <QCollator>
 #include <QDebug>
 
 #include "stringutils.h"
 #include "widget_utils.h"
+
+namespace {
+
+QStringList sortedWithOtherLast(QStringList list)
+{
+    QStringList otherItems;
+    for (int i = list.size() - 1; i >= 0; --i)
+    {
+        if (list.at(i) == VariableModel::tr("Other"))
+        {
+            otherItems.prepend(list.takeAt(i));
+        }
+    }
+
+    QCollator collator;
+    collator.setCaseSensitivity(Qt::CaseInsensitive);
+    std::sort(list.begin(), list.end(), [&collator](const QString& left, const QString& right) {
+        return collator.compare(left, right) < 0;
+    });
+    list.append(otherItems);
+    return list;
+}
+
+} // namespace
 
 VariableModel::VariableModel(QObject *parent, VariableDescList *list) :
     QAbstractTableModel(parent),
@@ -810,7 +836,7 @@ bool VariableModel::setData(const QModelIndex& index, const QVariant& value, int
             }
             // skip parent items
             if (value != QStringLiteral("Standard Variables")
-                and value != QStringLiteral("Standard Variables"))
+                and value != QStringLiteral("Custom Variables"))
             {
                 variableDesc.setVariable(value.toString());
             }
@@ -1101,7 +1127,7 @@ const QStringList VariableModel::instrModels() const
 
 void VariableModel::setInstrModels(const QStringList& list)
 {
-    instrModelList_ = list;
+    instrModelList_ = sortedWithOtherLast(list);
 
     for (int i = 0; i < list_->count(); ++i)
     {

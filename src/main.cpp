@@ -323,7 +323,7 @@ int main(int argc, char *argv[])
             QFont textFont(QStringLiteral("Open Sans"), 10);
             p.setFont(textFont);
             p.setPen(QColor(60, 60, 60));
-            p.drawText(QRect(50, 140, 500, 270), Qt::AlignLeft | Qt::TextWordWrap, splashText);
+            p.drawText(QRect(50, 140, 500, 230), Qt::AlignLeft | Qt::TextWordWrap, splashText);
         }
     }
 

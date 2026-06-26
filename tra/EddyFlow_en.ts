@@ -4693,8 +4693,8 @@ Change this setting under the Help menu.</translation>
     </message>
     <message>
         <location filename="../src/mainwindow.cpp" line="1098"/>
-        <source>Getting Started (PDF)</source>
-        <translation>Getting Started (PDF)</translation>
+        <source>Getting Started</source>
+        <translation>Getting Started</translation>
     </message>
     <message>
         <location filename="../src/mainwindow.cpp" line="1102"/>
@@ -6751,8 +6751,8 @@ In the &apos;Raw data directory&apos; we found no files.</translation>
     <name>SmartFluxBar</name>
     <message>
         <location filename="../src/smartfluxbar.cpp" line="70"/>
-        <source>Configuration</source>
-        <translation>Configuration</translation>
+        <source>LI-COR Smartflux Configuration</source>
+        <translation>LI-COR Smartflux Configuration</translation>
     </message>
     <message>
         <location filename="../src/smartfluxbar.cpp" line="74"/>
@@ -7267,8 +7267,8 @@ In the &apos;Raw data directory&apos; we found no files.</translation>
     </message>
     <message>
         <location filename="../src/welcomepage.cpp" line="127"/>
-        <source>Configuration </source>
-        <translation>Configuration </translation>
+        <source>LI-COR Smartflux Configuration</source>
+        <translation>LI-COR Smartflux Configuration</translation>
     </message>
     <message>
         <location filename="../src/welcomepage.cpp" line="161"/>
@@ -7332,8 +7332,8 @@ In the &apos;Raw data directory&apos; we found no files.</translation>
     </message>
     <message>
         <location filename="../src/welcomepage.cpp" line="217"/>
-        <source>Getting started (PDF)</source>
-        <translation>Getting started (PDF)</translation>
+        <source>Getting started</source>
+        <translation>Getting started</translation>
     </message>
     <message>
         <location filename="../src/welcomepage.cpp" line="221"/>
@@ -7345,6 +7345,21 @@ In the &apos;Raw data directory&apos; we found no files.</translation>
         <location filename="../src/welcomepage.cpp" line="365"/>
         <source>Download sample data files</source>
         <translation>Download sample data files</translation>
+    </message>
+    <message>
+        <location filename="../src/welcomepage.cpp" line="166"/>
+        <source>Literature</source>
+        <translation>Literature</translation>
+    </message>
+    <message>
+        <location filename="../src/welcomepage.cpp" line="176"/>
+        <source>Conditional Eddy Covariance (Zahn et al. 2022)</source>
+        <translation>Conditional Eddy Covariance (Zahn et al. 2022)</translation>
+    </message>
+    <message>
+        <location filename="../src/welcomepage.cpp" line="180"/>
+        <source>Timelag correction using pre-whitening with block-bootstrap (Vitale et al. 2024)</source>
+        <translation>Timelag correction using pre-whitening with block-bootstrap (Vitale et al. 2024)</translation>
     </message>
     <message>
         <location filename="../src/welcomepage.cpp" line="236"/>

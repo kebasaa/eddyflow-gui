@@ -70,12 +70,15 @@ const QString DlProject::IRGA_MODEL_STRING_11 = QStringLiteral("closed_path_lyma
 const QString DlProject::IRGA_MODEL_STRING_12 = QStringLiteral("li7500rs");
 const QString DlProject::IRGA_MODEL_STRING_13 = QStringLiteral("li7200rs");
 const QString DlProject::IRGA_MODEL_STRING_14 = QStringLiteral("li7500ds");
-const QString DlProject::IRGA_MODEL_STRING_15 = QStringLiteral("ec150");
-const QString DlProject::IRGA_MODEL_STRING_16 = QStringLiteral("irgason");
-const QString DlProject::IRGA_MODEL_STRING_17 = QStringLiteral("spectronus");
-const QString DlProject::IRGA_MODEL_STRING_18 = QStringLiteral("miu1000");
-const QString DlProject::IRGA_MODEL_STRING_19 = QStringLiteral("miu2000");
+const QString DlProject::IRGA_MODEL_STRING_15 = QStringLiteral("campbell_ec150");
+const QString DlProject::IRGA_MODEL_STRING_16 = QStringLiteral("campbell_irgason");
+const QString DlProject::IRGA_MODEL_STRING_17 = QStringLiteral("miro_mga1_5");
+const QString DlProject::IRGA_MODEL_STRING_18 = QStringLiteral("miro_mga4_6");
+const QString DlProject::IRGA_MODEL_STRING_19 = QStringLiteral("miro_mga9_10");
 const QString DlProject::IRGA_MODEL_STRING_20 = QStringLiteral("aerodyne_tildas");
+const QString DlProject::IRGA_MODEL_STRING_21 = QStringLiteral("miro_mgai_n2o");
+const QString DlProject::IRGA_MODEL_STRING_22 = QStringLiteral("campbell_ec155");
+const QString DlProject::IRGA_MODEL_STRING_23 = QStringLiteral("campbell_tga200a");
 
 const QString DlProject::IRGA_SW_VERSION_STRING_0 = QStringLiteral("0.0.0");
 const QString DlProject::IRGA_SW_VERSION_STRING_1 = QStringLiteral("5.0.3");
@@ -155,7 +158,7 @@ const QString DlProject::VARIABLE_CONVERSION_TYPE_STRING_2 = QStringLiteral("non
 
 const QString DlProject::getANEM_MODEL_STRING_0()
 {
-    static const QString s(QStringLiteral("csat3"));
+    static const QString s(QStringLiteral("campbell_csat3"));
     return s;
 }
 
@@ -233,7 +236,7 @@ const QString DlProject::getANEM_MODEL_STRING_12()
 
 const QString DlProject::getANEM_MODEL_STRING_13()
 {
-    static const QString s(QStringLiteral("csat3b"));
+    static const QString s(QStringLiteral("campbell_csat3b"));
     return s;
 }
 
@@ -269,13 +272,19 @@ const QString DlProject::getANEM_MODEL_STRING_18()
 
 const QString DlProject::getANEM_MODEL_STRING_19()
 {
-    static const QString s(QStringLiteral("csat3a"));
+    static const QString s(QStringLiteral("campbell_csat3a"));
     return s;
 }
 
 const QString DlProject::getANEM_MODEL_STRING_20()
 {
-    static const QString s(QStringLiteral("irgason"));
+    static const QString s(QStringLiteral("campbell_irgason"));
+    return s;
+}
+
+const QString DlProject::getANEM_MODEL_STRING_21()
+{
+    static const QString s(QStringLiteral("campbell_csat3c"));
     return s;
 }
 
@@ -1426,6 +1435,10 @@ const QString DlProject::toIniAnemModel(const QString& s)
     {
         return DlProject::getANEM_MODEL_STRING_20();
     }
+    else if (s == AnemDesc::getANEM_MODEL_STRING_21())
+    {
+        return DlProject::getANEM_MODEL_STRING_21();
+    }
     else
     {
         return QString();
@@ -1954,6 +1967,10 @@ const QString DlProject::fromIniAnemModel(const QString& s)
     {
         return AnemDesc::getANEM_MODEL_STRING_20();
     }
+    else if (s == DlProject::getANEM_MODEL_STRING_21())
+    {
+        return AnemDesc::getANEM_MODEL_STRING_21();
+    }
     else
     {
         return QString();
@@ -1994,7 +2011,8 @@ QString DlProject::fromIniAnemNorthAlign(const QString &model, const QString &s)
         if (model == DlProject::getANEM_MODEL_STRING_0()
             || model == DlProject::getANEM_MODEL_STRING_13()
             || model == DlProject::getANEM_MODEL_STRING_19()
-            || model == DlProject::getANEM_MODEL_STRING_20())
+            || model == DlProject::getANEM_MODEL_STRING_20()
+            || model == DlProject::getANEM_MODEL_STRING_21())
         {
             return AnemDesc::getANEM_NORTH_ALIGN_STRING_2();
         }
@@ -2342,14 +2360,11 @@ DlProject::InstrumentType DlProject::getInstrumentType(const QSettings& iniGroup
 
 DlProject::InstrumentType DlProject::getInstrumentTypeFromModel(const QString& model)
 {
-    if (model.contains(QRegularExpression(QStringLiteral("li*")))
-        || model.contains(QRegularExpression(QStringLiteral("open_path*")))
-        || model.contains(QRegularExpression(QStringLiteral("closed_path*")))
-        || model.contains(QRegularExpression(QStringLiteral("generic*path"))))
-    {
+    if (!fromIniIrgaModel(model).isEmpty())
         return InstrumentType::IRGA;
-    }
-    return InstrumentType::ANEM;
+    if (!fromIniAnemModel(model).isEmpty())
+        return InstrumentType::ANEM;
+    return InstrumentType::UNDEFINED;
 }
 
 QString DlProject::fromIniIrgaManufacturer(const QString& s)
@@ -2465,6 +2480,18 @@ QString DlProject::fromIniIrgaModel(const QString& s)
     else if (s == DlProject::IRGA_MODEL_STRING_20)
     {
         return IrgaDesc::getIRGA_MODEL_STRING_20();
+    }
+    else if (s == DlProject::IRGA_MODEL_STRING_21)
+    {
+        return IrgaDesc::getIRGA_MODEL_STRING_21();
+    }
+    else if (s == DlProject::IRGA_MODEL_STRING_22)
+    {
+        return IrgaDesc::getIRGA_MODEL_STRING_22();
+    }
+    else if (s == DlProject::IRGA_MODEL_STRING_23)
+    {
+        return IrgaDesc::getIRGA_MODEL_STRING_23();
     }
     else
     {
@@ -2585,6 +2612,18 @@ QString DlProject::toIniIrgaModel(const QString& s)
     else if (s == IrgaDesc::getIRGA_MODEL_STRING_20())
     {
         return DlProject::IRGA_MODEL_STRING_20;
+    }
+    else if (s == IrgaDesc::getIRGA_MODEL_STRING_21())
+    {
+        return DlProject::IRGA_MODEL_STRING_21;
+    }
+    else if (s == IrgaDesc::getIRGA_MODEL_STRING_22())
+    {
+        return DlProject::IRGA_MODEL_STRING_22;
+    }
+    else if (s == IrgaDesc::getIRGA_MODEL_STRING_23())
+    {
+        return DlProject::IRGA_MODEL_STRING_23;
     }
     else
     {

@@ -25,18 +25,92 @@
 
 #include "variable_delegate.h"
 
+#include <algorithm>
 #include <QAbstractItemView>
+#include <QApplication>
+#include <QCollator>
 #include <QComboBox>
 #include <QDebug>
 #include <QDoubleSpinBox>
 #include <QKeyEvent>
 #include <QLabel>
+#include <QPainter>
+#include <QStyle>
+#include <QStyleOptionComboBox>
 
 #include "customcombobox.h"
+#include "gas_metadata.h"
 #include "globalsettings.h"
 #include "nonzerodoublespinbox.h"
+#include "table_delegate_utils.h"
+#include "variable_desc.h"
 #include "variable_model.h"
 #include "widget_utils.h"
+
+namespace {
+
+bool isComboRow(int row)
+{
+    return row == VariableModel::IGNORE
+           || row == VariableModel::NUMERIC
+           || row == VariableModel::VARIABLE
+           || row == VariableModel::INSTRUMENT
+           || row == VariableModel::MEASURETYPE
+           || row == VariableModel::INPUTUNIT
+           || row == VariableModel::CONVERSIONTYPE
+           || row == VariableModel::OUTPUTUNIT;
+}
+
+QStringList sortedWithOtherLast(QStringList list)
+{
+    QStringList otherItems;
+    for (int i = list.size() - 1; i >= 0; --i)
+    {
+        if (list.at(i) == VariableDelegate::tr("Other"))
+        {
+            otherItems.prepend(list.takeAt(i));
+        }
+    }
+
+    QCollator collator;
+    collator.setCaseSensitivity(Qt::CaseInsensitive);
+    std::sort(list.begin(), list.end(), [&collator](const QString& left, const QString& right) {
+        return collator.compare(left, right) < 0;
+    });
+    list.append(otherItems);
+    return list;
+}
+
+void warnForTypedGasVariable(const QString& variable)
+{
+    if (variable.isEmpty() || VariableDesc::isGasVariable(variable))
+    {
+        return;
+    }
+
+    if (GasMetadata::isManualDiffusivityGas(variable))
+    {
+        WidgetUtils::information(QApplication::activeWindow(),
+                                 VariableDelegate::tr("Diffusivity Not Available"),
+                                 VariableDelegate::tr("Molecular weight is available for <b>%1</b>, "
+                                                      "but no diffusivity data is available. You will "
+                                                      "need to enter diffusivity manually in Basic Settings.")
+                                     .arg(variable));
+        return;
+    }
+
+    if (!GasMetadata::findGas(variable))
+    {
+        WidgetUtils::information(QApplication::activeWindow(),
+                                 VariableDelegate::tr("Custom Gas Variable"),
+                                 VariableDelegate::tr("EddyFlow has no molecular weight or diffusivity data "
+                                                      "for <b>%1</b>. You will need to enter both values "
+                                                      "manually in Basic Settings.")
+                                     .arg(variable));
+    }
+}
+
+} // namespace
 
 VariableDelegate::VariableDelegate(QObject *parent) :
     QStyledItemDelegate(parent),
@@ -75,6 +149,8 @@ QWidget *VariableDelegate::createEditor(QWidget* parent,
             combo->setMinimumWidth(130);
             connect(combo, QOverload<int>::of(&QComboBox::activated),
                     this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
+            TableDelegateUtils::prepareComboEditor(combo, parent);
+            TableDelegateUtils::showPopupQueued(combo);
             return combo;
         case VariableModel::NUMERIC:
             combo = new QComboBox(parent);
@@ -82,6 +158,8 @@ QWidget *VariableDelegate::createEditor(QWidget* parent,
             combo->setMinimumWidth(130);
             connect(combo, QOverload<int>::of(&QComboBox::activated),
                     this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
+            TableDelegateUtils::prepareComboEditor(combo, parent);
+            TableDelegateUtils::showPopupQueued(combo);
             return combo;
         case VariableModel::VARIABLE:
             custom_combo = new CustomComboBox(parent);
@@ -93,12 +171,14 @@ QWidget *VariableDelegate::createEditor(QWidget* parent,
             {
                 custom_combo->addSeparator();
                 custom_combo->addParentItem(QStringLiteral("Custom Variables"));
-                custom_combo->addChildItems(*varsBuffer_);
+                custom_combo->addChildItems(sortedWithOtherLast(*varsBuffer_));
             }
             custom_combo->setMinimumWidth(130);
             custom_combo->view()->setAlternatingRowColors(true);
             connect(custom_combo, QOverload<int>::of(&QComboBox::activated),
                     this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
+            TableDelegateUtils::prepareComboEditor(custom_combo, parent);
+            TableDelegateUtils::showPopupQueued(custom_combo);
             return custom_combo;
         case VariableModel::INSTRUMENT:
             combo = new QComboBox(parent);
@@ -107,6 +187,8 @@ QWidget *VariableDelegate::createEditor(QWidget* parent,
             combo->setMinimumWidth(130);
             connect(combo, QOverload<int>::of(&QComboBox::activated),
                     this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
+            TableDelegateUtils::prepareComboEditor(combo, parent);
+            TableDelegateUtils::showPopupQueued(combo);
             return combo;
         case VariableModel::MEASURETYPE:
             if (!VariableDesc::isGasVariable(currentVar)
@@ -123,6 +205,8 @@ QWidget *VariableDelegate::createEditor(QWidget* parent,
                 combo->setMinimumWidth(130);
                 connect(combo, QOverload<int>::of(&QComboBox::activated),
                         this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
+                TableDelegateUtils::prepareComboEditor(combo, parent);
+                TableDelegateUtils::showPopupQueued(combo);
                 return combo;
             }
         case VariableModel::INPUTUNIT:
@@ -172,6 +256,8 @@ QWidget *VariableDelegate::createEditor(QWidget* parent,
             connect(combo, QOverload<int>::of(&QComboBox::activated),
                     this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
 
+            TableDelegateUtils::prepareComboEditor(combo, parent);
+            TableDelegateUtils::showPopupQueued(combo);
             return combo;
         case VariableModel::CONVERSIONTYPE:
             if (!VariableDesc::isScalableVariable(currentInputUnit)
@@ -191,6 +277,8 @@ QWidget *VariableDelegate::createEditor(QWidget* parent,
                 combo->view()->setAlternatingRowColors(true);
                 connect(combo, QOverload<int>::of(&QComboBox::activated),
                         this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
+                TableDelegateUtils::prepareComboEditor(combo, parent);
+                TableDelegateUtils::showPopupQueued(combo);
                 return combo;
             }
         case VariableModel::OUTPUTUNIT:
@@ -248,6 +336,8 @@ QWidget *VariableDelegate::createEditor(QWidget* parent,
                 combo->setMinimumWidth(130);
                 connect(combo, QOverload<int>::of(&QComboBox::activated),
                         this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
+                TableDelegateUtils::prepareComboEditor(combo, parent);
+                TableDelegateUtils::showPopupQueued(combo);
                 return combo;
             }
         case VariableModel::AVALUE:
@@ -432,9 +522,12 @@ void VariableDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
             model->setData(index, value);
             break;
         case VariableModel::VARIABLE:
+        {
             combo = dynamic_cast<CustomComboBox*>(editor);
             if (!combo) { return; }
-            value = combo->currentText();
+            value = combo->currentText().trimmed();
+            const bool typedNewVariable = combo->findText(value.toString()) < 0;
+            const bool valueChanged = value.toString() != currentVar;
 
             // skip parent items
             if (value == QLatin1String("Standard Variables")
@@ -444,7 +537,12 @@ void VariableDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
             }
 
             model->setData(index, value);
-        break;
+            if (typedNewVariable && valueChanged)
+            {
+                warnForTypedGasVariable(value.toString());
+            }
+            break;
+        }
         case VariableModel::CONVERSIONTYPE:
         case VariableModel::OUTPUTUNIT:
             if (!VariableDesc::isScalableVariable(currentInputUnit)
@@ -517,6 +615,32 @@ void VariableDelegate::updateEditorGeometry(QWidget* editor,
     if (editor) editor->setGeometry(option.rect);
 }
 
+void VariableDelegate::paint(QPainter* painter,
+                             const QStyleOptionViewItem& option,
+                             const QModelIndex& index) const
+{
+    if (isComboRow(index.row()) && (index.flags() & Qt::ItemIsEditable))
+    {
+        TableDelegateUtils::paintComboCell(painter, option, index);
+        return;
+    }
+
+    if (option.state & QStyle::State_Selected)
+    {
+        QStyleOptionViewItem selectedOption(option);
+        initStyleOption(&selectedOption, index);
+        painter->save();
+        TableDelegateUtils::prepareSelectedOption(&selectedOption,
+                                                  option.state & QStyle::State_Enabled);
+        painter->fillRect(option.rect, TableDelegateUtils::baseColor(selectedOption.palette, true));
+        QStyledItemDelegate::paint(painter, selectedOption, index);
+        painter->restore();
+        return;
+    }
+
+    QStyledItemDelegate::paint(painter, option, index);
+}
+
 void VariableDelegate::clearCustomVariableBuffer()
 {
     varsBuffer_.data()->clear();
@@ -548,10 +672,9 @@ bool VariableDelegate::eventFilter(QObject* editor, QEvent* event)
 
     // if ((combo || spin)
     if (combo
-        && (eventType == QEvent::MouseButtonRelease
-            || (eventType == QEvent::KeyPress && (eventKey == Qt::Key_Space
-                                               || eventKey == Qt::Key_Enter
-                                                || eventKey == Qt::Key_Return))))
+        && (eventType == QEvent::KeyPress && (eventKey == Qt::Key_Space
+                                           || eventKey == Qt::Key_Enter
+                                           || eventKey == Qt::Key_Return)))
     {
         if (combo)
         {

@@ -32,6 +32,7 @@ HEADERS += \
     src/ecprojectstate.h \
     src/faderwidget.h \
     src/fileutils.h \
+    src/gas_metadata.h \
     src/infomessage.h \
     src/irga_delegate.h \
     src/irga_desc.h \
@@ -53,6 +54,7 @@ HEADERS += \
     src/splitter.h \
     src/splitterhandle.h \
     src/stringutils.h \
+    src/table_delegate_utils.h \
     src/timelagsettingsdialog.h \
     src/tooltipfilter.h \
     src/variable_delegate.h \
@@ -129,6 +131,7 @@ SOURCES +=  \
     src/ecproject.cpp \
     src/faderwidget.cpp \
     src/fileutils.cpp \
+    src/gas_metadata.cpp \
     src/infomessage.cpp \
     src/irga_delegate.cpp \
     src/irga_desc.cpp \
