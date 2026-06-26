@@ -2042,6 +2042,10 @@ QLabel#tableRefLabel {
 }
 
 QTableView {
+    background-color: #2a2a2a;
+    alternate-background-color: #252525;
+    color: #c0c0c0;
+    gridline-color: #444444;
     selection-color: white;
     selection-background-color: #318ef4;
 }

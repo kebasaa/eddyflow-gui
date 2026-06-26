@@ -7347,6 +7347,21 @@ In the &apos;Raw data directory&apos; we found no files.</translation>
         <translation>Download sample data files</translation>
     </message>
     <message>
+        <location filename="../src/welcomepage.cpp" line="166"/>
+        <source>Literature</source>
+        <translation>Literature</translation>
+    </message>
+    <message>
+        <location filename="../src/welcomepage.cpp" line="176"/>
+        <source>Conditional Eddy Covariance (Zahn et al. 2022)</source>
+        <translation>Conditional Eddy Covariance (Zahn et al. 2022)</translation>
+    </message>
+    <message>
+        <location filename="../src/welcomepage.cpp" line="180"/>
+        <source>Timelag correction using pre-whitening with block-bootstrap (Vitale et al. 2024)</source>
+        <translation>Timelag correction using pre-whitening with block-bootstrap (Vitale et al. 2024)</translation>
+    </message>
+    <message>
         <location filename="../src/welcomepage.cpp" line="236"/>
         <source>Support resources</source>
         <translation>Support resources</translation>

@@ -836,7 +836,7 @@ bool VariableModel::setData(const QModelIndex& index, const QVariant& value, int
             }
             // skip parent items
             if (value != QStringLiteral("Standard Variables")
-                and value != QStringLiteral("Standard Variables"))
+                and value != QStringLiteral("Custom Variables"))
             {
                 variableDesc.setVariable(value.toString());
             }

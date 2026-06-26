@@ -32,6 +32,7 @@
 
 #include "anem_desc.h"
 #include "defs.h"
+#include "gas_metadata.h"
 #include "irga_desc.h"
 
 namespace {
@@ -247,6 +248,24 @@ const QString VariableDesc::getVARIABLE_VAR_STRING_30()
 const QString VariableDesc::getVARIABLE_VAR_STRING_31()
 {
     static const QString s(QStringLiteral("COS"));
+    return s;
+}
+
+const QString VariableDesc::getVARIABLE_VAR_STRING_32()
+{
+    static const QString s(QLatin1Char('N') + Defs::SUBTWO);
+    return s;
+}
+
+const QString VariableDesc::getVARIABLE_VAR_STRING_33()
+{
+    static const QString s(QLatin1Char('O') + Defs::SUBTWO);
+    return s;
+}
+
+const QString VariableDesc::getVARIABLE_VAR_STRING_34()
+{
+    static const QString s(QStringLiteral("Ar"));
     return s;
 }
 
@@ -583,7 +602,7 @@ bool VariableDesc::operator==(const VariableDesc& fileDesc) const
 // Return string list of anem types
 const QStringList VariableDesc::variableStringList()
 {
-    return sortedWithOtherLast(QStringList()
+    QStringList list = (QStringList()
             << getVARIABLE_VAR_STRING_0()
             << getVARIABLE_VAR_STRING_1()
             << getVARIABLE_VAR_STRING_2()
@@ -595,13 +614,6 @@ const QStringList VariableDesc::variableStringList()
             << getVARIABLE_VAR_STRING_5()
             << getVARIABLE_VAR_STRING_6()
             << getVARIABLE_VAR_STRING_7()
-            << getVARIABLE_VAR_STRING_8()
-            << getVARIABLE_VAR_STRING_19()
-            << getVARIABLE_VAR_STRING_20()
-            << getVARIABLE_VAR_STRING_21()
-            << getVARIABLE_VAR_STRING_22()
-            << getVARIABLE_VAR_STRING_23()
-            << getVARIABLE_VAR_STRING_24()
             << getVARIABLE_VAR_STRING_29()
             << getVARIABLE_VAR_STRING_15()
             << getVARIABLE_VAR_STRING_9()
@@ -613,8 +625,9 @@ const QStringList VariableDesc::variableStringList()
             << getVARIABLE_VAR_STRING_26()
             << getVARIABLE_VAR_STRING_27()
             << getVARIABLE_VAR_STRING_30()
-            << getVARIABLE_VAR_STRING_31()
             );
+    list.append(GasMetadata::selectableGasVariableList());
+    return sortedWithOtherLast(list);
 }
 
 const QStringList VariableDesc::measureTypeStringList()
@@ -828,18 +841,7 @@ bool VariableDesc::isGoodGas(const VariableDesc& var, bool isCustom)
     bool isGoodName = false;
     if (!name.isEmpty())
     {
-        isGoodName = (name == getVARIABLE_VAR_STRING_5())
-                      || (name == getVARIABLE_VAR_STRING_6())
-                      || (name == getVARIABLE_VAR_STRING_7())
-                      || (name == getVARIABLE_VAR_STRING_8())
-                      || (name == getVARIABLE_VAR_STRING_19())
-                      || (name == getVARIABLE_VAR_STRING_20())
-                      || (name == getVARIABLE_VAR_STRING_21())
-                      || (name == getVARIABLE_VAR_STRING_22())
-                      || (name == getVARIABLE_VAR_STRING_23())
-                      || (name == getVARIABLE_VAR_STRING_24())
-                      || (name == getVARIABLE_VAR_STRING_31())
-                      || isCustom;
+        isGoodName = isGasVariable(name) || isCustom;
     }
 
     // 2
@@ -1212,14 +1214,7 @@ bool VariableDesc::isGasVariable(const QString& var)
     return (var == getVARIABLE_VAR_STRING_5()
             || var == getVARIABLE_VAR_STRING_6()
             || var == getVARIABLE_VAR_STRING_7()
-            || var == getVARIABLE_VAR_STRING_8()
-            || var == getVARIABLE_VAR_STRING_19()
-            || var == getVARIABLE_VAR_STRING_20()
-            || var == getVARIABLE_VAR_STRING_21()
-            || var == getVARIABLE_VAR_STRING_22()
-            || var == getVARIABLE_VAR_STRING_23()
-            || var == getVARIABLE_VAR_STRING_24()
-            || var == getVARIABLE_VAR_STRING_31());
+            || GasMetadata::isSelectableGasVariable(var));
 }
 
 bool VariableDesc::isCustomVariable(const QString& var)
@@ -1255,7 +1250,10 @@ bool VariableDesc::isCustomVariable(const QString& var)
             && var != getVARIABLE_VAR_STRING_28()
             && var != getVARIABLE_VAR_STRING_29()
             && var != getVARIABLE_VAR_STRING_30()
-            && var != getVARIABLE_VAR_STRING_31());
+            && var != getVARIABLE_VAR_STRING_31()
+            && var != getVARIABLE_VAR_STRING_32()
+            && var != getVARIABLE_VAR_STRING_33()
+            && var != getVARIABLE_VAR_STRING_34());
 }
 
 bool VariableDesc::isScalableVariable(const QString& inputUnit)

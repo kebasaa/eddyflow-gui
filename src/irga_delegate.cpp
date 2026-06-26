@@ -40,42 +40,14 @@
 #include "defs.h"
 #include "irga_desc.h"
 #include "irga_model.h"
+#include "table_delegate_utils.h"
 
 namespace {
-
-const QColor selectedColumnColor()
-{
-    return QColor(QStringLiteral("#c8eaf7"));
-}
 
 bool isComboRow(int row)
 {
     return row == IrgaModel::MANUFACTURER
            || row == IrgaModel::MODEL;
-}
-
-void paintComboCell(QPainter* painter,
-                    const QStyleOptionViewItem& option,
-                    const QModelIndex& index)
-{
-    QStyleOptionComboBox comboOption;
-    comboOption.rect = option.rect.adjusted(2, 1, -2, -1);
-    comboOption.currentText = index.data(Qt::DisplayRole).toString();
-    comboOption.state = option.state;
-    comboOption.state |= QStyle::State_Enabled;
-    comboOption.palette = option.palette;
-    comboOption.palette.setColor(QPalette::ButtonText, Qt::black);
-
-    if (option.state & QStyle::State_Selected)
-    {
-        painter->fillRect(option.rect, selectedColumnColor());
-        comboOption.palette.setColor(QPalette::Button, selectedColumnColor());
-        comboOption.palette.setColor(QPalette::Base, selectedColumnColor());
-    }
-
-    auto style = option.widget ? option.widget->style() : QApplication::style();
-    style->drawComplexControl(QStyle::CC_ComboBox, &comboOption, painter, option.widget);
-    style->drawControl(QStyle::CE_ComboBoxLabel, &comboOption, painter, option.widget);
 }
 
 } // namespace
@@ -113,6 +85,8 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
           combo->view()->setTextElideMode(Qt::ElideNone);
           connect(combo, QOverload<int>::of(&QComboBox::activated),
                   this, QOverload<>::of(&IrgaDelegate::commitAndCloseEditor));
+          TableDelegateUtils::prepareComboEditor(combo, parent);
+          TableDelegateUtils::showPopupQueued(combo);
           return combo;
       case IrgaModel::MODEL:
           combo = new QComboBox(parent);
@@ -145,6 +119,8 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
           combo->setMaxVisibleItems(15);
           connect(combo, QOverload<int>::of(&QComboBox::activated),
                   this, QOverload<>::of(&IrgaDelegate::commitAndCloseEditor));
+          TableDelegateUtils::prepareComboEditor(combo, parent);
+          TableDelegateUtils::showPopupQueued(combo);
           return combo;
       case IrgaModel::SWVERSION:
             ledit = new QLineEdit(parent);
@@ -540,7 +516,7 @@ void IrgaDelegate::paint(QPainter* painter,
 {
     if (isComboRow(index.row()) && (index.flags() & Qt::ItemIsEditable))
     {
-        paintComboCell(painter, option, index);
+        TableDelegateUtils::paintComboCell(painter, option, index);
         return;
     }
 
@@ -549,9 +525,9 @@ void IrgaDelegate::paint(QPainter* painter,
         QStyleOptionViewItem selectedOption(option);
         initStyleOption(&selectedOption, index);
         painter->save();
-        painter->fillRect(option.rect, selectedColumnColor());
-        selectedOption.state &= ~QStyle::State_Selected;
-        selectedOption.backgroundBrush = QBrush(selectedColumnColor());
+        TableDelegateUtils::prepareSelectedOption(&selectedOption,
+                                                  option.state & QStyle::State_Enabled);
+        painter->fillRect(option.rect, TableDelegateUtils::baseColor(selectedOption.palette, true));
         QStyledItemDelegate::paint(painter, selectedOption, index);
         painter->restore();
         return;
@@ -581,10 +557,9 @@ bool IrgaDelegate::eventFilter(QObject* editor, QEvent* event)
     const QKeyEvent* keyEvent = dynamic_cast<const QKeyEvent*>(event);
     int eventKey = keyEvent ? keyEvent->key() : 0;
     if (combo
-        && (eventType == QEvent::MouseButtonRelease
-            || (eventType == QEvent::KeyPress && (eventKey == Qt::Key_Space
-                                               || eventKey == Qt::Key_Enter
-                                               || eventKey == Qt::Key_Return))))
+        && (eventType == QEvent::KeyPress && (eventKey == Qt::Key_Space
+                                           || eventKey == Qt::Key_Enter
+                                           || eventKey == Qt::Key_Return)))
     {
         if (combo)
         {

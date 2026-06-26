@@ -26,6 +26,7 @@
 #include "welcomepage.h"
 
 #include <QCheckBox>
+#include <QCollator>
 #include <QDebug>
 #include <QDesktopServices>
 #include <QDir>
@@ -37,6 +38,7 @@
 #include <QPushButton>
 #include <QToolButton>
 #include <QUrl>
+#include <QVector>
 
 #include "clicklabel.h"
 #include "defs.h"
@@ -166,14 +168,37 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     auto litTitle = new QLabel(tr("Literature"));
     litTitle->setProperty("groupTitle3", true);
 
-    auto litItem_1 = new QListWidgetItem(tr("Conditional Eddy Covariance (Zahn et al. 2022)"));
-    litItem_1->setData(Qt::UserRole, QStringLiteral("https://www.sciencedirect.com/science/article/pii/S0168192321004767"));
+    struct LiteratureEntry {
+        QString title;
+        QString url;
+    };
+    QVector<LiteratureEntry> literatureEntries = {
+        {
+            tr("Conditional Eddy Covariance (Zahn et al. 2022)"),
+            QStringLiteral("https://www.sciencedirect.com/science/article/pii/S0168192321004767")
+        },
+        {
+            tr("Timelag correction using pre-whitening with block-bootstrap (Vitale et al. 2024)"),
+            QStringLiteral("https://link.springer.com/article/10.1007/s10651-024-00615-9")
+        },
+    };
+    QCollator literatureCollator;
+    literatureCollator.setCaseSensitivity(Qt::CaseInsensitive);
+    std::sort(literatureEntries.begin(), literatureEntries.end(),
+              [&literatureCollator](const LiteratureEntry& left, const LiteratureEntry& right) {
+                  return literatureCollator.compare(left.title, right.title) < 0;
+              });
 
     litListWidget = new QListWidget;
     litListWidget->setProperty("helpListItem", true);
     litListWidget->setAlternatingRowColors(true);
     litListWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    litListWidget->addItem(litItem_1);
+    for (const auto& entry : literatureEntries)
+    {
+        auto item = new QListWidgetItem(entry.title);
+        item->setData(Qt::UserRole, entry.url);
+        litListWidget->addItem(item);
+    }
 
     auto helpLayout = new QGridLayout;
     helpLayout->addWidget(helpTitle,      0, 0);
