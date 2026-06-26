@@ -2292,7 +2292,8 @@ QProgressBar[splash="true"]::chunk {
 }
 
 QCheckBox#splashCheckbox {
-    margin: 35px 0px 5px 43px;
+    color: #333333;
+    margin: 8px 0px 5px 43px;
     font: normal normal 12px "Open Sans";
 }
 
@@ -2307,7 +2308,7 @@ QPushButton[okSplash="true"] {
     max-height: 17px;
     padding: 0px 10px;
     color: white;
-    margin: 35px 0px 5px 0px;
+    margin: 8px 0px 5px 0px;
 }
 
 QPushButton[okSplash="true"]:hover {

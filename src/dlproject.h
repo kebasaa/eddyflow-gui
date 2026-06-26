@@ -195,6 +195,7 @@ public:
     static const QString getANEM_MODEL_STRING_18();
     static const QString getANEM_MODEL_STRING_19();
     static const QString getANEM_MODEL_STRING_20();
+    static const QString getANEM_MODEL_STRING_21();
 
 signals:
     // send that a new project has been created
@@ -317,6 +318,9 @@ private:
     static const QString IRGA_MODEL_STRING_18;
     static const QString IRGA_MODEL_STRING_19;
     static const QString IRGA_MODEL_STRING_20;
+    static const QString IRGA_MODEL_STRING_21;
+    static const QString IRGA_MODEL_STRING_22;
+    static const QString IRGA_MODEL_STRING_23;
 
     static const QString IRGA_SW_VERSION_STRING_0;
     static const QString IRGA_SW_VERSION_STRING_1;

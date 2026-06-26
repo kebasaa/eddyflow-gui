@@ -31,6 +31,7 @@
 #include <QPainter>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QTimer>
 #include <QVBoxLayout>
 
 #include "defs.h"
@@ -56,10 +57,10 @@ CustomSplashScreen::CustomSplashScreen(const QPixmap & pixmap, Qt::WindowFlags f
     rowLayout->addStretch(1);
 
     auto layout = new QVBoxLayout(this);
-    layout->addSpacerItem(new QSpacerItem(1, 310));
+    layout->addSpacerItem(new QSpacerItem(1, 380));
+    layout->addWidget(progressBar_, 0, Qt::AlignVCenter);
     layout->addLayout(rowLayout);
-    layout->addWidget(progressBar_, 1, Qt::AlignVCenter);
-    layout->addStretch(18);
+    layout->addStretch(1);
     layout->setContentsMargins(60, 0, 60, 24);
     layout->setSpacing(0);
     setLayout(layout);
@@ -68,6 +69,10 @@ CustomSplashScreen::CustomSplashScreen(const QPixmap & pixmap, Qt::WindowFlags f
             this, &CustomSplashScreen::updateShowSplash);
     connect(okButton, &QPushButton::clicked,
             this, &QSplashScreen::close);
+
+    autoCloseTimer_ = new QTimer(this);
+    autoCloseTimer_->setSingleShot(true);
+    connect(autoCloseTimer_, &QTimer::timeout, this, &QSplashScreen::close);
 }
 
 CustomSplashScreen::~CustomSplashScreen()
@@ -84,6 +89,8 @@ void CustomSplashScreen::drawContents(QPainter *painter)
 void CustomSplashScreen::setProgressValue(int value)
 {
     progressBar_->setValue(value);
+    if (value >= 100)
+        autoCloseTimer_->start(5000);
 }
 
 void CustomSplashScreen::showStatusMessage(const QString &message, const QColor &color)

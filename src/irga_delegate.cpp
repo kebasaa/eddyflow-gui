@@ -192,6 +192,9 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_17()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_18()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_19()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_21()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_22()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_23()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_20())
             {
                 label = new QLabel(parent);
@@ -219,6 +222,9 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_17()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_18()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_19()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_21()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_22()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_23()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_20())
             {
                 label = new QLabel(parent);
@@ -306,6 +312,9 @@ void IrgaDelegate::setEditorData(QWidget* editor,
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_17()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_18()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_19()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_21()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_22()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_23()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_20())
             {
                 label = dynamic_cast<QLabel*>(editor);
@@ -409,6 +418,9 @@ void IrgaDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_17()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_18()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_19()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_21()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_22()
+                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_23()
                 && currentModel != IrgaDesc::getIRGA_MODEL_STRING_20())
             {
                 label = dynamic_cast<QLabel*>(editor);

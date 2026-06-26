@@ -168,25 +168,43 @@ const QString IrgaDesc::getIRGA_MODEL_STRING_16()
 
 const QString IrgaDesc::getIRGA_MODEL_STRING_17()
 {
-    static const QString s(QStringLiteral("Spectronus"));
+    static const QString s(QStringLiteral("MGA¹⁻⁵"));
     return s;
 }
 
 const QString IrgaDesc::getIRGA_MODEL_STRING_18()
 {
-    static const QString s(QStringLiteral("MIU1000"));
+    static const QString s(QStringLiteral("MGA⁶⁻⁸"));
     return s;
 }
 
 const QString IrgaDesc::getIRGA_MODEL_STRING_19()
 {
-    static const QString s(QStringLiteral("MIU2000"));
+    static const QString s(QStringLiteral("MGA⁹⁻¹⁰"));
     return s;
 }
 
 const QString IrgaDesc::getIRGA_MODEL_STRING_20()
 {
     static const QString s(QStringLiteral("TILDAS Analyzer"));
+    return s;
+}
+
+const QString IrgaDesc::getIRGA_MODEL_STRING_21()
+{
+    static const QString s(QStringLiteral("MGAⁱ – N₂O"));
+    return s;
+}
+
+const QString IrgaDesc::getIRGA_MODEL_STRING_22()
+{
+    static const QString s(QStringLiteral("EC155"));
+    return s;
+}
+
+const QString IrgaDesc::getIRGA_MODEL_STRING_23()
+{
+    static const QString s(QStringLiteral("TGA200A"));
     return s;
 }
 
@@ -365,7 +383,9 @@ const QStringList IrgaDesc::campbellIrgaModelStringList()
 {
     return (QStringList()
             << getIRGA_MODEL_STRING_15()
-            << getIRGA_MODEL_STRING_16());
+            << getIRGA_MODEL_STRING_16()
+            << getIRGA_MODEL_STRING_22()
+            << getIRGA_MODEL_STRING_23());
 }
 
 const QStringList IrgaDesc::miroModelStringList()
@@ -373,7 +393,8 @@ const QStringList IrgaDesc::miroModelStringList()
     return (QStringList()
             << getIRGA_MODEL_STRING_17()
             << getIRGA_MODEL_STRING_18()
-            << getIRGA_MODEL_STRING_19());
+            << getIRGA_MODEL_STRING_19()
+            << getIRGA_MODEL_STRING_21());
 }
 
 const QStringList IrgaDesc::aerodyneModelStringList()
@@ -413,13 +434,16 @@ bool IrgaDesc::isWellNamed(const IrgaDesc& irga)
         else if (manufacturer == getIRGA_MANUFACTURER_STRING_2())
         {
             isGoodModel = (model == getIRGA_MODEL_STRING_15())
-                           || (model == getIRGA_MODEL_STRING_16());
+                           || (model == getIRGA_MODEL_STRING_16())
+                           || (model == getIRGA_MODEL_STRING_22())
+                           || (model == getIRGA_MODEL_STRING_23());
         }
         else if (manufacturer == getIRGA_MANUFACTURER_STRING_3())
         {
             isGoodModel = (model == getIRGA_MODEL_STRING_17())
                            || (model == getIRGA_MODEL_STRING_18())
-                           || (model == getIRGA_MODEL_STRING_19());
+                           || (model == getIRGA_MODEL_STRING_19())
+                           || (model == getIRGA_MODEL_STRING_21());
         }
         else if (manufacturer == getIRGA_MANUFACTURER_STRING_4())
         {
@@ -464,7 +488,10 @@ bool IrgaDesc::isAGoodClosedPath(const IrgaDesc& irga)
                         || (model == getIRGA_MODEL_STRING_17())
                         || (model == getIRGA_MODEL_STRING_18())
                         || (model == getIRGA_MODEL_STRING_19())
-                        || (model == getIRGA_MODEL_STRING_20());
+                        || (model == getIRGA_MODEL_STRING_20())
+                        || (model == getIRGA_MODEL_STRING_21())
+                        || (model == getIRGA_MODEL_STRING_22())
+                        || (model == getIRGA_MODEL_STRING_23());
 
     auto isGoodClosedPath = false;
     if (isClosedPath)
@@ -494,7 +521,10 @@ bool IrgaDesc::hasGoodFlowRate(const IrgaDesc& irga)
                         || (model == getIRGA_MODEL_STRING_17())
                         || (model == getIRGA_MODEL_STRING_18())
                         || (model == getIRGA_MODEL_STRING_19())
-                        || (model == getIRGA_MODEL_STRING_20());
+                        || (model == getIRGA_MODEL_STRING_20())
+                        || (model == getIRGA_MODEL_STRING_21())
+                        || (model == getIRGA_MODEL_STRING_22())
+                        || (model == getIRGA_MODEL_STRING_23());
 
     auto hasGoodFlowRate = false;
     if (isClosedPath)

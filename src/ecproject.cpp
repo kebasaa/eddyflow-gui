@@ -28,8 +28,10 @@
 #include <algorithm>
 
 #include <QDebug>
+#include <QRegularExpression>
 #include <QSet>
 #include <QSettings>
+#include <QTemporaryFile>
 
 #include "ecinidefs.h"
 #include "fileutils.h"
@@ -2979,9 +2981,39 @@ bool EcProject::eddyProNativeFormat(const QString &filename)
 
 bool EcProject::importEddyProProject(const QString &filename, bool updateMode, bool *modified)
 {
-    // Migration point: map .eddypro fields -> .eddyflow fields here when formats diverge.
-    // Currently the formats are identical, so delegate to the standard loader.
-    return loadEcProject(filename, updateMode, modified);
+    // Pre-process: upgrade old EddyPro Campbell model keys to EddyFlow campbell_* keys.
+    QFile srcFile(filename);
+    if (!srcFile.open(QIODevice::ReadOnly | QIODevice::Text))
+        return false;
+    QString content = QTextStream(&srcFile).readAll();
+    srcFile.close();
+
+    static const QVector<QPair<QRegularExpression, QString>> kModelRewrites = {
+        { QRegularExpression(QStringLiteral("(^|\\n)model=csat3(\\r?\\n)")),   QStringLiteral("\\1model=campbell_csat3\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=csat3a(\\r?\\n)")),  QStringLiteral("\\1model=campbell_csat3a\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=csat3b(\\r?\\n)")),  QStringLiteral("\\1model=campbell_csat3b\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=irgason(\\r?\\n)")), QStringLiteral("\\1model=campbell_irgason\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=ec150(\\r?\\n)")),   QStringLiteral("\\1model=campbell_ec150\\2") },
+    };
+
+    bool anyReplaced = false;
+    for (const auto& [re, replacement] : kModelRewrites)
+    {
+        QString updated = content;
+        updated.replace(re, replacement);
+        if (updated != content) { content = updated; anyReplaced = true; }
+    }
+
+    if (!anyReplaced)
+        return loadEcProject(filename, updateMode, modified);
+
+    QTemporaryFile tmpFile;
+    tmpFile.setAutoRemove(true);
+    if (!tmpFile.open())
+        return false;
+    QTextStream(&tmpFile) << content;
+    tmpFile.flush();
+    return loadEcProject(tmpFile.fileName(), updateMode, modified);
 }
 
 void EcProject::setModified(bool mod)

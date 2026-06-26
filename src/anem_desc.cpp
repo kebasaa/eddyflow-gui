@@ -138,7 +138,7 @@ const QString AnemDesc::getANEM_MODEL_STRING_12()
 
 const QString AnemDesc::getANEM_MODEL_STRING_13()
 {
-    static const QString s(QStringLiteral("CSAT-3B"));
+    static const QString s(QStringLiteral("CSAT-3B/3BH"));
     return s;
 }
 
@@ -174,13 +174,19 @@ const QString AnemDesc::getANEM_MODEL_STRING_18()
 
 const QString AnemDesc::getANEM_MODEL_STRING_19()
 {
-    static const QString s(QStringLiteral("CSAT-3A"));
+    static const QString s(QStringLiteral("CSAT-3A/3AH"));
     return s;
 }
 
 const QString AnemDesc::getANEM_MODEL_STRING_20()
 {
     static const QString s(QStringLiteral("IRGASON"));
+    return s;
+}
+
+const QString AnemDesc::getANEM_MODEL_STRING_21()
+{
+    static const QString s(QStringLiteral("CSAT-3C"));
     return s;
 }
 
@@ -386,6 +392,7 @@ const QStringList AnemDesc::campbellModelStringList()
             << getANEM_MODEL_STRING_13()
             << getANEM_MODEL_STRING_19()
             << getANEM_MODEL_STRING_20()
+            << getANEM_MODEL_STRING_21()
             << getANEM_MODEL_STRING_12());
 }
 
@@ -508,7 +515,8 @@ bool AnemDesc::isGoodAnemometer(AnemDesc anem)
                            || (model == getANEM_MODEL_STRING_12())
                            || (model == getANEM_MODEL_STRING_13())
                            || (model == getANEM_MODEL_STRING_19())
-                           || (model == getANEM_MODEL_STRING_20());
+                           || (model == getANEM_MODEL_STRING_20())
+                           || (model == getANEM_MODEL_STRING_21());
         }
         else if (manufacturer == getANEM_MANUFACTURER_STRING_1())
         {
