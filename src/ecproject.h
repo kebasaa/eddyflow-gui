@@ -225,7 +225,7 @@ public:
     void setScreenOutFullSpectraCo2(int n);
     void setScreenOutFullSpectraH2o(int n);
     void setScreenOutFullSpectraCh4(int n);
-    void setScreenOutFullSpectraN2o(int n);
+    void setScreenOutFullSpectralGas4(int n);
     void setScreenOutSt1(int n);
     void setScreenOutSt2(int n);
     void setScreenOutSt3(int n);
@@ -256,7 +256,7 @@ public:
     void setScreenOutFullCospectraCo2(int n);
     void setScreenOutFullCospectraH2o(int n);
     void setScreenOutFullCospectraCh4(int n);
-    void setScreenOutFullCospectraN2o(int n);
+    void setScreenOutFullCospectralGas4(int n);
     void setScreenlOutDetails(int n);
     void setScreenFilterSr(int n);
     void setScreenFilterAl(int n);
@@ -318,7 +318,7 @@ public:
     void setScreenParamSrCo2Lim(double n);
     void setScreenParamSrH2oLim(double n);
     void setScreenParamSrCh4Lim(double n);
-    void setScreenParamSrN2oLim(double n);
+    void setScreenParamSrGas4Lim(double n);
     void setScreenParamArLim(double n);
     void setScreenParamArBins(int n);
     void setScreenParamArHfLim(int n);
@@ -335,8 +335,8 @@ public:
     void setScreenParamAlH2oMax(double n);
     void setScreenParamAlCh4Min(double n);
     void setScreenParamAlCh4Max(double n);
-    void setScreenParamAlN2oMin(double n);
-    void setScreenParamAlN2oMax(double n);
+    void setScreenParamAlGas4Min(double n);
+    void setScreenParamAlGas4Max(double n);
     void setScreenParamSkHfSkmin(double n);
     void setScreenParamSkHfSkmax(double n);
     void setScreenParamSkSfSkmin(double n);
@@ -351,7 +351,7 @@ public:
     void setScreenParamDsHfCo2(double n);
     void setScreenParamDsHfH2o(double n);
     void setScreenParamDsHfCh4(double n);
-    void setScreenParamDsHfN2o(double n);
+    void setScreenParamDsHfGas4(double n);
     void setScreenParamDsHfVar(double n);
     void setScreenParamDsSfUV(double n);
     void setScreenParamDsSfW(double n);
@@ -359,7 +359,7 @@ public:
     void setScreenParamDsSfCo2(double n);
     void setScreenParamDsSfH2o(double n);
     void setScreenParamDsSfCh4(double n);
-    void setScreenParamDsSfN2o(double n);
+    void setScreenParamDsSfGas4(double n);
     void setScreenParamDsSfVar(double n);
     void setScreenParamDespikeVm(int n);
     void setScreenParamTlHfLim(double n);
@@ -367,7 +367,7 @@ public:
     void setScreenParamTlDefCo2(double n);
     void setScreenParamTlDefH2o(double n);
     void setScreenParamTlDefCh4(double n);
-    void setScreenParamTlDefN2o(double n);
+    void setScreenParamTlDefGas4(double n);
     void setScreenParamAaMin(double n);
     void setScreenParamAaMax(double n);
     void setScreenParamAaLim(double n);
@@ -488,7 +488,7 @@ public:
     int generalColCo2() const { return ec_project_state_.projectGeneral.col_co2; }
     int generalColH2o() const { return ec_project_state_.projectGeneral.col_h2o; }
     int generalColCh4() const { return ec_project_state_.projectGeneral.col_ch4; }
-    int generalColGas4() const { return ec_project_state_.projectGeneral.col_n2o; }
+    int generalColGas4() const { return ec_project_state_.projectGeneral.col_gas4; }
     int generalColIntTc() const { return ec_project_state_.projectGeneral.col_int_t_c; }
     int generalColIntT1() const { return ec_project_state_.projectGeneral.col_int_t_1; }
     int generalColIntT2() const { return ec_project_state_.projectGeneral.col_int_t_2; }
@@ -599,7 +599,7 @@ public:
     int screenOutFullSpectraCo2() const { return ec_project_state_.screenSetting.out_full_sp_co2; }
     int screenOutFullSpectraH2o() const { return ec_project_state_.screenSetting.out_full_sp_h2o; }
     int screenOutFullSpectraCh4() const { return ec_project_state_.screenSetting.out_full_sp_ch4; }
-    int screenOutFullSpectraN2o() const { return ec_project_state_.screenSetting.out_full_sp_n2o; }
+    int screenOutFullSpectralGas4() const { return ec_project_state_.screenSetting.out_full_sp_gas4; }
     int screenOutSt1() const { return ec_project_state_.screenSetting.out_st_1; }
     int screenOutSt2() const { return ec_project_state_.screenSetting.out_st_2; }
     int screenOutSt3() const { return ec_project_state_.screenSetting.out_st_3; }
@@ -630,7 +630,7 @@ public:
     int screenOutFullCospectraCo2() const { return ec_project_state_.screenSetting.out_full_cosp_co2; }
     int screenOutFullCospectraH2o() const { return ec_project_state_.screenSetting.out_full_cosp_h2o; }
     int screenOutFullCospectraCh4() const { return ec_project_state_.screenSetting.out_full_cosp_ch4; }
-    int screenOutFullCospectraN2o() const { return ec_project_state_.screenSetting.out_full_cosp_n2o; }
+    int screenOutFullCospectralGas4() const { return ec_project_state_.screenSetting.out_full_cosp_gas4; }
     int screenFilterSr() const { return ec_project_state_.screenSetting.filter_sr; }
     int screenFilterAl() const { return ec_project_state_.screenSetting.filter_al; }
     int screenBuCorr() const { return ec_project_state_.screenSetting.bu_corr; }
@@ -690,7 +690,7 @@ public:
     double screenParamSrCo2Lim() const { return ec_project_state_.screenParam.sr_lim_co2; }
     double screenParamSrH2oLim() const { return ec_project_state_.screenParam.sr_lim_h2o; }
     double screenParamSrCh4Lim() const { return ec_project_state_.screenParam.sr_lim_ch4; }
-    double screenParamSrN2oLim() const { return ec_project_state_.screenParam.sr_lim_n2o; }
+    double screenParamSrGas4Lim() const { return ec_project_state_.screenParam.sr_lim_gas4; }
     double screenParamSrHfLim() const { return ec_project_state_.screenParam.sr_lim_hf; }
 
     double screenParamArLim() const { return ec_project_state_.screenParam.ar_lim; }
@@ -711,8 +711,8 @@ public:
     double screenParamAlH2oMax() const { return ec_project_state_.screenParam.al_h2o_max; }
     double screenParamAlCh4Min() const { return ec_project_state_.screenParam.al_ch4_min; }
     double screenParamAlCh4Max() const { return ec_project_state_.screenParam.al_ch4_max; }
-    double screenParamAlN2oMin() const { return ec_project_state_.screenParam.al_n2o_min; }
-    double screenParamAlN2oMax() const { return ec_project_state_.screenParam.al_n2o_max; }
+    double screenParamAlGas4Min() const { return ec_project_state_.screenParam.al_gas4_min; }
+    double screenParamAlGas4Max() const { return ec_project_state_.screenParam.al_gas4_max; }
 
     double screenParamSkHfSkmin() const { return ec_project_state_.screenParam.sk_hf_skmin; }
     double screenParamSkHfSkmax() const { return ec_project_state_.screenParam.sk_hf_skmax; }
@@ -729,7 +729,7 @@ public:
     double screenParamDsHfCo2() const { return ec_project_state_.screenParam.ds_hf_co2; }
     double screenParamDsHfH2o() const { return ec_project_state_.screenParam.ds_hf_h2o; }
     double screenParamDsHfCh4() const { return ec_project_state_.screenParam.ds_hf_ch4; }
-    double screenParamDsHfN2o() const { return ec_project_state_.screenParam.ds_hf_n2o; }
+    double screenParamDsHfGas4() const { return ec_project_state_.screenParam.ds_hf_gas4; }
     double screenParamDsHfVar() const { return ec_project_state_.screenParam.ds_hf_var; }
     double screenParamDsSfUV() const { return ec_project_state_.screenParam.ds_sf_uv; }
     double screenParamDsSfW() const { return ec_project_state_.screenParam.ds_sf_w; }
@@ -737,7 +737,7 @@ public:
     double screenParamDsSfCo2() const { return ec_project_state_.screenParam.ds_sf_co2; }
     double screenParamDsSfH2o() const { return ec_project_state_.screenParam.ds_sf_h2o; }
     double screenParamDsSfCh4() const { return ec_project_state_.screenParam.ds_sf_ch4; }
-    double screenParamDsSfN2o() const { return ec_project_state_.screenParam.ds_sf_n2o; }
+    double screenParamDsSfGas4() const { return ec_project_state_.screenParam.ds_sf_gas4; }
     double screenParamDsSfVar() const { return ec_project_state_.screenParam.ds_sf_var; }
     int screenParamDespikeVm() const { return ec_project_state_.screenParam.despike_vm; }
 
@@ -746,7 +746,7 @@ public:
     double screenParamTlDefCo2() const { return ec_project_state_.screenParam.tl_def_co2; }
     double screenParamTlDefH2o() const { return ec_project_state_.screenParam.tl_def_h2o; }
     double screenParamTlDefCh4() const { return ec_project_state_.screenParam.tl_def_ch4; }
-    double screenParamTlDefN2o() const { return ec_project_state_.screenParam.tl_def_n2o; }
+    double screenParamTlDefGas4() const { return ec_project_state_.screenParam.tl_def_gas4; }
 
     double screenParamAaMin() const { return ec_project_state_.screenParam.aa_min; }
     double screenParamAaMax() const { return ec_project_state_.screenParam.aa_max; }

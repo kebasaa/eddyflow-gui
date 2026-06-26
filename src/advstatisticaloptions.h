@@ -108,7 +108,7 @@ private slots:
     void updateParamSrCo2Lim(double n);
     void updateParamSrH2oLim(double n);
     void updateParamSrCh4Lim(double n);
-    void updateParamSrN2oLim(double n);
+    void updateParamSrGas4Lim(double n);
     void updateParamSrHfLim(double n);
     void updateDespFilter(bool b);
 
@@ -132,8 +132,8 @@ private slots:
     void updateParamAlH2oMax(double n);
     void updateParamAlCh4Min(double n);
     void updateParamAlCh4Max(double n);
-    void updateParamAlN2oMin(double n);
-    void updateParamAlN2oMax(double n);
+    void updateParamAlGas4Min(double n);
+    void updateParamAlGas4Max(double n);
     void updateAbsLimFilter(bool b);
 
     void updateParamSkHfSkmin(double n);
@@ -151,7 +151,7 @@ private slots:
     void updateParamDsHfCo2(double n);
     void updateParamDsHfH2o(double n);
     void updateParamDsHfCh4(double n);
-    void updateParamDsHfN2o(double n);
+    void updateParamDsHfGas4(double n);
     void updateParamDsHfVar(double n);
     void updateParamDsSfUV(double n);
     void updateParamDsSfW(double n);
@@ -159,7 +159,7 @@ private slots:
     void updateParamDsSfCo2(double n);
     void updateParamDsSfH2o(double n);
     void updateParamDsSfCh4(double n);
-    void updateParamDsSfN2o(double n);
+    void updateParamDsSfGas4(double n);
     void updateParamDsSfVar(double n);
 
     void updateParamTlHfLim(double n);
@@ -167,7 +167,7 @@ private slots:
     void updateParamTlDefCo2(double n);
     void updateParamTlDefH2o(double n);
     void updateParamTlDefCh4(double n);
-    void updateParamTlDefN2o(double n);
+    void updateParamTlDefGas4(double n);
 
     void updateParamAaMin(double n);
     void updateParamAaMax(double n);

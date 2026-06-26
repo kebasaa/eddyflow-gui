@@ -292,6 +292,7 @@ private:
     QList<BiomItem> biomList_;
 
     QString lastEmbeddedMdFileRead_;
+    bool gas4WasN2o_ = false;
 
     SmartFluxBar* smartfluxBar_;
 
@@ -403,6 +404,7 @@ private slots:
     void updateGasDiff(double value);
     void updateFourthGasRefCombo(int);
     void updateFourthGasSettings(const QString& s);
+    void updateFourthGasMinLimit(int index);
     void showFourthGasDiffWarning(int index);
     void updateIntTcRefCombo(int i);
     void updateIntT1RefCombo(int i);

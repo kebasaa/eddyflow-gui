@@ -52,7 +52,7 @@ namespace EcIni
     const auto INI_PROJECT_18   = QStringLiteral("col_co2");
     const auto INI_PROJECT_19   = QStringLiteral("col_h2o");
     const auto INI_PROJECT_20   = QStringLiteral("col_ch4");
-    const auto INI_PROJECT_21   = QStringLiteral("col_n2o");
+    const auto INI_PROJECT_21   = QStringLiteral("col_gas4");
     const auto INI_PROJECT_22   = QStringLiteral("col_int_t_1");
     const auto INI_PROJECT_23   = QStringLiteral("col_int_t_2");
     const auto INI_PROJECT_24   = QStringLiteral("col_int_p");
@@ -212,7 +212,7 @@ namespace EcIni
     const auto INI_SCREEN_SETTINGS_20   = QStringLiteral("out_full_sp_co2");
     const auto INI_SCREEN_SETTINGS_21   = QStringLiteral("out_full_sp_h2o");
     const auto INI_SCREEN_SETTINGS_22   = QStringLiteral("out_full_sp_ch4");
-    const auto INI_SCREEN_SETTINGS_23   = QStringLiteral("out_full_sp_n2o");
+    const auto INI_SCREEN_SETTINGS_23   = QStringLiteral("out_full_sp_gas4");
     const auto INI_SCREEN_SETTINGS_24   = QStringLiteral("out_st_1");
     const auto INI_SCREEN_SETTINGS_25   = QStringLiteral("out_st_2");
     const auto INI_SCREEN_SETTINGS_26   = QStringLiteral("out_st_3");
@@ -226,7 +226,7 @@ namespace EcIni
     const auto INI_SCREEN_SETTINGS_34   = QStringLiteral("out_full_cosp_w_co2");
     const auto INI_SCREEN_SETTINGS_35   = QStringLiteral("out_full_cosp_w_h2o");
     const auto INI_SCREEN_SETTINGS_36   = QStringLiteral("out_full_cosp_w_ch4");
-    const auto INI_SCREEN_SETTINGS_37   = QStringLiteral("out_full_cosp_w_n2o");
+    const auto INI_SCREEN_SETTINGS_37   = QStringLiteral("out_full_cosp_w_gas4");
     const auto INI_SCREEN_SETTINGS_38   = QStringLiteral("out_bin_og");
     const auto INI_SCREEN_SETTINGS_40   = QStringLiteral("filter_sr");
     const auto INI_SCREEN_SETTINGS_41   = QStringLiteral("filter_al");
@@ -350,17 +350,17 @@ namespace EcIni
     const auto INI_SCREEN_PARAM_46   = QStringLiteral("sr_lim_co2");
     const auto INI_SCREEN_PARAM_47   = QStringLiteral("sr_lim_h2o");
     const auto INI_SCREEN_PARAM_48   = QStringLiteral("sr_lim_ch4");
-    const auto INI_SCREEN_PARAM_49   = QStringLiteral("sr_lim_n2o");
+    const auto INI_SCREEN_PARAM_49   = QStringLiteral("sr_lim_gas4");
     const auto INI_SCREEN_PARAM_50   = QStringLiteral("ds_hf_ch4");
-    const auto INI_SCREEN_PARAM_51   = QStringLiteral("ds_hf_n2o");
+    const auto INI_SCREEN_PARAM_51   = QStringLiteral("ds_hf_gas4");
     const auto INI_SCREEN_PARAM_52   = QStringLiteral("ds_sf_ch4");
-    const auto INI_SCREEN_PARAM_53   = QStringLiteral("ds_sf_n2o");
+    const auto INI_SCREEN_PARAM_53   = QStringLiteral("ds_sf_gas4");
     const auto INI_SCREEN_PARAM_54   = QStringLiteral("al_ch4_min");
     const auto INI_SCREEN_PARAM_55   = QStringLiteral("al_ch4_max");
-    const auto INI_SCREEN_PARAM_56   = QStringLiteral("al_n2o_min");
-    const auto INI_SCREEN_PARAM_57   = QStringLiteral("al_n2o_max");
+    const auto INI_SCREEN_PARAM_56   = QStringLiteral("al_gas4_min");
+    const auto INI_SCREEN_PARAM_57   = QStringLiteral("al_gas4_max");
     const auto INI_SCREEN_PARAM_58   = QStringLiteral("tl_def_ch4");
-    const auto INI_SCREEN_PARAM_59   = QStringLiteral("tl_def_n2o");
+    const auto INI_SCREEN_PARAM_59   = QStringLiteral("tl_def_gas4");
     const auto INI_SCREEN_PARAM_60   = QStringLiteral("despike_vm");
 
     const auto INIGROUP_SCREEN_TILT   = QStringLiteral("RawProcess_TiltCorrection_Settings");

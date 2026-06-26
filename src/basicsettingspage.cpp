@@ -1061,6 +1061,8 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
             this, &BasicSettingsPage::updateFourthGasRefCombo);
     connect(fourthGasRefCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::showFourthGasDiffWarning);
+    connect(fourthGasRefCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::updateFourthGasMinLimit);
     connect(fourthGasRefCombo, &QComboBox::currentTextChanged,
             this, &BasicSettingsPage::updateFourthGasSettings);
 
@@ -1897,6 +1899,8 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                         updateGeometry();
 
                         updateFourthGasSettings(fourthGasRefCombo->currentText());
+                        gas4WasN2o_ = fourthGasRefCombo->currentText().split(QLatin1Char(' ')).first()
+                                      == VariableDesc::getVARIABLE_VAR_STRING_8();
                     }
 
                     // cell temp in
@@ -3141,6 +3145,23 @@ void BasicSettingsPage::updateFourthGasSettings(const QString& s)
             gasDiff->setEnabled(true);
             break;
     }
+}
+
+void BasicSettingsPage::updateFourthGasMinLimit(int /*index*/)
+{
+    const QString s = fourthGasRefCombo->currentText();
+    if (s.isEmpty()) { return; }
+    const QString gasStr = s.split(QLatin1Char(' ')).first();
+    const bool isN2o = (gasStr == VariableDesc::getVARIABLE_VAR_STRING_8());
+
+    // Only apply the default when the gas *type* changes (N2O ↔ other).
+    // If the user has manually set a custom value and re-selects the same
+    // gas type, the value is left unchanged.
+    if (isN2o != gas4WasN2o_)
+    {
+        ecProject_->setScreenParamAlGas4Min(isN2o ? 0.032 : 0.0);
+    }
+    gas4WasN2o_ = isN2o;
 }
 
 void BasicSettingsPage::showFourthGasDiffWarning(int /*index*/)
