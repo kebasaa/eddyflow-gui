@@ -25,18 +25,89 @@
 
 #include "variable_delegate.h"
 
+#include <algorithm>
 #include <QAbstractItemView>
+#include <QApplication>
+#include <QCollator>
 #include <QComboBox>
 #include <QDebug>
 #include <QDoubleSpinBox>
 #include <QKeyEvent>
 #include <QLabel>
+#include <QPainter>
+#include <QStyle>
+#include <QStyleOptionComboBox>
 
 #include "customcombobox.h"
 #include "globalsettings.h"
 #include "nonzerodoublespinbox.h"
 #include "variable_model.h"
 #include "widget_utils.h"
+
+namespace {
+
+const QColor selectedColumnColor()
+{
+    return QColor(QStringLiteral("#c8eaf7"));
+}
+
+bool isComboRow(int row)
+{
+    return row == VariableModel::IGNORE
+           || row == VariableModel::NUMERIC
+           || row == VariableModel::VARIABLE
+           || row == VariableModel::INSTRUMENT
+           || row == VariableModel::MEASURETYPE
+           || row == VariableModel::INPUTUNIT
+           || row == VariableModel::CONVERSIONTYPE
+           || row == VariableModel::OUTPUTUNIT;
+}
+
+QStringList sortedWithOtherLast(QStringList list)
+{
+    QStringList otherItems;
+    for (int i = list.size() - 1; i >= 0; --i)
+    {
+        if (list.at(i) == VariableDelegate::tr("Other"))
+        {
+            otherItems.prepend(list.takeAt(i));
+        }
+    }
+
+    QCollator collator;
+    collator.setCaseSensitivity(Qt::CaseInsensitive);
+    std::sort(list.begin(), list.end(), [&collator](const QString& left, const QString& right) {
+        return collator.compare(left, right) < 0;
+    });
+    list.append(otherItems);
+    return list;
+}
+
+void paintComboCell(QPainter* painter,
+                    const QStyleOptionViewItem& option,
+                    const QModelIndex& index)
+{
+    QStyleOptionComboBox comboOption;
+    comboOption.rect = option.rect.adjusted(2, 1, -2, -1);
+    comboOption.currentText = index.data(Qt::DisplayRole).toString();
+    comboOption.state = option.state;
+    comboOption.state |= QStyle::State_Enabled;
+    comboOption.palette = option.palette;
+    comboOption.palette.setColor(QPalette::ButtonText, Qt::black);
+
+    if (option.state & QStyle::State_Selected)
+    {
+        painter->fillRect(option.rect, selectedColumnColor());
+        comboOption.palette.setColor(QPalette::Button, selectedColumnColor());
+        comboOption.palette.setColor(QPalette::Base, selectedColumnColor());
+    }
+
+    auto style = option.widget ? option.widget->style() : QApplication::style();
+    style->drawComplexControl(QStyle::CC_ComboBox, &comboOption, painter, option.widget);
+    style->drawControl(QStyle::CE_ComboBoxLabel, &comboOption, painter, option.widget);
+}
+
+} // namespace
 
 VariableDelegate::VariableDelegate(QObject *parent) :
     QStyledItemDelegate(parent),
@@ -93,7 +164,7 @@ QWidget *VariableDelegate::createEditor(QWidget* parent,
             {
                 custom_combo->addSeparator();
                 custom_combo->addParentItem(QStringLiteral("Custom Variables"));
-                custom_combo->addChildItems(*varsBuffer_);
+                custom_combo->addChildItems(sortedWithOtherLast(*varsBuffer_));
             }
             custom_combo->setMinimumWidth(130);
             custom_combo->view()->setAlternatingRowColors(true);
@@ -515,6 +586,32 @@ void VariableDelegate::updateEditorGeometry(QWidget* editor,
     Q_UNUSED(index)
 
     if (editor) editor->setGeometry(option.rect);
+}
+
+void VariableDelegate::paint(QPainter* painter,
+                             const QStyleOptionViewItem& option,
+                             const QModelIndex& index) const
+{
+    if (isComboRow(index.row()) && (index.flags() & Qt::ItemIsEditable))
+    {
+        paintComboCell(painter, option, index);
+        return;
+    }
+
+    if (option.state & QStyle::State_Selected)
+    {
+        QStyleOptionViewItem selectedOption(option);
+        initStyleOption(&selectedOption, index);
+        painter->save();
+        painter->fillRect(option.rect, selectedColumnColor());
+        selectedOption.state &= ~QStyle::State_Selected;
+        selectedOption.backgroundBrush = QBrush(selectedColumnColor());
+        QStyledItemDelegate::paint(painter, selectedOption, index);
+        painter->restore();
+        return;
+    }
+
+    QStyledItemDelegate::paint(painter, option, index);
 }
 
 void VariableDelegate::clearCustomVariableBuffer()

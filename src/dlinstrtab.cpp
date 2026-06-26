@@ -177,14 +177,20 @@ DlInstrTab::DlInstrTab(QWidget *parent, DlProject *dlProject) :
     setLayout(mainlayout);
 
     connect(anemModel_, &AnemModel::modified, [=]()
-            { dlProject_->setModified(true); });
+            {
+                dlProject_->setModified(true);
+                emit instrumentsModified();
+            });
     connect(addAnemButton, &QToolButton::clicked,
             anemView_, &AnemView::addAnem);
     connect(removeAnemButton, &QToolButton::clicked,
             anemView_, &AnemView::removeAnem);
 
     connect(irgaModel_, &IrgaModel::modified, [=]()
-            { dlProject_->setModified(true); });
+            {
+                dlProject_->setModified(true);
+                emit instrumentsModified();
+            });
     connect(addIrgaButton, &QToolButton::clicked,
             irgaView_, &IrgaView::addIrga);
     connect(addIrgaButton, &QToolButton::clicked,

@@ -152,8 +152,10 @@ void VariableTableView::closeEditor(QWidget *editor, QAbstractItemDelegate::EndE
 // NOTE: to finish
 void VariableTableView::hHeaderClicked(int section)
 {
-    Q_UNUSED(section)
-    clearSelection();
+    if (!model()) { return; }
+
+    selectColumn(section);
+    setCurrentIndex(model()->index(0, section));
 }
 
 //void VariableTableView::firstEditableIndex(const QModelIndex& originalIndex,

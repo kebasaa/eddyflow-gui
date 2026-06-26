@@ -48,9 +48,11 @@ public:
     VariableView* variableView_;
     QPushButton* rawSettingsButton;
 
+public slots:
+    void updateModels();
+
 private slots:
     void modelModified();
-    void updateModels();
     void showRawSettingsDialog();
     void clearInstrModels();
     void onlineHelpTrigger_1();

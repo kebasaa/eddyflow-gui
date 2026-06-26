@@ -52,6 +52,9 @@ public:
     AnemView *anemView_;
     IrgaView *irgaView_;
 
+signals:
+    void instrumentsModified();
+
 private slots:
     void updateScrollBars();
 

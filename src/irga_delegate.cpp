@@ -26,16 +26,59 @@
 #include "irga_delegate.h"
 
 #include <QAbstractItemView>
+#include <QApplication>
 #include <QComboBox>
 #include <QDebug>
 #include <QDoubleSpinBox>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPainter>
+#include <QStyle>
+#include <QStyleOptionComboBox>
 
 #include "defs.h"
 #include "irga_desc.h"
 #include "irga_model.h"
+
+namespace {
+
+const QColor selectedColumnColor()
+{
+    return QColor(QStringLiteral("#c8eaf7"));
+}
+
+bool isComboRow(int row)
+{
+    return row == IrgaModel::MANUFACTURER
+           || row == IrgaModel::MODEL;
+}
+
+void paintComboCell(QPainter* painter,
+                    const QStyleOptionViewItem& option,
+                    const QModelIndex& index)
+{
+    QStyleOptionComboBox comboOption;
+    comboOption.rect = option.rect.adjusted(2, 1, -2, -1);
+    comboOption.currentText = index.data(Qt::DisplayRole).toString();
+    comboOption.state = option.state;
+    comboOption.state |= QStyle::State_Enabled;
+    comboOption.palette = option.palette;
+    comboOption.palette.setColor(QPalette::ButtonText, Qt::black);
+
+    if (option.state & QStyle::State_Selected)
+    {
+        painter->fillRect(option.rect, selectedColumnColor());
+        comboOption.palette.setColor(QPalette::Button, selectedColumnColor());
+        comboOption.palette.setColor(QPalette::Base, selectedColumnColor());
+    }
+
+    auto style = option.widget ? option.widget->style() : QApplication::style();
+    style->drawComplexControl(QStyle::CC_ComboBox, &comboOption, painter, option.widget);
+    style->drawControl(QStyle::CE_ComboBoxLabel, &comboOption, painter, option.widget);
+}
+
+} // namespace
 
 IrgaDelegate::IrgaDelegate(QObject *parent) : QStyledItemDelegate(parent)
 {
@@ -489,6 +532,32 @@ void IrgaDelegate::updateEditorGeometry(QWidget* editor,
     Q_UNUSED(index)
 
     if (editor) editor->setGeometry(option.rect);
+}
+
+void IrgaDelegate::paint(QPainter* painter,
+                         const QStyleOptionViewItem& option,
+                         const QModelIndex& index) const
+{
+    if (isComboRow(index.row()) && (index.flags() & Qt::ItemIsEditable))
+    {
+        paintComboCell(painter, option, index);
+        return;
+    }
+
+    if (option.state & QStyle::State_Selected)
+    {
+        QStyleOptionViewItem selectedOption(option);
+        initStyleOption(&selectedOption, index);
+        painter->save();
+        painter->fillRect(option.rect, selectedColumnColor());
+        selectedOption.state &= ~QStyle::State_Selected;
+        selectedOption.backgroundBrush = QBrush(selectedColumnColor());
+        QStyledItemDelegate::paint(painter, selectedOption, index);
+        painter->restore();
+        return;
+    }
+
+    QStyledItemDelegate::paint(painter, option, index);
 }
 
 void IrgaDelegate::commitAndCloseEditor()

@@ -59,6 +59,8 @@ DlIniDialog::DlIniDialog(QWidget *parent, DlProject *dlProject, ConfigState* con
     rawfile_tab = new DlRawfileDescTab(this, dlProject_);
     rawfile_tab->setToolTip(tr("<b>Raw file description:</b> Here you specify the order of variables in the raw files, scaling or converting values, flag thresholds for individual samples, and time lags."));
     tabwidget_->addTab(rawfile_tab, tr("Raw File Description"));
+    connect(instruments_tab, &DlInstrTab::instrumentsModified,
+            rawfile_tab, &DlRawfileDescTab::updateModels);
 
     // buttons
     saveAsButton = new QPushButton(tr("Save Metadata As..."));

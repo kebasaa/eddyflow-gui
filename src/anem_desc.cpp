@@ -25,8 +25,34 @@
 
 #include "anem_desc.h"
 
+#include <algorithm>
+#include <QCollator>
 #include <QDebug>
 #include <QStringList>
+
+namespace {
+
+QStringList sortedWithOtherLast(QStringList list)
+{
+    QStringList otherItems;
+    for (int i = list.size() - 1; i >= 0; --i)
+    {
+        if (list.at(i) == AnemDesc::tr("Other"))
+        {
+            otherItems.prepend(list.takeAt(i));
+        }
+    }
+
+    QCollator collator;
+    collator.setCaseSensitivity(Qt::CaseInsensitive);
+    std::sort(list.begin(), list.end(), [&collator](const QString& left, const QString& right) {
+        return collator.compare(left, right) < 0;
+    });
+    list.append(otherItems);
+    return list;
+}
+
+} // namespace
 
 const QString AnemDesc::getANEM_MANUFACTURER_STRING_0()
 {
@@ -348,7 +374,7 @@ bool AnemDesc::operator==(const AnemDesc& anem) const
 // Return string list of anem types
 const QStringList AnemDesc::manufacturerStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getANEM_MANUFACTURER_STRING_0()
             << getANEM_MANUFACTURER_STRING_1()
             << getANEM_MANUFACTURER_STRING_2()
@@ -359,7 +385,7 @@ const QStringList AnemDesc::manufacturerStringList()
 // Return string list of usage types
 const QStringList AnemDesc::allModelStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getANEM_MODEL_STRING_0()
             << getANEM_MODEL_STRING_1()
             << getANEM_MODEL_STRING_2()
@@ -387,7 +413,7 @@ const QStringList AnemDesc::allModelStringList()
 // Return string list of usage types
 const QStringList AnemDesc::campbellModelStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getANEM_MODEL_STRING_0()
             << getANEM_MODEL_STRING_13()
             << getANEM_MODEL_STRING_19()
@@ -399,7 +425,7 @@ const QStringList AnemDesc::campbellModelStringList()
 // Return string list of usage types
 const QStringList AnemDesc::gillModelStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getANEM_MODEL_STRING_1()
             << getANEM_MODEL_STRING_2()
             << getANEM_MODEL_STRING_3()
@@ -414,7 +440,7 @@ const QStringList AnemDesc::gillModelStringList()
 // Return string list of usage types
 const QStringList AnemDesc::metekModelStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getANEM_MODEL_STRING_9()
             << getANEM_MODEL_STRING_10()
 //            << getANEM_MODEL_STRING_14()
@@ -426,7 +452,7 @@ const QStringList AnemDesc::metekModelStringList()
 // Return string list of usage types
 const QStringList AnemDesc::youngModelStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getANEM_MODEL_STRING_11()
             << getANEM_MODEL_STRING_16()
             << getANEM_MODEL_STRING_17()
@@ -438,14 +464,14 @@ const QStringList AnemDesc::youngModelStringList()
 // Return string list of usage types
 const QStringList AnemDesc::otherModelStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getANEM_MODEL_STRING_12());
 }
 
 // Return string list of anem types
 const QStringList AnemDesc::allWindFormatStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getANEM_WIND_FORMAT_STRING_0()
             << getANEM_WIND_FORMAT_STRING_1()
             << getANEM_WIND_FORMAT_STRING_2());
@@ -453,21 +479,21 @@ const QStringList AnemDesc::allWindFormatStringList()
 
 const QStringList AnemDesc::commonWindFormatStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getANEM_WIND_FORMAT_STRING_0()
             << getANEM_WIND_FORMAT_STRING_1());
 }
 
 const QStringList AnemDesc::simplestWindFormatStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getANEM_WIND_FORMAT_STRING_0());
 }
 
 // Return string list of anem types
 const QStringList AnemDesc::allNorthAlignmentStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getANEM_NORTH_ALIGN_STRING_0()
             << getANEM_NORTH_ALIGN_STRING_1()
             << getANEM_NORTH_ALIGN_STRING_2());
@@ -475,14 +501,14 @@ const QStringList AnemDesc::allNorthAlignmentStringList()
 
 const QStringList AnemDesc::gillNorthAlignmentStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getANEM_NORTH_ALIGN_STRING_0()
             << getANEM_NORTH_ALIGN_STRING_1());
 }
 
 const QStringList AnemDesc::naNorthAlignmentStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getANEM_NORTH_ALIGN_STRING_2());
 }
 

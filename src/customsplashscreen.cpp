@@ -28,6 +28,7 @@
 #include "customsplashscreen.h"
 
 #include <QCheckBox>
+#include <QPalette>
 #include <QPainter>
 #include <QProgressBar>
 #include <QPushButton>
@@ -43,9 +44,18 @@ CustomSplashScreen::CustomSplashScreen(const QPixmap & pixmap, Qt::WindowFlags f
     progressBar_ = new QProgressBar;
     progressBar_->setRange(0, 100);
     progressBar_->setProperty("splash", true);
+    auto progressPalette = progressBar_->palette();
+    progressPalette.setColor(QPalette::Text, QColor(51, 51, 51));
+    progressPalette.setColor(QPalette::HighlightedText, QColor(51, 51, 51));
+    progressPalette.setColor(QPalette::WindowText, QColor(51, 51, 51));
+    progressBar_->setPalette(progressPalette);
 
     showSplashCheckbox_ = new QCheckBox(tr("Do not show again"));
     showSplashCheckbox_->setObjectName(QStringLiteral("splashCheckbox"));
+    auto checkboxPalette = showSplashCheckbox_->palette();
+    checkboxPalette.setColor(QPalette::WindowText, QColor(51, 51, 51));
+    checkboxPalette.setColor(QPalette::Text, QColor(51, 51, 51));
+    showSplashCheckbox_->setPalette(checkboxPalette);
 
     auto okButton = new QPushButton;
     okButton->setText(QStringLiteral("Ok"));

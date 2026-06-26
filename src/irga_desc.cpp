@@ -25,10 +25,36 @@
 
 #include "irga_desc.h"
 
+#include <algorithm>
+#include <QCollator>
 #include <QDebug>
 #include <QStringList>
 
 #include "defs.h"
+
+namespace {
+
+QStringList sortedWithOtherLast(QStringList list)
+{
+    QStringList otherItems;
+    for (int i = list.size() - 1; i >= 0; --i)
+    {
+        if (list.at(i) == IrgaDesc::tr("Other"))
+        {
+            otherItems.prepend(list.takeAt(i));
+        }
+    }
+
+    QCollator collator;
+    collator.setCaseSensitivity(Qt::CaseInsensitive);
+    std::sort(list.begin(), list.end(), [&collator](const QString& left, const QString& right) {
+        return collator.compare(left, right) < 0;
+    });
+    list.append(otherItems);
+    return list;
+}
+
+} // namespace
 
 const QString IrgaDesc::getIRGA_MANUFACTURER_STRING_0()
 {
@@ -323,7 +349,7 @@ bool IrgaDesc::operator==(const IrgaDesc& irga) const
 // Return string list of anem measures types
 const QStringList IrgaDesc::manufacturerStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getIRGA_MANUFACTURER_STRING_4()
             << getIRGA_MANUFACTURER_STRING_2()
             << getIRGA_MANUFACTURER_STRING_0()
@@ -334,7 +360,7 @@ const QStringList IrgaDesc::manufacturerStringList()
 // Return string list of usage types
 const QStringList IrgaDesc::allModelStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getIRGA_MODEL_STRING_0()
             << getIRGA_MODEL_STRING_1()
             << getIRGA_MODEL_STRING_2()
@@ -355,7 +381,7 @@ const QStringList IrgaDesc::allModelStringList()
 // Return string list of usage types
 const QStringList IrgaDesc::licorModelStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getIRGA_MODEL_STRING_0()
             << getIRGA_MODEL_STRING_1()
             << getIRGA_MODEL_STRING_2()
@@ -370,7 +396,7 @@ const QStringList IrgaDesc::licorModelStringList()
 // Return string list of usage types
 const QStringList IrgaDesc::otherModelStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getIRGA_MODEL_STRING_6()
             << getIRGA_MODEL_STRING_7()
             << getIRGA_MODEL_STRING_8()
@@ -381,7 +407,7 @@ const QStringList IrgaDesc::otherModelStringList()
 
 const QStringList IrgaDesc::campbellIrgaModelStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getIRGA_MODEL_STRING_15()
             << getIRGA_MODEL_STRING_16()
             << getIRGA_MODEL_STRING_22()
@@ -390,7 +416,7 @@ const QStringList IrgaDesc::campbellIrgaModelStringList()
 
 const QStringList IrgaDesc::miroModelStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getIRGA_MODEL_STRING_17()
             << getIRGA_MODEL_STRING_18()
             << getIRGA_MODEL_STRING_19()
@@ -399,7 +425,7 @@ const QStringList IrgaDesc::miroModelStringList()
 
 const QStringList IrgaDesc::aerodyneModelStringList()
 {
-    return (QStringList()
+    return sortedWithOtherLast(QStringList()
             << getIRGA_MODEL_STRING_20());
 }
 

@@ -111,22 +111,11 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     smartfluxModeCheckbox_->setToolTip(smartfluxTooltip);
 
     auto title = new ClickLabel;
-    auto pixmap = QPixmap(QStringLiteral(":/icons/smartflux-grey"));
-#if defined(Q_OS_MACOS)
-    pixmap.setDevicePixelRatio(2.0);
-#endif
-    title->setPixmap(pixmap);
-    title->setProperty("smartfluxLogoGrey", true);
+    title->setText(tr("LI-COR Smartflux Configuration"));
+    title->setProperty("smartfluxConfigurationTitle", true);
     title->setToolTip(smartfluxTooltip);
 
-    auto subTitle = new ClickLabel;
-    subTitle->setObjectName(QStringLiteral("smartfluxSubtitle"));
-    subTitle->setText(tr("Configuration "));
-    subTitle->setToolTip(smartfluxTooltip);
-
     connect(title, &ClickLabel::clicked,
-            smartfluxModeCheckbox_, &QCheckBox::toggle);
-    connect(subTitle, &ClickLabel::clicked,
             smartfluxModeCheckbox_, &QCheckBox::toggle);
 
     createQuestionMark();
@@ -137,7 +126,6 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     smartfluxLabelContainerLayout->addSpacing(5);
     smartfluxLabelContainerLayout->addWidget(title, 0, Qt::AlignBottom);
     smartfluxLabelContainerLayout->addSpacing(5);
-    smartfluxLabelContainerLayout->addWidget(subTitle);
     smartfluxLabelContainerLayout->addWidget(questionMark_1);
     smartfluxLabelContainerLayout->addStretch();
     smartfluxLabelContainerLayout->setContentsMargins(0, 0, 0, 0);
@@ -161,9 +149,9 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     helpTitle->setProperty("groupTitle3", true);
 
     auto item_1 = new QListWidgetItem(tr("%1 Help").arg(Defs::APP_NAME));
-    item_1->setData(Qt::UserRole, QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/EddyFlow_Home.html"));
+    item_1->setData(Qt::UserRole, QStringLiteral("https://github.com/kebasaa/eddyflow-documentation"));
     auto item_2 = new QListWidgetItem(tr("Getting started"));
-    item_2->setData(Qt::UserRole, QStringLiteral("https://boxenterprise.net/s/qmhucid6g0hdvd3d13tk"));
+    item_2->setData(Qt::UserRole, QStringLiteral("https://github.com/kebasaa/eddyflow-documentation"));
     auto item_3 = new QListWidgetItem(tr("Download sample data files"));
     item_3->setData(Qt::UserRole, Defs::EP_SAMPLE_DATA_FILES);
 

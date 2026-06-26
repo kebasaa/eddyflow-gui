@@ -159,8 +159,6 @@
 
         <file alias="8100-app">img/news/8100A-apps-icon.png</file>
 
-        <file alias="smartflux-grey">img/smartflux/SMARTFlux-wordmark-grey.png</file>
-        <file alias="smartflux-white">img/smartflux/SMARTFlux-wordmark-white.png</file>
         <file alias="smartflux-close">img/smartflux/smartflux-close.png</file>
         <file alias="smartflux-close-hover">img/smartflux/smartflux-close-hover.png</file>
 
