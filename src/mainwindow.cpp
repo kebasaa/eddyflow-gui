@@ -237,9 +237,6 @@ MainWindow::MainWindow(const QString& filename,
             this, &MainWindow::fileOpenRequest);
     connect(mainWidget_, &MainWidget::newProjectRequest,
             this, &MainWindow::fileNewRequest);
-    connect(mainWidget_, &MainWidget::checkUpdatesRequest,
-            this, &MainWindow::showUpdateDialog);
-
     connectPlanarFitDialog();
     connectTimeLagDialog();
 

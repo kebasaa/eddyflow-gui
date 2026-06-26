@@ -84,9 +84,8 @@ private:
     QToolButton *newButton;
     QToolButton *openButton;
     QListWidget *recentListWidget;
-    QListWidget *newsListWidget;
     QListWidget *helpListWidget;
-    QListWidget *supportListWidget;
+    QListWidget *litListWidget;
     QGridLayout *mainLayout_;
     SmartFluxBar* smartfluxBar_;
     QWidget* smartfluxBarPlaceholder_;
@@ -98,16 +97,14 @@ private slots:
     void openProjectRequested();
     void recentOpenRequested(QListWidgetItem* item);
     void doNothing(QListWidgetItem* item);
-    void newsItemRequested(QListWidgetItem* item);
+    void literatureItemRequested(QListWidgetItem* item);
     void helpItemRequested(QListWidgetItem* item);
-    void supportItemRequested(QListWidgetItem* item);
     void updateRecentList();
     void onlineHelpTrigger_1();
 
 signals:
     void openProjectRequest(QString);
     void newProjectRequest();
-    void checkUpdatesRequest();
 };
 
 #endif // MAINPAGE_H

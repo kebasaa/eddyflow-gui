@@ -124,7 +124,6 @@ signals:
     void newProjectRequest();
     void updateMetadataReadResult(bool);
     void recentUpdated();
-    void checkUpdatesRequest();
     void showSmartfluxBarRequest(bool on);
     void saveSilentlyRequest();
     void saveRequest();

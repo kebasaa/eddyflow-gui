@@ -122,8 +122,6 @@ MainWidget::MainWidget(QWidget *parent, DlProject *dlProject, EcProject *ecProje
             this, &MainWidget::openProjectRequest);
     connect(welcomePage_, &WelcomePage::newProjectRequest,
             this, &MainWidget::newProjectRequest);
-    connect(welcomePage_, &WelcomePage::checkUpdatesRequest,
-            this, &MainWidget::checkUpdatesRequest);
 }
 
 MainWidget::~MainWidget()

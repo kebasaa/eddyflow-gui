@@ -2331,6 +2331,7 @@ QProgressBar[splash="true"] {
     border: 1px solid #333;
     border-radius: 4px;
     text-align: center;
+    color: #333333;
     font: normal normal 10px "Open Sans";
     max-height: 12px;
     max-width: 400px;
