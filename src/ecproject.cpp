@@ -3001,7 +3001,8 @@ bool EcProject::importEddyProProject(const QString &filename, bool updateMode, b
         { QRegularExpression(QStringLiteral("(^|\\n)model=csat3(\\r?\\n)")),   QStringLiteral("\\1model=campbell_csat3\\2") },
         { QRegularExpression(QStringLiteral("(^|\\n)model=csat3a(\\r?\\n)")),  QStringLiteral("\\1model=campbell_csat3a\\2") },
         { QRegularExpression(QStringLiteral("(^|\\n)model=csat3b(\\r?\\n)")),  QStringLiteral("\\1model=campbell_csat3b\\2") },
-        { QRegularExpression(QStringLiteral("(^|\\n)model=irgason(\\r?\\n)")), QStringLiteral("\\1model=campbell_irgason\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=irgason(\\r?\\n)")),          QStringLiteral("\\1model=campbell_irgason_sonic\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_irgason(\\r?\\n)")), QStringLiteral("\\1model=campbell_irgason_sonic\\2") },
         { QRegularExpression(QStringLiteral("(^|\\n)model=ec150(\\r?\\n)")),   QStringLiteral("\\1model=campbell_ec150\\2") },
         // Migrate EddyPro n2o-labelled project keys to gas4
         { QRegularExpression(QStringLiteral("(^|\\n)col_n2o=")),              QStringLiteral("\\1col_gas4=") },
