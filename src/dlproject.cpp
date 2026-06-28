@@ -71,7 +71,7 @@ const QString DlProject::IRGA_MODEL_STRING_12 = QStringLiteral("li7500rs");
 const QString DlProject::IRGA_MODEL_STRING_13 = QStringLiteral("li7200rs");
 const QString DlProject::IRGA_MODEL_STRING_14 = QStringLiteral("li7500ds");
 const QString DlProject::IRGA_MODEL_STRING_15 = QStringLiteral("campbell_ec150");
-const QString DlProject::IRGA_MODEL_STRING_16 = QStringLiteral("campbell_irgason");
+const QString DlProject::IRGA_MODEL_STRING_16 = QStringLiteral("campbell_irgason_irga");
 const QString DlProject::IRGA_MODEL_STRING_17 = QStringLiteral("miro_mga1_5");
 const QString DlProject::IRGA_MODEL_STRING_18 = QStringLiteral("miro_mga4_6");
 const QString DlProject::IRGA_MODEL_STRING_19 = QStringLiteral("miro_mga9_10");
@@ -278,7 +278,7 @@ const QString DlProject::getANEM_MODEL_STRING_19()
 
 const QString DlProject::getANEM_MODEL_STRING_20()
 {
-    static const QString s(QStringLiteral("campbell_irgason"));
+    static const QString s(QStringLiteral("campbell_irgason_sonic"));
     return s;
 }
 
