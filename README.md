@@ -6,8 +6,7 @@
 
 # Welcome to EddyFlow
 
-EddyFlow&reg; is a powerful open source software application for processing eddy covariance data. It computes fluxes of water vapor (evapotranspiration), carbon
-dioxide, and other trace gases, and energy with the Eddy Covariance method.
+EddyFlow&reg; is a powerful open source software application for processing eddy covariance data. It computes fluxes of water vapor (evapotranspiration), carbon dioxide, and other trace gases, and energy with the Eddy Covariance method.
 
 [LI-COR Biosciences](http://www.licor.com) has not published upstream EddyFlow updates for several years. This repository is an actively maintained fork of EddyPro 6.2.2 that continues development while gratefully acknowledging LI-COR, ECO2S, and the original EddyFlow authors for creating and releasing EddyFlow.eddypro originates from [ECO<sub>2</sub>S](http://gaia.agraria.unitus.it/eco2s), the Eddy COvariance COmmunity Software project, which was developed as part of the Infrastructure for Measurement of the European Carbon Cycle (IMECC-EU) research project. We gratefully acknowledge the [IMECC](http://imecc.ipsl.jussieu.fr/index.html) consortium, the ECO<sub>2</sub>S development team, the [University of Tuscia](https://www.unitus.it) (Italy) and scientists around the world who assisted with development and testing of the original version of this software.
 
@@ -15,10 +14,10 @@ dioxide, and other trace gases, and energy with the Eddy Covariance method.
 
 EddyFlow consists of 4 repositories:
 
-- [eddyflow-engine](https://github.com/keba_saa/eddyflow-engine): The core engine, a command line software
-- [eddyflow-gui](https://github.com/keba_saa/eddyflow-gui) (current repository): The graphical user interface to configure and run the engine
-- [eddyflow-documentation](https://github.com/keba_saa/eddyflow-documentation): The documentation of the software and its usage
-- [eddyflow-build-script](https://github.com/keba_saa/eddyflow-build-script): This builds the software binaries (currently Windows only)
+- [eddyflow-engine](https://github.com/kebasaa/eddyflow-engine): The core engine, a command line software
+- [eddyflow-gui](https://github.com/kebasaa/eddyflow-gui) (current repository): The graphical user interface to configure and run the engine
+- [eddyflow-documentation](https://github.com/kebasaa/eddyflow-documentation): The documentation of the software and its usage
+- [eddyflow-build-script](https://github.com/kebasaa/eddyflow-build-script): This builds the software binaries (currently Windows only)
 
 ## License
 
@@ -27,42 +26,34 @@ This fork of EddyPro 6.2.2 is released with and will retain the
 
 ## Source Code Repository
 
-EddyFlow is a fully cross-platform application, which consists of a set of
-command line programs and a graphical user interface (GUI).
+EddyFlow is a fully cross-platform application, which consists of a set of command line programs and a graphical user interface (GUI).
 
 The source code is developed using two independent Git repositories, namely:
 
-  - [EddyFlow-engine](https://github.com/li-cor/EddyFlow-engine)
-  - [EddyFlow-gui](https://github.com/li-cor/EddyFlow-gui)
+  - [EddyFlow-engine](https://github.com/kebasaa/EddyFlow-engine)
+  - [EddyFlow-gui](https://github.com/kebasaa/EddyFlow-gui)
 
 ## Installing EddyFlow
 
-You can download EddyFlow from the LI-COR
-[EddyFlow web page](http://www.licor.com/EddyFlow).
-The page provides download links for all supported platforms.
-
-Start the installation program like any executable on the development platform.
-Select the components that you want to install and follow the instructions of
-the installation program to complete the installation.
+You can download EddyFlow from the releases .7z file, the contained folder is fully portable and does not require installation.
 
 ## Building EddyFlow from source
 
-To build EddyFlow follow these instructions:
+To build EddyFlow, use the Powershell script on [eddyflow-build-script](https://github.com/kebasaa/eddyflow-build-script). This builds the software binaries (currently Windows only).
 
 ### Engine
 
-To compile the Engine use [gfortran](https://gcc.gnu.org/wiki/GFortran)
-(The GNU Fortran compiler) and run:
+To compile the Engine only, you can use [gfortran](https://gcc.gnu.org/wiki/GFortran) (The GNU Fortran compiler) and run:
 
     $ cd prj
     $ make rp
     $ make fcc
 
-### GUI
+<!-- ### GUI
 
 Source code compilation instructions for the GUI are undergoing a revision. They will posted as soon the update is completed.
 
-<!-- To compile the GUI:
+To compile the GUI:
 
 1. install the [Qt framework](https://www.qt.io/developers/)
 2. install [git](http://git-scm.com/)
@@ -105,10 +96,11 @@ directory where the source code is:
 
 ## Utilities
 
-To successfully run EddyFlow, the program installation folder must contain the
-following command line utilities under the 'bin' sub-directory:
+To successfully run EddyFlow, the program installation folder must contain the following command line utilities under the 'bin' sub-directory:
 
 - 7-zip
+- Quazip
+- Zlib
 
 ### 7-zip
 
@@ -122,8 +114,7 @@ License: [LGPL](https://www.7-zip.org/license.txt).
 
 ## Using EddyFlow sample data
 
-You can run EddyFlow using sample data files available at the LI-COR
-[EddyFlow web page](http://www.licor.com/EddyFlow).
+You can run EddyFlow using sample data files available at the [eddyflow-build-script](https://github.com/kebasaa/eddyflow-build-script) repository.
 
 ## Data Processing Options in EddyFlow
 
@@ -213,24 +204,11 @@ You can run EddyFlow using sample data files available at the LI-COR
 
 ## EddyFlow Trademark and Logo Policy
 
-In order to help users who want to cite EddyFlow on posters or publications,
-LI-COR provides [guidelines](docs/EddyFlow_Trademark_Policy.pdf) for the proper
-use of the EddyFlow wordmark and logo.
+In order to help users who want to cite EddyFlow on posters or publications, we provide the [EddyFlow logo as vector graphic](img/logo/app-logo.svg) for the proper use of the EddyFlow wordmark and logo.
 
 ## Want to Know More?
 
-More information is available at:
-
-  - [EddyFlow web page](http://www.licor.com/EddyFlow)
-  - [EddyFlow help](http://www.licor.com/env/support/EddyFlow/home.html)
-
-Be sure to check out the
-'[What's new](http://www.licor.com/env/support/EddyFlow/topics/whats-new.html)'
-page, which will list any known problems or limitations of the current and
-past versions.
+More information is available at the help website [EddyFlow help](https://kebasaa.github.io/eddyflow-documentation/).
 
 See also the [CHANGELOG](CHANGELOG).
 
----
-
-We hope you will enjoy using EddyFlow!
