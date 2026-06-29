@@ -9,6 +9,7 @@
 
 #include <QDialog>
 
+class QCheckBox;
 class QDoubleSpinBox;
 class QSpinBox;
 class EcProject;
@@ -44,6 +45,9 @@ private:
     QDoubleSpinBox *hdiPrefilterSpin;
     QSpinBox *smoothingWidthSpin;
     QSpinBox *randomSeedSpin;
+    QCheckBox *approxCcfCheckBox;
+    QCheckBox *maxArOrderCheckBox;
+    QSpinBox  *maxArOrderSpin;
 
     EcProject *ecProject_;
     ConfigState *configState_;

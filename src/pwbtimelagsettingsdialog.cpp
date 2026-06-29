@@ -6,9 +6,12 @@
 
 #include "pwbtimelagsettingsdialog.h"
 
+#include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
 #include <QGridLayout>
+#include <QGroupBox>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QSpinBox>
 #include <QVBoxLayout>
@@ -107,6 +110,61 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
     detection->addWidget(randomSeedSpin, 8, 1);
     detection->setColumnStretch(2, 1);
 
+    // Speed options group
+    auto speedGroup = new QGroupBox(tr("Speed options"));
+    auto warningLabel = new QLabel(
+        tr("<i>&#9888; These options may slightly affect outputs — see tooltips for details.</i>"));
+    warningLabel->setWordWrap(true);
+
+    approxCcfCheckBox = new QCheckBox(tr("Use approximate CCF (faster)"));
+    approxCcfCheckBox->setToolTip(tr(
+        "<b>Use approximate CCF (faster):</b><br>"
+        "Skips variance normalisation inside the bootstrap CCF loop. Only the "
+        "cross-covariance (not the full correlation coefficient) is used to locate "
+        "the lag peak.<br><br>"
+        "<b>Speedup:</b> ~2–3× additional; ~4–5× total vs. the "
+        "original two-pass implementation.<br><br>"
+        "<b>Output impact:</b> The argmax of the normalised and unnormalised CCF is "
+        "practically always identical when the lag window is small relative to N "
+        "(e.g. standard 30-min periods with ±10 s windows). A shift of ±1 sample "
+        "is possible in rare edge cases: very short periods, very wide lag windows, "
+        "or low data availability after gap-filling.<br><br>"
+        "<b>Guidance:</b> Suitable for routine production runs. Leave unchecked for "
+        "validation runs, method comparisons, or non-standard setups."));
+
+    maxArOrderCheckBox = new QCheckBox(tr("Cap AR model order"));
+    maxArOrderCheckBox->setToolTip(tr(
+        "<b>Cap AR model order:</b><br>"
+        "By default, AIC-based AR model selection searches up to order ~455 for "
+        "30-min 20 Hz data. Enabling this cap limits the search to the value shown, "
+        "reducing AR fitting time by ~9× for a cap of 50.<br><br>"
+        "<b>Speedup:</b> The AR step is ~10–15%% of total PWB time, so the "
+        "end-to-end gain is ~10–15%% additional.<br><br>"
+        "<b>Output impact:</b> If the true optimal AR order exceeds the cap, "
+        "pre-whitening is slightly less effective, potentially widening the HDI or "
+        "shifting the selected lag. Most likely to occur for strongly autocorrelated "
+        "gases (e.g. H₂O in humid conditions). In practice, EC turbulence signals "
+        "are well-described by AR(1)–AR(10).<br><br>"
+        "<b>Guidance:</b> Leave uncapped for final archival datasets. "
+        "A cap of 50 is reasonable for exploratory processing."));
+
+    maxArOrderSpin = new QSpinBox;
+    maxArOrderSpin->setRange(1, 1000);
+    maxArOrderSpin->setValue(50);
+    maxArOrderSpin->setEnabled(false);
+    maxArOrderSpin->setToolTip(maxArOrderCheckBox->toolTip());
+
+    auto maxArRow = new QHBoxLayout;
+    maxArRow->addWidget(maxArOrderCheckBox);
+    maxArRow->addWidget(maxArOrderSpin);
+    maxArRow->addStretch();
+
+    auto speedLayout = new QVBoxLayout;
+    speedLayout->addWidget(warningLabel);
+    speedLayout->addWidget(approxCcfCheckBox);
+    speedLayout->addLayout(maxArRow);
+    speedGroup->setLayout(speedLayout);
+
     auto buttons = new QDialogButtonBox(QDialogButtonBox::Close);
     connect(buttons, &QDialogButtonBox::rejected, this, &PwbTimelagSettingsDialog::hide);
 
@@ -115,6 +173,8 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
     mainLayout->addLayout(windows);
     mainLayout->addSpacing(10);
     mainLayout->addLayout(detection);
+    mainLayout->addSpacing(10);
+    mainLayout->addWidget(speedGroup);
     mainLayout->addWidget(buttons);
 
     connect(co2MinLagSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
@@ -149,6 +209,17 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
             ecProject_, &EcProject::setPwbSmoothingWidth);
     connect(randomSeedSpin, QOverload<int>::of(&QSpinBox::valueChanged),
             ecProject_, &EcProject::setPwbRandomSeed);
+    connect(approxCcfCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
+        ecProject_->setPwbApproxCcf(checked ? 1 : 0);
+    });
+    connect(maxArOrderCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
+        maxArOrderSpin->setEnabled(checked);
+        ecProject_->setPwbMaxArOrder(checked ? maxArOrderSpin->value() : 0);
+    });
+    connect(maxArOrderSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int n) {
+        if (maxArOrderCheckBox->isChecked())
+            ecProject_->setPwbMaxArOrder(n);
+    });
 
     refresh();
 }
@@ -171,6 +242,15 @@ void PwbTimelagSettingsDialog::refresh()
     hdiPrefilterSpin->setValue(ecProject_->pwbHdiPrefilter());
     smoothingWidthSpin->setValue(ecProject_->pwbSmoothingWidth());
     randomSeedSpin->setValue(ecProject_->pwbRandomSeed());
+
+    approxCcfCheckBox->setChecked(ecProject_->pwbApproxCcf() != 0);
+
+    const int maxAr = ecProject_->pwbMaxArOrder();
+    const bool capEnabled = (maxAr > 0);
+    maxArOrderCheckBox->setChecked(capEnabled);
+    maxArOrderSpin->setEnabled(capEnabled);
+    if (capEnabled)
+        maxArOrderSpin->setValue(maxAr);
 }
 
 QDoubleSpinBox *PwbTimelagSettingsDialog::createLagSpin()

@@ -420,6 +420,8 @@ namespace EcIni
     const auto INI_PWB_TIMELAG_13   = QStringLiteral("pwb_hdi_prefilter_s");
     const auto INI_PWB_TIMELAG_14   = QStringLiteral("pwb_smoothing_width");
     const auto INI_PWB_TIMELAG_15   = QStringLiteral("pwb_random_seed");
+    const auto INI_PWB_TIMELAG_16   = QStringLiteral("pwb_approx_ccf");
+    const auto INI_PWB_TIMELAG_17   = QStringLiteral("pwb_max_ar_order");
 
     const auto INIGROUP_RAND_ERROR = QStringLiteral("RawProcess_RandomUncertainty_Settings");
     const auto INI_RAND_ERROR_0    = QStringLiteral("ru_meth");

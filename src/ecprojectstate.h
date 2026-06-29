@@ -462,6 +462,8 @@ struct PwbTimelagState
     qreal hdi_prefilter_s = 1.0;
     int smoothing_width = 5;
     int random_seed = 2024;
+    int approx_ccf   = 0;
+    int max_ar_order = 0;
 };
 
 struct RandomErrorState
