@@ -131,6 +131,7 @@ You can run EddyFlow using sample data files available at the [eddyflow-build-sc
   - Exponential running mean
 
 + Compensation of time lag between sonic anemometer and gas analyzer measurements
+  - Pre-whitening block-bootstrap time lag detection (Vitale et al. 2024)
   - Automatic time lag optimization (optionally as a function of RH for H<sub>2</sub>O)
   - Maximum covariance with default (circular correlation)
   - Maximum covariance without default
@@ -178,6 +179,9 @@ You can run EddyFlow using sample data files available at the [eddyflow-build-sc
   - Kljun et al. (2004)
   - Kormann and Meixner (2001)
   - Hsieh et al. (2000)
+  
++ ET & NEE Partitioning
+  - Conditional Eddy Covariance (Zahn et al. 2022)
 
 + Other options applied in both Express and/or Advanced Mode include:
   - Sonic temperature correction for humidity following van Dijk et al. (2004)
