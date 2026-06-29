@@ -456,6 +456,23 @@ public:
     void setTimelagOptGas4MaxLag(double d);
     void setTimelagOptSubset(int i);
 
+    void setPwbCo2MinLag(double d);
+    void setPwbCo2MaxLag(double d);
+    void setPwbH2oMinLag(double d);
+    void setPwbH2oMaxLag(double d);
+    void setPwbCh4MinLag(double d);
+    void setPwbCh4MaxLag(double d);
+    void setPwbGas4MinLag(double d);
+    void setPwbGas4MaxLag(double d);
+    void setPwbNBootstrap(int n);
+    void setPwbBlockLength(double d);
+    void setPwbMinValidFrac(double d);
+    void setPwbHdiThresh(double d);
+    void setPwbDevThresh(double d);
+    void setPwbHdiPrefilter(double d);
+    void setPwbSmoothingWidth(int n);
+    void setPwbRandomSeed(int n);
+
     void setRandomErrorMethod(int n);
     void setRandomErrorItsMethod(int n);
     void setRandomErrorItsTlagMax(double d);
@@ -836,6 +853,23 @@ public:
     double timelagOptGas4MinLag() const { return ec_project_state_.timelagOpt.gas4_min_lag; }
     double timelagOptGas4MaxLag() const { return ec_project_state_.timelagOpt.gas4_max_lag; }
     int timelagOptSubset() const { return ec_project_state_.timelagOpt.subset; }
+
+    double pwbCo2MinLag() const { return ec_project_state_.pwbTimelag.co2_min_lag; }
+    double pwbCo2MaxLag() const { return ec_project_state_.pwbTimelag.co2_max_lag; }
+    double pwbH2oMinLag() const { return ec_project_state_.pwbTimelag.h2o_min_lag; }
+    double pwbH2oMaxLag() const { return ec_project_state_.pwbTimelag.h2o_max_lag; }
+    double pwbCh4MinLag() const { return ec_project_state_.pwbTimelag.ch4_min_lag; }
+    double pwbCh4MaxLag() const { return ec_project_state_.pwbTimelag.ch4_max_lag; }
+    double pwbGas4MinLag() const { return ec_project_state_.pwbTimelag.gas4_min_lag; }
+    double pwbGas4MaxLag() const { return ec_project_state_.pwbTimelag.gas4_max_lag; }
+    int pwbNBootstrap() const { return ec_project_state_.pwbTimelag.n_bootstrap; }
+    double pwbBlockLength() const { return ec_project_state_.pwbTimelag.block_length_s; }
+    double pwbMinValidFrac() const { return ec_project_state_.pwbTimelag.min_valid_frac; }
+    double pwbHdiThresh() const { return ec_project_state_.pwbTimelag.hdi_thresh_s; }
+    double pwbDevThresh() const { return ec_project_state_.pwbTimelag.dev_thresh_s; }
+    double pwbHdiPrefilter() const { return ec_project_state_.pwbTimelag.hdi_prefilter_s; }
+    int pwbSmoothingWidth() const { return ec_project_state_.pwbTimelag.smoothing_width; }
+    int pwbRandomSeed() const { return ec_project_state_.pwbTimelag.random_seed; }
 
     int randErrorMethod() const { return ec_project_state_.randomError.ru_method; }
     int randErrorItsMehod() const { return ec_project_state_.randomError.its_method; }

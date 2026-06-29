@@ -61,6 +61,7 @@ class CustomResetLineEdit;
 class DlProject;
 class EcProject;
 class PlanarFitSettingsDialog;
+class PwbTimelagSettingsDialog;
 class RichTextCheckBox;
 class TimeLagSettingsDialog;
 
@@ -149,6 +150,7 @@ private:
 
     void createPfSettingsDialog();
     void createTlSettingsDialog();
+    void createPwbTlSettingsDialog();
     void createBurbaParamItems();
     void createQuestionMark();
     bool requestBurbaSettingsReset();
@@ -252,6 +254,7 @@ private:
 
     PlanarFitSettingsDialog* pfDialog_{};
     TimeLagSettingsDialog* tlDialog_{};
+    PwbTimelagSettingsDialog* pwbTlDialog_{};
 
     DetrendMethod previousDetrendMethod_{DetrendMethod::BlockAverage};
 };

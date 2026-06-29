@@ -678,6 +678,26 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
             advSettingsTest = false;
         }
     }
+    else if (subTest && (ec_project_state_.screenSetting.tlag_meth == 5))
+    {
+        advSettingsTest = advSettingsTest
+            && qFuzzyCompare(ec_project_state_.pwbTimelag.co2_min_lag, previousProject.ec_project_state_.pwbTimelag.co2_min_lag)
+            && qFuzzyCompare(ec_project_state_.pwbTimelag.co2_max_lag, previousProject.ec_project_state_.pwbTimelag.co2_max_lag)
+            && qFuzzyCompare(ec_project_state_.pwbTimelag.h2o_min_lag, previousProject.ec_project_state_.pwbTimelag.h2o_min_lag)
+            && qFuzzyCompare(ec_project_state_.pwbTimelag.h2o_max_lag, previousProject.ec_project_state_.pwbTimelag.h2o_max_lag)
+            && qFuzzyCompare(ec_project_state_.pwbTimelag.ch4_min_lag, previousProject.ec_project_state_.pwbTimelag.ch4_min_lag)
+            && qFuzzyCompare(ec_project_state_.pwbTimelag.ch4_max_lag, previousProject.ec_project_state_.pwbTimelag.ch4_max_lag)
+            && qFuzzyCompare(ec_project_state_.pwbTimelag.gas4_min_lag, previousProject.ec_project_state_.pwbTimelag.gas4_min_lag)
+            && qFuzzyCompare(ec_project_state_.pwbTimelag.gas4_max_lag, previousProject.ec_project_state_.pwbTimelag.gas4_max_lag)
+            && (ec_project_state_.pwbTimelag.n_bootstrap == previousProject.ec_project_state_.pwbTimelag.n_bootstrap)
+            && qFuzzyCompare(ec_project_state_.pwbTimelag.block_length_s, previousProject.ec_project_state_.pwbTimelag.block_length_s)
+            && qFuzzyCompare(ec_project_state_.pwbTimelag.min_valid_frac, previousProject.ec_project_state_.pwbTimelag.min_valid_frac)
+            && qFuzzyCompare(ec_project_state_.pwbTimelag.hdi_thresh_s, previousProject.ec_project_state_.pwbTimelag.hdi_thresh_s)
+            && qFuzzyCompare(ec_project_state_.pwbTimelag.dev_thresh_s, previousProject.ec_project_state_.pwbTimelag.dev_thresh_s)
+            && qFuzzyCompare(ec_project_state_.pwbTimelag.hdi_prefilter_s, previousProject.ec_project_state_.pwbTimelag.hdi_prefilter_s)
+            && (ec_project_state_.pwbTimelag.smoothing_width == previousProject.ec_project_state_.pwbTimelag.smoothing_width)
+            && (ec_project_state_.pwbTimelag.random_seed == previousProject.ec_project_state_.pwbTimelag.random_seed);
+    }
 
     subTest = ec_project_state_.randomError.ru_method == previousProject.ec_project_state_.randomError.ru_method;
     advSettingsTest = advSettingsTest && subTest;
@@ -1553,6 +1573,26 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_TIMELAG_OPT_15, QString::number(ec_project_state_.timelagOpt.gas4_min_lag, 'f', 1));
         project_ini.setValue(EcIni::INI_TIMELAG_OPT_16, QString::number(ec_project_state_.timelagOpt.gas4_max_lag, 'f', 1));
         project_ini.setValue(EcIni::INI_TIMELAG_OPT_18, ec_project_state_.timelagOpt.subset);
+    project_ini.endGroup();
+
+    // PWB timelag section
+    project_ini.beginGroup(EcIni::INIGROUP_PWB_TIMELAG);
+        project_ini.setValue(EcIni::INI_PWB_TIMELAG_0, QString::number(ec_project_state_.pwbTimelag.co2_min_lag, 'f', 1));
+        project_ini.setValue(EcIni::INI_PWB_TIMELAG_1, QString::number(ec_project_state_.pwbTimelag.co2_max_lag, 'f', 1));
+        project_ini.setValue(EcIni::INI_PWB_TIMELAG_2, QString::number(ec_project_state_.pwbTimelag.h2o_min_lag, 'f', 1));
+        project_ini.setValue(EcIni::INI_PWB_TIMELAG_3, QString::number(ec_project_state_.pwbTimelag.h2o_max_lag, 'f', 1));
+        project_ini.setValue(EcIni::INI_PWB_TIMELAG_4, QString::number(ec_project_state_.pwbTimelag.ch4_min_lag, 'f', 1));
+        project_ini.setValue(EcIni::INI_PWB_TIMELAG_5, QString::number(ec_project_state_.pwbTimelag.ch4_max_lag, 'f', 1));
+        project_ini.setValue(EcIni::INI_PWB_TIMELAG_6, QString::number(ec_project_state_.pwbTimelag.gas4_min_lag, 'f', 1));
+        project_ini.setValue(EcIni::INI_PWB_TIMELAG_7, QString::number(ec_project_state_.pwbTimelag.gas4_max_lag, 'f', 1));
+        project_ini.setValue(EcIni::INI_PWB_TIMELAG_8, ec_project_state_.pwbTimelag.n_bootstrap);
+        project_ini.setValue(EcIni::INI_PWB_TIMELAG_9, QString::number(ec_project_state_.pwbTimelag.block_length_s, 'f', 1));
+        project_ini.setValue(EcIni::INI_PWB_TIMELAG_10, QString::number(ec_project_state_.pwbTimelag.min_valid_frac, 'f', 3));
+        project_ini.setValue(EcIni::INI_PWB_TIMELAG_11, QString::number(ec_project_state_.pwbTimelag.hdi_thresh_s, 'f', 2));
+        project_ini.setValue(EcIni::INI_PWB_TIMELAG_12, QString::number(ec_project_state_.pwbTimelag.dev_thresh_s, 'f', 2));
+        project_ini.setValue(EcIni::INI_PWB_TIMELAG_13, QString::number(ec_project_state_.pwbTimelag.hdi_prefilter_s, 'f', 2));
+        project_ini.setValue(EcIni::INI_PWB_TIMELAG_14, ec_project_state_.pwbTimelag.smoothing_width);
+        project_ini.setValue(EcIni::INI_PWB_TIMELAG_15, ec_project_state_.pwbTimelag.random_seed);
     project_ini.endGroup();
 
     // random error section
@@ -2818,6 +2858,58 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.timelagOpt.subset
                 = project_ini.value(EcIni::INI_TIMELAG_OPT_18,
                                     defaultEcProjectState.timelagOpt.subset).toInt();
+    project_ini.endGroup();
+
+    // PWB time lag section
+    project_ini.beginGroup(EcIni::INIGROUP_PWB_TIMELAG);
+        ec_project_state_.pwbTimelag.co2_min_lag
+                = project_ini.value(EcIni::INI_PWB_TIMELAG_0,
+                                    defaultEcProjectState.pwbTimelag.co2_min_lag).toDouble();
+        ec_project_state_.pwbTimelag.co2_max_lag
+                = project_ini.value(EcIni::INI_PWB_TIMELAG_1,
+                                    defaultEcProjectState.pwbTimelag.co2_max_lag).toDouble();
+        ec_project_state_.pwbTimelag.h2o_min_lag
+                = project_ini.value(EcIni::INI_PWB_TIMELAG_2,
+                                    defaultEcProjectState.pwbTimelag.h2o_min_lag).toDouble();
+        ec_project_state_.pwbTimelag.h2o_max_lag
+                = project_ini.value(EcIni::INI_PWB_TIMELAG_3,
+                                    defaultEcProjectState.pwbTimelag.h2o_max_lag).toDouble();
+        ec_project_state_.pwbTimelag.ch4_min_lag
+                = project_ini.value(EcIni::INI_PWB_TIMELAG_4,
+                                    defaultEcProjectState.pwbTimelag.ch4_min_lag).toDouble();
+        ec_project_state_.pwbTimelag.ch4_max_lag
+                = project_ini.value(EcIni::INI_PWB_TIMELAG_5,
+                                    defaultEcProjectState.pwbTimelag.ch4_max_lag).toDouble();
+        ec_project_state_.pwbTimelag.gas4_min_lag
+                = project_ini.value(EcIni::INI_PWB_TIMELAG_6,
+                                    defaultEcProjectState.pwbTimelag.gas4_min_lag).toDouble();
+        ec_project_state_.pwbTimelag.gas4_max_lag
+                = project_ini.value(EcIni::INI_PWB_TIMELAG_7,
+                                    defaultEcProjectState.pwbTimelag.gas4_max_lag).toDouble();
+        ec_project_state_.pwbTimelag.n_bootstrap
+                = project_ini.value(EcIni::INI_PWB_TIMELAG_8,
+                                    defaultEcProjectState.pwbTimelag.n_bootstrap).toInt();
+        ec_project_state_.pwbTimelag.block_length_s
+                = project_ini.value(EcIni::INI_PWB_TIMELAG_9,
+                                    defaultEcProjectState.pwbTimelag.block_length_s).toDouble();
+        ec_project_state_.pwbTimelag.min_valid_frac
+                = project_ini.value(EcIni::INI_PWB_TIMELAG_10,
+                                    defaultEcProjectState.pwbTimelag.min_valid_frac).toDouble();
+        ec_project_state_.pwbTimelag.hdi_thresh_s
+                = project_ini.value(EcIni::INI_PWB_TIMELAG_11,
+                                    defaultEcProjectState.pwbTimelag.hdi_thresh_s).toDouble();
+        ec_project_state_.pwbTimelag.dev_thresh_s
+                = project_ini.value(EcIni::INI_PWB_TIMELAG_12,
+                                    defaultEcProjectState.pwbTimelag.dev_thresh_s).toDouble();
+        ec_project_state_.pwbTimelag.hdi_prefilter_s
+                = project_ini.value(EcIni::INI_PWB_TIMELAG_13,
+                                    defaultEcProjectState.pwbTimelag.hdi_prefilter_s).toDouble();
+        ec_project_state_.pwbTimelag.smoothing_width
+                = project_ini.value(EcIni::INI_PWB_TIMELAG_14,
+                                    defaultEcProjectState.pwbTimelag.smoothing_width).toInt();
+        ec_project_state_.pwbTimelag.random_seed
+                = project_ini.value(EcIni::INI_PWB_TIMELAG_15,
+                                    defaultEcProjectState.pwbTimelag.random_seed).toInt();
     project_ini.endGroup();
 
     // random error section
@@ -5192,6 +5284,102 @@ void EcProject::setTimelagOptGas4MinLag(double d)
 void EcProject::setTimelagOptGas4MaxLag(double d)
 {
     ec_project_state_.timelagOpt.gas4_max_lag = d;
+    setModified(true);
+}
+
+void EcProject::setPwbCo2MinLag(double d)
+{
+    ec_project_state_.pwbTimelag.co2_min_lag = d;
+    setModified(true);
+}
+
+void EcProject::setPwbCo2MaxLag(double d)
+{
+    ec_project_state_.pwbTimelag.co2_max_lag = d;
+    setModified(true);
+}
+
+void EcProject::setPwbH2oMinLag(double d)
+{
+    ec_project_state_.pwbTimelag.h2o_min_lag = d;
+    setModified(true);
+}
+
+void EcProject::setPwbH2oMaxLag(double d)
+{
+    ec_project_state_.pwbTimelag.h2o_max_lag = d;
+    setModified(true);
+}
+
+void EcProject::setPwbCh4MinLag(double d)
+{
+    ec_project_state_.pwbTimelag.ch4_min_lag = d;
+    setModified(true);
+}
+
+void EcProject::setPwbCh4MaxLag(double d)
+{
+    ec_project_state_.pwbTimelag.ch4_max_lag = d;
+    setModified(true);
+}
+
+void EcProject::setPwbGas4MinLag(double d)
+{
+    ec_project_state_.pwbTimelag.gas4_min_lag = d;
+    setModified(true);
+}
+
+void EcProject::setPwbGas4MaxLag(double d)
+{
+    ec_project_state_.pwbTimelag.gas4_max_lag = d;
+    setModified(true);
+}
+
+void EcProject::setPwbNBootstrap(int n)
+{
+    ec_project_state_.pwbTimelag.n_bootstrap = n;
+    setModified(true);
+}
+
+void EcProject::setPwbBlockLength(double d)
+{
+    ec_project_state_.pwbTimelag.block_length_s = d;
+    setModified(true);
+}
+
+void EcProject::setPwbMinValidFrac(double d)
+{
+    ec_project_state_.pwbTimelag.min_valid_frac = d;
+    setModified(true);
+}
+
+void EcProject::setPwbHdiThresh(double d)
+{
+    ec_project_state_.pwbTimelag.hdi_thresh_s = d;
+    setModified(true);
+}
+
+void EcProject::setPwbDevThresh(double d)
+{
+    ec_project_state_.pwbTimelag.dev_thresh_s = d;
+    setModified(true);
+}
+
+void EcProject::setPwbHdiPrefilter(double d)
+{
+    ec_project_state_.pwbTimelag.hdi_prefilter_s = d;
+    setModified(true);
+}
+
+void EcProject::setPwbSmoothingWidth(int n)
+{
+    ec_project_state_.pwbTimelag.smoothing_width = n;
+    setModified(true);
+}
+
+void EcProject::setPwbRandomSeed(int n)
+{
+    ec_project_state_.pwbTimelag.random_seed = n;
     setModified(true);
 }
 

@@ -45,6 +45,7 @@ HEADERS += \
     src/mytabwidget.h \
     src/nonzerodoublespinbox.h \
     src/planarfitsettingsdialog.h \
+    src/pwbtimelagsettingsdialog.h \
     src/process.h \
     src/proxystyle.h \
     src/QProgressIndicator.h \
@@ -142,6 +143,7 @@ SOURCES +=  \
     src/mainwindow.cpp \
     src/nonzerodoublespinbox.cpp \
     src/planarfitsettingsdialog.cpp \
+    src/pwbtimelagsettingsdialog.cpp \
     src/basicsettingspage.cpp \
     src/process.cpp \
     src/proxystyle.cpp \
