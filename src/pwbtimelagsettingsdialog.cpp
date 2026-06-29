@@ -137,7 +137,8 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
         "<b>Cap AR model order:</b><br>"
         "By default, AIC-based AR model selection searches up to order ~455 for "
         "30-min 20 Hz data. Enabling this cap limits the search to the value shown, "
-        "reducing AR fitting time by ~9× for a cap of 50.<br><br>"
+        "reducing AR fitting time by ~9× for a cap of 100, and proportionally more "
+        "for smaller caps.<br><br>"
         "<b>Speedup:</b> The AR step is ~10–15%% of total PWB time, so the "
         "end-to-end gain is ~10–15%% additional.<br><br>"
         "<b>Output impact:</b> If the true optimal AR order exceeds the cap, "
@@ -146,11 +147,13 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
         "gases (e.g. H₂O in humid conditions). In practice, EC turbulence signals "
         "are well-described by AR(1)–AR(10).<br><br>"
         "<b>Guidance:</b> Leave uncapped for final archival datasets. "
-        "A cap of 50 is reasonable for exploratory processing."));
+        "A cap of 100 is a conservative starting point. Reducing the cap further "
+        "(e.g. to 50 or below) gives more speedup but increases the risk of "
+        "under-fitting the AR model, which may widen the HDI or shift the selected lag."));
 
     maxArOrderSpin = new QSpinBox;
     maxArOrderSpin->setRange(1, 1000);
-    maxArOrderSpin->setValue(50);
+    maxArOrderSpin->setValue(100);
     maxArOrderSpin->setEnabled(false);
     maxArOrderSpin->setToolTip(maxArOrderCheckBox->toolTip());
 
