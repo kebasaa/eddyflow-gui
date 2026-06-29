@@ -444,6 +444,28 @@ struct TimelagOptState
     int subset = 0;
 };
 
+struct PwbTimelagState
+{
+    qreal co2_min_lag = -10.0;
+    qreal co2_max_lag = 10.0;
+    qreal h2o_min_lag = -10.0;
+    qreal h2o_max_lag = 10.0;
+    qreal ch4_min_lag = -10.0;
+    qreal ch4_max_lag = 10.0;
+    qreal gas4_min_lag = -10.0;
+    qreal gas4_max_lag = 10.0;
+    int n_bootstrap = 99;
+    qreal block_length_s = 20.0;
+    qreal min_valid_frac = 0.3;
+    qreal hdi_thresh_s = 0.5;
+    qreal dev_thresh_s = 0.5;
+    qreal hdi_prefilter_s = 1.0;
+    int smoothing_width = 5;
+    int random_seed = 2024;
+    int approx_ccf   = 1;
+    int max_ar_order = 0;
+};
+
 struct RandomErrorState
 {
     int ru_method = 0;
@@ -486,6 +508,7 @@ struct EcProjectState
     ScreenParamState screenParam;
     ScreenTiltState screenTilt;
     TimelagOptState timelagOpt;
+    PwbTimelagState pwbTimelag;
     RandomErrorState randomError;
     BiometState biomParam;
     WindFilterState windFilter;

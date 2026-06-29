@@ -51,6 +51,7 @@
 #include "fileutils.h"
 #include "infomessage.h"
 #include "planarfitsettingsdialog.h"
+#include "pwbtimelagsettingsdialog.h"
 #include "richtextcheckbox.h"
 #include "timelagsettingsdialog.h"
 #include "stringutils.h"
@@ -215,10 +216,12 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     timeLagMethodCombo->addItem(tr("Covariance maximization with default"));
     timeLagMethodCombo->addItem(tr("Covariance maximization"));
     timeLagMethodCombo->addItem(tr("Automatic time lag optimization"));
+    timeLagMethodCombo->addItem(tr("Pre-whitening block-bootstrap (Vitale et al. 2024)"));
     timeLagMethodCombo->setItemData(0, tr("<b>Constant:</b> EddyFlow will apply constant time lags for all flux averaging intervals, using the <b><i>Nominal time lag</i></b> stored inside the GHG files or in the <b><i>Alternative metadata file</i></b> (for files other than GHG). While it can speed up the computation, this method is not recommended for physically displaced sensors or closed/enclosed path gas analysers. It can be used for closed/enclosed analysers if flow rate in the sampling line is strictly controlled and the sampling tube is actively heated to keep relative humidity low and constant."), Qt::ToolTipRole);
     timeLagMethodCombo->setItemData(1, tr("<b>Covariance maximization with default:</b> Similar to the <i>Covariance maximization</i>, this calculates the most likely time lag based on the circular correlation procedure. However, if a maximum of the covariance is not attained within the window (but at one of its ends), the time lag is set to the <b><i>Nominal time lag</i></b> value stored inside the GHG files or in the <b><i>Alternative metadata file</i></b> (for files other than GHG), for each variable. Recommended in most situations."), Qt::ToolTipRole);
     timeLagMethodCombo->setItemData(2, tr("<b>Covariance maximization:</b> Calculates the most likely time lag within a plausible window, based on the circular correlation procedure. The window is defined by the <i>Minimum time lags</i> and <i>Maximum time lags</i> stored inside the GHG files or in the <i>Alternative metadata file</i> (for files other than GHG), for each variable."), Qt::ToolTipRole);
     timeLagMethodCombo->setItemData(3, tr("<b>Automatic time lag optimization:</b> Select this option and configure it clicking on the <b><i>Time Lag Optimization Settings...</i></b> to instruct EddyFlow to perform a statistical optimization of time lags. It will calculate nominal time lags and plausibility windows and apply them in the raw data processing step. For water vapor, the assessment is performed as a function of relative humidity."), Qt::ToolTipRole);
+    timeLagMethodCombo->setItemData(4, tr("<b>Pre-whitening block-bootstrap:</b> Detects one time lag per averaging period using the Vitale et al. (2024) pre-whitening and block-bootstrap procedure. It is intended for weak trace-gas signals and variable inlet delays, and reports bootstrap uncertainty in a diagnostics file."), Qt::ToolTipRole);
     timeLagMethodCombo->setEnabled(false);
 
     tlSettingsButton = new QPushButton(tr("Time Lag Optimization Settings..."));
@@ -557,6 +560,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
 
     createPfSettingsDialog();
     createTlSettingsDialog();
+    createPwbTlSettingsDialog();
     QTimer::singleShot(0, this, &AdvProcessingOptions::reset);
 }
 
@@ -567,6 +571,9 @@ AdvProcessingOptions::~AdvProcessingOptions()
 
     if (tlDialog_)
         delete tlDialog_;
+
+    if (pwbTlDialog_)
+        delete pwbTlDialog_;
 }
 
 void AdvProcessingOptions::updateUOffset(double d)
@@ -640,7 +647,7 @@ void AdvProcessingOptions::updateTlSettingsButton(bool b)
 {
     int n = timeLagMethodCombo->currentIndex();
     if (b)
-        tlSettingsButton->setEnabled(n == 3);
+        tlSettingsButton->setEnabled(n == 3 || n == 4);
     else
         tlSettingsButton->setEnabled(false);
 }
@@ -685,7 +692,7 @@ void AdvProcessingOptions::updateTlagMeth_2(int n)
     ecProject_->setScreenTlagMeth(n + 1);
 
     // timelag optimization button
-    tlSettingsButton->setEnabled(n == 3);
+    tlSettingsButton->setEnabled(n == 3 || n == 4);
 }
 
 void AdvProcessingOptions::onClickDetrendCombo(int newDetrendMethod)
@@ -930,7 +937,7 @@ void AdvProcessingOptions::refresh()
     {
         timeLagMethodCombo->setCurrentIndex(0);
     }
-    tlSettingsButton->setEnabled(ecProject_->screenTlagMeth() == 4);
+    tlSettingsButton->setEnabled(ecProject_->screenTlagMeth() == 4 || ecProject_->screenTlagMeth() == 5);
 
     qcCheckBox->setChecked(ecProject_->generalQcfMeth());
     if (ecProject_->generalQcfMeth())
@@ -1043,12 +1050,30 @@ void AdvProcessingOptions::createTlSettingsDialog()
     }
 }
 
+void AdvProcessingOptions::createPwbTlSettingsDialog()
+{
+    if (!pwbTlDialog_)
+    {
+        pwbTlDialog_ = new PwbTimelagSettingsDialog(this, ecProject_, configState_);
+    }
+}
+
 void AdvProcessingOptions::showTlSettingsDialog()
 {
-    tlDialog_->refresh();
-    tlDialog_->show();
-    tlDialog_->raise();
-    tlDialog_->activateWindow();
+    if (ecProject_->screenTlagMeth() == 5)
+    {
+        pwbTlDialog_->refresh();
+        pwbTlDialog_->show();
+        pwbTlDialog_->raise();
+        pwbTlDialog_->activateWindow();
+    }
+    else
+    {
+        tlDialog_->refresh();
+        tlDialog_->show();
+        tlDialog_->raise();
+        tlDialog_->activateWindow();
+    }
 }
 
 void AdvProcessingOptions::onClickQcMethodLabel()

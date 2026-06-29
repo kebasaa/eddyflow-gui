@@ -403,6 +403,26 @@ namespace EcIni
     const auto INI_TIMELAG_OPT_19   = QStringLiteral("to_start_time");
     const auto INI_TIMELAG_OPT_20   = QStringLiteral("to_end_time");
 
+    const auto INIGROUP_PWB_TIMELAG = QStringLiteral("RawProcess_PWBTimelag_Settings");
+    const auto INI_PWB_TIMELAG_0    = QStringLiteral("pwb_co2_min_lag");
+    const auto INI_PWB_TIMELAG_1    = QStringLiteral("pwb_co2_max_lag");
+    const auto INI_PWB_TIMELAG_2    = QStringLiteral("pwb_h2o_min_lag");
+    const auto INI_PWB_TIMELAG_3    = QStringLiteral("pwb_h2o_max_lag");
+    const auto INI_PWB_TIMELAG_4    = QStringLiteral("pwb_ch4_min_lag");
+    const auto INI_PWB_TIMELAG_5    = QStringLiteral("pwb_ch4_max_lag");
+    const auto INI_PWB_TIMELAG_6    = QStringLiteral("pwb_gas4_min_lag");
+    const auto INI_PWB_TIMELAG_7    = QStringLiteral("pwb_gas4_max_lag");
+    const auto INI_PWB_TIMELAG_8    = QStringLiteral("pwb_n_bootstrap");
+    const auto INI_PWB_TIMELAG_9    = QStringLiteral("pwb_block_length_s");
+    const auto INI_PWB_TIMELAG_10   = QStringLiteral("pwb_min_valid_frac");
+    const auto INI_PWB_TIMELAG_11   = QStringLiteral("pwb_hdi_thresh_s");
+    const auto INI_PWB_TIMELAG_12   = QStringLiteral("pwb_dev_thresh_s");
+    const auto INI_PWB_TIMELAG_13   = QStringLiteral("pwb_hdi_prefilter_s");
+    const auto INI_PWB_TIMELAG_14   = QStringLiteral("pwb_smoothing_width");
+    const auto INI_PWB_TIMELAG_15   = QStringLiteral("pwb_random_seed");
+    const auto INI_PWB_TIMELAG_16   = QStringLiteral("pwb_approx_ccf");
+    const auto INI_PWB_TIMELAG_17   = QStringLiteral("pwb_max_ar_order");
+
     const auto INIGROUP_RAND_ERROR = QStringLiteral("RawProcess_RandomUncertainty_Settings");
     const auto INI_RAND_ERROR_0    = QStringLiteral("ru_meth");
     const auto INI_RAND_ERROR_1    = QStringLiteral("ru_its_meth");
