@@ -771,6 +771,8 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.projectGeneral.gas_mw = defaultEcProjectState.projectGeneral.gas_mw;
     ec_project_state_.projectGeneral.gas_diff = defaultEcProjectState.projectGeneral.gas_diff;
     ec_project_state_.projectGeneral.out_rich = defaultEcProjectState.projectGeneral.out_rich;
+    ec_project_state_.projectGeneral.fluxnet_standardize_biomet = defaultEcProjectState.projectGeneral.fluxnet_standardize_biomet;
+    ec_project_state_.projectGeneral.fluxnet_err_label = defaultEcProjectState.projectGeneral.fluxnet_err_label;
     ec_project_state_.projectGeneral.out_md = defaultEcProjectState.projectGeneral.out_md;
     ec_project_state_.projectGeneral.out_biomet = defaultEcProjectState.projectGeneral.out_biomet;
     ec_project_state_.projectGeneral.make_dataset = defaultEcProjectState.projectGeneral.make_dataset;

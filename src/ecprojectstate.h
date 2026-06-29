@@ -75,7 +75,7 @@ struct ProjectGeneralState
     int out_rich = 1;
     int fluxnet_standardize_biomet = 1;
     int fluxnet_err_label = 1;
-    bool make_dataset = false;
+    bool make_dataset = true;
     int subset = 0;
     QString start_date = QString();
     QString end_date = QString();
@@ -92,7 +92,7 @@ struct ProjectGeneralState
     QString err_label = QStringLiteral("-9999.0");
     int qcflag_meth = 1;
     int out_md = 1;
-    int out_biomet = 0;
+    int out_biomet = 1;
     int use_biomet = 0;
     QString biom_file = QString();
     QString biom_dir = QString();
