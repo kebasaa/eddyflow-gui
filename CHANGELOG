@@ -1,3 +1,14 @@
+7.2.2 (2026-07-01)
+
+    GUI:
+	- Bugfix: Mandate required output file options for spectral corrections
+	- Bugfix: Correct links to help documentation
+	
+    Engine:
+	- Bugfix: Minor bugfixes with output file naming
+	- Bugfix: Update file headers & fix gas4 output units
+	- Bugfix: Rename campbell_ prefixes to csi_
+
 7.2.1 (2026-06-29)
 
     GUI:
