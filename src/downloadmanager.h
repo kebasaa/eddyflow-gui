@@ -29,6 +29,7 @@
 #include <QNetworkReply>
 #include <QObject>
 #include <QPointer>
+#include <QUrl>
 
 class DownloadManager : public QObject
 {
@@ -41,6 +42,7 @@ public:
     void abort();
 
     QByteArray getVersionNr() const;
+    QUrl getResolvedUrl() const;
 
 signals:
     void downloadComplete();
@@ -59,6 +61,7 @@ private:
     QNetworkAccessManager manager;
     QPointer<QNetworkReply> reply;
     QByteArray versionNr;
+    QUrl resolvedUrl;
 };
 
 #endif  // DOWNLOADMANAGER_H

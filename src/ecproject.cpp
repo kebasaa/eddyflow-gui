@@ -3092,7 +3092,7 @@ bool EcProject::eddyProNativeFormat(const QString &filename)
 
 bool EcProject::importEddyProProject(const QString &filename, bool updateMode, bool *modified)
 {
-    // Pre-process: upgrade old EddyPro Campbell model keys to EddyFlow campbell_* keys.
+    // Pre-process: upgrade old EddyPro Campbell model keys to EddyFlow csi_* keys.
     QFile srcFile(filename);
     if (!srcFile.open(QIODevice::ReadOnly | QIODevice::Text))
         return false;
@@ -3100,12 +3100,21 @@ bool EcProject::importEddyProProject(const QString &filename, bool updateMode, b
     srcFile.close();
 
     static const QVector<QPair<QRegularExpression, QString>> kModelRewrites = {
-        { QRegularExpression(QStringLiteral("(^|\\n)model=csat3(\\r?\\n)")),   QStringLiteral("\\1model=campbell_csat3\\2") },
-        { QRegularExpression(QStringLiteral("(^|\\n)model=csat3a(\\r?\\n)")),  QStringLiteral("\\1model=campbell_csat3a\\2") },
-        { QRegularExpression(QStringLiteral("(^|\\n)model=csat3b(\\r?\\n)")),  QStringLiteral("\\1model=campbell_csat3b\\2") },
-        { QRegularExpression(QStringLiteral("(^|\\n)model=irgason(\\r?\\n)")),          QStringLiteral("\\1model=campbell_irgason_sonic\\2") },
-        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_irgason(\\r?\\n)")), QStringLiteral("\\1model=campbell_irgason_sonic\\2") },
-        { QRegularExpression(QStringLiteral("(^|\\n)model=ec150(\\r?\\n)")),   QStringLiteral("\\1model=campbell_ec150\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=csat3(\\r?\\n)")),                    QStringLiteral("\\1model=csi_csat3\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=csat3a(\\r?\\n)")),                   QStringLiteral("\\1model=csi_csat3a\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=csat3b(\\r?\\n)")),                   QStringLiteral("\\1model=csi_csat3b\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=irgason(\\r?\\n)")),                  QStringLiteral("\\1model=csi_irgason_sonic\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_irgason(\\r?\\n)")),         QStringLiteral("\\1model=csi_irgason_sonic\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_irgason_sonic(\\r?\\n)")),   QStringLiteral("\\1model=csi_irgason_sonic\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=ec150(\\r?\\n)")),                    QStringLiteral("\\1model=csi_ec150\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_csat3(\\r?\\n)")),           QStringLiteral("\\1model=csi_csat3\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_csat3a(\\r?\\n)")),          QStringLiteral("\\1model=csi_csat3a\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_csat3b(\\r?\\n)")),          QStringLiteral("\\1model=csi_csat3b\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_csat3c(\\r?\\n)")),          QStringLiteral("\\1model=csi_csat3c\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_ec150(\\r?\\n)")),           QStringLiteral("\\1model=csi_ec150\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_ec155(\\r?\\n)")),           QStringLiteral("\\1model=csi_ec155\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_irgason_irga(\\r?\\n)")),    QStringLiteral("\\1model=csi_irgason_irga\\2") },
+        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_tga200a(\\r?\\n)")),         QStringLiteral("\\1model=csi_tga200a\\2") },
         // Migrate EddyPro n2o-labelled project keys to gas4
         { QRegularExpression(QStringLiteral("(^|\\n)col_n2o=")),              QStringLiteral("\\1col_gas4=") },
         { QRegularExpression(QStringLiteral("(^|\\n)out_full_sp_n2o=")),      QStringLiteral("\\1out_full_sp_gas4=") },

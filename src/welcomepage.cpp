@@ -151,7 +151,7 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     helpTitle->setProperty("groupTitle3", true);
 
     auto item_1 = new QListWidgetItem(tr("%1 Help").arg(Defs::APP_NAME));
-    item_1->setData(Qt::UserRole, QStringLiteral("https://github.com/kebasaa/eddyflow-documentation"));
+    item_1->setData(Qt::UserRole, Defs::EP_DOCUMENTATION);
     auto item_2 = new QListWidgetItem(tr("Getting started"));
     item_2->setData(Qt::UserRole, QStringLiteral("https://github.com/kebasaa/eddyflow-documentation"));
     auto item_3 = new QListWidgetItem(tr("Download sample data files"));

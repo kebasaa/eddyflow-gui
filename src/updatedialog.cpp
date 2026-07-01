@@ -32,6 +32,7 @@
 #include <QLabel>
 #include <QGridLayout>
 #include <QPushButton>
+#include <QRegularExpression>
 #include <QTimer>
 #include <QUrl>
 
@@ -185,7 +186,7 @@ bool UpdateDialog::hasNewVersion()
 
 void UpdateDialog::showDownloadPage()
 {
-    QDesktopServices::openUrl(QUrl(QStringLiteral("https://github.com/kebasaa/eddyflow-gui/releases")));
+    QDesktopServices::openUrl(QUrl(Defs::EP_LATEST_RELEASE));
     close();
 }
 
@@ -199,9 +200,22 @@ void UpdateDialog::useDownloadResults()
     QByteArray data = updateManager->getVersionNr();
 
     QString newVersion;
+    QUrl resolvedUrl = updateManager->getResolvedUrl();
+    QRegularExpression tagExpression(QStringLiteral("/releases/tag/([^/?#]+)"));
+    QRegularExpressionMatch tagMatch = tagExpression.match(resolvedUrl.path());
+    if (tagMatch.hasMatch())
+    {
+        QString tag = tagMatch.captured(1);
+        if (tag.startsWith(QLatin1Char('v')))
+            tag.remove(0, 1);
+        newVersion = tag.trimmed();
+    }
+
     QJsonParseError parseError;
     QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
-    if (parseError.error == QJsonParseError::NoError && doc.isObject())
+    if (newVersion.isEmpty()
+        && parseError.error == QJsonParseError::NoError
+        && doc.isObject())
     {
         QString tag = doc.object().value(QStringLiteral("tag_name")).toString();
         if (tag.startsWith(QLatin1Char('v')))
