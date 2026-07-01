@@ -59,7 +59,7 @@ void DownloadManager::abort()
 
 void DownloadManager::execute()
 {
-    QUrl url = QUrl::fromEncoded(Defs::LICOR_EP_VERSION_FILE.toLocal8Bit());
+    QUrl url = QUrl::fromEncoded(Defs::EP_LATEST_RELEASE.toLocal8Bit());
     get(url);
 }
 
@@ -68,7 +68,8 @@ void DownloadManager::get(const QUrl &url)
     QNetworkRequest request;
     request.setUrl(url);
     request.setRawHeader("User-Agent", Defs::EP_USER_AGENT.toLatin1());
-    request.setRawHeader("Accept", "application/vnd.github.v3+json");
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                         QNetworkRequest::NoLessSafeRedirectPolicy);
 
     reply = manager.get(request);
 
@@ -96,6 +97,7 @@ void DownloadManager::downloadFinished()
 {
     if (reply)
     {
+        resolvedUrl = reply->url();
         if (reply->error())
         {
             qDebug() << "Request Failed: error" << reply->error();
@@ -118,4 +120,9 @@ void DownloadManager::downloadFinished()
 QByteArray DownloadManager::getVersionNr() const
 {
     return versionNr;
+}
+
+QUrl DownloadManager::getResolvedUrl() const
+{
+    return resolvedUrl;
 }

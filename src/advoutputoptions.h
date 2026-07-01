@@ -53,6 +53,12 @@ public:
 
     void setSmartfluxUI();
 
+    static bool requiresBinnedSpectraOutput(int methodIndex,
+                                            bool spectraMode,
+                                            bool binnedSpectraAvailable);
+    static bool requiresFullTsCospectraOutput(int methodIndex,
+                                              bool fullSpectraAvailable);
+
 public slots:
     void updateOutputs(int n);
     void checkMetadataOutput();
@@ -115,6 +121,8 @@ private:
     bool areTimeSeriesChecked();
     void updateVarsAvailable();
     void restoreOutputs();
+    void setRequiredSpectralOutputState(int methodIndex);
+    void setRequiredIcon(QLabel* label, bool visible);
 
     void createQuestionMark();
 
@@ -129,6 +137,7 @@ private:
     QLabel* typicalSelectionDesc;
 
     QCheckBox* outBinSpectraCheckBox;
+    QLabel* outBinSpectraRequiredIcon;
     QCheckBox* outBinOgivesCheckBox;
     QCheckBox* outMeanSpectraCheckBox;
     QCheckBox* outMeanCospCheckBox;
@@ -145,6 +154,7 @@ private:
     RichTextCheckBox* outFullCospectraCheckBoxU;
     RichTextCheckBox* outFullCospectraCheckBoxV;
     RichTextCheckBox* outFullCospectraCheckBoxTs;
+    QLabel* outFullCospectraTsRequiredIcon;
     RichTextCheckBox* outFullCospectraCheckBoxCo2;
     RichTextCheckBox* outFullCospectraCheckBoxH2o;
     RichTextCheckBox* outFullCospectraCheckBoxCh4;
@@ -209,6 +219,8 @@ private:
     QPushButton* questionMark_9;
 
     QLabel* hrLabel_1;
+    QLabel* spectralOutputsRequiredIcon;
+    QLabel* spectralOutputsRequiredLabel;
 
     EcProject* ecProject_;
     ConfigState* configState_;

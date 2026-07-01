@@ -152,6 +152,8 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
            "stored in a separate sub-folder \"\\EddyFlow_binned_cospectra\" "
            "inside the selected output folder.");
     outBinSpectraCheckBox->setToolTip(tooltipStr);
+    outBinSpectraRequiredIcon = new QLabel;
+    setRequiredIcon(outBinSpectraRequiredIcon, false);
 
     outBinOgivesCheckBox = new QCheckBox;
     outBinOgivesCheckBox->setText(tr("All binned ogives"));
@@ -230,6 +232,8 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     outFullCospectraCheckBoxV->setText(QStringLiteral("W/V"));
     outFullCospectraCheckBoxTs = new RichTextCheckBox;
     outFullCospectraCheckBoxTs->setText(QStringLiteral("W/%1").arg(Defs::TSON_STRING));
+    outFullCospectraTsRequiredIcon = new QLabel;
+    setRequiredIcon(outFullCospectraTsRequiredIcon, false);
     outFullCospectraCheckBoxCo2 = new RichTextCheckBox;
     outFullCospectraCheckBoxCo2->setText(QStringLiteral("W/%1").arg(Defs::CO2_STRING));
     outFullCospectraCheckBoxH2o = new RichTextCheckBox;
@@ -411,6 +415,12 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     title_6->setText(tr("Spectra and cospectra outputs"));
     title_6->setProperty("groupLabel", true);
 
+    spectralOutputsRequiredIcon = new QLabel;
+    setRequiredIcon(spectralOutputsRequiredIcon, false);
+    spectralOutputsRequiredLabel = new QLabel;
+    spectralOutputsRequiredLabel->setVisible(false);
+    spectralOutputsRequiredLabel->setTextFormat(Qt::RichText);
+
     auto title_2 = WidgetUtils::createBlueLabel(this, tr("Reduced spectra and ogives"));
 
     auto title_3 = WidgetUtils::createBlueLabel(this, tr("Full length spectra"));
@@ -460,6 +470,12 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     qBox_10->addWidget(questionMark_5);
     qBox_10->addStretch();
 
+    auto qBox_11 = new QHBoxLayout;
+    qBox_11->addWidget(spectralOutputsRequiredIcon);
+    qBox_11->addWidget(spectralOutputsRequiredLabel);
+    qBox_11->addStretch();
+    qBox_11->setContentsMargins(11, 0, 0, 0);
+
     auto qBox_5 = new QHBoxLayout;
     qBox_5->addWidget(title_2);
     qBox_5->addSpacerItem(new QSpacerItem(18, 12));
@@ -477,6 +493,17 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     qBox_5->addSpacerItem(new QSpacerItem(18, 12));
     qBox_7->addStretch();
     qBox_7->setContentsMargins(11, 0, 0, 0);
+
+    auto qBox_12 = new QHBoxLayout;
+    qBox_12->addWidget(outBinSpectraCheckBox);
+    qBox_12->addWidget(outBinSpectraRequiredIcon);
+    qBox_12->addStretch();
+
+    auto qBox_13 = new QHBoxLayout;
+    qBox_13->addWidget(outFullCospectraCheckBoxTs);
+    qBox_13->addWidget(outFullCospectraTsRequiredIcon);
+    qBox_13->addStretch();
+    qBox_13->setContentsMargins(0, 0, 0, 0);
 
     auto qBox_8 = new QHBoxLayout;
     qBox_8->addWidget(statLabel);
@@ -509,70 +536,71 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     outputLayout->addWidget(outMdCheckBox, 11, 0, 1, 4);
     outputLayout->addWidget(hrLabel_2, 12, 0, 1, -1);
     outputLayout->addLayout(qBox_10, 13, 0);
-    outputLayout->addLayout(qBox_5, 14, 0);
-    outputLayout->addWidget(outBinSpectraCheckBox, 15, 0);
-    outputLayout->addWidget(outBinOgivesCheckBox, 16, 0);
-    outputLayout->addWidget(outMeanSpectraCheckBox, 17, 0);
-    outputLayout->addWidget(outMeanCospCheckBox, 18, 0);
-    outputLayout->addLayout(qBox_6, 14, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxU, 15, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxV, 16, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxW, 17, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxTs, 18, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxCo2, 19, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxH2o, 20, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxCh4, 21, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectralCheckBoxGas4, 22, 1, 1, 2);
-    outputLayout->addLayout(qBox_7, 14, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxU, 15, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxV, 16, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxTs, 17, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxCo2, 18, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxH2o, 19, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxCh4, 20, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectralCheckBoxGas4, 21, 3, 1, 3);
-    outputLayout->addWidget(fullSpectraDescription, 23, 1, 1, 7);
-    outputLayout->addWidget(hrLabel_3, 24, 0, 1, -1);
-    outputLayout->addWidget(title_5, 25, 0);
-    outputLayout->addLayout(qBox_8, 26, 1, Qt::AlignRight);
-    outputLayout->addLayout(qBox_9, 26, 2, Qt::AlignRight);
-    outputLayout->addWidget(varLabel, 26, 3, 1, 2, Qt::AlignCenter);
-    outputLayout->addWidget(hrLabel_4, 27, 1, 1, 2);
-    outputLayout->addWidget(hrLabel_5, 27, 3, 1, 2);
-    outputLayout->addWidget(level1Label, 28, 0, Qt::AlignRight);
-    outputLayout->addWidget(level2Label, 29, 0, Qt::AlignRight);
-    outputLayout->addWidget(level3Label, 30, 0, Qt::AlignRight);
-    outputLayout->addWidget(level4Label, 31, 0, Qt::AlignRight);
-    outputLayout->addWidget(level5Label, 32, 0, Qt::AlignRight);
-    outputLayout->addWidget(level6Label, 33, 0, Qt::AlignRight);
-    outputLayout->addWidget(level7Label, 34, 0, Qt::AlignRight);
-    outputLayout->addWidget(outSt1CheckBox, 28, 1, Qt::AlignCenter);
-    outputLayout->addWidget(outSt2CheckBox, 29, 1, Qt::AlignCenter);
-    outputLayout->addWidget(outSt3CheckBox, 30, 1, Qt::AlignCenter);
-    outputLayout->addWidget(outSt4CheckBox, 31, 1, Qt::AlignCenter);
-    outputLayout->addWidget(outSt5CheckBox, 32, 1, Qt::AlignCenter);
-    outputLayout->addWidget(outSt6CheckBox, 33, 1, Qt::AlignCenter);
-    outputLayout->addWidget(outSt7CheckBox, 34, 1, Qt::AlignCenter);
-    outputLayout->addWidget(outRaw1CheckBox, 28, 2, Qt::AlignCenter);
-    outputLayout->addWidget(outRaw2CheckBox, 29, 2, Qt::AlignCenter);
-    outputLayout->addWidget(outRaw3CheckBox, 30, 2, Qt::AlignCenter);
-    outputLayout->addWidget(outRaw4CheckBox, 31, 2, Qt::AlignCenter);
-    outputLayout->addWidget(outRaw5CheckBox, 32, 2, Qt::AlignCenter);
-    outputLayout->addWidget(outRaw6CheckBox, 33, 2, Qt::AlignCenter);
-    outputLayout->addWidget(outRaw7CheckBox, 34, 2, Qt::AlignCenter);
-    outputLayout->addWidget(vrLabel_2, 28, 3, 7, 1, Qt::AlignLeft);
-    outputLayout->addWidget(outRawUCheckBox, 28, 3, 1, 2);
-    outputLayout->addWidget(outRawVCheckBox, 29, 3, 1, 2);
-    outputLayout->addWidget(outRawWCheckBox, 30, 3, 1, 2);
-    outputLayout->addWidget(outRawTsCheckBox, 31, 3, 1, 2);
-    outputLayout->addWidget(outRawCo2CheckBox, 32, 3, 1, 2);
-    outputLayout->addWidget(outRawH2oCheckBox, 28, 4, 1, 2);
-    outputLayout->addWidget(outRawCh4CheckBox, 29, 4, 1, 2);
-    outputLayout->addWidget(outRawGas4CheckBox, 30, 4, 1, 2);
-    outputLayout->addWidget(outRawTairCheckBox, 31, 4, 1, 2);
-    outputLayout->addWidget(outRawPairCheckBox, 32, 4, 1, 2);
-    outputLayout->addWidget(outVarsAllCheckBox, 34, 3, 1, 3);
-    outputLayout->setRowStretch(35, 1);
+    outputLayout->addLayout(qBox_11, 14, 0, 1, -1);
+    outputLayout->addLayout(qBox_5, 15, 0);
+    outputLayout->addLayout(qBox_12, 16, 0);
+    outputLayout->addWidget(outBinOgivesCheckBox, 17, 0);
+    outputLayout->addWidget(outMeanSpectraCheckBox, 18, 0);
+    outputLayout->addWidget(outMeanCospCheckBox, 19, 0);
+    outputLayout->addLayout(qBox_6, 15, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxU, 16, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxV, 17, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxW, 18, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxTs, 19, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxCo2, 20, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxH2o, 21, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxCh4, 22, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectralCheckBoxGas4, 23, 1, 1, 2);
+    outputLayout->addLayout(qBox_7, 15, 3, 1, 3);
+    outputLayout->addWidget(outFullCospectraCheckBoxU, 16, 3, 1, 3);
+    outputLayout->addWidget(outFullCospectraCheckBoxV, 17, 3, 1, 3);
+    outputLayout->addLayout(qBox_13, 18, 3, 1, 3);
+    outputLayout->addWidget(outFullCospectraCheckBoxCo2, 19, 3, 1, 3);
+    outputLayout->addWidget(outFullCospectraCheckBoxH2o, 20, 3, 1, 3);
+    outputLayout->addWidget(outFullCospectraCheckBoxCh4, 21, 3, 1, 3);
+    outputLayout->addWidget(outFullCospectralCheckBoxGas4, 22, 3, 1, 3);
+    outputLayout->addWidget(fullSpectraDescription, 24, 1, 1, 7);
+    outputLayout->addWidget(hrLabel_3, 25, 0, 1, -1);
+    outputLayout->addWidget(title_5, 26, 0);
+    outputLayout->addLayout(qBox_8, 27, 1, Qt::AlignRight);
+    outputLayout->addLayout(qBox_9, 27, 2, Qt::AlignRight);
+    outputLayout->addWidget(varLabel, 27, 3, 1, 2, Qt::AlignCenter);
+    outputLayout->addWidget(hrLabel_4, 28, 1, 1, 2);
+    outputLayout->addWidget(hrLabel_5, 28, 3, 1, 2);
+    outputLayout->addWidget(level1Label, 29, 0, Qt::AlignRight);
+    outputLayout->addWidget(level2Label, 30, 0, Qt::AlignRight);
+    outputLayout->addWidget(level3Label, 31, 0, Qt::AlignRight);
+    outputLayout->addWidget(level4Label, 32, 0, Qt::AlignRight);
+    outputLayout->addWidget(level5Label, 33, 0, Qt::AlignRight);
+    outputLayout->addWidget(level6Label, 34, 0, Qt::AlignRight);
+    outputLayout->addWidget(level7Label, 35, 0, Qt::AlignRight);
+    outputLayout->addWidget(outSt1CheckBox, 29, 1, Qt::AlignCenter);
+    outputLayout->addWidget(outSt2CheckBox, 30, 1, Qt::AlignCenter);
+    outputLayout->addWidget(outSt3CheckBox, 31, 1, Qt::AlignCenter);
+    outputLayout->addWidget(outSt4CheckBox, 32, 1, Qt::AlignCenter);
+    outputLayout->addWidget(outSt5CheckBox, 33, 1, Qt::AlignCenter);
+    outputLayout->addWidget(outSt6CheckBox, 34, 1, Qt::AlignCenter);
+    outputLayout->addWidget(outSt7CheckBox, 35, 1, Qt::AlignCenter);
+    outputLayout->addWidget(outRaw1CheckBox, 29, 2, Qt::AlignCenter);
+    outputLayout->addWidget(outRaw2CheckBox, 30, 2, Qt::AlignCenter);
+    outputLayout->addWidget(outRaw3CheckBox, 31, 2, Qt::AlignCenter);
+    outputLayout->addWidget(outRaw4CheckBox, 32, 2, Qt::AlignCenter);
+    outputLayout->addWidget(outRaw5CheckBox, 33, 2, Qt::AlignCenter);
+    outputLayout->addWidget(outRaw6CheckBox, 34, 2, Qt::AlignCenter);
+    outputLayout->addWidget(outRaw7CheckBox, 35, 2, Qt::AlignCenter);
+    outputLayout->addWidget(vrLabel_2, 29, 3, 7, 1, Qt::AlignLeft);
+    outputLayout->addWidget(outRawUCheckBox, 29, 3, 1, 2);
+    outputLayout->addWidget(outRawVCheckBox, 30, 3, 1, 2);
+    outputLayout->addWidget(outRawWCheckBox, 31, 3, 1, 2);
+    outputLayout->addWidget(outRawTsCheckBox, 32, 3, 1, 2);
+    outputLayout->addWidget(outRawCo2CheckBox, 33, 3, 1, 2);
+    outputLayout->addWidget(outRawH2oCheckBox, 29, 4, 1, 2);
+    outputLayout->addWidget(outRawCh4CheckBox, 30, 4, 1, 2);
+    outputLayout->addWidget(outRawGas4CheckBox, 31, 4, 1, 2);
+    outputLayout->addWidget(outRawTairCheckBox, 32, 4, 1, 2);
+    outputLayout->addWidget(outRawPairCheckBox, 33, 4, 1, 2);
+    outputLayout->addWidget(outVarsAllCheckBox, 35, 3, 1, 3);
+    outputLayout->setRowStretch(36, 1);
     outputLayout->setColumnStretch(8, 1);
     outputLayout->setColumnMinimumWidth(4, 60);
 
@@ -1340,63 +1368,86 @@ void AdvOutputOptions::updateVarsAvailable()
 
 void AdvOutputOptions::updateOutputs(int n)
 {
-    // horst/ibrom
-    if (n == 2 || n == 3)
-    {
-        if (ecProject_->spectraMode())
-        {
-            if (ecProject_->generalBinSpectraAvail())
-            {
-                outBinSpectraCheckBox->setChecked(false);
-                outBinSpectraCheckBox->setEnabled(true);
-            }
-            else
-            {
-                outBinSpectraCheckBox->setChecked(true);
-                outBinSpectraCheckBox->setEnabled(false);
-            }
-        }
-        else
-        {
-            outBinSpectraCheckBox->setEnabled(true);
-        }
-    }
-    //fratini
-    else if (n == 4)
-    {
-        if (ecProject_->spectraMode())
-        {
-            if (ecProject_->generalBinSpectraAvail())
-            {
-                outBinSpectraCheckBox->setChecked(false);
-                outBinSpectraCheckBox->setEnabled(true);
-            }
-            else
-            {
-                outBinSpectraCheckBox->setChecked(true);
-                outBinSpectraCheckBox->setEnabled(false);
-            }
-        }
-        else
-        {
-            outBinSpectraCheckBox->setEnabled(true);
-        }
+    setRequiredSpectralOutputState(n);
+}
 
-        if (ecProject_->generalFullSpectraAvail())
-        {
-            outFullCospectraCheckBoxTs->setChecked(false);
-            outFullCospectraCheckBoxTs->setEnabled(true);
-        }
-        else
-        {
-            outFullCospectraCheckBoxTs->setChecked(true);
-            outFullCospectraCheckBoxTs->setEnabled(false);
-        }
-    }
-    else
+bool AdvOutputOptions::requiresBinnedSpectraOutput(int methodIndex,
+                                                   bool spectraMode,
+                                                   bool binnedSpectraAvailable)
+{
+    return methodIndex >= 2
+           && methodIndex <= 4
+           && spectraMode
+           && !binnedSpectraAvailable;
+}
+
+bool AdvOutputOptions::requiresFullTsCospectraOutput(int methodIndex,
+                                                     bool fullSpectraAvailable)
+{
+    return methodIndex == 4 && !fullSpectraAvailable;
+}
+
+void AdvOutputOptions::setRequiredIcon(QLabel* label, bool visible)
+{
+    auto pixmap = QPixmap(QStringLiteral(":/icons/msg-warning"));
+#if defined(Q_OS_MACOS)
+    pixmap.setDevicePixelRatio(2.0);
+#endif
+    label->setPixmap(pixmap.scaled(QSize(12, 12),
+                                   Qt::KeepAspectRatio,
+                                   Qt::SmoothTransformation));
+    label->setToolTip(tr("Required by selected spectral correction"));
+    label->setVisible(visible);
+}
+
+void AdvOutputOptions::setRequiredSpectralOutputState(int methodIndex)
+{
+    const bool needsBinnedSpectra = requiresBinnedSpectraOutput(
+        methodIndex,
+        ecProject_->spectraMode(),
+        ecProject_->generalBinSpectraAvail());
+    const bool needsFullTsCospectra = requiresFullTsCospectraOutput(
+        methodIndex,
+        ecProject_->generalFullSpectraAvail());
+
+    if (needsBinnedSpectra)
     {
-        outBinSpectraCheckBox->setEnabled(true);
-        outFullCospectraCheckBoxTs->setEnabled(true);
+        outBinSpectraCheckBox->setChecked(true);
+    }
+    outBinSpectraCheckBox->setEnabled(!needsBinnedSpectra);
+    setRequiredIcon(outBinSpectraRequiredIcon, needsBinnedSpectra);
+
+    if (needsFullTsCospectra)
+    {
+        outFullCospectraCheckBoxTs->setChecked(true);
+    }
+    outFullCospectraCheckBoxTs->setEnabled(!needsFullTsCospectra);
+    setRequiredIcon(outFullCospectraTsRequiredIcon, needsFullTsCospectra);
+
+    QString methodName;
+    switch (methodIndex)
+    {
+    case 2:
+        methodName = tr("Horst (1997)");
+        break;
+    case 3:
+        methodName = tr("Ibrom et al. (2007)");
+        break;
+    case 4:
+        methodName = tr("Fratini et al. (2012)");
+        break;
+    default:
+        break;
+    }
+
+    const bool hasRequiredOutput = needsBinnedSpectra || needsFullTsCospectra;
+    spectralOutputsRequiredIcon->setVisible(hasRequiredOutput);
+    spectralOutputsRequiredLabel->setVisible(hasRequiredOutput);
+    if (hasRequiredOutput)
+    {
+        spectralOutputsRequiredLabel->setText(
+            tr("<i>Outputs required by selected spectral correction %1</i>")
+                .arg(methodName));
     }
 }
 

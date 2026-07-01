@@ -304,7 +304,8 @@ namespace Defs
     const auto CONF_WIN_NOAA_WEBSITE_MSG = QStringLiteral("/noaa_website_msg");
     const auto CONF_WIN_AOA_SELECTION_MSG = QStringLiteral("/aoa_selection_msg");
 
-    const auto LICOR_EP_VERSION_FILE = QStringLiteral("https://api.github.com/repos/kebasaa/eddyflow-gui/releases/latest");
+    const auto EP_DOCUMENTATION = QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/");
+    const auto EP_LATEST_RELEASE = QStringLiteral("https://github.com/kebasaa/eddyflow-gui/releases/latest");
     const auto EP_SAMPLE_DATA_FILES  = QStringLiteral("https://github.com/kebasaa/eddyflow-build-script/tree/main/example-data");
     const QString EP_USER_AGENT = QStringLiteral("EddyFlow ") + APP_VERSION_STR;
 

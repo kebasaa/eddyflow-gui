@@ -1602,10 +1602,12 @@ void AdvSpectralOptions::updateHfMethod_1(bool b)
         addSonicCheck->setEnabled(toEnableFratini);
 
         emit updateOutputsRequest(hfMethCombo->currentIndex());
+        maybeWarnMassmanFallback();
     }
     else
     {
         ecProject_->setGeneralHfMethod(0);
+        massmanFallbackWarningShown_ = false;
 
         horstMethodLabel->setEnabled(false);
         horstCheck->setEnabled(false);
@@ -1689,6 +1691,7 @@ void AdvSpectralOptions::updateHfMethod_2(int n)
     addSonicCheck->setEnabled(toEnableFratini);
 
     emit updateOutputsRequest(n);
+    maybeWarnMassmanFallback();
 }
 
 bool AdvSpectralOptions::isHorstIbromFratini()
@@ -1706,6 +1709,51 @@ bool AdvSpectralOptions::isIbrom()
 bool AdvSpectralOptions::isFratini()
 {
     return (ecProject_->generalHfMethod() == 4);
+}
+
+bool AdvSpectralOptions::hasLi7500FamilyIrga() const
+{
+    const IrgaDescList* irgas = dlProject_->irgas();
+    for (const IrgaDesc& irga : *irgas)
+    {
+        if (isLi7500FamilyIrgaModel(irga.model()))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool AdvSpectralOptions::isLi7500FamilyIrgaModel(const QString& model)
+{
+    return model == IrgaDesc::getIRGA_MODEL_STRING_2()
+           || model == IrgaDesc::getIRGA_MODEL_STRING_3()
+           || model == IrgaDesc::getIRGA_MODEL_STRING_12()
+           || model == IrgaDesc::getIRGA_MODEL_STRING_14();
+}
+
+void AdvSpectralOptions::maybeWarnMassmanFallback()
+{
+    const bool massmanSelected = hfMethodCheck->isChecked()
+                                 && ecProject_->generalHfMethod() == 5;
+    if (!massmanSelected)
+    {
+        massmanFallbackWarningShown_ = false;
+        return;
+    }
+    if (massmanFallbackWarningShown_ || hasLi7500FamilyIrga())
+    {
+        return;
+    }
+
+    massmanFallbackWarningShown_ = true;
+    WidgetUtils::warning(
+        this,
+        tr("Massman spectral correction"),
+        tr("For non-LI-7500-family gas analyzers, the analyzer bandwidth "
+           "constant currently falls back to a near-zero value. Another "
+           "low-pass correction method is recommended unless you have "
+           "verified the required metadata."));
 }
 
 void AdvSpectralOptions::onMinSmplLabelClicked()
