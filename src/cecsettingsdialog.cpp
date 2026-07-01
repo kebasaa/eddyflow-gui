@@ -42,44 +42,63 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject) :
     hSpin->setDecimals(3);
     hSpin->setSingleStep(0.05);
     hSpin->setAccelerated(true);
-    hSpin->setToolTip(tr("<b>Hyperbolic threshold H:</b> Threshold used by the octant partitioning constraints. Zahn et al. (2022) use no hyperbolic threshold, H = 0."));
 
     minO1O2Spin = createPercentSpin();
-    minO1O2Spin->setToolTip(tr("<b>Minimum O1 + O2 occupancy:</b> Minimum percentage of instantaneous data points required in the first and second octants combined."));
-
     minOctantSpin = createPercentSpin();
-    minOctantSpin->setToolTip(tr("<b>Minimum per-octant occupancy:</b> Minimum percentage of instantaneous data points required in each of the two octants."));
-
     minValidSpin = createPercentSpin();
-    minValidSpin->setToolTip(tr("<b>Minimum valid data:</b> Minimum percentage of valid instantaneous data points required after QC and preprocessing."));
-
     signalStrengthSpin = createPercentSpin();
-    signalStrengthSpin->setToolTip(tr("<b>Signal-strength cutoff:</b> Instantaneous data below this signal-strength threshold are removed before partitioning."));
 
     maxGapFillSpin = new QSpinBox(this);
     maxGapFillSpin->setRange(0, 999);
     maxGapFillSpin->setSingleStep(1);
     maxGapFillSpin->setAccelerated(true);
     maxGapFillSpin->setSuffix(tr("  [samples]"));
-    maxGapFillSpin->setToolTip(tr("<b>Maximum small-gap fill:</b> Maximum length of consecutive missing samples that may be filled during preprocessing."));
+
+    hLabel = new QLabel(tr("Hyperbolic threshold H :"), this);
+    minO1O2Label = new QLabel(tr("Minimum O1 + O2 occupancy :"), this);
+    minOctantLabel = new QLabel(tr("Minimum per-octant occupancy :"), this);
+    minValidLabel = new QLabel(tr("Minimum valid data :"), this);
+    signalStrengthLabel = new QLabel(tr("Signal-strength cutoff :"), this);
+    maxGapFillLabel = new QLabel(tr("Maximum small-gap fill :"), this);
+
+    auto setOptionTooltip = [](QLabel *label, QWidget *editor, const QString &tooltip)
+    {
+        label->setToolTip(tooltip);
+        editor->setToolTip(tooltip);
+    };
+
+    setOptionTooltip(hLabel, hSpin,
+                     tr("<b>Hyperbolic threshold H:</b> Earlier MREA work used H = 0.25, but Zahn et al. (2022) found the method was no longer sensitive to H after adding the partitioning constraint and used no hyperbolic threshold. Default: 0."));
+    setOptionTooltip(minO1O2Label, minO1O2Spin,
+                     tr("<b>Minimum O1 + O2 occupancy:</b> O1 and O2 are the two upward-motion octants used by the CEC/MREA partitioning constraint. Zahn et al. (2022) require at least 20% of instantaneous points in these two octants combined. Default: 20%."));
+    setOptionTooltip(minOctantLabel, minOctantSpin,
+                     tr("<b>Minimum per-octant occupancy:</b> If an individual required octant contains too few points, the partitioning constraint treats the corresponding ground/non-stomatal component as negligible. Default: 5%."));
+    setOptionTooltip(minValidLabel, minValidSpin,
+                     tr("<b>Minimum valid data:</b> Retain a period only when at least 90% of instantaneous data points remain available after QC and preprocessing. Default: 90%."));
+    setOptionTooltip(signalStrengthLabel, signalStrengthSpin,
+                     tr("<b>Signal-strength cutoff:</b> When signal strength is available, CO2/H2O measurements below 70% are removed because this can indicate analyzer windows that need cleaning. Default: 70%."));
+    setOptionTooltip(maxGapFillLabel, maxGapFillSpin,
+                     tr("<b>Maximum small-gap fill:</b> Small gaps up to 4 consecutive samples are filled by linear interpolation. Default: 4 samples."));
 
     auto partitionGroup = new QGroupBox(tr("Partitioning constraints"), this);
+    partitionGroup->setToolTip(tr("Paper-derived CEC/MREA octant constraints from Zahn et al. (2022)."));
     auto partitionLayout = new QGridLayout(partitionGroup);
-    partitionLayout->addWidget(new QLabel(tr("Hyperbolic threshold H :"), this), 0, 0, Qt::AlignRight);
+    partitionLayout->addWidget(hLabel, 0, 0, Qt::AlignRight);
     partitionLayout->addWidget(hSpin, 0, 1);
-    partitionLayout->addWidget(new QLabel(tr("Minimum O1 + O2 occupancy :"), this), 1, 0, Qt::AlignRight);
+    partitionLayout->addWidget(minO1O2Label, 1, 0, Qt::AlignRight);
     partitionLayout->addWidget(minO1O2Spin, 1, 1);
-    partitionLayout->addWidget(new QLabel(tr("Minimum per-octant occupancy :"), this), 2, 0, Qt::AlignRight);
+    partitionLayout->addWidget(minOctantLabel, 2, 0, Qt::AlignRight);
     partitionLayout->addWidget(minOctantSpin, 2, 1);
     partitionLayout->setColumnStretch(2, 1);
 
     auto qcGroup = new QGroupBox(tr("QC/preprocessing limits"), this);
+    qcGroup->setToolTip(tr("Paper-derived raw-data screening and gap-filling limits from Zahn et al. (2022)."));
     auto qcLayout = new QGridLayout(qcGroup);
-    qcLayout->addWidget(new QLabel(tr("Minimum valid data :"), this), 0, 0, Qt::AlignRight);
+    qcLayout->addWidget(minValidLabel, 0, 0, Qt::AlignRight);
     qcLayout->addWidget(minValidSpin, 0, 1);
-    qcLayout->addWidget(new QLabel(tr("Signal-strength cutoff :"), this), 1, 0, Qt::AlignRight);
+    qcLayout->addWidget(signalStrengthLabel, 1, 0, Qt::AlignRight);
     qcLayout->addWidget(signalStrengthSpin, 1, 1);
-    qcLayout->addWidget(new QLabel(tr("Maximum small-gap fill :"), this), 2, 0, Qt::AlignRight);
+    qcLayout->addWidget(maxGapFillLabel, 2, 0, Qt::AlignRight);
     qcLayout->addWidget(maxGapFillSpin, 2, 1);
     qcLayout->setColumnStretch(2, 1);
 

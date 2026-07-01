@@ -10,6 +10,7 @@
 #include <QDialog>
 
 class QDoubleSpinBox;
+class QLabel;
 class QSpinBox;
 class EcProject;
 
@@ -35,6 +36,13 @@ private:
     QDoubleSpinBox *minValidSpin;
     QDoubleSpinBox *signalStrengthSpin;
     QSpinBox *maxGapFillSpin;
+
+    QLabel *hLabel;
+    QLabel *minO1O2Label;
+    QLabel *minOctantLabel;
+    QLabel *minValidLabel;
+    QLabel *signalStrengthLabel;
+    QLabel *maxGapFillLabel;
 
     EcProject *ecProject_;
 };
