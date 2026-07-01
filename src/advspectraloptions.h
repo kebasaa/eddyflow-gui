@@ -61,6 +61,7 @@ public:
     ~AdvSpectralOptions();
 
     void setSmartfluxUI();
+    static bool isLi7500FamilyIrgaModel(const QString& model);
 
 signals:
     void updateOutputsRequest(int n);
@@ -138,6 +139,8 @@ private:
     bool isHorstIbromFratini();
     bool isIbrom();
     bool isFratini();
+    bool hasLi7500FamilyIrga() const;
+    void maybeWarnMassmanFallback();
     void forceEndDatePolicy();
     void forceEndTimePolicy();
 
@@ -261,6 +264,7 @@ private:
     ConfigState* configState_;
 
     bool spectraNonExistingRadioOldEnabled = false;
+    bool massmanFallbackWarningShown_ = false;
 };
 
 #endif // ADVSPECTRALOPTIONS_H

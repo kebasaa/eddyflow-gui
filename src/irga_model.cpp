@@ -519,7 +519,8 @@ bool IrgaModel::setData(const QModelIndex& index, const QVariant& value, int rol
                 return false;
             }
             irgaDesc.setModel(value.toString());
-            // auto-fill known path lengths and time response for EC150 / IRGASON
+            // Auto-fill source-backed analyzer constants. Setup-specific tube
+            // and separation metadata remain user-supplied unless documented.
             if (value.toString() == IrgaDesc::getIRGA_MODEL_STRING_15())
             {
                 irgaDesc.setVPathLength(15.31);
@@ -534,6 +535,18 @@ bool IrgaModel::setData(const QModelIndex& index, const QVariant& value, int rol
                 irgaDesc.setTubeNSeparation(0.01);
                 irgaDesc.setTubeESeparation(0.01);
                 irgaDesc.setTubeVSeparation(0.01);
+            }
+            else if (value.toString() == IrgaDesc::getIRGA_MODEL_STRING_22())
+            {
+                irgaDesc.setVPathLength(11.77);
+                irgaDesc.setHPathLength(0.80);
+                irgaDesc.setTau(0.018);
+            }
+            else if (value.toString() == IrgaDesc::getIRGA_MODEL_STRING_23())
+            {
+                irgaDesc.setVPathLength(146.0);
+                irgaDesc.setHPathLength(1.27);
+                irgaDesc.setTau(0.023);
             }
             break;
         case SWVERSION:

@@ -14,8 +14,8 @@ class Test_AdvSpectralOptions_Class : public QObject
 private slots:
     void initTestCase();
 
-    void testCase1();
-    void testCase2();
+    void requiredOutputMapping();
+    void massmanLi7500FamilyDetection();
 
     void cleanupTestCase();
 };
