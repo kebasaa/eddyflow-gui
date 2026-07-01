@@ -56,6 +56,7 @@ class QStackedWidget;
 class QTabWidget;
 
 class ClickLabel;
+class CecSettingsDialog;
 struct ConfigState;
 class CustomResetLineEdit;
 class DlProject;
@@ -133,6 +134,7 @@ private slots:
 
     void showPfSettingsDialog();
     void showTlSettingsDialog();
+    void showCecSettingsDialog();
 
     void updateTooltip(int i);
 
@@ -151,6 +153,7 @@ private:
     void createPfSettingsDialog();
     void createTlSettingsDialog();
     void createPwbTlSettingsDialog();
+    void createCecSettingsDialog();
     void createBurbaParamItems();
     void createQuestionMark();
     bool requestBurbaSettingsReset();
@@ -190,6 +193,7 @@ private:
     RichTextCheckBox* cecCheckBox;
     ClickLabel* cecLabel;
     QComboBox* cecMethodCombo;
+    QPushButton* cecSettingsButton;
 
     RichTextCheckBox* wplCheckBox;
     RichTextCheckBox* burbaCorrCheckBox;
@@ -255,6 +259,7 @@ private:
     PlanarFitSettingsDialog* pfDialog_{};
     TimeLagSettingsDialog* tlDialog_{};
     PwbTimelagSettingsDialog* pwbTlDialog_{};
+    CecSettingsDialog* cecDialog_{};
 
     DetrendMethod previousDetrendMethod_{DetrendMethod::BlockAverage};
 };

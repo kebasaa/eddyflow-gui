@@ -86,6 +86,12 @@ struct ProjectGeneralState
     int wpl_meth = 1;
     int foot_meth = 1;
     int cec_meth = 0;
+    qreal cec_h = 0.0;
+    qreal cec_min_o1_o2 = 20.0;
+    qreal cec_min_octant = 5.0;
+    qreal cec_min_valid = 90.0;
+    qreal cec_signal_strength = 70.0;
+    int cec_max_gap_fill = 4;
     int tob1_format = 0;
     QString out_path = QString();
     int fix_out_format = 0;

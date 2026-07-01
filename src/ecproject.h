@@ -127,6 +127,12 @@ public:
     void setGeneralWplMeth( int n);
     void setGeneralFpMeth(int n);
     void setGeneralCecMeth(int n);
+    void setGeneralCecH(double d);
+    void setGeneralCecMinO1O2(double d);
+    void setGeneralCecMinOctant(double d);
+    void setGeneralCecMinValid(double d);
+    void setGeneralCecSignalStrength(double d);
+    void setGeneralCecMaxGapFill(int n);
 
     void setGeneralOutRich(int n);
     void setGeneralOutMd(int n);
@@ -534,6 +540,12 @@ public:
     int generalWplMeth() const { return ec_project_state_.projectGeneral.wpl_meth; }
     int generalFpMeth() const { return ec_project_state_.projectGeneral.foot_meth; }
     int generalCecMeth() const { return ec_project_state_.projectGeneral.cec_meth; }
+    double generalCecH() const { return ec_project_state_.projectGeneral.cec_h; }
+    double generalCecMinO1O2() const { return ec_project_state_.projectGeneral.cec_min_o1_o2; }
+    double generalCecMinOctant() const { return ec_project_state_.projectGeneral.cec_min_octant; }
+    double generalCecMinValid() const { return ec_project_state_.projectGeneral.cec_min_valid; }
+    double generalCecSignalStrength() const { return ec_project_state_.projectGeneral.cec_signal_strength; }
+    int generalCecMaxGapFill() const { return ec_project_state_.projectGeneral.cec_max_gap_fill; }
     int generalTob1Format() const { return ec_project_state_.projectGeneral.tob1_format; }
     const QString& generalOutPath() const { return ec_project_state_.projectGeneral.out_path; }
     int generalFixedOutFormat() const { return ec_project_state_.projectGeneral.fix_out_format; }

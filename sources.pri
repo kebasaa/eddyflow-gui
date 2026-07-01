@@ -13,6 +13,7 @@ HEADERS += \
     src/biomitem.h \
     src/biommetadatareader.h \
     src/bminidefs.h \
+    src/cecsettingsdialog.h \
     src/clicklabel.h \
     src/configstate.h \
     src/customcombomodel.h \
@@ -119,6 +120,7 @@ SOURCES +=  \
     src/anem_view.cpp \
     src/binarysettingsdialog.cpp \
     src/biommetadatareader.cpp \
+    src/cecsettingsdialog.cpp \
     src/clicklabel.cpp \
     src/customcombomodel.cpp \
     src/customheader.cpp \
