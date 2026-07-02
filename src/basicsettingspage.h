@@ -65,6 +65,7 @@ class QSpinBox;
 class QGridLayout;
 class QToolButton;
 class QItemSelectionModel;
+class QTableView;
 
 class QProgressIndicator;
 
@@ -84,6 +85,8 @@ class VariableDesc;
 class WindFilterView;
 class WindFilterTableModel;
 class WindFilterTableView;
+class ProcessingVariablesModel;
+class ProcessingVariablesDelegate;
 
 /// \class BasicSettingsPage
 /// \brief Class representing the 'General Options' tab in the 'RawProcess' page
@@ -214,6 +217,9 @@ private:
     QComboBox* diag7200Combo;
     ClickLabel* diag7700Label;
     QComboBox* diag7700Combo;
+    QTableView* processingVariablesTableView;
+    ProcessingVariablesModel* processingVariablesModel_;
+    ProcessingVariablesDelegate* processingVariablesDelegate_;
     ClickLabel* flag1Label;
     QComboBox* flag1VarCombo;
     QLabel* flag1UnitLabel;
@@ -330,6 +336,7 @@ private:
 
     void parseMetadataProject(bool isEmbedded);
     void parseBiomMetadata();
+    void syncLegacySelectorsFromProcessingRows();
 
     void setSmartfluxUI(bool on);
     void setPrototype(bool showDialog = false);

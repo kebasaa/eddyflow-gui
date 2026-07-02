@@ -26,10 +26,56 @@
 #define ECPROJECTSTATE_H
 
 #include <QList>
+#include <QString>
+#include <QtGlobal>
 
 #include "angle_item.h"
 #include "defs.h"
 #include "sector_item.h"
+
+/// \struct ProcessingVariableRow
+/// \brief One gas-processing target selected in Basic Settings.
+struct ProcessingVariableRow
+{
+    bool enabled = true;
+    QString processing_id = QString();
+    int gas_col = -1;
+    QString gas_name = QString();
+    QString irga_id = QString();
+    int irga_index = 0;
+    int gas_instance_index = 0;
+    qreal molecular_weight = -1.0;
+    qreal molecular_diffusivity = -1.0;
+    QString reference_h2o_id = QString();
+    int col_cell_t = -1;
+    int col_int_t_1 = -1;
+    int col_int_t_2 = -1;
+    int col_int_p = -1;
+    int col_air_t = -1;
+    int col_air_p = -1;
+    int col_diag = -1;
+
+    bool operator==(const ProcessingVariableRow& other) const
+    {
+        return enabled == other.enabled
+            && processing_id == other.processing_id
+            && gas_col == other.gas_col
+            && gas_name == other.gas_name
+            && irga_id == other.irga_id
+            && irga_index == other.irga_index
+            && gas_instance_index == other.gas_instance_index
+            && qFuzzyCompare(molecular_weight + 1.0, other.molecular_weight + 1.0)
+            && qFuzzyCompare(molecular_diffusivity + 1.0, other.molecular_diffusivity + 1.0)
+            && reference_h2o_id == other.reference_h2o_id
+            && col_cell_t == other.col_cell_t
+            && col_int_t_1 == other.col_int_t_1
+            && col_int_t_2 == other.col_int_t_2
+            && col_int_p == other.col_int_p
+            && col_air_t == other.col_air_t
+            && col_air_p == other.col_air_p
+            && col_diag == other.col_diag;
+    }
+};
 
 /// \struct ProjectGeneralState
 /// \brief General information for the INI processing file
@@ -72,6 +118,7 @@ struct ProjectGeneralState
     int col_ts = -1;
     qreal gas_mw = -1.0;
     qreal gas_diff = -1.0;
+    QList<ProcessingVariableRow> processing_variables;
     int out_rich = 1;
     int fluxnet_standardize_biomet = 1;
     int fluxnet_err_label = 1;

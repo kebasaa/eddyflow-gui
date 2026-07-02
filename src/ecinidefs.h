@@ -111,6 +111,27 @@ namespace EcIni
     const auto INI_PROJECT_78   = QStringLiteral("cec_max_gap_fill");
     const auto INI_PROJECT_79   = QStringLiteral("cec_max_stationarity");
 
+    const auto INIGROUP_PROCESSING_VARIABLES = QStringLiteral("ProcessingVariables");
+    const auto INI_PROCVAR_COUNT             = QStringLiteral("count");
+    const auto INI_PROCVAR_PREFIX            = QStringLiteral("row_");
+    const auto INI_PROCVAR_ID                = QStringLiteral("id");
+    const auto INI_PROCVAR_ENABLED           = QStringLiteral("enabled");
+    const auto INI_PROCVAR_GAS_COL           = QStringLiteral("gas_col");
+    const auto INI_PROCVAR_GAS               = QStringLiteral("gas");
+    const auto INI_PROCVAR_IRGA              = QStringLiteral("irga");
+    const auto INI_PROCVAR_IRGA_INDEX        = QStringLiteral("irga_index");
+    const auto INI_PROCVAR_GAS_INDEX         = QStringLiteral("gas_index");
+    const auto INI_PROCVAR_MW                = QStringLiteral("mw");
+    const auto INI_PROCVAR_DIFF              = QStringLiteral("diff");
+    const auto INI_PROCVAR_H2O_REF           = QStringLiteral("h2o_ref");
+    const auto INI_PROCVAR_CELL_T            = QStringLiteral("cell_t");
+    const auto INI_PROCVAR_INT_T_1           = QStringLiteral("int_t_1");
+    const auto INI_PROCVAR_INT_T_2           = QStringLiteral("int_t_2");
+    const auto INI_PROCVAR_INT_P             = QStringLiteral("int_p");
+    const auto INI_PROCVAR_AIR_T             = QStringLiteral("air_t");
+    const auto INI_PROCVAR_AIR_P             = QStringLiteral("air_p");
+    const auto INI_PROCVAR_DIAG              = QStringLiteral("diag");
+
     const auto INIGROUP_SPEC_SETTINGS = QStringLiteral("FluxCorrection_SpectralAnalysis_General");
     const auto INI_SPEC_SETTINGS_0    = QStringLiteral("sa_start_date");
     const auto INI_SPEC_SETTINGS_1    = QStringLiteral("sa_end_date");

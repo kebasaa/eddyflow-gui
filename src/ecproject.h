@@ -117,6 +117,7 @@ public:
     void setGeneralColTs(int n);
     void setGeneralColGasMw(double n);
     void setGeneralColGasDiff(double n);
+    void setProcessingVariableRows(const QList<ProcessingVariableRow>& rows);
     void setGeneralMakeDataset(bool b);
     void setGeneralStartDate(const QString &d);
     void setGeneralEndDate(const QString &d);
@@ -528,6 +529,7 @@ public:
     int generalColTs() const { return ec_project_state_.projectGeneral.col_ts; }
     qreal generalGasMw() const { return ec_project_state_.projectGeneral.gas_mw; }
     qreal generalGasDiff() const { return ec_project_state_.projectGeneral.gas_diff; }
+    const QList<ProcessingVariableRow>& processingVariableRows() const { return ec_project_state_.projectGeneral.processing_variables; }
     int generalOutRich() const { return ec_project_state_.projectGeneral.out_rich; }
     int generalOutMd() const { return ec_project_state_.projectGeneral.out_md; }
     int generalOutBiomet() const { return ec_project_state_.projectGeneral.out_biomet; }

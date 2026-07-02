@@ -150,24 +150,8 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
     bool dataSetTest = (ec_project_state_.projectGeneral.file_type == previousProject.ec_project_state_.projectGeneral.file_type)
         && (ec_project_state_.projectGeneral.file_prototype == previousProject.ec_project_state_.projectGeneral.file_prototype)
         && (ec_project_state_.projectGeneral.col_ts == previousProject.ec_project_state_.projectGeneral.col_ts)
-        && (ec_project_state_.projectGeneral.col_co2 == previousProject.ec_project_state_.projectGeneral.col_co2)
-        && (ec_project_state_.projectGeneral.col_h2o == previousProject.ec_project_state_.projectGeneral.col_h2o)
-        && (ec_project_state_.projectGeneral.col_ch4 == previousProject.ec_project_state_.projectGeneral.col_ch4)
-        && previousFourthGasCompare(ec_project_state_.projectGeneral.col_gas4,
-                                    ec_project_state_.projectGeneral.gas_mw,
-                                    ec_project_state_.projectGeneral.gas_diff,
-                                    previousProject.ec_project_state_.projectGeneral.col_gas4,
-                                    previousProject.ec_project_state_.projectGeneral.gas_mw,
-                                    previousProject.ec_project_state_.projectGeneral.gas_diff)
-        && (ec_project_state_.projectGeneral.col_int_t_1 == previousProject.ec_project_state_.projectGeneral.col_int_t_1)
-        && (ec_project_state_.projectGeneral.col_int_t_2 == previousProject.ec_project_state_.projectGeneral.col_int_t_2)
-        && (ec_project_state_.projectGeneral.col_int_p == previousProject.ec_project_state_.projectGeneral.col_int_p)
-        && (ec_project_state_.projectGeneral.col_air_t == previousProject.ec_project_state_.projectGeneral.col_air_t)
-        && (ec_project_state_.projectGeneral.col_air_p == previousProject.ec_project_state_.projectGeneral.col_air_p)
-        && (ec_project_state_.projectGeneral.col_int_t_c == previousProject.ec_project_state_.projectGeneral.col_int_t_c)
-        && (ec_project_state_.projectGeneral.col_diag_72 == previousProject.ec_project_state_.projectGeneral.col_diag_72)
-        && (ec_project_state_.projectGeneral.col_diag_75 == previousProject.ec_project_state_.projectGeneral.col_diag_75)
-        && (ec_project_state_.projectGeneral.col_diag_75 == previousProject.ec_project_state_.projectGeneral.col_diag_77)
+        && (ec_project_state_.projectGeneral.processing_variables
+            == previousProject.ec_project_state_.projectGeneral.processing_variables)
         && (ec_project_state_.projectGeneral.col_diag_anem == previousProject.ec_project_state_.projectGeneral.col_diag_anem);
 
     if (ec_project_state_.projectGeneral.subset)
@@ -785,6 +769,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.projectGeneral.col_ts = defaultEcProjectState.projectGeneral.col_ts;
     ec_project_state_.projectGeneral.gas_mw = defaultEcProjectState.projectGeneral.gas_mw;
     ec_project_state_.projectGeneral.gas_diff = defaultEcProjectState.projectGeneral.gas_diff;
+    ec_project_state_.projectGeneral.processing_variables.clear();
     ec_project_state_.projectGeneral.out_rich = defaultEcProjectState.projectGeneral.out_rich;
     ec_project_state_.projectGeneral.fluxnet_standardize_biomet = defaultEcProjectState.projectGeneral.fluxnet_standardize_biomet;
     ec_project_state_.projectGeneral.fluxnet_err_label = defaultEcProjectState.projectGeneral.fluxnet_err_label;
@@ -1170,6 +1155,17 @@ bool EcProject::saveEcProject(const QString &filename)
 
     // general section
     project_ini.beginGroup(EcIni::INIGROUP_PROJECT);
+        const auto legacyVariableKeys = {
+            EcIni::INI_PROJECT_18, EcIni::INI_PROJECT_19, EcIni::INI_PROJECT_20,
+            EcIni::INI_PROJECT_21, EcIni::INI_PROJECT_22, EcIni::INI_PROJECT_23,
+            EcIni::INI_PROJECT_24, EcIni::INI_PROJECT_25, EcIni::INI_PROJECT_26,
+            EcIni::INI_PROJECT_27, EcIni::INI_PROJECT_28, EcIni::INI_PROJECT_29,
+            EcIni::INI_PROJECT_30, EcIni::INI_PROJECT_31, EcIni::INI_PROJECT_32
+        };
+        for (const auto& key : legacyVariableKeys)
+        {
+            project_ini.remove(key);
+        }
         project_ini.setValue(EcIni::INI_PROJECT_0, ec_project_state_.projectGeneral.creation_date);
         project_ini.setValue(EcIni::INI_PROJECT_1, now_str);
         project_ini.setValue(EcIni::INI_PROJECT_2, fileinfo.absoluteFilePath());
@@ -1210,22 +1206,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_PROJECT_15, ec_project_state_.projectGeneral.binary_nbytes);
         project_ini.setValue(EcIni::INI_PROJECT_16, ec_project_state_.projectGeneral.binary_little_end);
         project_ini.setValue(EcIni::INI_PROJECT_17, ec_project_state_.projectGeneral.master_sonic);
-        project_ini.setValue(EcIni::INI_PROJECT_18, ec_project_state_.projectGeneral.col_co2);
-        project_ini.setValue(EcIni::INI_PROJECT_19, ec_project_state_.projectGeneral.col_h2o);
-        project_ini.setValue(EcIni::INI_PROJECT_20, ec_project_state_.projectGeneral.col_ch4);
-        project_ini.setValue(EcIni::INI_PROJECT_21, ec_project_state_.projectGeneral.col_gas4);
-        project_ini.setValue(EcIni::INI_PROJECT_22, ec_project_state_.projectGeneral.col_int_t_1);
-        project_ini.setValue(EcIni::INI_PROJECT_23, ec_project_state_.projectGeneral.col_int_t_2);
-        project_ini.setValue(EcIni::INI_PROJECT_24, ec_project_state_.projectGeneral.col_int_p);
-        project_ini.setValue(EcIni::INI_PROJECT_25, ec_project_state_.projectGeneral.col_air_t);
-        project_ini.setValue(EcIni::INI_PROJECT_26, ec_project_state_.projectGeneral.col_air_p);
-        project_ini.setValue(EcIni::INI_PROJECT_27, ec_project_state_.projectGeneral.col_int_t_c);
-        project_ini.setValue(EcIni::INI_PROJECT_28, ec_project_state_.projectGeneral.col_diag_75);
-        project_ini.setValue(EcIni::INI_PROJECT_29, ec_project_state_.projectGeneral.col_diag_72);
-        project_ini.setValue(EcIni::INI_PROJECT_30, ec_project_state_.projectGeneral.col_diag_77);
         project_ini.setValue(EcIni::INI_PROJECT_69, ec_project_state_.projectGeneral.col_diag_anem);
-        project_ini.setValue(EcIni::INI_PROJECT_31, QString::number(ec_project_state_.projectGeneral.gas_mw, 'f', 4));
-        project_ini.setValue(EcIni::INI_PROJECT_32, QString::number(ec_project_state_.projectGeneral.gas_diff, 'f', 5));
         project_ini.setValue(EcIni::INI_PROJECT_36, ec_project_state_.projectGeneral.col_ts);
         project_ini.setValue(EcIni::INI_PROJECT_39, ec_project_state_.projectGeneral.out_rich);
         project_ini.setValue(EcIni::INI_PROJECT_70, ec_project_state_.projectGeneral.fluxnet_standardize_biomet);
@@ -1268,6 +1249,34 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_PROJECT_66, ec_project_state_.projectGeneral.hf_correct_ghg_ba);
         project_ini.setValue(EcIni::INI_PROJECT_67, ec_project_state_.projectGeneral.hf_correct_ghg_zoh);
         project_ini.setValue(EcIni::INI_PROJECT_68, ec_project_state_.projectGeneral.sonic_output_rate);
+    project_ini.endGroup();
+
+    project_ini.beginGroup(EcIni::INIGROUP_PROCESSING_VARIABLES);
+        project_ini.remove(QString());
+        const auto& rows = ec_project_state_.projectGeneral.processing_variables;
+        project_ini.setValue(EcIni::INI_PROCVAR_COUNT, rows.size());
+        for (int i = 0; i < rows.size(); ++i)
+        {
+            const auto& row = rows.at(i);
+            const QString prefix = EcIni::INI_PROCVAR_PREFIX + QString::number(i + 1) + QLatin1Char('_');
+            project_ini.setValue(prefix + EcIni::INI_PROCVAR_ID, row.processing_id);
+            project_ini.setValue(prefix + EcIni::INI_PROCVAR_ENABLED, QVariant(row.enabled).toInt());
+            project_ini.setValue(prefix + EcIni::INI_PROCVAR_GAS_COL, row.gas_col);
+            project_ini.setValue(prefix + EcIni::INI_PROCVAR_GAS, row.gas_name);
+            project_ini.setValue(prefix + EcIni::INI_PROCVAR_IRGA, row.irga_id);
+            project_ini.setValue(prefix + EcIni::INI_PROCVAR_IRGA_INDEX, row.irga_index);
+            project_ini.setValue(prefix + EcIni::INI_PROCVAR_GAS_INDEX, row.gas_instance_index);
+            project_ini.setValue(prefix + EcIni::INI_PROCVAR_MW, QString::number(row.molecular_weight, 'f', 4));
+            project_ini.setValue(prefix + EcIni::INI_PROCVAR_DIFF, QString::number(row.molecular_diffusivity, 'f', 5));
+            project_ini.setValue(prefix + EcIni::INI_PROCVAR_H2O_REF, row.reference_h2o_id);
+            project_ini.setValue(prefix + EcIni::INI_PROCVAR_CELL_T, row.col_cell_t);
+            project_ini.setValue(prefix + EcIni::INI_PROCVAR_INT_T_1, row.col_int_t_1);
+            project_ini.setValue(prefix + EcIni::INI_PROCVAR_INT_T_2, row.col_int_t_2);
+            project_ini.setValue(prefix + EcIni::INI_PROCVAR_INT_P, row.col_int_p);
+            project_ini.setValue(prefix + EcIni::INI_PROCVAR_AIR_T, row.col_air_t);
+            project_ini.setValue(prefix + EcIni::INI_PROCVAR_AIR_P, row.col_air_p);
+            project_ini.setValue(prefix + EcIni::INI_PROCVAR_DIAG, row.col_diag);
+        }
     project_ini.endGroup();
 
     // spec settings section
@@ -2017,6 +2026,63 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
                 = project_ini.value(EcIni::INI_PROJECT_68,
                                     defaultEcProjectState.projectGeneral.sonic_output_rate).toInt();
     project_ini.endGroup();
+
+    ec_project_state_.projectGeneral.processing_variables.clear();
+    project_ini.beginGroup(EcIni::INIGROUP_PROCESSING_VARIABLES);
+        const int processingVariableCount = project_ini.value(EcIni::INI_PROCVAR_COUNT, 0).toInt();
+        for (int i = 0; i < processingVariableCount; ++i)
+        {
+            const QString prefix = EcIni::INI_PROCVAR_PREFIX + QString::number(i + 1) + QLatin1Char('_');
+            ProcessingVariableRow row;
+            row.processing_id = project_ini.value(prefix + EcIni::INI_PROCVAR_ID, QString()).toString();
+            row.enabled = project_ini.value(prefix + EcIni::INI_PROCVAR_ENABLED, 1).toBool();
+            row.gas_col = project_ini.value(prefix + EcIni::INI_PROCVAR_GAS_COL, -1).toInt();
+            row.gas_name = project_ini.value(prefix + EcIni::INI_PROCVAR_GAS, QString()).toString();
+            row.irga_id = project_ini.value(prefix + EcIni::INI_PROCVAR_IRGA, QString()).toString();
+            row.irga_index = project_ini.value(prefix + EcIni::INI_PROCVAR_IRGA_INDEX, 0).toInt();
+            row.gas_instance_index = project_ini.value(prefix + EcIni::INI_PROCVAR_GAS_INDEX, 0).toInt();
+            row.molecular_weight = project_ini.value(prefix + EcIni::INI_PROCVAR_MW, -1.0).toReal();
+            row.molecular_diffusivity = project_ini.value(prefix + EcIni::INI_PROCVAR_DIFF, -1.0).toReal();
+            row.reference_h2o_id = project_ini.value(prefix + EcIni::INI_PROCVAR_H2O_REF, QString()).toString();
+            row.col_cell_t = project_ini.value(prefix + EcIni::INI_PROCVAR_CELL_T, -1).toInt();
+            row.col_int_t_1 = project_ini.value(prefix + EcIni::INI_PROCVAR_INT_T_1, -1).toInt();
+            row.col_int_t_2 = project_ini.value(prefix + EcIni::INI_PROCVAR_INT_T_2, -1).toInt();
+            row.col_int_p = project_ini.value(prefix + EcIni::INI_PROCVAR_INT_P, -1).toInt();
+            row.col_air_t = project_ini.value(prefix + EcIni::INI_PROCVAR_AIR_T, -1).toInt();
+            row.col_air_p = project_ini.value(prefix + EcIni::INI_PROCVAR_AIR_P, -1).toInt();
+            row.col_diag = project_ini.value(prefix + EcIni::INI_PROCVAR_DIAG, -1).toInt();
+            ec_project_state_.projectGeneral.processing_variables.append(row);
+        }
+    project_ini.endGroup();
+
+    if (ec_project_state_.projectGeneral.processing_variables.isEmpty())
+    {
+        auto addLegacyProcessingRow = [this](int col, const QString& gasName, double mw, double diff) {
+            if (col < 0) { return; }
+            ProcessingVariableRow row;
+            row.enabled = true;
+            row.gas_col = col;
+            row.gas_name = gasName;
+            row.irga_index = 1;
+            row.gas_instance_index = 1;
+            row.processing_id = gasName + QStringLiteral("_1_1");
+            row.molecular_weight = mw;
+            row.molecular_diffusivity = diff;
+            row.col_cell_t = ec_project_state_.projectGeneral.col_int_t_c;
+            row.col_int_t_1 = ec_project_state_.projectGeneral.col_int_t_1;
+            row.col_int_t_2 = ec_project_state_.projectGeneral.col_int_t_2;
+            row.col_int_p = ec_project_state_.projectGeneral.col_int_p;
+            row.col_air_t = ec_project_state_.projectGeneral.col_air_t;
+            row.col_air_p = ec_project_state_.projectGeneral.col_air_p;
+            ec_project_state_.projectGeneral.processing_variables.append(row);
+        };
+        addLegacyProcessingRow(ec_project_state_.projectGeneral.col_co2, QStringLiteral("co2"), 44.0095, -1.0);
+        addLegacyProcessingRow(ec_project_state_.projectGeneral.col_h2o, QStringLiteral("h2o"), 18.0153, -1.0);
+        addLegacyProcessingRow(ec_project_state_.projectGeneral.col_ch4, QStringLiteral("ch4"), 16.0425, -1.0);
+        addLegacyProcessingRow(ec_project_state_.projectGeneral.col_gas4, QStringLiteral("gas4"),
+                               ec_project_state_.projectGeneral.gas_mw,
+                               ec_project_state_.projectGeneral.gas_diff);
+    }
 
     // spec settings section
     project_ini.beginGroup(EcIni::INIGROUP_SPEC_SETTINGS);
@@ -5087,6 +5153,12 @@ void EcProject::setGeneralColTs(int n)
 void EcProject::setGeneralColGasDiff(double n)
 {
     ec_project_state_.projectGeneral.gas_diff = n;
+    setModified(true);
+}
+
+void EcProject::setProcessingVariableRows(const QList<ProcessingVariableRow>& rows)
+{
+    ec_project_state_.projectGeneral.processing_variables = rows;
     setModified(true);
 }
 

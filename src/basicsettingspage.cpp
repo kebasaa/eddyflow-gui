@@ -26,6 +26,8 @@
 #include "basicsettingspage.h"
 
 #include <QApplication>
+#include <QAbstractTableModel>
+#include <QAbstractItemView>
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QComboBox>
@@ -54,6 +56,9 @@
 #include <QSize>
 #include <QToolButton>
 #include <QHeaderView>
+#include <QMap>
+#include <QStyledItemDelegate>
+#include <QTableView>
 
 #include <cmath>
 
@@ -98,6 +103,474 @@
 
 const QString BasicSettingsPage::FLAG_POLICY_STRING_0 = QObject::tr("Above threshold");
 const QString BasicSettingsPage::FLAG_POLICY_STRING_1 = QObject::tr("Below threshold");
+
+namespace {
+
+struct VariableOption
+{
+    QString text;
+    int column = -1;
+    QString gasName;
+    QString irgaId;
+    int irgaIndex = 0;
+    qreal molecularWeight = -1.0;
+    qreal molecularDiffusivity = -1.0;
+};
+
+QString optionText(const QList<VariableOption>& options, int column)
+{
+    for (const auto& option : options)
+    {
+        if (option.column == column)
+        {
+            return option.text;
+        }
+    }
+    return column < 0 ? QObject::tr("None") : QString::number(column);
+}
+
+struct VariableCandidate
+{
+    VariableOption option;
+    QString instrument;
+};
+
+int irgaIndexFromInstrument(const QString& instrument)
+{
+    const auto parts = instrument.split(QLatin1Char(':'));
+    if (parts.isEmpty())
+    {
+        return 0;
+    }
+    const auto firstPart = parts.first().trimmed().split(QLatin1Char(' '));
+    if (firstPart.size() < 2 || firstPart.first() != QObject::tr("Irga"))
+    {
+        return 0;
+    }
+    return firstPart.at(1).toInt();
+}
+
+QString processingId(const QString& gasName, int irgaIndex, int gasIndex)
+{
+    return gasName + QLatin1Char('_')
+        + QString::number(qMax(1, irgaIndex)) + QLatin1Char('_')
+        + QString::number(qMax(1, gasIndex));
+}
+
+QString safeIdentifierPart(const QString& text)
+{
+    QString value = GasMetadata::normaliseFormula(text).trimmed();
+    value.replace(QRegularExpression(QStringLiteral("[^a-z0-9]+")), QStringLiteral("_"));
+    value.replace(QRegularExpression(QStringLiteral("^_+|_+$")), QString());
+    return value.isEmpty() ? QStringLiteral("irga") : value;
+}
+
+int firstSameInstrumentColumn(const QList<VariableCandidate>& candidates,
+                              const QString& instrument)
+{
+    int result = -1;
+    for (const auto& candidate : candidates)
+    {
+        if (candidate.instrument == instrument)
+        {
+            if (result != -1)
+            {
+                return -1;
+            }
+            result = candidate.option.column;
+        }
+    }
+    return result;
+}
+
+} // namespace
+
+class ProcessingVariablesModel : public QAbstractTableModel
+{
+public:
+    enum Column {
+        Enabled,
+        Id,
+        Gas,
+        Irga,
+        MolecularWeight,
+        MolecularDiffusivity,
+        H2oReference,
+        CellTemperature,
+        CellTempIn,
+        CellTempOut,
+        CellPressure,
+        AmbientTemperature,
+        AmbientPressure,
+        Diagnostics,
+        ColumnCount
+    };
+
+    explicit ProcessingVariablesModel(EcProject* project, QObject* parent = nullptr)
+        : QAbstractTableModel(parent),
+          ecProject_(project)
+    {
+    }
+
+    int rowCount(const QModelIndex& parent = QModelIndex()) const override
+    {
+        return parent.isValid() ? 0 : rows_.size();
+    }
+
+    int columnCount(const QModelIndex& parent = QModelIndex()) const override
+    {
+        return parent.isValid() ? 0 : ColumnCount;
+    }
+
+    QVariant headerData(int section, Qt::Orientation orientation, int role) const override
+    {
+        if (role != Qt::DisplayRole || orientation != Qt::Horizontal)
+        {
+            return QVariant();
+        }
+        switch (section)
+        {
+            case Enabled: return QObject::tr("Use");
+            case Id: return QObject::tr("ID");
+            case Gas: return QObject::tr("Gas variable");
+            case Irga: return QObject::tr("IRGA");
+            case MolecularWeight: return QObject::tr("Molecular weight");
+            case MolecularDiffusivity: return QObject::tr("Diffusivity");
+            case H2oReference: return QObject::tr("Reference H2O");
+            case CellTemperature: return QObject::tr("Avg cell T");
+            case CellTempIn: return QObject::tr("Cell T in");
+            case CellTempOut: return QObject::tr("Cell T out");
+            case CellPressure: return QObject::tr("Cell P");
+            case AmbientTemperature: return QObject::tr("Ambient T");
+            case AmbientPressure: return QObject::tr("Ambient P");
+            case Diagnostics: return QObject::tr("Diagnostics");
+            default: return QVariant();
+        }
+    }
+
+    QVariant data(const QModelIndex& index, int role) const override
+    {
+        if (!index.isValid() || index.row() >= rows_.size())
+        {
+            return QVariant();
+        }
+
+        const auto& row = rows_.at(index.row());
+        if (role == Qt::CheckStateRole && index.column() == Enabled)
+        {
+            return row.enabled ? Qt::Checked : Qt::Unchecked;
+        }
+        if (role != Qt::DisplayRole && role != Qt::EditRole)
+        {
+            return QVariant();
+        }
+
+        switch (index.column())
+        {
+            case Id: return row.processing_id;
+            case Gas: return role == Qt::EditRole ? QVariant(row.gas_col) : QVariant(optionText(gasOptions_, row.gas_col));
+            case Irga: return row.irga_id;
+            case MolecularWeight: return row.molecular_weight;
+            case MolecularDiffusivity: return row.molecular_diffusivity;
+            case H2oReference: return row.gas_name == QStringLiteral("h2o")
+                    ? QObject::tr("Self")
+                    : row.reference_h2o_id;
+            case CellTemperature: return role == Qt::EditRole ? QVariant(row.col_cell_t) : QVariant(optionText(cellTemperatureOptions_, row.col_cell_t));
+            case CellTempIn: return role == Qt::EditRole ? QVariant(row.col_int_t_1) : QVariant(optionText(cellTempInOptions_, row.col_int_t_1));
+            case CellTempOut: return role == Qt::EditRole ? QVariant(row.col_int_t_2) : QVariant(optionText(cellTempOutOptions_, row.col_int_t_2));
+            case CellPressure: return role == Qt::EditRole ? QVariant(row.col_int_p) : QVariant(optionText(cellPressureOptions_, row.col_int_p));
+            case AmbientTemperature: return role == Qt::EditRole ? QVariant(row.col_air_t) : QVariant(optionText(ambientTemperatureOptions_, row.col_air_t));
+            case AmbientPressure: return role == Qt::EditRole ? QVariant(row.col_air_p) : QVariant(optionText(ambientPressureOptions_, row.col_air_p));
+            case Diagnostics: return role == Qt::EditRole ? QVariant(row.col_diag) : QVariant(optionText(diagnosticsOptions_, row.col_diag));
+            default: return QVariant();
+        }
+    }
+
+    Qt::ItemFlags flags(const QModelIndex& index) const override
+    {
+        if (!index.isValid())
+        {
+            return Qt::NoItemFlags;
+        }
+        auto itemFlags = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
+        if (index.column() == Enabled)
+        {
+            itemFlags |= Qt::ItemIsUserCheckable;
+        }
+        else if (index.column() != Id && index.column() != Irga)
+        {
+            if (!(index.column() == H2oReference && rows_.at(index.row()).gas_name == QStringLiteral("h2o")))
+            {
+                itemFlags |= Qt::ItemIsEditable;
+            }
+        }
+        return itemFlags;
+    }
+
+    bool setData(const QModelIndex& index, const QVariant& value, int role) override
+    {
+        if (!index.isValid() || index.row() >= rows_.size())
+        {
+            return false;
+        }
+
+        auto& row = rows_[index.row()];
+        if (role == Qt::CheckStateRole && index.column() == Enabled)
+        {
+            row.enabled = value.toInt() == Qt::Checked;
+        }
+        else if (role == Qt::EditRole)
+        {
+            switch (index.column())
+            {
+                case Gas: setGasVariable(row, value.toInt()); break;
+                case MolecularWeight: row.molecular_weight = value.toDouble(); break;
+                case MolecularDiffusivity: row.molecular_diffusivity = value.toDouble(); break;
+                case H2oReference: row.reference_h2o_id = value.toString(); break;
+                case CellTemperature: row.col_cell_t = value.toInt(); break;
+                case CellTempIn: row.col_int_t_1 = value.toInt(); break;
+                case CellTempOut: row.col_int_t_2 = value.toInt(); break;
+                case CellPressure: row.col_int_p = value.toInt(); break;
+                case AmbientTemperature: row.col_air_t = value.toInt(); break;
+                case AmbientPressure: row.col_air_p = value.toInt(); break;
+                case Diagnostics: row.col_diag = value.toInt(); break;
+                default: return false;
+            }
+        }
+        else
+        {
+            return false;
+        }
+
+        commit();
+        emit dataChanged(this->index(index.row(), 0), this->index(index.row(), ColumnCount - 1));
+        return true;
+    }
+
+    const QList<ProcessingVariableRow>& rows() const { return rows_; }
+
+    void setRows(const QList<ProcessingVariableRow>& rows)
+    {
+        beginResetModel();
+        rows_ = rows;
+        endResetModel();
+        commit();
+    }
+
+    void setOptions(const QList<VariableOption>& gasOptions,
+                    const QList<VariableOption>& cellTemperatureOptions,
+                    const QList<VariableOption>& cellTempInOptions,
+                    const QList<VariableOption>& cellTempOutOptions,
+                    const QList<VariableOption>& cellPressureOptions,
+                    const QList<VariableOption>& ambientTemperatureOptions,
+                    const QList<VariableOption>& ambientPressureOptions,
+                    const QList<VariableOption>& diagnosticsOptions)
+    {
+        gasOptions_ = gasOptions;
+        cellTemperatureOptions_ = withNone(cellTemperatureOptions);
+        cellTempInOptions_ = withNone(cellTempInOptions);
+        cellTempOutOptions_ = withNone(cellTempOutOptions);
+        cellPressureOptions_ = withNone(cellPressureOptions);
+        ambientTemperatureOptions_ = withNone(ambientTemperatureOptions);
+        ambientPressureOptions_ = withNone(ambientPressureOptions);
+        diagnosticsOptions_ = withNone(diagnosticsOptions);
+    }
+
+    QList<VariableOption> optionsForColumn(int column) const
+    {
+        switch (column)
+        {
+            case Gas: return gasOptions_;
+            case CellTemperature: return cellTemperatureOptions_;
+            case CellTempIn: return cellTempInOptions_;
+            case CellTempOut: return cellTempOutOptions_;
+            case CellPressure: return cellPressureOptions_;
+            case AmbientTemperature: return ambientTemperatureOptions_;
+            case AmbientPressure: return ambientPressureOptions_;
+            case Diagnostics: return diagnosticsOptions_;
+            default: return QList<VariableOption>();
+        }
+    }
+
+    QStringList h2oReferenceIds() const
+    {
+        QStringList ids;
+        ids << QString();
+        for (const auto& row : rows_)
+        {
+            if (row.gas_name == QStringLiteral("h2o") && !row.processing_id.isEmpty())
+            {
+                ids << row.processing_id;
+            }
+        }
+        return ids;
+    }
+
+private:
+    static QList<VariableOption> withNone(QList<VariableOption> options)
+    {
+        VariableOption noneOption;
+        noneOption.text = QObject::tr("None");
+        noneOption.column = -1;
+        options.prepend(noneOption);
+        return options;
+    }
+
+    void commit()
+    {
+        if (ecProject_)
+        {
+            ecProject_->setProcessingVariableRows(rows_);
+        }
+    }
+
+    void setGasVariable(ProcessingVariableRow& row, int gasColumn)
+    {
+        for (const auto& option : gasOptions_)
+        {
+            if (option.column != gasColumn)
+            {
+                continue;
+            }
+
+            const QString gasName = option.gasName.isEmpty() ? row.gas_name : option.gasName;
+            const int irgaIndex = qMax(1, option.irgaIndex);
+            if (row.gas_col != gasColumn
+                || row.gas_name != gasName
+                || row.irga_index != irgaIndex)
+            {
+                row.gas_instance_index = nextGasInstanceIndex(gasName, irgaIndex, row.processing_id);
+                row.processing_id = processingId(gasName, irgaIndex, row.gas_instance_index);
+            }
+
+            row.gas_col = option.column;
+            row.gas_name = gasName;
+            row.irga_id = option.irgaId;
+            row.irga_index = irgaIndex;
+            row.molecular_weight = option.molecularWeight;
+            row.molecular_diffusivity = option.molecularDiffusivity;
+            if (row.gas_name == QStringLiteral("h2o"))
+            {
+                row.reference_h2o_id.clear();
+            }
+            return;
+        }
+    }
+
+    int nextGasInstanceIndex(const QString& gasName, int irgaIndex, const QString& currentProcessingId) const
+    {
+        int maxIndex = 0;
+        for (const auto& existingRow : rows_)
+        {
+            if (existingRow.processing_id == currentProcessingId)
+            {
+                continue;
+            }
+            if (existingRow.gas_name == gasName && existingRow.irga_index == irgaIndex)
+            {
+                maxIndex = qMax(maxIndex, existingRow.gas_instance_index);
+            }
+        }
+        return maxIndex + 1;
+    }
+
+    EcProject* ecProject_ = nullptr;
+    QList<ProcessingVariableRow> rows_;
+    QList<VariableOption> gasOptions_;
+    QList<VariableOption> cellTemperatureOptions_;
+    QList<VariableOption> cellTempInOptions_;
+    QList<VariableOption> cellTempOutOptions_;
+    QList<VariableOption> cellPressureOptions_;
+    QList<VariableOption> ambientTemperatureOptions_;
+    QList<VariableOption> ambientPressureOptions_;
+    QList<VariableOption> diagnosticsOptions_;
+};
+
+class ProcessingVariablesDelegate : public QStyledItemDelegate
+{
+public:
+    explicit ProcessingVariablesDelegate(QObject* parent = nullptr)
+        : QStyledItemDelegate(parent)
+    {
+    }
+
+    QWidget* createEditor(QWidget* parent,
+                          const QStyleOptionViewItem& option,
+                          const QModelIndex& index) const override
+    {
+        Q_UNUSED(option)
+        const auto* model = dynamic_cast<const ProcessingVariablesModel*>(index.model());
+        if (!model)
+        {
+            return QStyledItemDelegate::createEditor(parent, option, index);
+        }
+
+        if (index.column() == ProcessingVariablesModel::MolecularWeight
+            || index.column() == ProcessingVariablesModel::MolecularDiffusivity)
+        {
+            auto spin = new QDoubleSpinBox(parent);
+            spin->setDecimals(index.column() == ProcessingVariablesModel::MolecularWeight ? 4 : 5);
+            spin->setRange(0.0, index.column() == ProcessingVariablesModel::MolecularWeight ? 1000.0 : 1.0);
+            spin->setAccelerated(true);
+            return spin;
+        }
+
+        if (index.column() == ProcessingVariablesModel::H2oReference)
+        {
+            auto combo = new QComboBox(parent);
+            for (const auto& id : model->h2oReferenceIds())
+            {
+                combo->addItem(id.isEmpty() ? QObject::tr("None") : id, id);
+            }
+            return combo;
+        }
+
+        const auto options = model->optionsForColumn(index.column());
+        if (!options.isEmpty())
+        {
+            auto combo = new QComboBox(parent);
+            for (const auto& item : options)
+            {
+                combo->addItem(item.text, item.column);
+            }
+            return combo;
+        }
+
+        return QStyledItemDelegate::createEditor(parent, option, index);
+    }
+
+    void setEditorData(QWidget* editor, const QModelIndex& index) const override
+    {
+        if (auto spin = qobject_cast<QDoubleSpinBox*>(editor))
+        {
+            spin->setValue(index.model()->data(index, Qt::EditRole).toDouble());
+            return;
+        }
+        if (auto combo = qobject_cast<QComboBox*>(editor))
+        {
+            const auto value = index.model()->data(index, Qt::EditRole);
+            const int found = combo->findData(value);
+            combo->setCurrentIndex(found >= 0 ? found : 0);
+            return;
+        }
+        QStyledItemDelegate::setEditorData(editor, index);
+    }
+
+    void setModelData(QWidget* editor, QAbstractItemModel* model, const QModelIndex& index) const override
+    {
+        if (auto spin = qobject_cast<QDoubleSpinBox*>(editor))
+        {
+            model->setData(index, spin->value(), Qt::EditRole);
+            return;
+        }
+        if (auto combo = qobject_cast<QComboBox*>(editor))
+        {
+            model->setData(index, combo->currentData(), Qt::EditRole);
+            return;
+        }
+        QStyledItemDelegate::setModelData(editor, model, index);
+    }
+};
 
 
 BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcProject *ecProject, ConfigState* config) :
@@ -890,10 +1363,33 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
 
     createWindFilterArea();
 
+    processingVariablesModel_ = new ProcessingVariablesModel(ecProject_, this);
+    processingVariablesDelegate_ = new ProcessingVariablesDelegate(this);
+    processingVariablesTableView = new QTableView;
+    processingVariablesTableView->setModel(processingVariablesModel_);
+    processingVariablesTableView->setItemDelegate(processingVariablesDelegate_);
+    connect(processingVariablesModel_, &QAbstractItemModel::dataChanged,
+            this, [this]() { syncLegacySelectorsFromProcessingRows(); });
+    connect(processingVariablesModel_, &QAbstractItemModel::modelReset,
+            this, [this]() { syncLegacySelectorsFromProcessingRows(); });
+    processingVariablesTableView->setAlternatingRowColors(true);
+    processingVariablesTableView->setSelectionBehavior(QAbstractItemView::SelectRows);
+    processingVariablesTableView->setSelectionMode(QAbstractItemView::SingleSelection);
+    processingVariablesTableView->horizontalHeader()->setStretchLastSection(false);
+    processingVariablesTableView->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    processingVariablesTableView->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    processingVariablesTableView->setMinimumHeight(320);
+
+    auto processingVariablesLayout = new QVBoxLayout;
+    auto processingVariablesTitle = new QLabel(tr("Gas measurements and per-gas support variables"));
+    processingVariablesTitle->setProperty("groupLabel", true);
+    processingVariablesLayout->addWidget(processingVariablesTitle);
+    processingVariablesLayout->addWidget(processingVariablesTableView);
+
     auto varList = new QGroupBox;
     varList->setObjectName(QStringLiteral("simpleGroupBox2"));
     varList->setFlat(true);
-    varList->setLayout(varLayout);
+    varList->setLayout(processingVariablesLayout);
 
     auto flagList = new QGroupBox;
     flagList->setObjectName(QStringLiteral("simpleGroupBox2"));
@@ -1726,6 +2222,37 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
         }
     }
 
+    QMap<int, QString> irgaIds;
+    int irgaNumber = 0;
+    for (const auto& irga : *dlProject_->irgas())
+    {
+        ++irgaNumber;
+        irgaIds.insert(irgaNumber, safeIdentifierPart(irga.model()) + QLatin1Char('_') + QString::number(irgaNumber));
+    }
+
+    const auto previousRows = ecProject_->processingVariableRows();
+    QMap<int, ProcessingVariableRow> previousByGasColumn;
+    QMap<QString, int> nextGasIndexByKey;
+    for (const auto& row : previousRows)
+    {
+        if (row.gas_col >= 0)
+        {
+            previousByGasColumn.insert(row.gas_col, row);
+        }
+        const QString key = row.gas_name + QLatin1Char('|') + QString::number(row.irga_index);
+        nextGasIndexByKey[key] = qMax(nextGasIndexByKey.value(key, 0), row.gas_instance_index);
+    }
+
+    QList<ProcessingVariableRow> processingRows;
+    QList<VariableOption> gasOptions;
+    QList<VariableCandidate> cellTemperatureCandidates;
+    QList<VariableCandidate> cellTempInCandidates;
+    QList<VariableCandidate> cellTempOutCandidates;
+    QList<VariableCandidate> cellPressureCandidates;
+    QList<VariableCandidate> ambientTemperatureCandidates;
+    QList<VariableCandidate> ambientPressureCandidates;
+    QList<VariableCandidate> diagnosticsCandidates;
+
     // parse described variables
     k = 0;
     for (const auto &var : *vdl)
@@ -1833,6 +2360,86 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                 varString = varName
                         + tr(" from raw data files: Column # ")
                         + QString::number(k);
+            }
+
+            const int currentIrgaIndex = irgaIndexFromInstrument(instrType);
+            const QString currentIrgaId = irgaIds.value(currentIrgaIndex,
+                                                        QStringLiteral("irga_") + QString::number(qMax(1, currentIrgaIndex)));
+            VariableOption currentOption;
+            currentOption.text = varString;
+            currentOption.column = k;
+            currentOption.gasName = GasMetadata::normaliseFormula(varName);
+            currentOption.irgaId = currentIrgaId;
+            currentOption.irgaIndex = currentIrgaIndex;
+            if (const auto* gas = GasMetadata::findGas(varName))
+            {
+                currentOption.molecularWeight = gas->molecularWeight;
+                currentOption.molecularDiffusivity = gas->diffusivity;
+            }
+
+            if ((!instrType.isEmpty() || isCustomLabel)
+                && VariableDesc::isGoodGas(var, isCustomLabel))
+            {
+                ProcessingVariableRow row = previousByGasColumn.value(k);
+                if (row.processing_id.isEmpty())
+                {
+                    row.enabled = true;
+                    row.gas_col = k;
+                    row.gas_name = currentOption.gasName;
+                    row.irga_index = currentIrgaIndex;
+                    row.irga_id = currentIrgaId;
+                    const QString key = row.gas_name + QLatin1Char('|') + QString::number(row.irga_index);
+                    row.gas_instance_index = nextGasIndexByKey.value(key, 0) + 1;
+                    nextGasIndexByKey[key] = row.gas_instance_index;
+                    row.processing_id = processingId(row.gas_name, row.irga_index, row.gas_instance_index);
+                    row.molecular_weight = currentOption.molecularWeight;
+                    row.molecular_diffusivity = currentOption.molecularDiffusivity;
+                }
+                else
+                {
+                    row.gas_col = k;
+                    row.gas_name = currentOption.gasName;
+                    row.irga_index = currentIrgaIndex;
+                    row.irga_id = currentIrgaId.isEmpty() ? row.irga_id : currentIrgaId;
+                }
+                processingRows.append(row);
+                gasOptions.append(currentOption);
+            }
+
+            if (varName == VariableDesc::getVARIABLE_VAR_STRING_15()
+                && VariableDesc::isGoodTemperature(var))
+            {
+                cellTemperatureCandidates.append(VariableCandidate{currentOption, instrType});
+            }
+            else if (varName == VariableDesc::getVARIABLE_VAR_STRING_9()
+                     && VariableDesc::isGoodTemperature(var))
+            {
+                cellTempInCandidates.append(VariableCandidate{currentOption, instrType});
+            }
+            else if (varName == VariableDesc::getVARIABLE_VAR_STRING_10()
+                     && VariableDesc::isGoodTemperature(var))
+            {
+                cellTempOutCandidates.append(VariableCandidate{currentOption, instrType});
+            }
+            else if (varName == VariableDesc::getVARIABLE_VAR_STRING_11()
+                     && VariableDesc::isGoodPressure(var))
+            {
+                cellPressureCandidates.append(VariableCandidate{currentOption, instrType});
+            }
+            else if ((varName == VariableDesc::getVARIABLE_VAR_STRING_12()
+                      || varName == VariableDesc::getVARIABLE_VAR_STRING_28())
+                     && VariableDesc::isGoodTemperature(var, VariableDesc::AnalogType::FAST))
+            {
+                ambientTemperatureCandidates.append(VariableCandidate{currentOption, instrType});
+            }
+            else if (varName == VariableDesc::getVARIABLE_VAR_STRING_13()
+                     && VariableDesc::isGoodPressure(var))
+            {
+                ambientPressureCandidates.append(VariableCandidate{currentOption, instrType});
+            }
+            else if (VariableDesc::isDiagnosticVar(varName))
+            {
+                diagnosticsCandidates.append(VariableCandidate{currentOption, instrType});
             }
 
             // gas, custom labels and cell measures section
@@ -2080,9 +2687,126 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
         } // if (ignore == no && numeric == yes)
     } // for
 
+    QString firstH2oId;
+    for (const auto& row : processingRows)
+    {
+        if (row.gas_name == QStringLiteral("h2o"))
+        {
+            firstH2oId = row.processing_id;
+            break;
+        }
+    }
+
+    for (auto& row : processingRows)
+    {
+        const int gasColumn = row.gas_col;
+        QString instrument;
+        if (gasColumn > 0 && gasColumn <= vdl->size())
+        {
+            instrument = vdl->at(gasColumn - 1).instrument();
+        }
+
+        if (!previousByGasColumn.contains(gasColumn))
+        {
+            row.col_cell_t = firstSameInstrumentColumn(cellTemperatureCandidates, instrument);
+            row.col_int_t_1 = firstSameInstrumentColumn(cellTempInCandidates, instrument);
+            row.col_int_t_2 = firstSameInstrumentColumn(cellTempOutCandidates, instrument);
+            row.col_int_p = firstSameInstrumentColumn(cellPressureCandidates, instrument);
+            row.col_air_t = firstSameInstrumentColumn(ambientTemperatureCandidates, instrument);
+            row.col_air_p = firstSameInstrumentColumn(ambientPressureCandidates, instrument);
+            row.col_diag = firstSameInstrumentColumn(diagnosticsCandidates, instrument);
+            if (row.gas_name != QStringLiteral("h2o"))
+            {
+                row.reference_h2o_id = firstH2oId;
+            }
+        }
+        else if (row.gas_name == QStringLiteral("h2o"))
+        {
+            row.reference_h2o_id.clear();
+        }
+    }
+
+    auto toOptions = [](const QList<VariableCandidate>& candidates) {
+        QList<VariableOption> options;
+        for (const auto& candidate : candidates)
+        {
+            options.append(candidate.option);
+        }
+        return options;
+    };
+
+    processingVariablesModel_->setOptions(gasOptions,
+                                          toOptions(cellTemperatureCandidates),
+                                          toOptions(cellTempInCandidates),
+                                          toOptions(cellTempOutCandidates),
+                                          toOptions(cellPressureCandidates),
+                                          toOptions(ambientTemperatureCandidates),
+                                          toOptions(ambientPressureCandidates),
+                                          toOptions(diagnosticsCandidates));
+    processingVariablesModel_->setRows(processingRows);
+    syncLegacySelectorsFromProcessingRows();
+
     addNoneStr_1();
     filterVariables();
     emit updateMetadataReadResult(true);
+}
+
+void BasicSettingsPage::syncLegacySelectorsFromProcessingRows()
+{
+    bool hasCo2 = false;
+    bool hasH2o = false;
+    bool hasCh4 = false;
+    bool hasOtherGas = false;
+
+    ecProject_->setGeneralColCo2(-1);
+    ecProject_->setGeneralColH2o(-1);
+    ecProject_->setGeneralColCh4(-1);
+    ecProject_->setGeneralColGas4(-1);
+    ecProject_->setGeneralColGasMw(-1.0);
+    ecProject_->setGeneralColGasDiff(-1.0);
+
+    for (const auto& row : ecProject_->processingVariableRows())
+    {
+        if (!row.enabled)
+        {
+            continue;
+        }
+
+        if (!hasCo2 && row.gas_name == QStringLiteral("co2"))
+        {
+            ecProject_->setGeneralColCo2(row.gas_col);
+            hasCo2 = true;
+        }
+        else if (!hasH2o && row.gas_name == QStringLiteral("h2o"))
+        {
+            ecProject_->setGeneralColH2o(row.gas_col);
+            hasH2o = true;
+        }
+        else if (!hasCh4 && row.gas_name == QStringLiteral("ch4"))
+        {
+            ecProject_->setGeneralColCh4(row.gas_col);
+            hasCh4 = true;
+        }
+        else if (!hasOtherGas)
+        {
+            ecProject_->setGeneralColGas4(row.gas_col);
+            ecProject_->setGeneralColGasMw(row.molecular_weight);
+            ecProject_->setGeneralColGasDiff(row.molecular_diffusivity);
+            hasOtherGas = true;
+        }
+    }
+
+    if (!ecProject_->processingVariableRows().isEmpty())
+    {
+        const auto& row = ecProject_->processingVariableRows().first();
+        ecProject_->setGeneralColIntTc(row.col_cell_t);
+        ecProject_->setGeneralColIntT1(row.col_int_t_1);
+        ecProject_->setGeneralColIntT2(row.col_int_t_2);
+        ecProject_->setGeneralColIntP(row.col_int_p);
+        ecProject_->setGeneralColAirT(row.col_air_t);
+        ecProject_->setGeneralColAirP(row.col_air_p);
+        ecProject_->setGeneralColDiag75(row.col_diag);
+    }
 }
 
 void BasicSettingsPage::parseBiomMetadata()
@@ -5021,6 +5745,11 @@ void BasicSettingsPage::clearSelectedItems()
 
     ecProject_->setGeneralColGasMw(-1.0);
     ecProject_->setGeneralColGasDiff(-1.0);
+    ecProject_->setProcessingVariableRows(QList<ProcessingVariableRow>());
+    if (processingVariablesModel_)
+    {
+        processingVariablesModel_->setRows(QList<ProcessingVariableRow>());
+    }
     ecProject_->setGeneralColTs(-1);
     ecProject_->setGeneralColDiag72(-1);
     ecProject_->setGeneralColDiag75(-1);
