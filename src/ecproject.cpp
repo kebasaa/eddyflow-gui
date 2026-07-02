@@ -569,7 +569,8 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
             && qFuzzyCompare(ec_project_state_.projectGeneral.cec_min_octant, previousProject.ec_project_state_.projectGeneral.cec_min_octant)
             && qFuzzyCompare(ec_project_state_.projectGeneral.cec_min_valid, previousProject.ec_project_state_.projectGeneral.cec_min_valid)
             && qFuzzyCompare(ec_project_state_.projectGeneral.cec_signal_strength, previousProject.ec_project_state_.projectGeneral.cec_signal_strength)
-            && (ec_project_state_.projectGeneral.cec_max_gap_fill == previousProject.ec_project_state_.projectGeneral.cec_max_gap_fill);
+            && (ec_project_state_.projectGeneral.cec_max_gap_fill == previousProject.ec_project_state_.projectGeneral.cec_max_gap_fill)
+            && qFuzzyCompare(ec_project_state_.projectGeneral.cec_max_stationarity, previousProject.ec_project_state_.projectGeneral.cec_max_stationarity);
     }
 
     subTest = (ec_project_state_.projectGeneral.master_sonic == previousProject.ec_project_state_.projectGeneral.master_sonic);
@@ -806,6 +807,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.projectGeneral.cec_min_valid = defaultEcProjectState.projectGeneral.cec_min_valid;
     ec_project_state_.projectGeneral.cec_signal_strength = defaultEcProjectState.projectGeneral.cec_signal_strength;
     ec_project_state_.projectGeneral.cec_max_gap_fill = defaultEcProjectState.projectGeneral.cec_max_gap_fill;
+    ec_project_state_.projectGeneral.cec_max_stationarity = defaultEcProjectState.projectGeneral.cec_max_stationarity;
     ec_project_state_.projectGeneral.tob1_format = defaultEcProjectState.projectGeneral.tob1_format;
     ec_project_state_.projectGeneral.out_path.clear();
     ec_project_state_.projectGeneral.fix_out_format = defaultEcProjectState.projectGeneral.fix_out_format;
@@ -1246,6 +1248,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_PROJECT_76, QString::number(ec_project_state_.projectGeneral.cec_min_valid, 'f', 1));
         project_ini.setValue(EcIni::INI_PROJECT_77, QString::number(ec_project_state_.projectGeneral.cec_signal_strength, 'f', 1));
         project_ini.setValue(EcIni::INI_PROJECT_78, ec_project_state_.projectGeneral.cec_max_gap_fill);
+        project_ini.setValue(EcIni::INI_PROJECT_79, QString::number(ec_project_state_.projectGeneral.cec_max_stationarity, 'f', 1));
         project_ini.setValue(EcIni::INI_PROJECT_50, ec_project_state_.projectGeneral.tob1_format);
         project_ini.setValue(EcIni::INI_PROJECT_51, QDir::fromNativeSeparators(ec_project_state_.projectGeneral.out_path));
         project_ini.setValue(EcIni::INI_PROJECT_52, ec_project_state_.projectGeneral.fix_out_format);
@@ -1948,6 +1951,14 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.projectGeneral.cec_max_gap_fill
                 = project_ini.value(EcIni::INI_PROJECT_78,
                                     defaultEcProjectState.projectGeneral.cec_max_gap_fill).toInt();
+        bool cecMaxStationarityOk = false;
+        const double cecMaxStationarity
+                = project_ini.value(EcIni::INI_PROJECT_79,
+                                    defaultEcProjectState.projectGeneral.cec_max_stationarity).toDouble(&cecMaxStationarityOk);
+        ec_project_state_.projectGeneral.cec_max_stationarity
+                = (cecMaxStationarityOk && cecMaxStationarity >= 0.0)
+                    ? cecMaxStationarity
+                    : defaultEcProjectState.projectGeneral.cec_max_stationarity;
         ec_project_state_.projectGeneral.tob1_format
                 = project_ini.value(EcIni::INI_PROJECT_50,
                                     defaultEcProjectState.projectGeneral.tob1_format).toInt();
@@ -4108,6 +4119,12 @@ void EcProject::setGeneralCecSignalStrength(double d)
 void EcProject::setGeneralCecMaxGapFill(int n)
 {
     ec_project_state_.projectGeneral.cec_max_gap_fill = n;
+    setModified(true);
+}
+
+void EcProject::setGeneralCecMaxStationarity(double d)
+{
+    ec_project_state_.projectGeneral.cec_max_stationarity = d;
     setModified(true);
 }
 

@@ -109,6 +109,7 @@ namespace EcIni
     const auto INI_PROJECT_76   = QStringLiteral("cec_min_valid");
     const auto INI_PROJECT_77   = QStringLiteral("cec_signal_strength");
     const auto INI_PROJECT_78   = QStringLiteral("cec_max_gap_fill");
+    const auto INI_PROJECT_79   = QStringLiteral("cec_max_stationarity");
 
     const auto INIGROUP_SPEC_SETTINGS = QStringLiteral("FluxCorrection_SpectralAnalysis_General");
     const auto INI_SPEC_SETTINGS_0    = QStringLiteral("sa_start_date");

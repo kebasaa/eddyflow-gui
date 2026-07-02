@@ -26,6 +26,7 @@ constexpr double DefaultMinO1O2 = 20.0;
 constexpr double DefaultMinOctant = 5.0;
 constexpr double DefaultMinValid = 90.0;
 constexpr double DefaultSignalStrength = 70.0;
+constexpr double DefaultMaxStationarity = 25.0;
 constexpr int DefaultMaxGapFill = 4;
 }
 
@@ -47,6 +48,8 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject) :
     minOctantSpin = createPercentSpin();
     minValidSpin = createPercentSpin();
     signalStrengthSpin = createPercentSpin();
+    maxStationaritySpin = createPercentSpin();
+    maxStationaritySpin->setRange(0.0, 1000.0);
 
     maxGapFillSpin = new QSpinBox(this);
     maxGapFillSpin->setRange(0, 999);
@@ -59,6 +62,7 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject) :
     minOctantLabel = new QLabel(tr("Minimum per-octant occupancy :"), this);
     minValidLabel = new QLabel(tr("Minimum valid data :"), this);
     signalStrengthLabel = new QLabel(tr("Signal-strength cutoff :"), this);
+    maxStationarityLabel = new QLabel(tr("Maximum stationarity :"), this);
     maxGapFillLabel = new QLabel(tr("Maximum small-gap fill :"), this);
 
     auto setOptionTooltip = [](QLabel *label, QWidget *editor, const QString &tooltip)
@@ -77,6 +81,8 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject) :
                      tr("<b>Minimum valid data:</b> Retain a period only when at least 90% of instantaneous data points remain available after QC and preprocessing. Default: 90%."));
     setOptionTooltip(signalStrengthLabel, signalStrengthSpin,
                      tr("<b>Signal-strength cutoff:</b> When signal strength is available, CO2/H2O measurements below 70% are removed because this can indicate analyzer windows that need cleaning. Default: 70%."));
+    setOptionTooltip(maxStationarityLabel, maxStationaritySpin,
+                     tr("<b>Maximum stationarity:</b> Zahn et al. (2022) filtered out strongly non-stationary periods using the Foken (2017) stationarity test, removing periods when the non-stationarity statistic for w'c' or w'q' exceeded 25%. Lower positive values are stricter and may discard more averaging periods; higher values are more permissive. Allowed range: 0-1000%. Set to 0 to disable this gate for sensitivity/testing runs. Invalid INI values fall back to 25%. Default: 25%."));
     setOptionTooltip(maxGapFillLabel, maxGapFillSpin,
                      tr("<b>Maximum small-gap fill:</b> Small gaps up to 4 consecutive samples are filled by linear interpolation. Default: 4 samples."));
 
@@ -98,8 +104,10 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject) :
     qcLayout->addWidget(minValidSpin, 0, 1);
     qcLayout->addWidget(signalStrengthLabel, 1, 0, Qt::AlignRight);
     qcLayout->addWidget(signalStrengthSpin, 1, 1);
-    qcLayout->addWidget(maxGapFillLabel, 2, 0, Qt::AlignRight);
-    qcLayout->addWidget(maxGapFillSpin, 2, 1);
+    qcLayout->addWidget(maxStationarityLabel, 2, 0, Qt::AlignRight);
+    qcLayout->addWidget(maxStationaritySpin, 2, 1);
+    qcLayout->addWidget(maxGapFillLabel, 3, 0, Qt::AlignRight);
+    qcLayout->addWidget(maxGapFillSpin, 3, 1);
     qcLayout->setColumnStretch(2, 1);
 
     auto restoreButton = new QPushButton(tr("Restore Default Values"), this);
@@ -129,6 +137,8 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject) :
             ecProject_, &EcProject::setGeneralCecMinValid);
     connect(signalStrengthSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             ecProject_, &EcProject::setGeneralCecSignalStrength);
+    connect(maxStationaritySpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            ecProject_, &EcProject::setGeneralCecMaxStationarity);
     connect(maxGapFillSpin, QOverload<int>::of(&QSpinBox::valueChanged),
             ecProject_, &EcProject::setGeneralCecMaxGapFill);
     connect(restoreButton, &QPushButton::clicked,
@@ -146,6 +156,7 @@ void CecSettingsDialog::refresh()
     const QSignalBlocker minOctantBlocker(minOctantSpin);
     const QSignalBlocker minValidBlocker(minValidSpin);
     const QSignalBlocker signalStrengthBlocker(signalStrengthSpin);
+    const QSignalBlocker maxStationarityBlocker(maxStationaritySpin);
     const QSignalBlocker maxGapFillBlocker(maxGapFillSpin);
 
     hSpin->setValue(ecProject_->generalCecH());
@@ -153,6 +164,7 @@ void CecSettingsDialog::refresh()
     minOctantSpin->setValue(ecProject_->generalCecMinOctant());
     minValidSpin->setValue(ecProject_->generalCecMinValid());
     signalStrengthSpin->setValue(ecProject_->generalCecSignalStrength());
+    maxStationaritySpin->setValue(ecProject_->generalCecMaxStationarity());
     maxGapFillSpin->setValue(ecProject_->generalCecMaxGapFill());
 }
 
@@ -163,6 +175,7 @@ void CecSettingsDialog::restoreDefaults()
     minOctantSpin->setValue(DefaultMinOctant);
     minValidSpin->setValue(DefaultMinValid);
     signalStrengthSpin->setValue(DefaultSignalStrength);
+    maxStationaritySpin->setValue(DefaultMaxStationarity);
     maxGapFillSpin->setValue(DefaultMaxGapFill);
 }
 

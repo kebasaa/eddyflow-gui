@@ -92,6 +92,7 @@ struct ProjectGeneralState
     qreal cec_min_valid = 90.0;
     qreal cec_signal_strength = 70.0;
     int cec_max_gap_fill = 4;
+    qreal cec_max_stationarity = 25.0;
     int tob1_format = 0;
     QString out_path = QString();
     int fix_out_format = 0;

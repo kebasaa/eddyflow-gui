@@ -35,6 +35,7 @@ private:
     QDoubleSpinBox *minOctantSpin;
     QDoubleSpinBox *minValidSpin;
     QDoubleSpinBox *signalStrengthSpin;
+    QDoubleSpinBox *maxStationaritySpin;
     QSpinBox *maxGapFillSpin;
 
     QLabel *hLabel;
@@ -42,6 +43,7 @@ private:
     QLabel *minOctantLabel;
     QLabel *minValidLabel;
     QLabel *signalStrengthLabel;
+    QLabel *maxStationarityLabel;
     QLabel *maxGapFillLabel;
 
     EcProject *ecProject_;
