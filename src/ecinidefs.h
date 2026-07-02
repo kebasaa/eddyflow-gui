@@ -103,6 +103,13 @@ namespace EcIni
     const auto INI_PROJECT_70   = QStringLiteral("fluxnet_standardize_biomet");
     const auto INI_PROJECT_71   = QStringLiteral("fluxnet_err_label");
     const auto INI_PROJECT_72   = QStringLiteral("cec_meth");
+    const auto INI_PROJECT_73   = QStringLiteral("cec_h");
+    const auto INI_PROJECT_74   = QStringLiteral("cec_min_o1_o2");
+    const auto INI_PROJECT_75   = QStringLiteral("cec_min_octant");
+    const auto INI_PROJECT_76   = QStringLiteral("cec_min_valid");
+    const auto INI_PROJECT_77   = QStringLiteral("cec_signal_strength");
+    const auto INI_PROJECT_78   = QStringLiteral("cec_max_gap_fill");
+    const auto INI_PROJECT_79   = QStringLiteral("cec_max_stationarity");
 
     const auto INIGROUP_SPEC_SETTINGS = QStringLiteral("FluxCorrection_SpectralAnalysis_General");
     const auto INI_SPEC_SETTINGS_0    = QStringLiteral("sa_start_date");

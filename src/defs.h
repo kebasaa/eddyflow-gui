@@ -53,8 +53,8 @@ class QStringLiteral;
 /// \brief Contains global string literals
 namespace Defs
 {
-    const auto APP_VERSION = 0x070202;
-    const auto APP_VERSION_STR = QStringLiteral("7.2.2");
+    const auto APP_VERSION = 0x070203;
+    const auto APP_VERSION_STR = QStringLiteral("7.2.3");
     const auto APP_STAGE_STR = QStringLiteral(""); // -rc1
 
     const auto PROJECT_FILE_VERSION = 0x040500;

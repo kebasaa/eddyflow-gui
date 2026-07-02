@@ -558,6 +558,21 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
         }
     }
 
+    subTest = (ec_project_state_.projectGeneral.cec_meth == previousProject.ec_project_state_.projectGeneral.cec_meth);
+    advSettingsTest = advSettingsTest && subTest;
+
+    if (subTest && ec_project_state_.projectGeneral.cec_meth)
+    {
+        advSettingsTest = advSettingsTest
+            && qFuzzyCompare(ec_project_state_.projectGeneral.cec_h, previousProject.ec_project_state_.projectGeneral.cec_h)
+            && qFuzzyCompare(ec_project_state_.projectGeneral.cec_min_o1_o2, previousProject.ec_project_state_.projectGeneral.cec_min_o1_o2)
+            && qFuzzyCompare(ec_project_state_.projectGeneral.cec_min_octant, previousProject.ec_project_state_.projectGeneral.cec_min_octant)
+            && qFuzzyCompare(ec_project_state_.projectGeneral.cec_min_valid, previousProject.ec_project_state_.projectGeneral.cec_min_valid)
+            && qFuzzyCompare(ec_project_state_.projectGeneral.cec_signal_strength, previousProject.ec_project_state_.projectGeneral.cec_signal_strength)
+            && (ec_project_state_.projectGeneral.cec_max_gap_fill == previousProject.ec_project_state_.projectGeneral.cec_max_gap_fill)
+            && qFuzzyCompare(ec_project_state_.projectGeneral.cec_max_stationarity, previousProject.ec_project_state_.projectGeneral.cec_max_stationarity);
+    }
+
     subTest = (ec_project_state_.projectGeneral.master_sonic == previousProject.ec_project_state_.projectGeneral.master_sonic);
     dataSetTest = dataSetTest && subTest;
     if (subTest && !ec_project_state_.projectGeneral.master_sonic.contains(QStringLiteral("csat")))
@@ -786,6 +801,13 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.projectGeneral.wpl_meth = defaultEcProjectState.projectGeneral.wpl_meth;
     ec_project_state_.projectGeneral.foot_meth = defaultEcProjectState.projectGeneral.foot_meth;
     ec_project_state_.projectGeneral.cec_meth = defaultEcProjectState.projectGeneral.cec_meth;
+    ec_project_state_.projectGeneral.cec_h = defaultEcProjectState.projectGeneral.cec_h;
+    ec_project_state_.projectGeneral.cec_min_o1_o2 = defaultEcProjectState.projectGeneral.cec_min_o1_o2;
+    ec_project_state_.projectGeneral.cec_min_octant = defaultEcProjectState.projectGeneral.cec_min_octant;
+    ec_project_state_.projectGeneral.cec_min_valid = defaultEcProjectState.projectGeneral.cec_min_valid;
+    ec_project_state_.projectGeneral.cec_signal_strength = defaultEcProjectState.projectGeneral.cec_signal_strength;
+    ec_project_state_.projectGeneral.cec_max_gap_fill = defaultEcProjectState.projectGeneral.cec_max_gap_fill;
+    ec_project_state_.projectGeneral.cec_max_stationarity = defaultEcProjectState.projectGeneral.cec_max_stationarity;
     ec_project_state_.projectGeneral.tob1_format = defaultEcProjectState.projectGeneral.tob1_format;
     ec_project_state_.projectGeneral.out_path.clear();
     ec_project_state_.projectGeneral.fix_out_format = defaultEcProjectState.projectGeneral.fix_out_format;
@@ -1220,6 +1242,13 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_PROJECT_48, ec_project_state_.projectGeneral.wpl_meth);
         project_ini.setValue(EcIni::INI_PROJECT_49, ec_project_state_.projectGeneral.foot_meth);
         project_ini.setValue(EcIni::INI_PROJECT_72, ec_project_state_.projectGeneral.cec_meth);
+        project_ini.setValue(EcIni::INI_PROJECT_73, QString::number(ec_project_state_.projectGeneral.cec_h, 'f', 3));
+        project_ini.setValue(EcIni::INI_PROJECT_74, QString::number(ec_project_state_.projectGeneral.cec_min_o1_o2, 'f', 1));
+        project_ini.setValue(EcIni::INI_PROJECT_75, QString::number(ec_project_state_.projectGeneral.cec_min_octant, 'f', 1));
+        project_ini.setValue(EcIni::INI_PROJECT_76, QString::number(ec_project_state_.projectGeneral.cec_min_valid, 'f', 1));
+        project_ini.setValue(EcIni::INI_PROJECT_77, QString::number(ec_project_state_.projectGeneral.cec_signal_strength, 'f', 1));
+        project_ini.setValue(EcIni::INI_PROJECT_78, ec_project_state_.projectGeneral.cec_max_gap_fill);
+        project_ini.setValue(EcIni::INI_PROJECT_79, QString::number(ec_project_state_.projectGeneral.cec_max_stationarity, 'f', 1));
         project_ini.setValue(EcIni::INI_PROJECT_50, ec_project_state_.projectGeneral.tob1_format);
         project_ini.setValue(EcIni::INI_PROJECT_51, QDir::fromNativeSeparators(ec_project_state_.projectGeneral.out_path));
         project_ini.setValue(EcIni::INI_PROJECT_52, ec_project_state_.projectGeneral.fix_out_format);
@@ -1904,6 +1933,32 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.projectGeneral.cec_meth
                 = project_ini.value(EcIni::INI_PROJECT_72,
                                     defaultEcProjectState.projectGeneral.cec_meth).toInt();
+        ec_project_state_.projectGeneral.cec_h
+                = project_ini.value(EcIni::INI_PROJECT_73,
+                                    defaultEcProjectState.projectGeneral.cec_h).toDouble();
+        ec_project_state_.projectGeneral.cec_min_o1_o2
+                = project_ini.value(EcIni::INI_PROJECT_74,
+                                    defaultEcProjectState.projectGeneral.cec_min_o1_o2).toDouble();
+        ec_project_state_.projectGeneral.cec_min_octant
+                = project_ini.value(EcIni::INI_PROJECT_75,
+                                    defaultEcProjectState.projectGeneral.cec_min_octant).toDouble();
+        ec_project_state_.projectGeneral.cec_min_valid
+                = project_ini.value(EcIni::INI_PROJECT_76,
+                                    defaultEcProjectState.projectGeneral.cec_min_valid).toDouble();
+        ec_project_state_.projectGeneral.cec_signal_strength
+                = project_ini.value(EcIni::INI_PROJECT_77,
+                                    defaultEcProjectState.projectGeneral.cec_signal_strength).toDouble();
+        ec_project_state_.projectGeneral.cec_max_gap_fill
+                = project_ini.value(EcIni::INI_PROJECT_78,
+                                    defaultEcProjectState.projectGeneral.cec_max_gap_fill).toInt();
+        bool cecMaxStationarityOk = false;
+        const double cecMaxStationarity
+                = project_ini.value(EcIni::INI_PROJECT_79,
+                                    defaultEcProjectState.projectGeneral.cec_max_stationarity).toDouble(&cecMaxStationarityOk);
+        ec_project_state_.projectGeneral.cec_max_stationarity
+                = (cecMaxStationarityOk && cecMaxStationarity >= 0.0)
+                    ? cecMaxStationarity
+                    : defaultEcProjectState.projectGeneral.cec_max_stationarity;
         ec_project_state_.projectGeneral.tob1_format
                 = project_ini.value(EcIni::INI_PROJECT_50,
                                     defaultEcProjectState.projectGeneral.tob1_format).toInt();
@@ -4028,6 +4083,48 @@ void EcProject::setGeneralFpMeth(int n)
 void EcProject::setGeneralCecMeth(int n)
 {
     ec_project_state_.projectGeneral.cec_meth = n;
+    setModified(true);
+}
+
+void EcProject::setGeneralCecH(double d)
+{
+    ec_project_state_.projectGeneral.cec_h = d;
+    setModified(true);
+}
+
+void EcProject::setGeneralCecMinO1O2(double d)
+{
+    ec_project_state_.projectGeneral.cec_min_o1_o2 = d;
+    setModified(true);
+}
+
+void EcProject::setGeneralCecMinOctant(double d)
+{
+    ec_project_state_.projectGeneral.cec_min_octant = d;
+    setModified(true);
+}
+
+void EcProject::setGeneralCecMinValid(double d)
+{
+    ec_project_state_.projectGeneral.cec_min_valid = d;
+    setModified(true);
+}
+
+void EcProject::setGeneralCecSignalStrength(double d)
+{
+    ec_project_state_.projectGeneral.cec_signal_strength = d;
+    setModified(true);
+}
+
+void EcProject::setGeneralCecMaxGapFill(int n)
+{
+    ec_project_state_.projectGeneral.cec_max_gap_fill = n;
+    setModified(true);
+}
+
+void EcProject::setGeneralCecMaxStationarity(double d)
+{
+    ec_project_state_.projectGeneral.cec_max_stationarity = d;
     setModified(true);
 }
 

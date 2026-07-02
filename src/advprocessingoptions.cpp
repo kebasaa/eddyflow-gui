@@ -43,6 +43,7 @@
 #include <QVBoxLayout>
 #include <QDesktopServices>
 
+#include "cecsettingsdialog.h"
 #include "clicklabel.h"
 #include "configstate.h"
 #include "customresetlineedit.h"
@@ -272,6 +273,12 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     cecMethodCombo->setItemData(1, tr("<b>H\xe2\x82\x82O flux only:</b> Partition total ET into evaporation (E) and transpiration (T) only."), Qt::ToolTipRole);
     cecMethodCombo->setItemData(2, tr("<b>CO\xe2\x82\x82 flux only:</b> Partition total NEE into ecosystem respiration (R) and gross primary production (P) only."), Qt::ToolTipRole);
 
+    cecSettingsButton = new QPushButton(tr("CEC Settings"));
+    cecSettingsButton->setProperty("mdButton", true);
+    cecSettingsButton->setMaximumWidth(cecSettingsButton->sizeHint().width());
+    cecSettingsButton->setEnabled(false);
+    cecSettingsButton->setToolTip(tr("<b>CEC Settings:</b> Configure Conditional Eddy Covariance partitioning constraints and QC/preprocessing limits."));
+
     wplCheckBox = new RichTextCheckBox;
     wplCheckBox->setToolTip(tr("<b>Compensate density fluctuations:</b> This is the so-called WPL correction (Webb et al., 1980). Choose whether to apply the compensation of density fluctuations to raw gas concentrations available as molar densities or mole fractions (moles gas per mole of wet air). The correction does not apply if raw concentrations are available as mixing ratios (mole gas per mole dry air)."));
     wplCheckBox->setText(tr("Compensate density fluctuations (WPL terms)"));
@@ -392,6 +399,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     settingsLayout->addWidget(cecCheckBox,    25, 0);
     settingsLayout->addWidget(cecLabel,       25, 1, Qt::AlignRight);
     settingsLayout->addWidget(cecMethodCombo, 25, 2);
+    settingsLayout->addWidget(cecSettingsButton, 25, 3);
     settingsLayout->setRowStretch(27, 1);
     settingsLayout->setColumnStretch(4, 1);
 
@@ -518,12 +526,16 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             cecLabel, &ClickLabel::setEnabled);
     connect(cecCheckBox, &RichTextCheckBox::toggled,
             cecMethodCombo, &QComboBox::setEnabled);
+    connect(cecCheckBox, &RichTextCheckBox::toggled,
+            cecSettingsButton, &QPushButton::setEnabled);
     connect(cecLabel, &ClickLabel::clicked,
             this, &AdvProcessingOptions::onClickCecMethodLabel);
     connect(cecCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateCecMeth_1);
     connect(cecMethodCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &AdvProcessingOptions::updateCecMeth_2);
+    connect(cecSettingsButton, &QPushButton::clicked,
+            this, &AdvProcessingOptions::showCecSettingsDialog);
 
     connect(wplCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateWplMeth_1);
@@ -561,6 +573,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     createPfSettingsDialog();
     createTlSettingsDialog();
     createPwbTlSettingsDialog();
+    createCecSettingsDialog();
     QTimer::singleShot(0, this, &AdvProcessingOptions::reset);
 }
 
@@ -574,6 +587,9 @@ AdvProcessingOptions::~AdvProcessingOptions()
 
     if (pwbTlDialog_)
         delete pwbTlDialog_;
+
+    if (cecDialog_)
+        delete cecDialog_;
 }
 
 void AdvProcessingOptions::updateUOffset(double d)
@@ -848,6 +864,7 @@ void AdvProcessingOptions::reset()
     cecLabel->setEnabled(false);
     cecMethodCombo->setEnabled(false);
     cecMethodCombo->setCurrentIndex(0);
+    cecSettingsButton->setEnabled(false);
 
     wplCheckBox->setChecked(ecProject_->defaultSettings.projectGeneral.wpl_meth);
 
@@ -962,6 +979,7 @@ void AdvProcessingOptions::refresh()
     cecCheckBox->setChecked(ecProject_->generalCecMeth() > 0);
     cecLabel->setEnabled(ecProject_->generalCecMeth() > 0);
     cecMethodCombo->setEnabled(ecProject_->generalCecMeth() > 0);
+    cecSettingsButton->setEnabled(ecProject_->generalCecMeth() > 0);
     cecMethodCombo->setCurrentIndex(ecProject_->generalCecMeth() > 0
                                     ? ecProject_->generalCecMeth() - 1
                                     : 0);
@@ -1058,6 +1076,14 @@ void AdvProcessingOptions::createPwbTlSettingsDialog()
     }
 }
 
+void AdvProcessingOptions::createCecSettingsDialog()
+{
+    if (!cecDialog_)
+    {
+        cecDialog_ = new CecSettingsDialog(this, ecProject_);
+    }
+}
+
 void AdvProcessingOptions::showTlSettingsDialog()
 {
     if (ecProject_->screenTlagMeth() == 5)
@@ -1074,6 +1100,14 @@ void AdvProcessingOptions::showTlSettingsDialog()
         tlDialog_->raise();
         tlDialog_->activateWindow();
     }
+}
+
+void AdvProcessingOptions::showCecSettingsDialog()
+{
+    cecDialog_->refresh();
+    cecDialog_->show();
+    cecDialog_->raise();
+    cecDialog_->activateWindow();
 }
 
 void AdvProcessingOptions::onClickQcMethodLabel()
@@ -1163,9 +1197,12 @@ void AdvProcessingOptions::updateCecAvailability()
         cecCheckBox->setChecked(false);
         cecLabel->setEnabled(false);
         cecMethodCombo->setEnabled(false);
+        cecSettingsButton->setEnabled(false);
         ecProject_->setGeneralCecMeth(0);
         return;
     }
+
+    cecSettingsButton->setEnabled(cecCheckBox->isChecked());
 
     if (!hasCo2 || !hasH2o)
     {
