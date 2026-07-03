@@ -45,6 +45,7 @@ private:
     QDoubleSpinBox *hdiPrefilterSpin;
     QSpinBox *smoothingWidthSpin;
     QSpinBox *randomSeedSpin;
+    QCheckBox *detectOnRawCheckBox;
     QCheckBox *approxCcfCheckBox;
     QCheckBox *maxArOrderCheckBox;
     QSpinBox  *maxArOrderSpin;

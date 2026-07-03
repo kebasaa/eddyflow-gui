@@ -1626,6 +1626,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_PWB_TIMELAG_15, ec_project_state_.pwbTimelag.random_seed);
         project_ini.setValue(EcIni::INI_PWB_TIMELAG_16, ec_project_state_.pwbTimelag.approx_ccf);
         project_ini.setValue(EcIni::INI_PWB_TIMELAG_17, ec_project_state_.pwbTimelag.max_ar_order);
+        project_ini.setValue(EcIni::INI_PWB_TIMELAG_18, ec_project_state_.pwbTimelag.detect_on_raw);
     project_ini.endGroup();
 
     // random error section
@@ -2975,6 +2976,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.pwbTimelag.max_ar_order
                 = project_ini.value(EcIni::INI_PWB_TIMELAG_17,
                                     defaultEcProjectState.pwbTimelag.max_ar_order).toInt();
+        ec_project_state_.pwbTimelag.detect_on_raw
+                = project_ini.value(EcIni::INI_PWB_TIMELAG_18,
+                                    defaultEcProjectState.pwbTimelag.detect_on_raw).toInt();
     project_ini.endGroup();
 
     // random error section
@@ -5508,6 +5512,12 @@ void EcProject::setPwbApproxCcf(int n)
 void EcProject::setPwbMaxArOrder(int n)
 {
     ec_project_state_.pwbTimelag.max_ar_order = n;
+    setModified(true);
+}
+
+void EcProject::setPwbDetectOnRaw(int n)
+{
+    ec_project_state_.pwbTimelag.detect_on_raw = n;
     setModified(true);
 }
 
