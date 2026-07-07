@@ -36,6 +36,18 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
     auto title = new QLabel(tr("Pre-whitening block-bootstrap time lag detection"));
     title->setProperty("groupLabel", true);
 
+    detectOnRawCheckBox = new QCheckBox(tr("Detect time lag on raw data (pre-processing step)"));
+    detectOnRawCheckBox->setToolTip(tr(
+        "<b>Detect time lag on raw data:</b><br>"
+        "When enabled, PWB time lag detection runs as a pre-processing step directly on "
+        "the raw high-frequency data, before any block averaging or flux computation. "
+        "This can improve lag accuracy for instruments with variable or drift-prone lags "
+        "by working with the full temporal resolution of the data.<br><br>"
+        "<b>When to use:</b> Enable when closed-path instruments show systematic lag "
+        "variability within an averaging period, or when block-averaged signals lack "
+        "the resolution needed for reliable peak detection.<br><br>"
+        "<b>Default:</b> Unchecked — detection runs on the averaged time series as normal."));
+
     auto windowTitle = WidgetUtils::createBlueLabel(this, tr("Time lag search windows"));
     auto minTitle = WidgetUtils::createBlueLabel(this, tr("Minimum"));
     auto maxTitle = WidgetUtils::createBlueLabel(this, tr("Maximum"));
@@ -173,6 +185,7 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
 
     auto mainLayout = new QVBoxLayout(this);
     mainLayout->addWidget(title);
+    mainLayout->addWidget(detectOnRawCheckBox);
     mainLayout->addLayout(windows);
     mainLayout->addSpacing(10);
     mainLayout->addLayout(detection);
@@ -212,6 +225,9 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
             ecProject_, &EcProject::setPwbSmoothingWidth);
     connect(randomSeedSpin, QOverload<int>::of(&QSpinBox::valueChanged),
             ecProject_, &EcProject::setPwbRandomSeed);
+    connect(detectOnRawCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
+        ecProject_->setPwbDetectOnRaw(checked ? 1 : 0);
+    });
     connect(approxCcfCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
         ecProject_->setPwbApproxCcf(checked ? 1 : 0);
     });
@@ -246,6 +262,7 @@ void PwbTimelagSettingsDialog::refresh()
     smoothingWidthSpin->setValue(ecProject_->pwbSmoothingWidth());
     randomSeedSpin->setValue(ecProject_->pwbRandomSeed());
 
+    detectOnRawCheckBox->setChecked(ecProject_->pwbDetectOnRaw() != 0);
     approxCcfCheckBox->setChecked(ecProject_->pwbApproxCcf() != 0);
 
     const int maxAr = ecProject_->pwbMaxArOrder();
