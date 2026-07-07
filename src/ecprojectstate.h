@@ -453,25 +453,25 @@ struct TimelagOptState
 
 struct PwbTimelagState
 {
-    qreal co2_min_lag = -5.0;
+    qreal co2_min_lag = 0.0;
     qreal co2_max_lag = 25.0;
-    qreal h2o_min_lag = -5.0;
+    qreal h2o_min_lag = 0.0;
     qreal h2o_max_lag = 25.0;
-    qreal ch4_min_lag = -5.0;
+    qreal ch4_min_lag = 0.0;
     qreal ch4_max_lag = 25.0;
-    qreal gas4_min_lag = -5.0;
+    qreal gas4_min_lag = 0.0;
     qreal gas4_max_lag = 25.0;
     int n_bootstrap = 99;
     qreal block_length_s = 20.0;
     qreal min_valid_frac = 0.3;
-    qreal hdi_thresh_s = 1.0;
-    qreal dev_thresh_s = 1.0;
+    qreal hdi_thresh_s = 0.5;
+    qreal dev_thresh_s = 0.5;
     qreal hdi_prefilter_s = 1.0;
     int smoothing_width = 6;
     int random_seed = 2024;
-    int approx_ccf    = 1;
+    int approx_ccf    = 0;
     int max_ar_order  = 0;
-    int detect_on_raw = 0;
+    int detect_on_raw = 1;
 };
 
 struct RandomErrorState
