@@ -3,6 +3,7 @@ echo "[Running $0]"
 echo "Copying frameworks and dynamic libraries in the debug or release binary folder... "
 
 DEBUG_OR_RELEASE=$1
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
 PWD=$(pwd)
 echo "[pwd: $PWD]"
@@ -11,13 +12,16 @@ echo "[arg DEBUG_OR_RELEASE: $DEBUG_OR_RELEASE]"
 
 if [ "$DEBUG_OR_RELEASE" == "debug" ]; then
     FRAMEWORKS_DIR="./$DEBUG_OR_RELEASE/EddyFlow_debug.app/Contents/Frameworks"
+    MACOS_DIR="./$DEBUG_OR_RELEASE/EddyFlow_debug.app/Contents/MacOS"
     QUAZIP_LIB=libquazip_debug.1.0.0.dylib
 else
     FRAMEWORKS_DIR="./$DEBUG_OR_RELEASE/EddyFlow.app/Contents/Frameworks"
+    MACOS_DIR="./$DEBUG_OR_RELEASE/EddyFlow.app/Contents/MacOS"
     QUAZIP_LIB=libquazip.1.0.0.dylib
 fi
 
 echo "[FRAMEWORKS_DIR: $FRAMEWORKS_DIR]"
+echo "[MACOS_DIR: $MACOS_DIR]"
 
 QUAZIP_BUILD_DIR="build-quazip-0.7.6-qt-5.12.2-clang-10.0.0-x86_64"
 echo "[QUAZIP_BUILD_DIR: $QUAZIP_BUILD_DIR]"
@@ -30,3 +34,7 @@ install_name_tool -id "@loader_path/../Frameworks/$QUAZIP_LIB" "../../libs/mac/$
 
 echo "Copy quazip in the app bundle..."
 cp "../../libs/mac/$QUAZIP_BUILD_DIR/$QUAZIP_LIB" "$FRAMEWORKS_DIR" || exit 3
+
+echo "Copy ancillary template files in the app bundle..."
+mkdir -p "$MACOS_DIR/file-templates" || exit 4
+cp "$SCRIPT_DIR/../../file-templates/"*.txt "$MACOS_DIR/file-templates" || exit 5
