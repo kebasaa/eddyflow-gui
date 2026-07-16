@@ -204,7 +204,7 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
                                 "because eliminated during one of the raw "
                                 "data screening procedures, e.g. de-spiking."));
     maxLackSpin = new QSpinBox;
-    maxLackSpin->setRange(0, 40);
+    maxLackSpin->setRange(0, 99);
     maxLackSpin->setSingleStep(1);
     maxLackSpin->setValue(10);
     maxLackSpin->setAccelerated(true);
