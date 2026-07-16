@@ -85,7 +85,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
 
     binnedSpectraDirBrowse = new DirBrowseWidget;
     binnedSpectraDirBrowse->setToolTip(tr("<b>Browse:</b> Specify the folder that contains the binned (co)spectra files."));
-    binnedSpectraDirBrowse->setDialogWorkingDir(WidgetUtils::getSearchPathHint());
+    binnedSpectraDirBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("binned_cospectra_dir")));
     binnedSpectraDirBrowse->setDialogTitle(tr("Select the Binned (Co)Spectra Files Directory"));
 
     binnedSpectraRadioGroup = new QButtonGroup(this);
@@ -454,7 +454,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     spectraFileBrowse = new FileBrowseWidget;
     spectraFileBrowse->setToolTip(tr("<b>Load:</b> Load an existing spectral assessment file"));
     spectraFileBrowse->setDialogTitle(tr("Select the Spectral Assessment File"));
-    spectraFileBrowse->setDialogWorkingDir(WidgetUtils::getSearchPathHint());
+    spectraFileBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("spectral_assessment_file")));
     spectraFileBrowse->setDialogFilter(tr("All Files (*.*)"));
 
     spectraRadioGroup = new QButtonGroup(this);
@@ -551,7 +551,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     fullSpectraDirBrowse = new DirBrowseWidget;
     fullSpectraDirBrowse->setToolTip(tr("<b>Browse:</b> Specify the folder that contains the full w/T<sub>s</sub> cospectra files."));
     fullSpectraDirBrowse->setDialogTitle(tr("Select the Full Spectra Files Directory"));
-    fullSpectraDirBrowse->setDialogWorkingDir(WidgetUtils::getSearchPathHint());
+    fullSpectraDirBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("full_cospectra_dir")));
 
     fullSpectraRadioGroup = new QButtonGroup(this);
     fullSpectraRadioGroup->addButton(fullSpectraNonExistingRadio, 0);
@@ -1373,10 +1373,7 @@ void AdvSpectralOptions::testSelectedSpectraFile(const QString& fp)
     if (dialog_result)
     {
         spectraFileBrowse->setPath(fp);
-
-        QString lastPath = paramFilePath.canonicalPath();
-        configState_->window.last_data_path = lastPath;
-        GlobalSettings::updateLastDatapath(lastPath);
+        WidgetUtils::rememberDialogPath(QStringLiteral("spectral_assessment_file"), fp, true);
     }
     else
     {
@@ -1388,20 +1385,14 @@ void AdvSpectralOptions::binnedSpectraDirSelected(const QString& dir_path)
 {
     binnedSpectraDirBrowse->setPath(dir_path);
 
-    QDir dataDir(dir_path);
-    QString canonicalDataDir = dataDir.canonicalPath();
-    configState_->window.last_data_path = canonicalDataDir;
-    GlobalSettings::updateLastDatapath(canonicalDataDir);
+    WidgetUtils::rememberDialogPath(QStringLiteral("binned_cospectra_dir"), dir_path, false);
 }
 
 void AdvSpectralOptions::fullSpectraDirSelected(const QString& dir_path)
 {
     fullSpectraDirBrowse->setPath(dir_path);
 
-    QDir dataDir(dir_path);
-    QString canonicalDataDir = dataDir.canonicalPath();
-    configState_->window.last_data_path = canonicalDataDir;
-    GlobalSettings::updateLastDatapath(canonicalDataDir);
+    WidgetUtils::rememberDialogPath(QStringLiteral("full_cospectra_dir"), dir_path, false);
 }
 
 void AdvSpectralOptions::spectraRadioClicked(int radioButton)

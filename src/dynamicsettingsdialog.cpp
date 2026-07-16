@@ -36,6 +36,7 @@
 
 #include "ecproject.h"
 #include "dynamicsettingsdialog.h"
+#include "widget_utils.h"
 
 DynamicSettingsDialog::DynamicSettingsDialog(QWidget* parent, EcProject *ecProject)
     : QDialog(),
@@ -191,13 +192,9 @@ void DynamicSettingsDialog::updateTimelineFile(const QString& fp)
 
 void DynamicSettingsDialog::timelineFileLoad_clicked()
 {
-    QString searchPath = ecProject_->timelagDataPath();
-    if (!ecProject_->screenDataPath().isEmpty())
-        searchPath = ecProject_->screenDataPath();
-
     QString paramFile = QFileDialog::getOpenFileName(this,
                     tr("Select the dynamic metadata file"),
-                    searchPath,
+                    WidgetUtils::getDialogPathHint(QStringLiteral("dynamic_parameters_file")),
                     tr("All Files (*.*)")
                     );
     if (!paramFile.isEmpty())
@@ -205,6 +202,7 @@ void DynamicSettingsDialog::timelineFileLoad_clicked()
         QFileInfo paramFilePath(paramFile);
         QString canonicalParamFile = paramFilePath.canonicalFilePath();
         timelineFileEdit->setText(QDir::toNativeSeparators(canonicalParamFile));
+        WidgetUtils::rememberDialogPath(QStringLiteral("dynamic_parameters_file"), paramFile, true);
     }
 }
 
@@ -227,13 +225,9 @@ void DynamicSettingsDialog::updateMeteoFile(const QString& fp)
 
 void DynamicSettingsDialog::meteoFileLoad_clicked()
 {
-    QString searchPath = ecProject_->generalMeteoFilepath();
-    if (!ecProject_->screenDataPath().isEmpty())
-        searchPath = ecProject_->screenDataPath();
-
     QString paramFile = QFileDialog::getOpenFileName(this,
                         tr("Select the high quality meteo file"),
-                        searchPath,
+                        WidgetUtils::getDialogPathHint(QStringLiteral("dynamic_parameters_file")),
                         tr("All Files (*.*)")
                         );
     if (!paramFile.isEmpty())
@@ -241,6 +235,7 @@ void DynamicSettingsDialog::meteoFileLoad_clicked()
         QFileInfo paramFilePath(paramFile);
         QString canonicalParamFile = paramFilePath.canonicalFilePath();
         meteoFileEdit->setText(QDir::toNativeSeparators(canonicalParamFile));
+        WidgetUtils::rememberDialogPath(QStringLiteral("dynamic_parameters_file"), paramFile, true);
     }
 }
 

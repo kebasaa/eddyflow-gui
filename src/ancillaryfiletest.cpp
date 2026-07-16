@@ -1081,7 +1081,7 @@ void AncillaryFileTest::saveResults()
 {
     auto timestamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-ddThhmmss"));
     auto filenameHint =
-            WidgetUtils::getSearchPathHint()
+            WidgetUtils::getDialogPathHint(QStringLiteral("ancillary_test_results_save"))
             + QStringLiteral("/")
             + typeToString(type_)
             + QStringLiteral("-")
@@ -1121,7 +1121,10 @@ void AncillaryFileTest::saveResults()
         out << ".\n";
 
         // flush data to file
-        file.commit();
+        if (file.commit())
+        {
+            WidgetUtils::rememberDialogPath(QStringLiteral("ancillary_test_results_save"), filename, true);
+        }
     }
 }
 

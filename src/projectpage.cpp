@@ -157,7 +157,7 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
     metadataFileBrowse->disableClearAction();
     metadataFileBrowse->setToolTip(tr("<b>Load:</b> Load an existing metadata file to edit it in the <i><b>Metadata File Editor</i></b>. If you use the <i><b>Metadata File Editor</i></b> to create and save a new metadata file from scratch, its path will appear here."));
     metadataFileBrowse->setDialogTitle(tr("Select the Metadata File"));
-    metadataFileBrowse->setDialogWorkingDir(WidgetUtils::getSearchPathHint());
+    metadataFileBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("metadata_file")));
     metadataFileBrowse->setDialogFilter(tr("%1 Metadata Files (*.metadata);;All Files (*.*)").arg(Defs::APP_NAME));
 
     createQuestionMark();
@@ -180,7 +180,7 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
     dynamicMdFileBrowse = new FileBrowseWidget;
     dynamicMdFileBrowse->setToolTip(tr("<b>Load:</b> Load an existing dynamic metadata file."));
     dynamicMdFileBrowse->setDialogTitle(tr("Select the Dynamic Metadata File"));
-    dynamicMdFileBrowse->setDialogWorkingDir(WidgetUtils::getSearchPathHint());
+    dynamicMdFileBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("dynamic_metadata_file")));
     dynamicMdFileBrowse->setDialogFilter(tr("All Files (*.*)"));
 
     biomDataCheckBox = new QCheckBox;
@@ -198,7 +198,7 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
     biometExtFileBrowse = new FileBrowseWidget;
     biometExtFileBrowse->setToolTip(tr("<b>Load:</b> Load an existing biomet external file"));
     biometExtFileBrowse->setDialogTitle(tr("Select the Biomet File"));
-    biometExtFileBrowse->setDialogWorkingDir(WidgetUtils::getSearchPathHint());
+    biometExtFileBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("external_biomet_file")));
 #if defined(Q_OS_MACOS)
     biometExtFileBrowse->setDialogFilter(tr("All Files (*.*)"));
 #else
@@ -215,7 +215,7 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
                                       "subfolders, select the <i>Search in "
                                       "subfolders</i> box."));
     biometExtDirBrowse->setDialogTitle(tr("Select the Biomet Files Directory"));
-    biometExtDirBrowse->setDialogWorkingDir(WidgetUtils::getSearchPathHint());
+    biometExtDirBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("external_biomet_dir")));
 
     biomExtDirRecCheckBox = new QCheckBox;
     biomExtDirRecCheckBox->setText(tr("Search in subfolders"));
@@ -475,10 +475,7 @@ void ProjectPage::selectWidget(int filetype)
 
 void ProjectPage::metadataFileSelected(const QString& file_path)
 {
-    QFileInfo mdDir(file_path);
-    auto mdPath = mdDir.canonicalPath();
-    configState_->window.last_data_path = mdPath;
-    GlobalSettings::updateLastDatapath(mdPath);
+    WidgetUtils::rememberDialogPath(QStringLiteral("metadata_file"), file_path, true);
 
     auto embedded = false;
     if (dlIniDialog_->openFile(file_path, embedded))
@@ -495,10 +492,7 @@ void ProjectPage::biomExtFileSelected(const QString& fp)
     biometExtFileBrowse->setPath(fp);
     updateMetadataLoading();
 
-    QFileInfo mdDir(fp);
-    auto mdPath = mdDir.canonicalPath();
-    configState_->window.last_data_path = mdPath;
-    GlobalSettings::updateLastDatapath(mdPath);
+    WidgetUtils::rememberDialogPath(QStringLiteral("external_biomet_file"), fp, true);
 }
 
 void ProjectPage::onTitleLabelClicked()
@@ -965,10 +959,7 @@ void ProjectPage::dynamicMdFileSelected(const QString& fp)
 {
     dynamicMdFileBrowse->setPath(fp);
 
-    QFileInfo paramFilePath(fp);
-    auto lastPath = paramFilePath.canonicalPath();
-    configState_->window.last_data_path = lastPath;
-    GlobalSettings::updateLastDatapath(lastPath);
+    WidgetUtils::rememberDialogPath(QStringLiteral("dynamic_metadata_file"), fp, true);
 }
 
 void ProjectPage::mdResetRequest()
@@ -1073,10 +1064,7 @@ void ProjectPage::biometExtDirSelected(const QString& dir_path)
 {
     biometExtDirBrowse->setPath(dir_path);
 
-    QDir dataDir(dir_path);
-    auto canonicalDataDir = dataDir.canonicalPath();
-    configState_->window.last_data_path = canonicalDataDir;
-    GlobalSettings::updateLastDatapath(canonicalDataDir);
+    WidgetUtils::rememberDialogPath(QStringLiteral("external_biomet_dir"), dir_path, false);
 }
 
 void ProjectPage::updateExtDirSuffix(const QString& s)

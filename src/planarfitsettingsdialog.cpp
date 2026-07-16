@@ -133,7 +133,7 @@ PlanarFitSettingsDialog::PlanarFitSettingsDialog(QWidget* parent, EcProject *ecP
     fileBrowse = new FileBrowseWidget;
     fileBrowse->setToolTip(tr("<b>Load:</b> Load an existing planar fit file"));
     fileBrowse->setDialogTitle(tr("Select the Planar Fit File"));
-    fileBrowse->setDialogWorkingDir(WidgetUtils::getSearchPathHint());
+    fileBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("planar_fit_file")));
     fileBrowse->setDialogFilter(tr("All Files (*.*)"));
 
     auto existingFileLayout = new QHBoxLayout;
@@ -507,10 +507,7 @@ void PlanarFitSettingsDialog::testSelectedFile(const QString& fp)
     if (dialog_result)
     {
         fileBrowse->setPath(fp);
-
-        auto lastPath = paramFilePath.canonicalPath();
-        configState_->window.last_data_path = lastPath;
-        GlobalSettings::updateLastDatapath(lastPath);
+        WidgetUtils::rememberDialogPath(QStringLiteral("planar_fit_file"), fp, true);
     }
     else
     {

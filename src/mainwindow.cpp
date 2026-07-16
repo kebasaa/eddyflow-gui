@@ -437,16 +437,18 @@ void MainWindow::fileOpen(const QString &fileName)
     {
         fileStr = QFileDialog::getOpenFileName(this,
                         tr("Select an %1 Project File").arg(Defs::APP_NAME),
-                        WidgetUtils::getSearchPathHint(),
+                        WidgetUtils::getDialogPathHint(QStringLiteral("open_project")),
                         tr("%1 Project Files (*.%2 *.eddypro);;All Files (*.*)").arg(Defs::APP_NAME, Defs::PROJECT_FILE_EXT),
                         nullptr
                         // , QFileDialog::DontUseNativeDialog
                         );
         if (fileStr.isEmpty()) { return; }
+        WidgetUtils::rememberDialogPath(QStringLiteral("open_project"), fileStr, true);
 
         // Redirect .eddypro files to the dedicated import path
         if (QFileInfo(fileStr).suffix().toLower() == QLatin1String("eddypro"))
         {
+            WidgetUtils::rememberDialogPath(QStringLiteral("import_eddypro_project"), fileStr, true);
             importEddyProFile(fileStr);
             return;
         }
@@ -500,7 +502,7 @@ void MainWindow::importEddyProFile(const QString& fileName)
     {
         fileStr = QFileDialog::getOpenFileName(this,
                         tr("Import an EddyPro Project File"),
-                        WidgetUtils::getSearchPathHint(),
+                        WidgetUtils::getDialogPathHint(QStringLiteral("import_eddypro_project")),
                         tr("EddyPro Project Files (*.eddypro);;All Files (*.*)"),
                         nullptr);
         if (fileStr.isEmpty()) { return; }
@@ -508,6 +510,7 @@ void MainWindow::importEddyProFile(const QString& fileName)
 
     if (!QFile::exists(fileStr)) { return; }
     if (!ecProject_->eddyProNativeFormat(fileStr)) { return; }
+    WidgetUtils::rememberDialogPath(QStringLiteral("import_eddypro_project"), fileStr, true);
 
     bool modified = false;
     if (!ecProject_->importEddyProProject(fileStr, true, &modified)) { return; }
@@ -694,7 +697,7 @@ bool MainWindow::fileSaveAs(const QString& fileName)
 {
     closeOpenDialogs();
 
-    auto searchPath = WidgetUtils::getSearchPathHint();
+    auto searchPath = WidgetUtils::getDialogPathHint(QStringLiteral("save_project"));
 
     auto filenameHint = QString();
     if ((ecProject_->generalFileName() == Defs::DEFAULT_PROJECT_FILENAME)
@@ -766,6 +769,7 @@ bool MainWindow::fileSaveAs(const QString& fileName)
             newFlag_ = false;
             saveAction->setEnabled(false);
             setCurrentProjectFile(fileToSave);
+            WidgetUtils::rememberDialogPath(QStringLiteral("save_project"), fileToSave, true);
             showStatusTip(tr("Project saved"));
             return true;
         }

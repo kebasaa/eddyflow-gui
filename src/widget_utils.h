@@ -129,6 +129,8 @@ namespace WidgetUtils
 
     // provide a search path hint
     QString getSearchPathHint();
+    QString getDialogPathHint(const QString& contextKey);
+    void rememberDialogPath(const QString& contextKey, const QString& selectedPath, bool isFile);
 
 }  // namespace WidgetUtils
 

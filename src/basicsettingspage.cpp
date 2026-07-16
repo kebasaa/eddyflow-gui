@@ -134,7 +134,7 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     datapathBrowse->disableClearAction();
     datapathBrowse->setToolTip(datapathLabel->toolTip());
     datapathBrowse->setDialogTitle(tr("Select the Raw Data Directory"));
-    datapathBrowse->setDialogWorkingDir(WidgetUtils::getSearchPathHint());
+    datapathBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("raw_data_dir")));
 
     recursionCheckBox = new QCheckBox;
     recursionCheckBox->setText(tr("Search in subfolders"));
@@ -160,7 +160,7 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     outpathBrowse->setReadOnly(false);
     outpathBrowse->setToolTip(outpathLabel->toolTip());
     outpathBrowse->setDialogTitle(tr("Select the Output Directory"));
-    outpathBrowse->setDialogWorkingDir(WidgetUtils::getSearchPathHint());
+    outpathBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("output_dir")));
 
     idLabel = new ClickLabel(tr("Output ID :"));
     idLabel->setToolTip(tr("<b>Output ID:</b> Enter the ID. This string will be appended to each output file name so a short ID is recommended. Note that characters that result in file names that are unacceptable to the commonest operating systems (this includes | \\ / : ; ? * ' \" < > CR LF TAB SPACE and other non readable characters) are not permitted."));
@@ -1304,10 +1304,7 @@ void BasicSettingsPage::datapathSelected(const QString& dir_path)
 
     datapathBrowse->setPath(dir_path);
 
-    QDir dataDir(dir_path);
-    auto canonicalDataDir = dataDir.canonicalPath();
-    configState_->window.last_data_path = canonicalDataDir;
-    GlobalSettings::updateLastDatapath(canonicalDataDir);
+    WidgetUtils::rememberDialogPath(QStringLiteral("raw_data_dir"), dir_path, false);
 
     updateMetadataRead(true);
 
@@ -2708,10 +2705,7 @@ void BasicSettingsPage::outpathBrowseSelected(const QString& dir_path)
 {
     outpathBrowse->setPath(dir_path);
 
-    QDir outDir(dir_path);
-    auto canonicalOutDir = outDir.canonicalPath();
-    configState_->window.last_data_path = canonicalOutDir;
-    GlobalSettings::updateLastDatapath(canonicalOutDir);
+    WidgetUtils::rememberDialogPath(QStringLiteral("output_dir"), dir_path, false);
 }
 
 void BasicSettingsPage::updateDataPath(const QString& dp)

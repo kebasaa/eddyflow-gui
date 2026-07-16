@@ -25,6 +25,7 @@
 #include "filebrowsewidget.h"
 
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QPushButton>
 
 #include "customdroplineedit.h"
@@ -52,12 +53,24 @@ FileBrowseWidget::~FileBrowseWidget()
 
 void FileBrowseWidget::onButtonClick()
 {
+    auto workingDir = dialogWorkingDir();
+    if (workingDir.isEmpty() || !QFileInfo(workingDir).isDir())
+    {
+        workingDir = WidgetUtils::getSearchPathHint();
+    }
+
     QString filename = QFileDialog::getOpenFileName(this,
                            dialogTitle(),
-                           WidgetUtils::getSearchPathHint(),
+                           workingDir,
                            dialogFilter());
 
     if (filename.isEmpty()) { return; }
+
+    auto fileInfo = QFileInfo(filename);
+    if (!fileInfo.canonicalPath().isEmpty())
+    {
+        setDialogWorkingDir(fileInfo.canonicalPath());
+    }
 
     emit pathSelected(filename);
 }

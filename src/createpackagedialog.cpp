@@ -93,7 +93,7 @@ CreatePackageDialog::CreatePackageDialog(EcProject *ecProject,
     outpathBrowse = new DirBrowseWidget;
     outpathBrowse->disableClearAction();
     outpathBrowse->setDialogTitle(tr("Select the Output Directory"));
-    outpathBrowse->setDialogWorkingDir(WidgetUtils::getSearchPathHint());
+    outpathBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("package_output_dir")));
     outpathBrowse->setToolTip(outpathLabel->toolTip());
 
 #if defined(Q_OS_WIN)
@@ -271,8 +271,5 @@ void CreatePackageDialog::outpathBrowseSelected(const QString& dir_path)
 {
     outpathBrowse->setPath(dir_path);
 
-    QDir outDir(dir_path);
-    auto canonicalOutDir = outDir.canonicalPath();
-    configState_->window.last_data_path = canonicalOutDir;
-    GlobalSettings::updateLastDatapath(canonicalOutDir);
+    WidgetUtils::rememberDialogPath(QStringLiteral("package_output_dir"), dir_path, false);
 }
