@@ -1086,6 +1086,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.spectraSettings.use_vm_flags = defaultEcProjectState.spectraSettings.use_vm_flags;
     ec_project_state_.spectraSettings.use_foken_low = defaultEcProjectState.spectraSettings.use_foken_low;
     ec_project_state_.spectraSettings.use_foken_mid = defaultEcProjectState.spectraSettings.use_foken_mid;
+    ec_project_state_.spectraSettings.create_assessment = defaultEcProjectState.spectraSettings.create_assessment;
 
     ec_project_state_.screenTilt.start_date = QDate(2000, 1, 1).toString(Qt::ISODate);
     ec_project_state_.screenTilt.end_date = QDate::currentDate().toString(Qt::ISODate);
@@ -1100,6 +1101,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenTilt.fix_policy = defaultEcProjectState.screenTilt.fix_policy;
     ec_project_state_.screenTilt.angles.clear();
     ec_project_state_.screenTilt.subset = defaultEcProjectState.screenTilt.subset;
+    ec_project_state_.screenTilt.assessment_only = defaultEcProjectState.screenTilt.assessment_only;
 
     ec_project_state_.timelagOpt.start_date = QDate(2000, 1, 1).toString(Qt::ISODate);
     ec_project_state_.timelagOpt.end_date = QDate::currentDate().toString(Qt::ISODate);
@@ -1122,6 +1124,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.timelagOpt.gas4_min_lag = defaultEcProjectState.timelagOpt.gas4_min_lag;
     ec_project_state_.timelagOpt.gas4_max_lag = defaultEcProjectState.timelagOpt.gas4_max_lag;
     ec_project_state_.timelagOpt.subset  = defaultEcProjectState.timelagOpt.subset;
+    ec_project_state_.timelagOpt.assessment_only = defaultEcProjectState.timelagOpt.assessment_only;
 
     ec_project_state_.randomError.ru_method = defaultEcProjectState.randomError.ru_method;
     ec_project_state_.randomError.its_method = defaultEcProjectState.randomError.its_method;
@@ -1319,6 +1322,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_47, QString::number(ec_project_state_.spectraSettings.sa_max_gas4, 'f', 4));
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_48, ec_project_state_.spectraSettings.use_foken_low);
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_49, ec_project_state_.spectraSettings.use_foken_mid);
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_52, ec_project_state_.spectraSettings.create_assessment);
 
         // NOTE: temporary placeholders for SA Groups. Not used right now
         project_ini.setValue(QStringLiteral("sa_co2_g1_start"), 1);
@@ -1564,6 +1568,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_TILT_7, QDir::fromNativeSeparators(ec_project_state_.screenTilt.file));
         project_ini.setValue(EcIni::INI_SCREEN_TILT_8, ec_project_state_.screenTilt.fix_policy);
         project_ini.setValue(EcIni::INI_SCREEN_TILT_11, ec_project_state_.screenTilt.subset);
+        project_ini.setValue(EcIni::INI_SCREEN_TILT_14, ec_project_state_.screenTilt.assessment_only);
 
         // iterate through angle list
         int k = 0;
@@ -1604,6 +1609,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_TIMELAG_OPT_15, QString::number(ec_project_state_.timelagOpt.gas4_min_lag, 'f', 1));
         project_ini.setValue(EcIni::INI_TIMELAG_OPT_16, QString::number(ec_project_state_.timelagOpt.gas4_max_lag, 'f', 1));
         project_ini.setValue(EcIni::INI_TIMELAG_OPT_18, ec_project_state_.timelagOpt.subset);
+        project_ini.setValue(EcIni::INI_TIMELAG_OPT_21, ec_project_state_.timelagOpt.assessment_only);
     project_ini.endGroup();
 
     // PWB timelag section
@@ -2162,6 +2168,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.spectraSettings.use_foken_mid
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_49,
                                     defaultEcProjectState.spectraSettings.use_foken_mid).toInt();
+        ec_project_state_.spectraSettings.create_assessment
+                = project_ini.value(EcIni::INI_SPEC_SETTINGS_52,
+                                    defaultEcProjectState.spectraSettings.create_assessment).toInt();
     project_ini.endGroup();
 
     // preproc general section
@@ -2832,6 +2841,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenTilt.subset
                 = project_ini.value(EcIni::INI_SCREEN_TILT_11,
                                     defaultEcProjectState.screenTilt.subset).toInt();
+        ec_project_state_.screenTilt.assessment_only
+                = project_ini.value(EcIni::INI_SCREEN_TILT_14,
+                                    defaultEcProjectState.screenTilt.assessment_only).toInt();
 
         ec_project_state_.screenTilt.angles.clear();
         int numAngles = countPlanarFitAngles(project_ini.allKeys());
@@ -2918,6 +2930,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.timelagOpt.subset
                 = project_ini.value(EcIni::INI_TIMELAG_OPT_18,
                                     defaultEcProjectState.timelagOpt.subset).toInt();
+        ec_project_state_.timelagOpt.assessment_only
+                = project_ini.value(EcIni::INI_TIMELAG_OPT_21,
+                                    defaultEcProjectState.timelagOpt.assessment_only).toInt();
     project_ini.endGroup();
 
     // PWB time lag section
@@ -5223,6 +5238,13 @@ void EcProject::setPlanarFitSubset(int n)
     setModified(true);
 }
 
+void EcProject::setPlanarFitAssessmentOnly(int n)
+{
+    ec_project_state_.screenTilt.assessment_only = n;
+    setModified(true);
+    emit updateInfo();
+}
+
 void EcProject::setSpectraStartDate(const QString& date)
 {
     ec_project_state_.spectraSettings.start_sa_date = date;
@@ -5257,6 +5279,13 @@ void EcProject::setSpectraMode(int i)
 void EcProject::setSpectraFile(const QString &p)
 {
     ec_project_state_.spectraSettings.sa_file = p;
+    setModified(true);
+    emit updateInfo();
+}
+
+void EcProject::setSpectraCreateAssessment(int n)
+{
+    ec_project_state_.spectraSettings.create_assessment = n;
     setModified(true);
     emit updateInfo();
 }
@@ -5405,6 +5434,13 @@ void EcProject::setTimelagOptGas4MaxLag(double d)
 {
     ec_project_state_.timelagOpt.gas4_max_lag = d;
     setModified(true);
+}
+
+void EcProject::setTimelagAssessmentOnly(int n)
+{
+    ec_project_state_.timelagOpt.assessment_only = n;
+    setModified(true);
+    emit updateInfo();
 }
 
 void EcProject::setPwbCo2MinLag(double d)

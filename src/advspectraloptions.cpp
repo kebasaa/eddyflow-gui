@@ -38,6 +38,7 @@
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScrollArea>
+#include <QSignalBlocker>
 #include <QSpinBox>
 #include <QTimer>
 #include <QTimeEdit>
@@ -923,6 +924,8 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             this, &AdvSpectralOptions::reset);
     connect(ecProject_, &EcProject::ecProjectChanged,
             this, &AdvSpectralOptions::refresh);
+    connect(ecProject_, &EcProject::updateInfo,
+            this, &AdvSpectralOptions::refreshSpectralAssessmentCreationMode);
 
     auto combo_list = QWidgetList() << hfMethCombo
                                     << horstCombo;
@@ -1128,6 +1131,7 @@ void AdvSpectralOptions::reset()
     ecProject_->setModified(oldmod);
     ecProject_->blockSignals(false);
 
+    refreshSpectralAssessmentCreationMode();
     emit updateOutputsRequest(0);
 }
 
@@ -1334,6 +1338,100 @@ void AdvSpectralOptions::refresh()
     // restore modified flag
     ecProject_->setModified(oldmod);
     ecProject_->blockSignals(false);
+
+    refreshSpectralAssessmentCreationMode();
+    emit updateOutputsRequest(hfMethCombo->currentIndex());
+}
+
+void AdvSpectralOptions::refreshSpectralAssessmentCreationMode()
+{
+    const auto createAssessment = ecProject_->spectraCreateAssessment();
+    if (createAssessment && configState_->project.smartfluxMode)
+    {
+        ecProject_->setSpectraCreateAssessment(0);
+        return;
+    }
+
+    hfMethCombo->setItemData(0,
+                             createAssessment
+                             ? QStringLiteral("disabled")
+                             : QStringLiteral("enabled"),
+                             Qt::UserRole);
+    hfMethCombo->setItemData(1,
+                             createAssessment
+                             ? QStringLiteral("disabled")
+                             : QStringLiteral("enabled"),
+                             Qt::UserRole);
+    hfMethCombo->setItemData(2, QStringLiteral("enabled"), Qt::UserRole);
+    hfMethCombo->setItemData(3, QStringLiteral("enabled"), Qt::UserRole);
+    hfMethCombo->setItemData(4, QStringLiteral("enabled"), Qt::UserRole);
+
+    if (createAssessment)
+    {
+        if (ecProject_->generalHfMethod() < 2 || ecProject_->generalHfMethod() > 4)
+        {
+            ecProject_->setGeneralHfMethod(4);
+        }
+        if (ecProject_->spectraMode() != 1)
+        {
+            ecProject_->setSpectraMode(1);
+        }
+
+        QSignalBlocker hfMethodBlocker(hfMethodCheck);
+        QSignalBlocker hfComboBlocker(hfMethCombo);
+        QSignalBlocker spectraExistingBlocker(spectraExistingRadio);
+        QSignalBlocker spectraNonExistingBlocker(spectraNonExistingRadio);
+
+        hfMethodCheck->setChecked(true);
+        hfMethCombo->setCurrentIndex(hfComboIndexFromProjectMethod());
+        spectraExistingRadio->setChecked(false);
+        spectraNonExistingRadio->setChecked(true);
+
+        hfMethodCheck->setEnabled(false);
+        hfMethLabel->setEnabled(true);
+        hfMethCombo->setEnabled(true);
+        spectraExistingRadio->setEnabled(false);
+        spectraNonExistingRadio->setEnabled(false);
+        spectraFileBrowse->setEnabled(false);
+
+        const auto toEnable = isHorstIbromFratini();
+        spin11Label->setEnabled(toEnable);
+        spin12Label->setEnabled(toEnable);
+        spin13Label->setEnabled(toEnable);
+        spin14Label->setEnabled(toEnable);
+        spin10Label->setEnabled(toEnable);
+        spin20Label->setEnabled(toEnable);
+        minMaxFreqLabel->setEnabled(toEnable);
+        noiseFreqLabel->setEnabled(toEnable);
+        spin11->setEnabled(toEnable);
+        spin12->setEnabled(toEnable);
+        spin13->setEnabled(toEnable);
+        spin14->setEnabled(toEnable);
+        spin21->setEnabled(toEnable);
+        spin22->setEnabled(toEnable);
+        spin23->setEnabled(toEnable);
+        spin24->setEnabled(toEnable);
+    }
+    else
+    {
+        hfMethodCheck->setEnabled(true);
+        hfMethLabel->setEnabled(hfMethodCheck->isChecked());
+        hfMethCombo->setEnabled(hfMethodCheck->isChecked());
+
+        const auto smartfluxOn = configState_->project.smartfluxMode;
+        if (smartfluxOn)
+        {
+            hfMethCombo->setItemData(4, QStringLiteral("disabled"), Qt::UserRole);
+        }
+
+        spectraExistingRadio->setEnabled(hfMethodCheck->isChecked()
+                                         && isHorstIbromFratini());
+        spectraNonExistingRadio->setEnabled(hfMethodCheck->isChecked()
+                                            && isHorstIbromFratini()
+                                            && !smartfluxOn);
+        spectraFileBrowse->setEnabled(spectraExistingRadio->isEnabled()
+                                      && spectraExistingRadio->isChecked());
+    }
 
     emit updateOutputsRequest(hfMethCombo->currentIndex());
 }
@@ -1543,8 +1641,33 @@ void AdvSpectralOptions::setHfMethod(int hfMethComboIndex)
     }
 }
 
+int AdvSpectralOptions::hfComboIndexFromProjectMethod() const
+{
+    switch (ecProject_->generalHfMethod())
+    {
+    case 2:
+        return 2;
+    case 3:
+        return 3;
+    case 4:
+        return 4;
+    case 5:
+        return 1;
+    case 0:
+    case 1:
+    default:
+        return 0;
+    }
+}
+
 void AdvSpectralOptions::updateHfMethod_1(bool b)
 {
+    if (ecProject_->spectraCreateAssessment() && !b)
+    {
+        refreshSpectralAssessmentCreationMode();
+        return;
+    }
+
     bool smartfluxOn = configState_->project.smartfluxMode;
 
     if (b)
@@ -1641,6 +1764,12 @@ void AdvSpectralOptions::updateHfMethod_1(bool b)
 // update project properties and fluxes rotation choices
 void AdvSpectralOptions::updateHfMethod_2(int n)
 {
+    if (ecProject_->spectraCreateAssessment() && n < 2)
+    {
+        refreshSpectralAssessmentCreationMode();
+        return;
+    }
+
     bool smartfluxOn = configState_->project.smartfluxMode;
 
     setHfMethod(n);

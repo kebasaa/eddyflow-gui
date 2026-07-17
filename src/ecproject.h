@@ -392,6 +392,7 @@ public:
     void setPlanarFitFile(const QString& p);
     void setPlanarFitPolicy(int i);
     void setPlanarFitSubset(int n);
+    void setPlanarFitAssessmentOnly(int n);
 
     void setSpectraMode(int i);
     void setSpectraStartDate(const QString& date);
@@ -399,6 +400,7 @@ public:
     void setSpectraStartTime(const QString& time);
     void setSpectraEndTime(const QString& time);
     void setSpectraFile(const QString& p);
+    void setSpectraCreateAssessment(int n);
     void setSpectraMinSmpl(int l);
     void setSpectraHorst(int n);
     void setSpectraAddSonic(int n);
@@ -462,6 +464,7 @@ public:
     void setTimelagOptGas4MinLag(double d);
     void setTimelagOptGas4MaxLag(double d);
     void setTimelagOptSubset(int i);
+    void setTimelagAssessmentOnly(int n);
 
     void setPwbCo2MinLag(double d);
     void setPwbCo2MaxLag(double d);
@@ -622,6 +625,7 @@ public:
     int screenDetrendMeth() const { return ec_project_state_.screenSetting.detrend_meth; }
     double screenTimeConst() const { return ec_project_state_.screenSetting.timeconst; }
     int screenTlagMeth() const { return ec_project_state_.screenSetting.tlag_meth; }
+    int timelagAssessmentOnly() const { return ec_project_state_.timelagOpt.assessment_only; }
     int screenTapWin() const { return ec_project_state_.screenSetting.tap_win; }
     int screenNBins() const { return ec_project_state_.screenSetting.nbins; }
     int screenOutBinSpectra() const { return ec_project_state_.screenSetting.out_bin_sp; }
@@ -800,8 +804,10 @@ public:
     const QString& planarFitFile() const { return ec_project_state_.screenTilt.file; }
     int planarFitFixPolicy() const { return ec_project_state_.screenTilt.fix_policy; }
     int planarFitSubset() const { return ec_project_state_.screenTilt.subset; }
+    int planarFitAssessmentOnly() const { return ec_project_state_.screenTilt.assessment_only; }
 
     int spectraMode() const { return ec_project_state_.spectraSettings.sa_mode; }
+    int spectraCreateAssessment() const { return ec_project_state_.spectraSettings.create_assessment; }
     const QString& spectraStartDate() const { return ec_project_state_.spectraSettings.start_sa_date; }
     const QString& spectraEndDate() const { return ec_project_state_.spectraSettings.end_sa_date; }
     const QString& spectraStartTime() const { return ec_project_state_.spectraSettings.start_sa_time; }

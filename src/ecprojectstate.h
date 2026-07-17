@@ -170,6 +170,7 @@ struct SpectraSettingsState
     int use_vm_flags = 1;
     int use_foken_low = 1;
     int use_foken_mid = 0;
+    int create_assessment = 0;
 };
 
 /// \struct ScreenGeneralState
@@ -424,6 +425,7 @@ struct ScreenTiltState
     int fix_policy = 0;
     QList<AngleItem> angles = QList<AngleItem>();
     int subset = 0;
+    int assessment_only = 0;
 };
 
 struct TimelagOptState
@@ -449,6 +451,7 @@ struct TimelagOptState
     qreal gas4_min_lag = -1000.1;
     qreal gas4_max_lag = -1000.1;
     int subset = 0;
+    int assessment_only = 0;
 };
 
 struct PwbTimelagState

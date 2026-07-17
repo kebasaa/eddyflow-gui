@@ -69,6 +69,7 @@ signals:
 public slots:
     void reset();
     void partialRefresh();
+    void refreshSpectralAssessmentCreationMode();
 
 private slots:
     void refresh();
@@ -146,6 +147,7 @@ private:
 
     void createQuestionMarks();
     void setHfMethod(int hfMethComboIndex);
+    int hfComboIndexFromProjectMethod() const;
 
     QCheckBox* vmFlagsCheckBox;
     QCheckBox* lowQualityCheckBox;

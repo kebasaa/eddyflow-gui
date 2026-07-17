@@ -159,6 +159,7 @@ namespace EcIni
     const auto INI_SPEC_SETTINGS_49   = QStringLiteral("sa_use_foken_mid");
     const auto INI_SPEC_SETTINGS_50    = QStringLiteral("sa_start_time");
     const auto INI_SPEC_SETTINGS_51    = QStringLiteral("sa_end_time");
+    const auto INI_SPEC_SETTINGS_52    = QStringLiteral("sa_create_assessment");
 
     const auto INIGROUP_SCREEN_GENERAL = QStringLiteral("RawProcess_General");
     const auto INI_SCREEN_GENERAL_4    = QStringLiteral("data_path");
@@ -386,6 +387,7 @@ namespace EcIni
     const auto INI_SCREEN_TILT_11     = QStringLiteral("pf_subset");
     const auto INI_SCREEN_TILT_12     = QStringLiteral("pf_start_time");
     const auto INI_SCREEN_TILT_13     = QStringLiteral("pf_end_time");
+    const auto INI_SCREEN_TILT_14     = QStringLiteral("rot_pf_assessment_only");
 
     const auto INIGROUP_TIMELAG_OPT = QStringLiteral("RawProcess_TimelagOptimization_Settings");
     const auto INI_TIMELAG_OPT_0    = QStringLiteral("to_start_date");
@@ -409,6 +411,7 @@ namespace EcIni
     const auto INI_TIMELAG_OPT_18   = QStringLiteral("to_subset");
     const auto INI_TIMELAG_OPT_19   = QStringLiteral("to_start_time");
     const auto INI_TIMELAG_OPT_20   = QStringLiteral("to_end_time");
+    const auto INI_TIMELAG_OPT_21   = QStringLiteral("tlag_assessment_only");
 
     const auto INIGROUP_PWB_TIMELAG = QStringLiteral("RawProcess_PWBTimelag_Settings");
     const auto INI_PWB_TIMELAG_0    = QStringLiteral("pwb_co2_min_lag");
