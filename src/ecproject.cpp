@@ -5655,6 +5655,11 @@ void EcProject::setBiomParamColPpfd(int n)
 
 bool EcProject::isEngineStep2Needed()
 {
+    if (timelagAssessmentOnly() || planarFitAssessmentOnly())
+    {
+        return false;
+    }
+
     bool test = false;
 
     switch (generalHfMethod())
