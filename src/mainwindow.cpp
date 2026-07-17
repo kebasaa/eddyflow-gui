@@ -2659,7 +2659,7 @@ void MainWindow::showGuidedModeMessages_3()
             doFix = false;
     }
 
-    if (ecProject_->screenTlagMeth() == 4)
+    if (ecProject_->screenTlagMeth() == 4 || ecProject_->screenTlagMeth() == 5)
     {
         if (ecProject_->timelagOptMode())
         {

@@ -11,8 +11,12 @@
 
 class QCheckBox;
 class QDoubleSpinBox;
+class QButtonGroup;
+class QRadioButton;
 class QSpinBox;
+class QWidget;
 class EcProject;
+class FileBrowseWidget;
 struct ConfigState;
 
 class PwbTimelagSettingsDialog : public QDialog
@@ -28,7 +32,19 @@ private:
     QDoubleSpinBox *createLagSpin();
     QDoubleSpinBox *createSecondsSpin(double min, double max);
     QDoubleSpinBox *createFractionSpin();
+    void setPwbControlsEnabled(bool enabled);
+    void updateFile(const QString& fp);
 
+private slots:
+    void updateTlMode(int radioButton);
+    void testSelectedFile(const QString& fp);
+
+private:
+    QRadioButton *existingRadio;
+    QRadioButton *nonExistingRadio;
+    QButtonGroup *radioGroup;
+    FileBrowseWidget *fileBrowse;
+    QWidget *pwbOptionsContainer;
     QDoubleSpinBox *co2MinLagSpin;
     QDoubleSpinBox *co2MaxLagSpin;
     QDoubleSpinBox *h2oMinLagSpin;
