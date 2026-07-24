@@ -75,6 +75,8 @@ private slots:
     void updateErrorLabel(const QString& s);
     void updateFluxnetErrLabelMode(bool checked);
     void updateSpectralAssessmentCreationMode(bool checked);
+    void updateProductionRunMode(bool checked);
+    void updateDefaultRunMode(bool checked);
     void updateTimelagAssessmentOnly(bool checked);
     void updatePlanarFitAssessmentOnly(bool checked);
 
@@ -134,7 +136,11 @@ private:
     bool validateSpectralAssessmentCreationRequest();
     int estimatedSpectralAssessmentIntervals() const;
     int currentSpectralMethodIndex() const;
+    bool isSpectralAssessmentCreationMode() const;
+    bool isProductionRunMode() const;
     void applySpectralAssessmentCreationRequirements();
+    void applyProductionRunRequirements();
+    void clearRunModeRadios();
     void updateSpectralAssessmentCreationAvailability();
     void updatePreprocessingAssessmentAvailability();
     void updateGasOutputAvailability();
@@ -154,7 +160,10 @@ private:
     QPushButton* typicalSelectionButton;
     QLabel* typicalSelectionDesc;
 
-    QCheckBox* spectralAssessmentCreationCheckBox;
+    QRadioButton* spectralAssessmentCreationRadioButton;
+    QRadioButton* productionRunRadioButton;
+    QRadioButton* defaultRunRadioButton;
+    QButtonGroup* assessmentRunModeRadioGroup;
     QLabel* spectralAssessmentCreationWarningIcon;
     QCheckBox* timelagAssessmentOnlyCheckBox;
     QCheckBox* planarFitAssessmentOnlyCheckBox;

@@ -30,6 +30,7 @@
 #include <QPair>
 
 class QCalendarWidget;
+class QAbstractSpinBox;
 class QComboBox;
 class QLabel;
 class QLineEdit;
@@ -123,6 +124,9 @@ namespace WidgetUtils
 
     // progress bar
     void setProgressValue(QProgressBar* bar, int value);
+
+    // compact controls
+    void setCompactSpinBoxWidth(QAbstractSpinBox* spinBox, int width = 88);
 
     // make container scroll area
     QScrollArea *getContainerScrollArea(QWidget* parent, QLayout *layout);

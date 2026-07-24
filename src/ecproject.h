@@ -400,7 +400,7 @@ public:
     void setSpectraStartTime(const QString& time);
     void setSpectraEndTime(const QString& time);
     void setSpectraFile(const QString& p);
-    void setSpectraCreateAssessment(int n);
+    void setSpectraFluxRunMode(int n);
     void setSpectraMinSmpl(int l);
     void setSpectraHorst(int n);
     void setSpectraAddSonic(int n);
@@ -807,7 +807,7 @@ public:
     int planarFitAssessmentOnly() const { return ec_project_state_.screenTilt.assessment_only; }
 
     int spectraMode() const { return ec_project_state_.spectraSettings.sa_mode; }
-    int spectraCreateAssessment() const { return ec_project_state_.spectraSettings.create_assessment; }
+    int spectraFluxRunMode() const { return ec_project_state_.spectraSettings.flux_run_mode; }
     const QString& spectraStartDate() const { return ec_project_state_.spectraSettings.start_sa_date; }
     const QString& spectraEndDate() const { return ec_project_state_.spectraSettings.end_sa_date; }
     const QString& spectraStartTime() const { return ec_project_state_.spectraSettings.start_sa_time; }

@@ -562,6 +562,42 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     addSonicCheck->setToolTip(tr("<b>Include anemometer losses for path averaging and time response:</b> Select this option to instruct EddyFlow to correct sensible heat cospectra for those losses, before using them as a model to calculate correction factors according to Fratini et al. (2012)."));
     addSonicCheck->setStyleSheet(QStringLiteral("QCheckBox { margin-left: 40px; }"));
 
+    WidgetUtils::setCompactSpinBoxWidth(nBinsSpin, 76);
+    WidgetUtils::setCompactSpinBoxWidth(minSmplSpin, 76);
+    WidgetUtils::setCompactSpinBoxWidth(sonicFrequency, 76);
+
+    WidgetUtils::setCompactSpinBoxWidth(spin11, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin12, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin13, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin14, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin21, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin22, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin23, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin24, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin31, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin32, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin33, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin34, 86);
+
+    WidgetUtils::setCompactSpinBoxWidth(qcMinUnstableUstarSpin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinUnstableHSpin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinUnstableLESpin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinUnstableCo2Spin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinUnstableCh4Spin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinUnstableGas4Spin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinStableUstarSpin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinStableHSpin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinStableLESpin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinStableCo2Spin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinStableCh4Spin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinStableGas4Spin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMaxUstarSpin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMaxHSpin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMaxLESpin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMaxCo2Spin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMaxCh4Spin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMaxGas4Spin, 96);
+
     // horizontal rules
     auto hrLabel_0 = new QLabel;
     hrLabel_0->setObjectName(QStringLiteral("hrLabel"));
@@ -934,25 +970,6 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
         auto combo = static_cast<QComboBox *>(widget);
         connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, &AdvSpectralOptions::updateTooltip);
-    }
-
-    // fix layout alignment
-    auto max_spin_width = spin33->width();
-    auto spin_list = QWidgetList() << spin34
-                                   << spin24
-                                   << qcMinUnstableCo2Spin
-                                   << qcMinUnstableCh4Spin
-                                   << qcMinUnstableGas4Spin
-                                   << qcMinStableCo2Spin
-                                   << qcMinStableCh4Spin
-                                   << qcMinStableGas4Spin
-                                   << qcMaxCo2Spin
-                                   << qcMaxCh4Spin
-                                   << qcMaxGas4Spin;
-
-    for (auto w : spin_list)
-    {
-        w->setMaximumWidth(max_spin_width);
     }
 
     QTimer::singleShot(0, this, &AdvSpectralOptions::reset);
@@ -1345,10 +1362,16 @@ void AdvSpectralOptions::refresh()
 
 void AdvSpectralOptions::refreshSpectralAssessmentCreationMode()
 {
-    const auto createAssessment = ecProject_->spectraCreateAssessment();
+    const auto createAssessment = ecProject_->spectraFluxRunMode() == 1;
+    const auto productionRun = ecProject_->spectraFluxRunMode() == 2;
     if (createAssessment && configState_->project.smartfluxMode)
     {
-        ecProject_->setSpectraCreateAssessment(0);
+        ecProject_->setSpectraFluxRunMode(0);
+        return;
+    }
+    if (productionRun && configState_->project.smartfluxMode)
+    {
+        ecProject_->setSpectraFluxRunMode(0);
         return;
     }
 
@@ -1376,16 +1399,44 @@ void AdvSpectralOptions::refreshSpectralAssessmentCreationMode()
         {
             ecProject_->setSpectraMode(1);
         }
+        if (ecProject_->generalBinSpectraAvail())
+        {
+            ecProject_->setGeneralBinSpectraAvail(0);
+        }
+        if (ecProject_->generalFullSpectraAvail())
+        {
+            ecProject_->setGeneralFullSpectraAvail(0);
+        }
+        if (ecProject_->spectraUseVmFlags())
+        {
+            ecProject_->setSpectraUseVmFlags(0);
+        }
+        if (ecProject_->spectraUseFokenMid())
+        {
+            ecProject_->setSpectraUseFokenMid(0);
+        }
 
         QSignalBlocker hfMethodBlocker(hfMethodCheck);
         QSignalBlocker hfComboBlocker(hfMethCombo);
         QSignalBlocker spectraExistingBlocker(spectraExistingRadio);
         QSignalBlocker spectraNonExistingBlocker(spectraNonExistingRadio);
+        QSignalBlocker binnedExistingBlocker(binnedSpectraExistingRadio);
+        QSignalBlocker binnedNonExistingBlocker(binnedSpectraNonExistingRadio);
+        QSignalBlocker fullExistingBlocker(fullSpectraExistingRadio);
+        QSignalBlocker fullNonExistingBlocker(fullSpectraNonExistingRadio);
+        QSignalBlocker vmBlocker(vmFlagsCheckBox);
+        QSignalBlocker moderateBlocker(moderateQualityCheckBox);
 
         hfMethodCheck->setChecked(true);
         hfMethCombo->setCurrentIndex(hfComboIndexFromProjectMethod());
         spectraExistingRadio->setChecked(false);
         spectraNonExistingRadio->setChecked(true);
+        binnedSpectraExistingRadio->setChecked(false);
+        binnedSpectraNonExistingRadio->setChecked(true);
+        fullSpectraExistingRadio->setChecked(false);
+        fullSpectraNonExistingRadio->setChecked(true);
+        vmFlagsCheckBox->setChecked(false);
+        moderateQualityCheckBox->setChecked(false);
 
         hfMethodCheck->setEnabled(false);
         hfMethLabel->setEnabled(true);
@@ -1393,6 +1444,15 @@ void AdvSpectralOptions::refreshSpectralAssessmentCreationMode()
         spectraExistingRadio->setEnabled(false);
         spectraNonExistingRadio->setEnabled(false);
         spectraFileBrowse->setEnabled(false);
+        binnedSpectraExistingRadio->setEnabled(true);
+        binnedSpectraNonExistingRadio->setEnabled(true);
+        binnedSpectraDirBrowse->setEnabled(false);
+        fullSpectraExistingRadio->setEnabled(isFratini());
+        fullSpectraNonExistingRadio->setEnabled(isFratini());
+        fullSpectraDirBrowse->setEnabled(false);
+        vmFlagsCheckBox->setEnabled(false);
+        moderateQualityCheckBox->setEnabled(false);
+        lowQualityCheckBox->setEnabled(true);
 
         const auto toEnable = isHorstIbromFratini();
         spin11Label->setEnabled(toEnable);
@@ -1412,8 +1472,68 @@ void AdvSpectralOptions::refreshSpectralAssessmentCreationMode()
         spin23->setEnabled(toEnable);
         spin24->setEnabled(toEnable);
     }
+    else if (productionRun)
+    {
+        if (ecProject_->generalHfMethod() < 2 || ecProject_->generalHfMethod() > 4)
+        {
+            ecProject_->setGeneralHfMethod(4);
+        }
+        ecProject_->setSpectraMode(0);
+        ecProject_->setGeneralBinSpectraAvail(1);
+        ecProject_->setGeneralFullSpectraAvail(1);
+        ecProject_->setSpectraUseVmFlags(1);
+        ecProject_->setSpectraUseFokenMid(1);
+        ecProject_->setSpectraUseFokenLow(1);
+
+        QSignalBlocker hfMethodBlocker(hfMethodCheck);
+        QSignalBlocker hfComboBlocker(hfMethCombo);
+        QSignalBlocker spectraExistingBlocker(spectraExistingRadio);
+        QSignalBlocker spectraNonExistingBlocker(spectraNonExistingRadio);
+        QSignalBlocker binnedExistingBlocker(binnedSpectraExistingRadio);
+        QSignalBlocker binnedNonExistingBlocker(binnedSpectraNonExistingRadio);
+        QSignalBlocker fullExistingBlocker(fullSpectraExistingRadio);
+        QSignalBlocker fullNonExistingBlocker(fullSpectraNonExistingRadio);
+        QSignalBlocker vmBlocker(vmFlagsCheckBox);
+        QSignalBlocker lowBlocker(lowQualityCheckBox);
+        QSignalBlocker moderateBlocker(moderateQualityCheckBox);
+
+        hfMethodCheck->setChecked(true);
+        hfMethCombo->setCurrentIndex(hfComboIndexFromProjectMethod());
+        spectraExistingRadio->setChecked(true);
+        spectraNonExistingRadio->setChecked(false);
+        binnedSpectraExistingRadio->setChecked(true);
+        binnedSpectraNonExistingRadio->setChecked(false);
+        fullSpectraExistingRadio->setChecked(true);
+        fullSpectraNonExistingRadio->setChecked(false);
+        vmFlagsCheckBox->setChecked(true);
+        lowQualityCheckBox->setChecked(true);
+        moderateQualityCheckBox->setChecked(true);
+
+        hfMethodCheck->setEnabled(true);
+        hfMethLabel->setEnabled(hfMethodCheck->isChecked());
+        hfMethCombo->setEnabled(hfMethodCheck->isChecked());
+
+        spectraExistingRadio->setEnabled(hfMethodCheck->isChecked()
+                                         && isHorstIbromFratini());
+        spectraNonExistingRadio->setEnabled(hfMethodCheck->isChecked()
+                                            && isHorstIbromFratini()
+                                            && !configState_->project.smartfluxMode);
+        spectraFileBrowse->setEnabled(spectraExistingRadio->isEnabled());
+        binnedSpectraExistingRadio->setEnabled(true);
+        binnedSpectraNonExistingRadio->setEnabled(true);
+        binnedSpectraDirBrowse->setEnabled(true);
+        fullSpectraExistingRadio->setEnabled(isFratini());
+        fullSpectraNonExistingRadio->setEnabled(isFratini());
+        fullSpectraDirBrowse->setEnabled(isFratini());
+        vmFlagsCheckBox->setEnabled(true);
+        moderateQualityCheckBox->setEnabled(true);
+        lowQualityCheckBox->setEnabled(false);
+    }
     else
     {
+        vmFlagsCheckBox->setEnabled(true);
+        lowQualityCheckBox->setEnabled(true);
+        moderateQualityCheckBox->setEnabled(true);
         hfMethodCheck->setEnabled(true);
         hfMethLabel->setEnabled(hfMethodCheck->isChecked());
         hfMethCombo->setEnabled(hfMethodCheck->isChecked());
@@ -1662,7 +1782,7 @@ int AdvSpectralOptions::hfComboIndexFromProjectMethod() const
 
 void AdvSpectralOptions::updateHfMethod_1(bool b)
 {
-    if (ecProject_->spectraCreateAssessment() && !b)
+    if (ecProject_->spectraFluxRunMode() == 1 && !b)
     {
         refreshSpectralAssessmentCreationMode();
         return;
@@ -1764,7 +1884,7 @@ void AdvSpectralOptions::updateHfMethod_1(bool b)
 // update project properties and fluxes rotation choices
 void AdvSpectralOptions::updateHfMethod_2(int n)
 {
-    if (ecProject_->spectraCreateAssessment() && n < 2)
+    if (ecProject_->spectraFluxRunMode() == 1 && n < 2)
     {
         refreshSpectralAssessmentCreationMode();
         return;

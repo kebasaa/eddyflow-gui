@@ -1086,7 +1086,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.spectraSettings.use_vm_flags = defaultEcProjectState.spectraSettings.use_vm_flags;
     ec_project_state_.spectraSettings.use_foken_low = defaultEcProjectState.spectraSettings.use_foken_low;
     ec_project_state_.spectraSettings.use_foken_mid = defaultEcProjectState.spectraSettings.use_foken_mid;
-    ec_project_state_.spectraSettings.create_assessment = defaultEcProjectState.spectraSettings.create_assessment;
+    ec_project_state_.spectraSettings.flux_run_mode = defaultEcProjectState.spectraSettings.flux_run_mode;
 
     ec_project_state_.screenTilt.start_date = QDate(2000, 1, 1).toString(Qt::ISODate);
     ec_project_state_.screenTilt.end_date = QDate::currentDate().toString(Qt::ISODate);
@@ -1322,7 +1322,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_47, QString::number(ec_project_state_.spectraSettings.sa_max_gas4, 'f', 4));
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_48, ec_project_state_.spectraSettings.use_foken_low);
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_49, ec_project_state_.spectraSettings.use_foken_mid);
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_52, ec_project_state_.spectraSettings.create_assessment);
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_52, ec_project_state_.spectraSettings.flux_run_mode);
 
         // NOTE: temporary placeholders for SA Groups. Not used right now
         project_ini.setValue(QStringLiteral("sa_co2_g1_start"), 1);
@@ -2168,9 +2168,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.spectraSettings.use_foken_mid
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_49,
                                     defaultEcProjectState.spectraSettings.use_foken_mid).toInt();
-        ec_project_state_.spectraSettings.create_assessment
+        ec_project_state_.spectraSettings.flux_run_mode
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_52,
-                                    defaultEcProjectState.spectraSettings.create_assessment).toInt();
+                                    defaultEcProjectState.spectraSettings.flux_run_mode).toInt();
     project_ini.endGroup();
 
     // preproc general section
@@ -5283,9 +5283,9 @@ void EcProject::setSpectraFile(const QString &p)
     emit updateInfo();
 }
 
-void EcProject::setSpectraCreateAssessment(int n)
+void EcProject::setSpectraFluxRunMode(int n)
 {
-    ec_project_state_.spectraSettings.create_assessment = n;
+    ec_project_state_.spectraSettings.flux_run_mode = n;
     setModified(true);
     emit updateInfo();
 }

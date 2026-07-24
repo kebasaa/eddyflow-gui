@@ -170,7 +170,7 @@ struct SpectraSettingsState
     int use_vm_flags = 1;
     int use_foken_low = 1;
     int use_foken_mid = 0;
-    int create_assessment = 0;
+    int flux_run_mode = 0;
 };
 
 /// \struct ScreenGeneralState

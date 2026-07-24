@@ -159,7 +159,7 @@ namespace EcIni
     const auto INI_SPEC_SETTINGS_49   = QStringLiteral("sa_use_foken_mid");
     const auto INI_SPEC_SETTINGS_50    = QStringLiteral("sa_start_time");
     const auto INI_SPEC_SETTINGS_51    = QStringLiteral("sa_end_time");
-    const auto INI_SPEC_SETTINGS_52    = QStringLiteral("sa_create_assessment");
+    const auto INI_SPEC_SETTINGS_52    = QStringLiteral("flux_run_mode");
 
     const auto INIGROUP_SCREEN_GENERAL = QStringLiteral("RawProcess_General");
     const auto INI_SCREEN_GENERAL_4    = QStringLiteral("data_path");
