@@ -30,6 +30,7 @@
 #include <QPair>
 
 class QCalendarWidget;
+class QAbstractSpinBox;
 class QComboBox;
 class QLabel;
 class QLineEdit;
@@ -124,11 +125,16 @@ namespace WidgetUtils
     // progress bar
     void setProgressValue(QProgressBar* bar, int value);
 
+    // compact controls
+    void setCompactSpinBoxWidth(QAbstractSpinBox* spinBox, int width = 88);
+
     // make container scroll area
     QScrollArea *getContainerScrollArea(QWidget* parent, QLayout *layout);
 
     // provide a search path hint
     QString getSearchPathHint();
+    QString getDialogPathHint(const QString& contextKey);
+    void rememberDialogPath(const QString& contextKey, const QString& selectedPath, bool isFile);
 
 }  // namespace WidgetUtils
 

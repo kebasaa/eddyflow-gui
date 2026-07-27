@@ -119,7 +119,7 @@ TimeLagSettingsDialog::TimeLagSettingsDialog(QWidget *parent, EcProject *ecProje
     fileBrowse = new FileBrowseWidget;
     fileBrowse->setToolTip(tr("<b>Load:</b> Load an existing time lag file"));
     fileBrowse->setDialogTitle(tr("Select the Time Lag Optimization File"));
-    fileBrowse->setDialogWorkingDir(WidgetUtils::getSearchPathHint());
+    fileBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("timelag_file")));
     fileBrowse->setDialogFilter(tr("All Files (*.*)"));
 
     auto existingFileLayout = new QHBoxLayout;
@@ -718,7 +718,7 @@ void TimeLagSettingsDialog::testSelectedFile(const QString& fp)
 {
     QString paramFile = QFileDialog::getOpenFileName(this,
                         tr("Select the Timelag Optimization File"),
-                        WidgetUtils::getSearchPathHint(),
+                        WidgetUtils::getDialogPathHint(QStringLiteral("timelag_import_file")),
                         tr("All Files (*.*)")
                         );
     if (paramFile.isEmpty()) { return; }
@@ -741,11 +741,9 @@ void TimeLagSettingsDialog::testSelectedFile(const QString& fp)
 
     if (dialog_result)
     {
-        fileBrowse->setPath(fp);
-
-        auto lastPath = paramFilePath.canonicalPath();
-        configState_->window.last_data_path = lastPath;
-        GlobalSettings::updateLastDatapath(lastPath);
+        fileBrowse->setPath(canonicalParamFile);
+        WidgetUtils::rememberDialogPath(QStringLiteral("timelag_file"), canonicalParamFile, true);
+        WidgetUtils::rememberDialogPath(QStringLiteral("timelag_import_file"), canonicalParamFile, true);
     }
     else
     {

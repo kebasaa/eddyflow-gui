@@ -270,7 +270,7 @@ void DlIniDialog::fileSaveAs()
 {
     QString fname;
 
-    auto searchPath = WidgetUtils::getSearchPathHint();
+    auto searchPath = WidgetUtils::getDialogPathHint(QStringLiteral("metadata_file"));
 
     auto filenameHint = QString();
     if (dlProject_->filename().isEmpty())
@@ -315,6 +315,7 @@ void DlIniDialog::fileSaveAs()
             newFlag_ = false;
             disableResetButton(newFlag_);
             filename_ = fname;
+            WidgetUtils::rememberDialogPath(QStringLiteral("metadata_file"), filename_, true);
             emit metadataFileSaved(filename_);
         }
         else

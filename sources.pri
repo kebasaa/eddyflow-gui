@@ -218,6 +218,9 @@ OTHER_FILES += \
     css/EddyFlow-mac.qss \
     css/EddyFlow-win.qss \
     css/EddyFlow-lin.qss \
+    file-templates/eddyflow_sample_planar_fit.txt \
+    file-templates/eddyflow_sample_spectral_assessment.txt \
+    file-templates/eddyflow_sample_timelag_opt.txt \
     scripts/build/mac-post-link.sh \
     scripts/build/mac-pre-link.sh \
     scripts/build/mac-update-translations.sh \

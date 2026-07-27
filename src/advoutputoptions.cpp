@@ -27,7 +27,10 @@
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDateTime>
 #include <QDebug>
+#include <QDir>
+#include <QFileInfo>
 #include <QLineEdit>
 #include <QIcon>
 #include <QPixmap>
@@ -35,6 +38,7 @@
 #include <QGroupBox>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QSignalBlocker>
 #include <QVBoxLayout>
 #include <QScrollArea>
 #include <QTimer>
@@ -137,6 +141,57 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     vrLabel_1->setObjectName(QStringLiteral("vrLabel"));
     auto vrLabel_2 = new QLabel;
     vrLabel_2->setObjectName(QStringLiteral("vrLabel"));
+    auto hrLabelPreprocessing = new QLabel;
+    hrLabelPreprocessing->setObjectName(QStringLiteral("hrLabel"));
+
+    spectralAssessmentCreationRadioButton = new QRadioButton;
+    spectralAssessmentCreationRadioButton->setText(tr("Pre-processing run (Create Spectral Assessment File if possible)"));
+    tooltipStr =
+        tr("<b>Pre-processing run:</b> "
+           "Prepare a run that creates a new spectral assessment file if "
+           "enough data are available. This selects the required spectral "
+           "assessment and output options and locks settings that must stay "
+           "fixed during the assessment-file run.");
+    spectralAssessmentCreationRadioButton->setToolTip(tooltipStr);
+    spectralAssessmentCreationWarningIcon = new QLabel;
+    setRequiredIcon(spectralAssessmentCreationWarningIcon, true);
+    spectralAssessmentCreationWarningIcon->setToolTip(spectralAssessmentCreationRadioButton->toolTip());
+
+    productionRunRadioButton = new QRadioButton;
+    productionRunRadioButton->setText(tr("Production run"));
+    productionRunRadioButton->setToolTip(
+        tr("<b>Production run:</b> Prepare a normal processing run that uses "
+           "existing spectral assessment inputs and production QA/QC defaults. "
+           "Normal output choices remain available for editing."));
+    defaultRunRadioButton = new QRadioButton;
+    defaultRunRadioButton->setText(tr("Default, all options available"));
+    defaultRunRadioButton->setToolTip(
+        tr("<b>Default, all options available:</b> Apply no assessment-output "
+           "preset. All options remain controlled manually by the settings "
+           "shown in this page and in <i>Spectral Analysis and Corrections</i>."));
+    assessmentRunModeRadioGroup = new QButtonGroup(this);
+    assessmentRunModeRadioGroup->addButton(spectralAssessmentCreationRadioButton, 0);
+    assessmentRunModeRadioGroup->addButton(productionRunRadioButton, 1);
+    assessmentRunModeRadioGroup->addButton(defaultRunRadioButton, 2);
+
+    timelagAssessmentOnlyCheckBox = new QCheckBox;
+    timelagAssessmentOnlyCheckBox->setText(tr("Create timelag file only"));
+    tooltipStr =
+        tr("<b>Create timelag file only:</b> Run only the assessment-file "
+           "step that creates a time lag assessment file. To activate this "
+           "option, enable <i>Time lags compensation</i> and choose either "
+           "<i>Automatic time lag optimization</i> or "
+           "<i>Pre-whitening block-bootstrap</i>.");
+    timelagAssessmentOnlyCheckBox->setToolTip(tooltipStr);
+
+    planarFitAssessmentOnlyCheckBox = new QCheckBox;
+    planarFitAssessmentOnlyCheckBox->setText(tr("Create planar fit file only"));
+    tooltipStr =
+        tr("<b>Create planar fit file only:</b> Run only the assessment-file "
+           "step that creates a planar fit assessment file. To activate this "
+           "option, enable a planar fit rotation method and choose "
+           "<i>Planar fit file not available</i> in the Planar Fit Settings.");
+    planarFitAssessmentOnlyCheckBox->setToolTip(tooltipStr);
 
     outBinSpectraCheckBox = new QCheckBox;
     outBinSpectraCheckBox->setText(tr("All binned spectra and cospectra"));
@@ -407,6 +462,10 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     outVarsAllCheckBox->setText(tr("Select all variables"));
     outVarsAllCheckBox->setStyleSheet(QStringLiteral("QCheckBox {margin-left: 40px;}"));
 
+    auto titlePreprocessing = new QLabel;
+    titlePreprocessing->setText(tr("Assessment File Outputs"));
+    titlePreprocessing->setProperty("groupLabel", true);
+
     auto title_1 = new QLabel;
     title_1->setText(tr("Results files"));
     title_1->setProperty("groupLabel", true);
@@ -505,6 +564,54 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     qBox_13->addStretch();
     qBox_13->setContentsMargins(0, 0, 0, 0);
 
+    auto qBox_14 = new QHBoxLayout;
+    qBox_14->addWidget(spectralAssessmentCreationRadioButton);
+    qBox_14->addWidget(spectralAssessmentCreationWarningIcon);
+    qBox_14->addStretch();
+    qBox_14->setContentsMargins(0, 0, 0, 0);
+
+    auto qBox_17 = new QHBoxLayout;
+    qBox_17->addWidget(productionRunRadioButton);
+    qBox_17->addStretch();
+    qBox_17->setContentsMargins(0, 0, 0, 0);
+
+    auto qBox_18 = new QHBoxLayout;
+    qBox_18->addWidget(defaultRunRadioButton);
+    qBox_18->addStretch();
+    qBox_18->setContentsMargins(0, 0, 0, 0);
+
+    auto qBox_15 = new QHBoxLayout;
+    qBox_15->addWidget(timelagAssessmentOnlyCheckBox);
+    qBox_15->addStretch();
+    qBox_15->setContentsMargins(0, 0, 0, 0);
+    auto timelagAssessmentOnlyContainer = new QWidget;
+    timelagAssessmentOnlyContainer->setLayout(qBox_15);
+    timelagAssessmentOnlyContainer->setToolTip(timelagAssessmentOnlyCheckBox->toolTip());
+
+    auto qBox_16 = new QHBoxLayout;
+    qBox_16->addWidget(planarFitAssessmentOnlyCheckBox);
+    qBox_16->addStretch();
+    qBox_16->setContentsMargins(0, 0, 0, 0);
+    auto planarFitAssessmentOnlyContainer = new QWidget;
+    planarFitAssessmentOnlyContainer->setLayout(qBox_16);
+    planarFitAssessmentOnlyContainer->setToolTip(planarFitAssessmentOnlyCheckBox->toolTip());
+
+    auto spectralAssessmentCreationRow = new QWidget;
+    spectralAssessmentCreationRow->setLayout(qBox_14);
+    auto productionRunRow = new QWidget;
+    productionRunRow->setLayout(qBox_17);
+    auto defaultRunRow = new QWidget;
+    defaultRunRow->setLayout(qBox_18);
+
+    auto assessmentFileOutputsLayout = new QVBoxLayout;
+    assessmentFileOutputsLayout->addWidget(timelagAssessmentOnlyContainer);
+    assessmentFileOutputsLayout->addWidget(planarFitAssessmentOnlyContainer);
+    assessmentFileOutputsLayout->addWidget(defaultRunRow);
+    assessmentFileOutputsLayout->addWidget(spectralAssessmentCreationRow);
+    assessmentFileOutputsLayout->addWidget(productionRunRow);
+    assessmentFileOutputsLayout->setContentsMargins(0, 0, 0, 0);
+    assessmentFileOutputsLayout->setSpacing(4);
+
     auto qBox_8 = new QHBoxLayout;
     qBox_8->addWidget(statLabel);
     qBox_8->addWidget(questionMark_8);
@@ -521,86 +628,89 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     outputLayout->addLayout(typicalSelectionLayout, 1, 0, 1, -1);
     outputLayout->addLayout(fullSelectionLayout, 2, 0, 1, -1);
     outputLayout->addWidget(hrLabel_1, 3, 0, 1, -1);
-    outputLayout->addLayout(qBox_1, 4, 0);
-    outputLayout->addWidget(outFullCheckBox, 5, 0, 1, 4);
-    outputLayout->addLayout(qBox_2, 5, 2, Qt::AlignRight);
-    outputLayout->addWidget(variableVarsOutputRadio, 5, 3, 1, 2, Qt::AlignLeft);
-    outputLayout->addWidget(fixedVarsOutputRadio, 6, 3, 1, 2, Qt::AlignLeft);
-    outputLayout->addWidget(vrLabel_1, 5, 5, 7, 1);
-    outputLayout->addLayout(qBox_4, 5, 6, 6, 2, Qt::AlignLeft);
-    outputLayout->addLayout(qBox_3, 7, 2, Qt::AlignRight);
-    outputLayout->addWidget(errorFormatCombo, 7, 3);
-    outputLayout->addWidget(fluxnetGroupBox, 8, 0, 1, 4);
-    outputLayout->addWidget(outBiometCheckBox, 9, 0, 1, 4);
-    outputLayout->addWidget(outDetailsCheckBox, 10, 0, 1, 4);
-    outputLayout->addWidget(outMdCheckBox, 11, 0, 1, 4);
-    outputLayout->addWidget(hrLabel_2, 12, 0, 1, -1);
-    outputLayout->addLayout(qBox_10, 13, 0);
-    outputLayout->addLayout(qBox_11, 14, 0, 1, -1);
-    outputLayout->addLayout(qBox_5, 15, 0);
-    outputLayout->addLayout(qBox_12, 16, 0);
-    outputLayout->addWidget(outBinOgivesCheckBox, 17, 0);
-    outputLayout->addWidget(outMeanSpectraCheckBox, 18, 0);
-    outputLayout->addWidget(outMeanCospCheckBox, 19, 0);
-    outputLayout->addLayout(qBox_6, 15, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxU, 16, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxV, 17, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxW, 18, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxTs, 19, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxCo2, 20, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxH2o, 21, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxCh4, 22, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectralCheckBoxGas4, 23, 1, 1, 2);
-    outputLayout->addLayout(qBox_7, 15, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxU, 16, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxV, 17, 3, 1, 3);
-    outputLayout->addLayout(qBox_13, 18, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxCo2, 19, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxH2o, 20, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxCh4, 21, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectralCheckBoxGas4, 22, 3, 1, 3);
-    outputLayout->addWidget(fullSpectraDescription, 24, 1, 1, 7);
-    outputLayout->addWidget(hrLabel_3, 25, 0, 1, -1);
-    outputLayout->addWidget(title_5, 26, 0);
-    outputLayout->addLayout(qBox_8, 27, 1, Qt::AlignRight);
-    outputLayout->addLayout(qBox_9, 27, 2, Qt::AlignRight);
-    outputLayout->addWidget(varLabel, 27, 3, 1, 2, Qt::AlignCenter);
-    outputLayout->addWidget(hrLabel_4, 28, 1, 1, 2);
-    outputLayout->addWidget(hrLabel_5, 28, 3, 1, 2);
-    outputLayout->addWidget(level1Label, 29, 0, Qt::AlignRight);
-    outputLayout->addWidget(level2Label, 30, 0, Qt::AlignRight);
-    outputLayout->addWidget(level3Label, 31, 0, Qt::AlignRight);
-    outputLayout->addWidget(level4Label, 32, 0, Qt::AlignRight);
-    outputLayout->addWidget(level5Label, 33, 0, Qt::AlignRight);
-    outputLayout->addWidget(level6Label, 34, 0, Qt::AlignRight);
-    outputLayout->addWidget(level7Label, 35, 0, Qt::AlignRight);
-    outputLayout->addWidget(outSt1CheckBox, 29, 1, Qt::AlignCenter);
-    outputLayout->addWidget(outSt2CheckBox, 30, 1, Qt::AlignCenter);
-    outputLayout->addWidget(outSt3CheckBox, 31, 1, Qt::AlignCenter);
-    outputLayout->addWidget(outSt4CheckBox, 32, 1, Qt::AlignCenter);
-    outputLayout->addWidget(outSt5CheckBox, 33, 1, Qt::AlignCenter);
-    outputLayout->addWidget(outSt6CheckBox, 34, 1, Qt::AlignCenter);
-    outputLayout->addWidget(outSt7CheckBox, 35, 1, Qt::AlignCenter);
-    outputLayout->addWidget(outRaw1CheckBox, 29, 2, Qt::AlignCenter);
-    outputLayout->addWidget(outRaw2CheckBox, 30, 2, Qt::AlignCenter);
-    outputLayout->addWidget(outRaw3CheckBox, 31, 2, Qt::AlignCenter);
-    outputLayout->addWidget(outRaw4CheckBox, 32, 2, Qt::AlignCenter);
-    outputLayout->addWidget(outRaw5CheckBox, 33, 2, Qt::AlignCenter);
-    outputLayout->addWidget(outRaw6CheckBox, 34, 2, Qt::AlignCenter);
-    outputLayout->addWidget(outRaw7CheckBox, 35, 2, Qt::AlignCenter);
-    outputLayout->addWidget(vrLabel_2, 29, 3, 7, 1, Qt::AlignLeft);
-    outputLayout->addWidget(outRawUCheckBox, 29, 3, 1, 2);
-    outputLayout->addWidget(outRawVCheckBox, 30, 3, 1, 2);
-    outputLayout->addWidget(outRawWCheckBox, 31, 3, 1, 2);
-    outputLayout->addWidget(outRawTsCheckBox, 32, 3, 1, 2);
-    outputLayout->addWidget(outRawCo2CheckBox, 33, 3, 1, 2);
-    outputLayout->addWidget(outRawH2oCheckBox, 29, 4, 1, 2);
-    outputLayout->addWidget(outRawCh4CheckBox, 30, 4, 1, 2);
-    outputLayout->addWidget(outRawGas4CheckBox, 31, 4, 1, 2);
-    outputLayout->addWidget(outRawTairCheckBox, 32, 4, 1, 2);
-    outputLayout->addWidget(outRawPairCheckBox, 33, 4, 1, 2);
-    outputLayout->addWidget(outVarsAllCheckBox, 35, 3, 1, 3);
-    outputLayout->setRowStretch(36, 1);
+    outputLayout->addWidget(titlePreprocessing, 4, 0);
+    outputLayout->addLayout(assessmentFileOutputsLayout, 5, 0, 1, 4);
+    outputLayout->addWidget(hrLabelPreprocessing, 6, 0, 1, -1);
+    outputLayout->addLayout(qBox_1, 7, 0);
+    outputLayout->addWidget(outFullCheckBox, 8, 0, 1, 4);
+    outputLayout->addLayout(qBox_2, 8, 2, Qt::AlignRight);
+    outputLayout->addWidget(variableVarsOutputRadio, 8, 3, 1, 2, Qt::AlignLeft);
+    outputLayout->addWidget(fixedVarsOutputRadio, 9, 3, 1, 2, Qt::AlignLeft);
+    outputLayout->addWidget(vrLabel_1, 8, 5, 7, 1);
+    outputLayout->addLayout(qBox_4, 8, 6, 6, 2, Qt::AlignLeft);
+    outputLayout->addLayout(qBox_3, 10, 2, Qt::AlignRight);
+    outputLayout->addWidget(errorFormatCombo, 10, 3);
+    outputLayout->addWidget(fluxnetGroupBox, 11, 0, 1, 4);
+    outputLayout->addWidget(outBiometCheckBox, 12, 0, 1, 4);
+    outputLayout->addWidget(outDetailsCheckBox, 13, 0, 1, 4);
+    outputLayout->addWidget(outMdCheckBox, 14, 0, 1, 4);
+    outputLayout->addWidget(hrLabel_2, 15, 0, 1, -1);
+    outputLayout->addLayout(qBox_10, 16, 0);
+    outputLayout->addLayout(qBox_11, 17, 0, 1, -1);
+    outputLayout->addLayout(qBox_5, 18, 0);
+    outputLayout->addLayout(qBox_12, 19, 0);
+    outputLayout->addWidget(outBinOgivesCheckBox, 20, 0);
+    outputLayout->addWidget(outMeanSpectraCheckBox, 21, 0);
+    outputLayout->addWidget(outMeanCospCheckBox, 22, 0);
+    outputLayout->addLayout(qBox_6, 18, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxU, 19, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxV, 20, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxW, 21, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxTs, 22, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxCo2, 23, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxH2o, 24, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectraCheckBoxCh4, 25, 1, 1, 2);
+    outputLayout->addWidget(outFullSpectralCheckBoxGas4, 26, 1, 1, 2);
+    outputLayout->addLayout(qBox_7, 18, 3, 1, 3);
+    outputLayout->addWidget(outFullCospectraCheckBoxU, 19, 3, 1, 3);
+    outputLayout->addWidget(outFullCospectraCheckBoxV, 20, 3, 1, 3);
+    outputLayout->addLayout(qBox_13, 21, 3, 1, 3);
+    outputLayout->addWidget(outFullCospectraCheckBoxCo2, 22, 3, 1, 3);
+    outputLayout->addWidget(outFullCospectraCheckBoxH2o, 23, 3, 1, 3);
+    outputLayout->addWidget(outFullCospectraCheckBoxCh4, 24, 3, 1, 3);
+    outputLayout->addWidget(outFullCospectralCheckBoxGas4, 25, 3, 1, 3);
+    outputLayout->addWidget(fullSpectraDescription, 27, 1, 1, 7);
+    outputLayout->addWidget(hrLabel_3, 28, 0, 1, -1);
+    outputLayout->addWidget(title_5, 29, 0);
+    outputLayout->addLayout(qBox_8, 30, 1, Qt::AlignRight);
+    outputLayout->addLayout(qBox_9, 30, 2, Qt::AlignRight);
+    outputLayout->addWidget(varLabel, 30, 3, 1, 2, Qt::AlignCenter);
+    outputLayout->addWidget(hrLabel_4, 31, 1, 1, 2);
+    outputLayout->addWidget(hrLabel_5, 31, 3, 1, 2);
+    outputLayout->addWidget(level1Label, 32, 0, Qt::AlignRight);
+    outputLayout->addWidget(level2Label, 33, 0, Qt::AlignRight);
+    outputLayout->addWidget(level3Label, 34, 0, Qt::AlignRight);
+    outputLayout->addWidget(level4Label, 35, 0, Qt::AlignRight);
+    outputLayout->addWidget(level5Label, 36, 0, Qt::AlignRight);
+    outputLayout->addWidget(level6Label, 37, 0, Qt::AlignRight);
+    outputLayout->addWidget(level7Label, 38, 0, Qt::AlignRight);
+    outputLayout->addWidget(outSt1CheckBox, 32, 1, Qt::AlignCenter);
+    outputLayout->addWidget(outSt2CheckBox, 33, 1, Qt::AlignCenter);
+    outputLayout->addWidget(outSt3CheckBox, 34, 1, Qt::AlignCenter);
+    outputLayout->addWidget(outSt4CheckBox, 35, 1, Qt::AlignCenter);
+    outputLayout->addWidget(outSt5CheckBox, 36, 1, Qt::AlignCenter);
+    outputLayout->addWidget(outSt6CheckBox, 37, 1, Qt::AlignCenter);
+    outputLayout->addWidget(outSt7CheckBox, 38, 1, Qt::AlignCenter);
+    outputLayout->addWidget(outRaw1CheckBox, 32, 2, Qt::AlignCenter);
+    outputLayout->addWidget(outRaw2CheckBox, 33, 2, Qt::AlignCenter);
+    outputLayout->addWidget(outRaw3CheckBox, 34, 2, Qt::AlignCenter);
+    outputLayout->addWidget(outRaw4CheckBox, 35, 2, Qt::AlignCenter);
+    outputLayout->addWidget(outRaw5CheckBox, 36, 2, Qt::AlignCenter);
+    outputLayout->addWidget(outRaw6CheckBox, 37, 2, Qt::AlignCenter);
+    outputLayout->addWidget(outRaw7CheckBox, 38, 2, Qt::AlignCenter);
+    outputLayout->addWidget(vrLabel_2, 32, 3, 7, 1, Qt::AlignLeft);
+    outputLayout->addWidget(outRawUCheckBox, 32, 3, 1, 2);
+    outputLayout->addWidget(outRawVCheckBox, 33, 3, 1, 2);
+    outputLayout->addWidget(outRawWCheckBox, 34, 3, 1, 2);
+    outputLayout->addWidget(outRawTsCheckBox, 35, 3, 1, 2);
+    outputLayout->addWidget(outRawCo2CheckBox, 36, 3, 1, 2);
+    outputLayout->addWidget(outRawH2oCheckBox, 32, 4, 1, 2);
+    outputLayout->addWidget(outRawCh4CheckBox, 33, 4, 1, 2);
+    outputLayout->addWidget(outRawGas4CheckBox, 34, 4, 1, 2);
+    outputLayout->addWidget(outRawTairCheckBox, 35, 4, 1, 2);
+    outputLayout->addWidget(outRawPairCheckBox, 36, 4, 1, 2);
+    outputLayout->addWidget(outVarsAllCheckBox, 38, 3, 1, 3);
+    outputLayout->setRowStretch(39, 1);
     outputLayout->setColumnStretch(8, 1);
     outputLayout->setColumnMinimumWidth(4, 60);
 
@@ -658,6 +768,16 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
             this, &AdvOutputOptions::updateFluxnetErrLabelMode);
     connect(outFullCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setGeneralOutRich(checked); });
+    connect(spectralAssessmentCreationRadioButton, &QRadioButton::toggled,
+            this, &AdvOutputOptions::updateSpectralAssessmentCreationMode);
+    connect(productionRunRadioButton, &QRadioButton::toggled,
+            this, &AdvOutputOptions::updateProductionRunMode);
+    connect(defaultRunRadioButton, &QRadioButton::toggled,
+            this, &AdvOutputOptions::updateDefaultRunMode);
+    connect(timelagAssessmentOnlyCheckBox, &QCheckBox::toggled,
+            this, &AdvOutputOptions::updateTimelagAssessmentOnly);
+    connect(planarFitAssessmentOnlyCheckBox, &QCheckBox::toggled,
+            this, &AdvOutputOptions::updatePlanarFitAssessmentOnly);
 
     connect(outputFormatRadioGroup, &QButtonGroup::idClicked,
             this, &AdvOutputOptions::updateFixedOuputFormat);
@@ -766,6 +886,8 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
             this, &AdvOutputOptions::reset);
     connect(ecProject_, &EcProject::ecProjectChanged,
             this, &AdvOutputOptions::refresh);
+    connect(ecProject_, &EcProject::updateInfo,
+            this, &AdvOutputOptions::refresh);
 
     // init
     QTimer::singleShot(0, this, &AdvOutputOptions::reset);
@@ -776,7 +898,12 @@ void AdvOutputOptions::setSmartfluxUI()
     bool on = configState_->project.smartfluxMode;
 
     QWidgetList enableableWidgets;
-    enableableWidgets << outFullCheckBox
+    enableableWidgets << spectralAssessmentCreationRadioButton
+                      << productionRunRadioButton
+                      << defaultRunRadioButton
+                      << timelagAssessmentOnlyCheckBox
+                      << planarFitAssessmentOnlyCheckBox
+                      << outFullCheckBox
                       << fullOutformatLabel
                       << fixedVarsOutputRadio
                       << variableVarsOutputRadio
@@ -970,6 +1097,9 @@ void AdvOutputOptions::setSmartfluxUI()
         ecProject_->setModified(oldmod);
         ecProject_->blockSignals(false);
     }
+
+    updateGasOutputAvailability();
+    setRequiredSpectralOutputState(currentSpectralMethodIndex());
 }
 
 void AdvOutputOptions::reset()
@@ -984,6 +1114,15 @@ void AdvOutputOptions::reset()
     outVarsAllCheckBox->setChecked(false);
     variableVarsOutputRadio->setChecked(true);
     errorFormatCombo->setCurrentIndex(0);
+    {
+        QSignalBlocker preprocessingBlocker(spectralAssessmentCreationRadioButton);
+        QSignalBlocker productionBlocker(productionRunRadioButton);
+        QSignalBlocker defaultBlocker(defaultRunRadioButton);
+        defaultRunRadioButton->setChecked(true);
+    }
+    ecProject_->setSpectraFluxRunMode(0);
+    timelagAssessmentOnlyCheckBox->setChecked(false);
+    planarFitAssessmentOnlyCheckBox->setChecked(false);
 
     if (ecProject_->generalUseBiomet())
     {
@@ -993,6 +1132,9 @@ void AdvOutputOptions::reset()
     // restore modified flag
     ecProject_->setModified(oldmod);
     ecProject_->blockSignals(false);
+    updateGasOutputAvailability();
+    updateSpectralAssessmentCreationAvailability();
+    setRequiredSpectralOutputState(currentSpectralMethodIndex());
 }
 
 void AdvOutputOptions::refresh()
@@ -1027,6 +1169,29 @@ void AdvOutputOptions::refresh()
     fluxnetErrLabelCheckBox->setChecked(ecProject_->fluxnetErrLabel());
     updateFluxnetErrLabelMode(ecProject_->fluxnetErrLabel());
     outFullCheckBox->setChecked(ecProject_->generalOutRich());
+    {
+        QSignalBlocker preprocessingBlocker(spectralAssessmentCreationRadioButton);
+        QSignalBlocker productionBlocker(productionRunRadioButton);
+        QSignalBlocker defaultBlocker(defaultRunRadioButton);
+        if (isSpectralAssessmentCreationMode())
+        {
+            spectralAssessmentCreationRadioButton->setChecked(true);
+        }
+        else if (isProductionRunMode())
+        {
+            productionRunRadioButton->setChecked(true);
+        }
+        else
+        {
+            defaultRunRadioButton->setChecked(true);
+        }
+    }
+    timelagAssessmentOnlyCheckBox->setChecked(ecProject_->timelagAssessmentOnly());
+    planarFitAssessmentOnlyCheckBox->setChecked(ecProject_->planarFitAssessmentOnly());
+    if (ecProject_->timelagAssessmentOnly() || ecProject_->planarFitAssessmentOnly())
+    {
+        clearRunModeRadios();
+    }
     outDetailsCheckBox->setChecked(ecProject_->screenOutDetails());
     outMdCheckBox->setChecked(ecProject_->generalOutMd());
     outBiometCheckBox->setChecked(ecProject_->generalOutBiomet());
@@ -1083,11 +1248,333 @@ void AdvOutputOptions::refresh()
     // restore modified flag
     ecProject_->setModified(oldmod);
     ecProject_->blockSignals(false);
+    updateGasOutputAvailability();
+    updateSpectralAssessmentCreationAvailability();
+    setRequiredSpectralOutputState(currentSpectralMethodIndex());
 }
 
 void AdvOutputOptions::updateOutBinSpectra(bool b)
 {
     ecProject_->setScreenOutBinSpectra(b);
+}
+
+void AdvOutputOptions::updateSpectralAssessmentCreationMode(bool checked)
+{
+    if (!checked)
+    {
+        updateSpectralAssessmentCreationAvailability();
+        setRequiredSpectralOutputState(currentSpectralMethodIndex());
+        return;
+    }
+
+    if (checked)
+    {
+        if (!validateSpectralAssessmentCreationRequest())
+        {
+            ecProject_->setSpectraFluxRunMode(0);
+            defaultRunRadioButton->setChecked(true);
+            return;
+        }
+
+        ecProject_->setSpectraFluxRunMode(1);
+        timelagAssessmentOnlyCheckBox->setChecked(false);
+        planarFitAssessmentOnlyCheckBox->setChecked(false);
+        applySpectralAssessmentCreationRequirements();
+    }
+
+    updateSpectralAssessmentCreationAvailability();
+    setRequiredSpectralOutputState(currentSpectralMethodIndex());
+}
+
+void AdvOutputOptions::updateProductionRunMode(bool checked)
+{
+    if (!checked)
+    {
+        return;
+    }
+
+    ecProject_->setSpectraFluxRunMode(2);
+    timelagAssessmentOnlyCheckBox->setChecked(false);
+    planarFitAssessmentOnlyCheckBox->setChecked(false);
+    applyProductionRunRequirements();
+    updateSpectralAssessmentCreationAvailability();
+    setRequiredSpectralOutputState(currentSpectralMethodIndex());
+}
+
+void AdvOutputOptions::updateDefaultRunMode(bool checked)
+{
+    if (!checked)
+    {
+        return;
+    }
+
+    ecProject_->setSpectraFluxRunMode(0);
+    timelagAssessmentOnlyCheckBox->setChecked(false);
+    planarFitAssessmentOnlyCheckBox->setChecked(false);
+    updateSpectralAssessmentCreationAvailability();
+    setRequiredSpectralOutputState(currentSpectralMethodIndex());
+}
+
+void AdvOutputOptions::updateTimelagAssessmentOnly(bool checked)
+{
+    if (checked)
+    {
+        ecProject_->setSpectraFluxRunMode(0);
+        clearRunModeRadios();
+    }
+    ecProject_->setTimelagAssessmentOnly(checked);
+}
+
+void AdvOutputOptions::updatePlanarFitAssessmentOnly(bool checked)
+{
+    if (checked)
+    {
+        ecProject_->setSpectraFluxRunMode(0);
+        clearRunModeRadios();
+    }
+    ecProject_->setPlanarFitAssessmentOnly(checked);
+}
+
+bool AdvOutputOptions::canCreateTimelagAssessmentOnly() const
+{
+    return ecProject_->screenTlagMeth() == 4 || ecProject_->screenTlagMeth() == 5;
+}
+
+bool AdvOutputOptions::canCreatePlanarFitAssessmentOnly() const
+{
+    return (ecProject_->screenRotMethod() == 3 || ecProject_->screenRotMethod() == 4)
+            && ecProject_->planarFitMode() == 1;
+}
+
+bool AdvOutputOptions::canCreateSpectralAssessment() const
+{
+    return !configState_->project.smartfluxMode
+            && ecProject_->spectraMode() != 0;
+}
+
+bool AdvOutputOptions::validateSpectralAssessmentCreationRequest()
+{
+    if (!QFileInfo(ecProject_->screenDataPath()).isDir()
+        || ecProject_->generalFilesFound() <= 0)
+    {
+        WidgetUtils::warning(this,
+                             tr("Create Spectral Assessment File"),
+                             tr("Raw data are not available. Please select a valid raw data directory first."));
+        return false;
+    }
+
+    auto intervals = estimatedSpectralAssessmentIntervals();
+    if (intervals < 0)
+    {
+        WidgetUtils::warning(this,
+                             tr("Create Spectral Assessment File"),
+                             tr("The selected assessment period is invalid. Please check the selected timestamps."));
+        return false;
+    }
+
+    if (intervals < ecProject_->spectraMinSmpl())
+    {
+        WidgetUtils::warning(this,
+                             tr("Create Spectral Assessment File"),
+                             tr("Not enough samples; please select more timestamps to process."));
+        return false;
+    }
+
+    if (ecProject_->generalBinSpectraAvail()
+        && !QFileInfo(ecProject_->spectraBinSpectra()).isDir())
+    {
+        WidgetUtils::warning(this,
+                             tr("Create Spectral Assessment File"),
+                             tr("The selected binned (co)spectra directory is not valid."));
+        return false;
+    }
+
+    if (ecProject_->generalFullSpectraAvail()
+        && !QFileInfo(ecProject_->spectraFullSpectra()).isDir())
+    {
+        WidgetUtils::warning(this,
+                             tr("Create Spectral Assessment File"),
+                             tr("The selected full cospectra directory is not valid."));
+        return false;
+    }
+
+    return true;
+}
+
+int AdvOutputOptions::estimatedSpectralAssessmentIntervals() const
+{
+    const auto startDate = ecProject_->spectraSubset()
+            ? ecProject_->spectraStartDate()
+            : ecProject_->generalStartDate();
+    const auto startTime = ecProject_->spectraSubset()
+            ? ecProject_->spectraStartTime()
+            : ecProject_->generalStartTime();
+    const auto endDate = ecProject_->spectraSubset()
+            ? ecProject_->spectraEndDate()
+            : ecProject_->generalEndDate();
+    const auto endTime = ecProject_->spectraSubset()
+            ? ecProject_->spectraEndTime()
+            : ecProject_->generalEndTime();
+
+    const auto start = QDateTime(QDate::fromString(startDate, Qt::ISODate),
+                                 QTime::fromString(startTime, QStringLiteral("hh:mm")));
+    const auto end = QDateTime(QDate::fromString(endDate, Qt::ISODate),
+                               QTime::fromString(endTime, QStringLiteral("hh:mm")));
+    const auto avgLenSeconds = ecProject_->screenAvrgLen() * 60;
+
+    if (!start.isValid() || !end.isValid() || avgLenSeconds <= 0 || end <= start)
+    {
+        return -1;
+    }
+
+    return static_cast<int>(start.secsTo(end) / avgLenSeconds);
+}
+
+int AdvOutputOptions::currentSpectralMethodIndex() const
+{
+    return ecProject_->generalHfMethod() == 4 ? 4
+         : ecProject_->generalHfMethod() == 3 ? 3
+         : ecProject_->generalHfMethod() == 2 ? 2
+         : 0;
+}
+
+bool AdvOutputOptions::isSpectralAssessmentCreationMode() const
+{
+    return ecProject_->spectraFluxRunMode() == 1;
+}
+
+bool AdvOutputOptions::isProductionRunMode() const
+{
+    return ecProject_->spectraFluxRunMode() == 2;
+}
+
+void AdvOutputOptions::applySpectralAssessmentCreationRequirements()
+{
+    if (ecProject_->generalHfMethod() < 2 || ecProject_->generalHfMethod() > 4)
+    {
+        ecProject_->setGeneralHfMethod(4);
+    }
+    if (ecProject_->spectraMode() != 1)
+    {
+        ecProject_->setSpectraMode(1);
+    }
+    if (!ecProject_->screenOutBinSpectra())
+    {
+        ecProject_->setScreenOutBinSpectra(1);
+    }
+    if (ecProject_->generalBinSpectraAvail())
+    {
+        ecProject_->setGeneralBinSpectraAvail(0);
+    }
+    if (ecProject_->generalFullSpectraAvail())
+    {
+        ecProject_->setGeneralFullSpectraAvail(0);
+    }
+    if (!ecProject_->screenOutFullCospectraTs())
+    {
+        ecProject_->setScreenOutFullCospectraTs(1);
+    }
+    if (ecProject_->spectraUseVmFlags())
+    {
+        ecProject_->setSpectraUseVmFlags(0);
+    }
+    if (ecProject_->spectraUseFokenMid())
+    {
+        ecProject_->setSpectraUseFokenMid(0);
+    }
+    if (ecProject_->timelagAssessmentOnly())
+    {
+        ecProject_->setTimelagAssessmentOnly(0);
+    }
+    if (ecProject_->planarFitAssessmentOnly())
+    {
+        ecProject_->setPlanarFitAssessmentOnly(0);
+    }
+}
+
+void AdvOutputOptions::applyProductionRunRequirements()
+{
+    if (ecProject_->generalHfMethod() < 2 || ecProject_->generalHfMethod() > 4)
+    {
+        ecProject_->setGeneralHfMethod(4);
+    }
+    ecProject_->setGeneralBinSpectraAvail(1);
+    ecProject_->setGeneralFullSpectraAvail(1);
+    ecProject_->setSpectraMode(0);
+    ecProject_->setSpectraUseVmFlags(1);
+    ecProject_->setSpectraUseFokenMid(1);
+    ecProject_->setSpectraUseFokenLow(1);
+
+    outMeanSpectraCheckBox->setChecked(false);
+    outMeanCospCheckBox->setChecked(false);
+    checkFullSpectraAll(false);
+    checkFullCospectraAll(false);
+}
+
+void AdvOutputOptions::clearRunModeRadios()
+{
+    QSignalBlocker preprocessingBlocker(spectralAssessmentCreationRadioButton);
+    QSignalBlocker productionBlocker(productionRunRadioButton);
+    QSignalBlocker defaultBlocker(defaultRunRadioButton);
+    const auto wasExclusive = assessmentRunModeRadioGroup->exclusive();
+    assessmentRunModeRadioGroup->setExclusive(false);
+    spectralAssessmentCreationRadioButton->setChecked(false);
+    productionRunRadioButton->setChecked(false);
+    defaultRunRadioButton->setChecked(false);
+    assessmentRunModeRadioGroup->setExclusive(wasExclusive);
+}
+
+void AdvOutputOptions::updateSpectralAssessmentCreationAvailability()
+{
+    auto enabled = canCreateSpectralAssessment();
+    spectralAssessmentCreationRadioButton->setEnabled(enabled);
+    if (!enabled && spectralAssessmentCreationRadioButton->isChecked())
+    {
+        ecProject_->setSpectraFluxRunMode(0);
+        defaultRunRadioButton->setChecked(true);
+    }
+    productionRunRadioButton->setEnabled(!configState_->project.smartfluxMode);
+    if (!productionRunRadioButton->isEnabled() && productionRunRadioButton->isChecked())
+    {
+        ecProject_->setSpectraFluxRunMode(0);
+        defaultRunRadioButton->setChecked(true);
+    }
+    defaultRunRadioButton->setEnabled(!configState_->project.smartfluxMode);
+
+    if (isSpectralAssessmentCreationMode())
+    {
+        applySpectralAssessmentCreationRequirements();
+    }
+
+    updatePreprocessingAssessmentAvailability();
+}
+
+void AdvOutputOptions::updatePreprocessingAssessmentAvailability()
+{
+    const auto spectralAssessmentMode = isSpectralAssessmentCreationMode()
+                                        || isProductionRunMode();
+
+    auto timelagEnabled = canCreateTimelagAssessmentOnly();
+    if (spectralAssessmentMode)
+    {
+        timelagEnabled = false;
+    }
+    timelagAssessmentOnlyCheckBox->setEnabled(timelagEnabled);
+    if (!timelagEnabled && timelagAssessmentOnlyCheckBox->isChecked())
+    {
+        timelagAssessmentOnlyCheckBox->setChecked(false);
+    }
+
+    auto planarFitEnabled = canCreatePlanarFitAssessmentOnly();
+    if (spectralAssessmentMode)
+    {
+        planarFitEnabled = false;
+    }
+    planarFitAssessmentOnlyCheckBox->setEnabled(planarFitEnabled);
+    if (!planarFitEnabled && planarFitAssessmentOnlyCheckBox->isChecked())
+    {
+        planarFitAssessmentOnlyCheckBox->setChecked(false);
+    }
 }
 
 void AdvOutputOptions::updateBinSpectra(bool b)
@@ -1203,10 +1690,10 @@ void AdvOutputOptions::checkFullSpectraAll(bool b)
     outFullSpectraCheckBoxV->setChecked(b);
     outFullSpectraCheckBoxW->setChecked(b);
     outFullSpectraCheckBoxTs->setChecked(b);
-    outFullSpectraCheckBoxCo2->setChecked(b);
-    outFullSpectraCheckBoxH2o->setChecked(b);
-    outFullSpectraCheckBoxCh4->setChecked(b);
-    outFullSpectralCheckBoxGas4->setChecked(b);
+    outFullSpectraCheckBoxCo2->setChecked(b && isCo2OutputAvailable());
+    outFullSpectraCheckBoxH2o->setChecked(b && isH2oOutputAvailable());
+    outFullSpectraCheckBoxCh4->setChecked(b && isCh4OutputAvailable());
+    outFullSpectralCheckBoxGas4->setChecked(b && isGas4OutputAvailable());
 }
 
 bool AdvOutputOptions::areAllCheckedVars()
@@ -1215,10 +1702,10 @@ bool AdvOutputOptions::areAllCheckedVars()
             && outRawVCheckBox->isChecked()
             && outRawWCheckBox->isChecked()
             && outRawTsCheckBox->isChecked()
-            && outRawCo2CheckBox->isChecked()
-            && outRawH2oCheckBox->isChecked()
-            && outRawCh4CheckBox->isChecked()
-            && outRawGas4CheckBox->isChecked()
+            && (!isCo2OutputAvailable() || outRawCo2CheckBox->isChecked())
+            && (!isH2oOutputAvailable() || outRawH2oCheckBox->isChecked())
+            && (!isCh4OutputAvailable() || outRawCh4CheckBox->isChecked())
+            && (!isGas4OutputAvailable() || outRawGas4CheckBox->isChecked())
             && outRawTairCheckBox->isChecked()
             && outRawPairCheckBox->isChecked());
 }
@@ -1228,10 +1715,10 @@ void AdvOutputOptions::checkFullCospectraAll(bool b)
     outFullCospectraCheckBoxU->setChecked(b);
     outFullCospectraCheckBoxV->setChecked(b);
     outFullCospectraCheckBoxTs->setChecked(b);
-    outFullCospectraCheckBoxCo2->setChecked(b);
-    outFullCospectraCheckBoxH2o->setChecked(b);
-    outFullCospectraCheckBoxCh4->setChecked(b);
-    outFullCospectralCheckBoxGas4->setChecked(b);
+    outFullCospectraCheckBoxCo2->setChecked(b && isCo2OutputAvailable());
+    outFullCospectraCheckBoxH2o->setChecked(b && isH2oOutputAvailable());
+    outFullCospectraCheckBoxCh4->setChecked(b && isCh4OutputAvailable());
+    outFullCospectralCheckBoxGas4->setChecked(b && isGas4OutputAvailable());
 }
 
 void AdvOutputOptions::checkStAll(bool b)
@@ -1262,10 +1749,10 @@ void AdvOutputOptions::checkVarsAll(bool b)
     outRawVCheckBox->setChecked(b);
     outRawWCheckBox->setChecked(b);
     outRawTsCheckBox->setChecked(b);
-    outRawCo2CheckBox->setChecked(b);
-    outRawH2oCheckBox->setChecked(b);
-    outRawCh4CheckBox->setChecked(b);
-    outRawGas4CheckBox->setChecked(b);
+    outRawCo2CheckBox->setChecked(b && isCo2OutputAvailable());
+    outRawH2oCheckBox->setChecked(b && isH2oOutputAvailable());
+    outRawCh4CheckBox->setChecked(b && isCh4OutputAvailable());
+    outRawGas4CheckBox->setChecked(b && isGas4OutputAvailable());
     outRawTairCheckBox->setChecked(b);
     outRawPairCheckBox->setChecked(b);
 }
@@ -1290,6 +1777,8 @@ void AdvOutputOptions::selectMin()
     outSt1CheckBox->setChecked(true);
     checkTimeSeriesAll(false);
     checkVarsAll(false);
+    updateGasOutputAvailability();
+    setRequiredSpectralOutputState(currentSpectralMethodIndex());
 }
 
 void AdvOutputOptions::selectTypical()
@@ -1311,6 +1800,8 @@ void AdvOutputOptions::selectTypical()
     checkStAll(true);
     checkTimeSeriesAll(false);
     checkVarsAll(false);
+    updateGasOutputAvailability();
+    setRequiredSpectralOutputState(currentSpectralMethodIndex());
 }
 
 void AdvOutputOptions::selectFull()
@@ -1332,6 +1823,8 @@ void AdvOutputOptions::selectFull()
     checkStAll(true);
     checkTimeSeriesAll(false);
     checkVarsAll(false);
+    updateGasOutputAvailability();
+    setRequiredSpectralOutputState(currentSpectralMethodIndex());
 }
 
 void AdvOutputOptions::setVarsAvailable(bool ok)
@@ -1340,13 +1833,33 @@ void AdvOutputOptions::setVarsAvailable(bool ok)
     outRawVCheckBox->setEnabled(ok);
     outRawWCheckBox->setEnabled(ok);
     outRawTsCheckBox->setEnabled(ok);
-    outRawCo2CheckBox->setEnabled(ok);
-    outRawH2oCheckBox->setEnabled(ok);
-    outRawCh4CheckBox->setEnabled(ok);
-    outRawGas4CheckBox->setEnabled(ok);
+    outRawCo2CheckBox->setEnabled(ok && isCo2OutputAvailable());
+    outRawH2oCheckBox->setEnabled(ok && isH2oOutputAvailable());
+    outRawCh4CheckBox->setEnabled(ok && isCh4OutputAvailable());
+    outRawGas4CheckBox->setEnabled(ok && isGas4OutputAvailable());
     outRawTairCheckBox->setEnabled(ok);
     outRawPairCheckBox->setEnabled(ok);
     outVarsAllCheckBox->setEnabled(ok);
+}
+
+bool AdvOutputOptions::isCo2OutputAvailable() const
+{
+    return ecProject_->generalColCo2() > 0;
+}
+
+bool AdvOutputOptions::isH2oOutputAvailable() const
+{
+    return ecProject_->generalColH2o() > 0;
+}
+
+bool AdvOutputOptions::isCh4OutputAvailable() const
+{
+    return ecProject_->generalColCh4() > 0;
+}
+
+bool AdvOutputOptions::isGas4OutputAvailable() const
+{
+    return ecProject_->generalColGas4() > 0;
 }
 
 bool AdvOutputOptions::areTimeSeriesChecked()
@@ -1364,6 +1877,60 @@ void AdvOutputOptions::updateVarsAvailable()
 {
     setVarsAvailable(areTimeSeriesChecked());
     outVarsAllCheckBox->setEnabled(areTimeSeriesChecked());
+    updateGasOutputAvailability();
+    updateSelectAllCheckbox();
+}
+
+void AdvOutputOptions::updateGasOutputAvailability()
+{
+    const bool smartfluxOn = configState_->project.smartfluxMode;
+    const bool timeSeriesAvailable = areTimeSeriesChecked();
+    const bool co2Available = isCo2OutputAvailable();
+    const bool h2oAvailable = isH2oOutputAvailable();
+    const bool ch4Available = isCh4OutputAvailable();
+    const bool gas4Available = isGas4OutputAvailable();
+
+    outFullSpectraCheckBoxCo2->setEnabled(co2Available && !smartfluxOn);
+    outFullSpectraCheckBoxH2o->setEnabled(h2oAvailable && !smartfluxOn);
+    outFullSpectraCheckBoxCh4->setEnabled(ch4Available && !smartfluxOn);
+    outFullSpectralCheckBoxGas4->setEnabled(gas4Available && !smartfluxOn);
+
+    outFullCospectraCheckBoxCo2->setEnabled(co2Available && !smartfluxOn);
+    outFullCospectraCheckBoxH2o->setEnabled(h2oAvailable && !smartfluxOn);
+    outFullCospectraCheckBoxCh4->setEnabled(ch4Available && !smartfluxOn);
+    outFullCospectralCheckBoxGas4->setEnabled(gas4Available && !smartfluxOn);
+
+    outRawCo2CheckBox->setEnabled(co2Available && timeSeriesAvailable && !smartfluxOn);
+    outRawH2oCheckBox->setEnabled(h2oAvailable && timeSeriesAvailable && !smartfluxOn);
+    outRawCh4CheckBox->setEnabled(ch4Available && timeSeriesAvailable && !smartfluxOn);
+    outRawGas4CheckBox->setEnabled(gas4Available && timeSeriesAvailable && !smartfluxOn);
+
+    if (!co2Available)
+    {
+        outFullSpectraCheckBoxCo2->setChecked(false);
+        outFullCospectraCheckBoxCo2->setChecked(false);
+        outRawCo2CheckBox->setChecked(false);
+    }
+    if (!h2oAvailable)
+    {
+        outFullSpectraCheckBoxH2o->setChecked(false);
+        outFullCospectraCheckBoxH2o->setChecked(false);
+        outRawH2oCheckBox->setChecked(false);
+    }
+    if (!ch4Available)
+    {
+        outFullSpectraCheckBoxCh4->setChecked(false);
+        outFullCospectraCheckBoxCh4->setChecked(false);
+        outRawCh4CheckBox->setChecked(false);
+    }
+    if (!gas4Available)
+    {
+        outFullSpectralCheckBoxGas4->setChecked(false);
+        outFullCospectralCheckBoxGas4->setChecked(false);
+        outRawGas4CheckBox->setChecked(false);
+    }
+
+    updateSelectAllCheckbox();
 }
 
 void AdvOutputOptions::updateOutputs(int n)
@@ -1402,6 +1969,7 @@ void AdvOutputOptions::setRequiredIcon(QLabel* label, bool visible)
 
 void AdvOutputOptions::setRequiredSpectralOutputState(int methodIndex)
 {
+    const bool spectralAssessmentMode = isSpectralAssessmentCreationMode();
     const bool needsBinnedSpectra = requiresBinnedSpectraOutput(
         methodIndex,
         ecProject_->spectraMode(),
@@ -1410,19 +1978,22 @@ void AdvOutputOptions::setRequiredSpectralOutputState(int methodIndex)
         methodIndex,
         ecProject_->generalFullSpectraAvail());
 
-    if (needsBinnedSpectra)
+    if (needsBinnedSpectra || spectralAssessmentMode)
     {
         outBinSpectraCheckBox->setChecked(true);
     }
-    outBinSpectraCheckBox->setEnabled(!needsBinnedSpectra);
-    setRequiredIcon(outBinSpectraRequiredIcon, needsBinnedSpectra);
+    outBinSpectraCheckBox->setEnabled(!needsBinnedSpectra && !spectralAssessmentMode);
+    setRequiredIcon(outBinSpectraRequiredIcon, needsBinnedSpectra || spectralAssessmentMode);
 
-    if (needsFullTsCospectra)
+    if (needsFullTsCospectra || spectralAssessmentMode)
     {
         outFullCospectraCheckBoxTs->setChecked(true);
     }
-    outFullCospectraCheckBoxTs->setEnabled(!needsFullTsCospectra);
-    setRequiredIcon(outFullCospectraTsRequiredIcon, needsFullTsCospectra);
+    outFullCospectraCheckBoxTs->setEnabled(!needsFullTsCospectra && !spectralAssessmentMode);
+    setRequiredIcon(outFullCospectraTsRequiredIcon, needsFullTsCospectra || spectralAssessmentMode);
+
+    updateGasOutputAvailability();
+    setRequiredGasFullCospectraOutputState(methodIndex);
 
     QString methodName;
     switch (methodIndex)
@@ -1440,7 +2011,7 @@ void AdvOutputOptions::setRequiredSpectralOutputState(int methodIndex)
         break;
     }
 
-    const bool hasRequiredOutput = needsBinnedSpectra || needsFullTsCospectra;
+    const bool hasRequiredOutput = needsBinnedSpectra || needsFullTsCospectra || spectralAssessmentMode;
     spectralOutputsRequiredIcon->setVisible(hasRequiredOutput);
     spectralOutputsRequiredLabel->setVisible(hasRequiredOutput);
     if (hasRequiredOutput)
@@ -1449,6 +2020,31 @@ void AdvOutputOptions::setRequiredSpectralOutputState(int methodIndex)
             tr("<i>Outputs required by selected spectral correction %1</i>")
                 .arg(methodName));
     }
+}
+
+void AdvOutputOptions::setRequiredGasFullCospectraOutputState(int methodIndex)
+{
+    const bool forceGasCospectra = isSpectralAssessmentCreationMode()
+                                   && methodIndex == 4;
+    if (!forceGasCospectra)
+    {
+        const bool smartfluxOn = configState_->project.smartfluxMode;
+        outFullCospectraCheckBoxCo2->setEnabled(isCo2OutputAvailable() && !smartfluxOn);
+        outFullCospectraCheckBoxH2o->setEnabled(isH2oOutputAvailable() && !smartfluxOn);
+        outFullCospectraCheckBoxCh4->setEnabled(isCh4OutputAvailable() && !smartfluxOn);
+        outFullCospectralCheckBoxGas4->setEnabled(isGas4OutputAvailable() && !smartfluxOn);
+        return;
+    }
+
+    outFullCospectraCheckBoxCo2->setChecked(ecProject_->generalColCo2() > 0);
+    outFullCospectraCheckBoxH2o->setChecked(ecProject_->generalColH2o() > 0);
+    outFullCospectraCheckBoxCh4->setChecked(ecProject_->generalColCh4() > 0);
+    outFullCospectralCheckBoxGas4->setChecked(ecProject_->generalColGas4() > 0);
+
+    outFullCospectraCheckBoxCo2->setEnabled(false);
+    outFullCospectraCheckBoxH2o->setEnabled(false);
+    outFullCospectraCheckBoxCh4->setEnabled(false);
+    outFullCospectralCheckBoxGas4->setEnabled(false);
 }
 
 void AdvOutputOptions::updateFixedOuputFormat(int n)

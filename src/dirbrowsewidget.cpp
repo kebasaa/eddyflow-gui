@@ -27,6 +27,7 @@
 #include "dirbrowsewidget.h"
 
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QPushButton>
 
 #include "customdroplineedit.h"
@@ -62,11 +63,23 @@ void DirBrowseWidget::setReadOnly(bool on)
 
 void DirBrowseWidget::onButtonClick()
 {
+    auto workingDir = dialogWorkingDir();
+    if (workingDir.isEmpty() || !QFileInfo(workingDir).isDir())
+    {
+        workingDir = WidgetUtils::getSearchPathHint();
+    }
+
     QString dirname = QFileDialog::getExistingDirectory(this,
                           dialogTitle(),
-                          WidgetUtils::getSearchPathHint());
+                          workingDir);
 
     if (dirname.isEmpty()) { return; }
+
+    auto dirInfo = QFileInfo(dirname);
+    if (!dirInfo.canonicalFilePath().isEmpty())
+    {
+        setDialogWorkingDir(dirInfo.canonicalFilePath());
+    }
 
     emit pathSelected(dirname);
 }

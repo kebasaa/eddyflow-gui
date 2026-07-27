@@ -53,8 +53,8 @@ class QStringLiteral;
 /// \brief Contains global string literals
 namespace Defs
 {
-    const auto APP_VERSION = 0x070204;
-    const auto APP_VERSION_STR = QStringLiteral("7.2.4");
+    const auto APP_VERSION = 0x070205;
+    const auto APP_VERSION_STR = QStringLiteral("7.2.5");
     const auto APP_STAGE_STR = QStringLiteral(""); // -rc1
 
     const auto PROJECT_FILE_VERSION = 0x040500;
@@ -265,9 +265,9 @@ namespace Defs
     const auto DEFAULT_SMARTFLUX_SUFFIX = QStringLiteral("-smartflux");
     const auto DEFAULT_SMARTFLUX_PROJECT_FILENAME = QObject::tr("project-untitled%1.%2").arg(DEFAULT_SMARTFLUX_SUFFIX, PROJECT_FILE_EXT);
 
-    const auto SPECTRA_FILE_TEMPLATE = QStringLiteral("EddyFlow_sample_spectral_assessment");
-    const auto PLANAR_FIT_FILE_TEMPLATE = QStringLiteral("EddyFlow_sample_planar_fit");
-    const auto TIME_LAG_FILE_TEMPLATE = QStringLiteral("EddyFlow_sample_timelag_opt");
+    const auto SPECTRA_FILE_TEMPLATE = QStringLiteral("eddyflow_sample_spectral_assessment");
+    const auto PLANAR_FIT_FILE_TEMPLATE = QStringLiteral("eddyflow_sample_planar_fit");
+    const auto TIME_LAG_FILE_TEMPLATE = QStringLiteral("eddyflow_sample_timelag_opt");
 
     // register configuration strings
     const auto CONFGROUP_GENERAL      = QStringLiteral("/program");

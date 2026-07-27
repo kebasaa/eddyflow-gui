@@ -24,6 +24,9 @@
 
 #include "advspectraloptions.h"
 
+#include <QAbstractItemView>
+#include <QAbstractScrollArea>
+#include <QAbstractTableModel>
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QComboBox>
@@ -38,10 +41,18 @@
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScrollArea>
+#include <QSignalBlocker>
+#include <QHeaderView>
+#include <QSizePolicy>
 #include <QSpinBox>
+#include <QStyledItemDelegate>
+#include <QTableView>
 #include <QTimer>
 #include <QTimeEdit>
 #include <QUrl>
+#include <QVector>
+
+#include <cmath>
 
 #include "ancillaryfiletest.h"
 #include "clicklabel.h"
@@ -53,7 +64,280 @@
 #include "fileutils.h"
 #include "filebrowsewidget.h"
 #include "globalsettings.h"
+#include "variable_desc.h"
 #include "widget_utils.h"
+
+namespace {
+
+class AdaptivePrecisionDoubleSpinBox final : public QDoubleSpinBox
+{
+public:
+    explicit AdaptivePrecisionDoubleSpinBox(QWidget* parent = nullptr)
+        : QDoubleSpinBox(parent)
+    {}
+
+protected:
+    QString textFromValue(double value) const override
+    {
+        const double roundedToFour = std::round(value * 10000.0) / 10000.0;
+        const bool needsExtraPrecision = value != 0.0
+                && (std::abs(value) < 0.0001
+                    || std::abs(value - roundedToFour) > 0.0000005);
+
+        QString text = locale().toString(value, 'f', needsExtraPrecision ? 6 : 4);
+        if (needsExtraPrecision)
+        {
+            const QString decimalPoint = locale().decimalPoint();
+            while (text.contains(decimalPoint) && text.endsWith(QLatin1Char('0')))
+            {
+                text.chop(1);
+            }
+            if (text.endsWith(decimalPoint))
+            {
+                text.chop(1);
+            }
+        }
+        return text;
+    }
+};
+
+struct SpectralQaQcRow
+{
+    QString label;
+    QDoubleSpinBox* noiseFrequency = nullptr;
+    QDoubleSpinBox* minUnstable = nullptr;
+    QDoubleSpinBox* minStable = nullptr;
+    QDoubleSpinBox* maximum = nullptr;
+    QDoubleSpinBox* lowestFrequency = nullptr;
+    QDoubleSpinBox* highestFrequency = nullptr;
+};
+
+class SpectralQaQcTableModel final : public QAbstractTableModel
+{
+public:
+    enum Column
+    {
+        NoiseFrequency = 0,
+        MinUnstable,
+        MinStable,
+        Maximum,
+        LowestFrequency,
+        HighestFrequency,
+        ColumnCount
+    };
+
+    SpectralQaQcTableModel(QObject* parent,
+                           const QVector<SpectralQaQcRow>& rows,
+                           const QStringList& tooltips)
+        : QAbstractTableModel(parent),
+          rows_(rows),
+          tooltips_(tooltips)
+    {}
+
+    int rowCount(const QModelIndex& parent = QModelIndex()) const override
+    {
+        return parent.isValid() ? 0 : rows_.size();
+    }
+
+    int columnCount(const QModelIndex& parent = QModelIndex()) const override
+    {
+        return parent.isValid() ? 0 : ColumnCount;
+    }
+
+    QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override
+    {
+        if (orientation == Qt::Vertical)
+        {
+            return role == Qt::DisplayRole && section >= 0 && section < rows_.size()
+                    ? rows_.at(section).label
+                    : QVariant();
+        }
+
+        if (role == Qt::ToolTipRole && section >= 0 && section < tooltips_.size())
+        {
+            return tooltips_.at(section);
+        }
+        if (role != Qt::DisplayRole) { return QVariant(); }
+
+        switch (section)
+        {
+            case NoiseFrequency: return tr("Lowest noise frequency");
+            case MinUnstable: return tr("Minimum unstable");
+            case MinStable: return tr("Minimum stable");
+            case Maximum: return tr("Maximum");
+            case LowestFrequency: return tr("Lowest frequency");
+            case HighestFrequency: return tr("Highest frequency");
+            default: return QVariant();
+        }
+    }
+
+    QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override
+    {
+        if (!index.isValid() || !spinAt(index))
+        {
+            return QVariant();
+        }
+
+        if (role == Qt::TextAlignmentRole)
+        {
+            return static_cast<int>(Qt::AlignRight | Qt::AlignVCenter);
+        }
+        if (role == Qt::ToolTipRole && index.column() >= 0 && index.column() < tooltips_.size())
+        {
+            return tooltips_.at(index.column());
+        }
+        if (role == Qt::EditRole)
+        {
+            return spinAt(index)->value();
+        }
+        if (role == Qt::DisplayRole)
+        {
+            return spinAt(index)->text();
+        }
+        return QVariant();
+    }
+
+    bool setData(const QModelIndex& index, const QVariant& value, int role = Qt::EditRole) override
+    {
+        auto spin = spinAt(index);
+        if (role != Qt::EditRole || !spin)
+        {
+            return false;
+        }
+
+        spin->setValue(value.toDouble());
+        emit dataChanged(index, index, { Qt::DisplayRole, Qt::EditRole });
+        return true;
+    }
+
+    Qt::ItemFlags flags(const QModelIndex& index) const override
+    {
+        if (!index.isValid() || !spinAt(index))
+        {
+            return Qt::NoItemFlags;
+        }
+        const auto spin = spinAt(index);
+        Qt::ItemFlags itemFlags = Qt::ItemIsSelectable;
+        if (spin->isEnabled())
+        {
+            itemFlags |= Qt::ItemIsEnabled | Qt::ItemIsEditable;
+        }
+        return itemFlags;
+    }
+
+    QDoubleSpinBox* spinAt(const QModelIndex& index) const
+    {
+        if (!index.isValid() || index.row() < 0 || index.row() >= rows_.size())
+        {
+            return nullptr;
+        }
+        const auto& row = rows_.at(index.row());
+        switch (index.column())
+        {
+            case NoiseFrequency: return row.noiseFrequency;
+            case MinUnstable: return row.minUnstable;
+            case MinStable: return row.minStable;
+            case Maximum: return row.maximum;
+            case LowestFrequency: return row.lowestFrequency;
+            case HighestFrequency: return row.highestFrequency;
+            default: return nullptr;
+        }
+    }
+
+    QModelIndex firstEditableIndex(int column) const
+    {
+        for (int row = 0; row < rows_.size(); ++row)
+        {
+            const QModelIndex candidate = index(row, column);
+            if (flags(candidate).testFlag(Qt::ItemIsEditable))
+            {
+                return candidate;
+            }
+        }
+        return QModelIndex();
+    }
+
+    void refreshAll()
+    {
+        if (rows_.isEmpty()) { return; }
+        emit dataChanged(index(0, 0),
+                         index(rows_.size() - 1, ColumnCount - 1),
+                         { Qt::DisplayRole, Qt::EditRole });
+    }
+
+    void setRows(const QVector<SpectralQaQcRow>& rows)
+    {
+        beginResetModel();
+        rows_ = rows;
+        endResetModel();
+    }
+
+private:
+    QVector<SpectralQaQcRow> rows_;
+    QStringList tooltips_;
+};
+
+class SpectralQaQcDelegate final : public QStyledItemDelegate
+{
+public:
+    explicit SpectralQaQcDelegate(QObject* parent = nullptr)
+        : QStyledItemDelegate(parent)
+    {}
+
+    QWidget* createEditor(QWidget* parent,
+                          const QStyleOptionViewItem& option,
+                          const QModelIndex& index) const override
+    {
+        Q_UNUSED(option)
+        const auto model = dynamic_cast<const SpectralQaQcTableModel*>(index.model());
+        if (!model) { return nullptr; }
+        const auto sourceSpin = model->spinAt(index);
+        if (!sourceSpin) { return nullptr; }
+
+        QDoubleSpinBox* editor = (index.column() == SpectralQaQcTableModel::MinUnstable
+                                  || index.column() == SpectralQaQcTableModel::MinStable)
+                ? static_cast<QDoubleSpinBox*>(new AdaptivePrecisionDoubleSpinBox(parent))
+                : new QDoubleSpinBox(parent);
+        editor->setRange(sourceSpin->minimum(), sourceSpin->maximum());
+        editor->setDecimals(sourceSpin->decimals());
+        editor->setSingleStep(sourceSpin->singleStep());
+        editor->setSuffix(sourceSpin->suffix());
+        editor->setSpecialValueText(sourceSpin->specialValueText());
+        editor->setAccelerated(sourceSpin->isAccelerated());
+        editor->setToolTip(sourceSpin->toolTip());
+        return editor;
+    }
+
+    void setEditorData(QWidget* editor, const QModelIndex& index) const override
+    {
+        if (auto spin = qobject_cast<QDoubleSpinBox*>(editor))
+        {
+            spin->setValue(index.data(Qt::EditRole).toDouble());
+        }
+    }
+
+    void setModelData(QWidget* editor, QAbstractItemModel* model, const QModelIndex& index) const override
+    {
+        if (auto spin = qobject_cast<QDoubleSpinBox*>(editor))
+        {
+            model->setData(index, spin->value(), Qt::EditRole);
+        }
+    }
+};
+
+void refreshSpectralQaQcTableView(QAbstractTableModel* model, QTableView* table)
+{
+    if (model)
+    {
+        static_cast<SpectralQaQcTableModel*>(model)->refreshAll();
+    }
+    if (table)
+    {
+        table->viewport()->update();
+    }
+}
+
+} // namespace
 
 AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
                                        DlProject *dlProject,
@@ -85,7 +369,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
 
     binnedSpectraDirBrowse = new DirBrowseWidget;
     binnedSpectraDirBrowse->setToolTip(tr("<b>Browse:</b> Specify the folder that contains the binned (co)spectra files."));
-    binnedSpectraDirBrowse->setDialogWorkingDir(WidgetUtils::getSearchPathHint());
+    binnedSpectraDirBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("binned_cospectra_dir")));
     binnedSpectraDirBrowse->setDialogTitle(tr("Select the Binned (Co)Spectra Files Directory"));
 
     binnedSpectraRadioGroup = new QButtonGroup(this);
@@ -110,6 +394,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     startDateEdit = new QDateEdit;
     startDateEdit->setToolTip(startDateLabel->toolTip());
     startDateEdit->setCalendarPopup(true);
+    startDateEdit->setDisplayFormat(WidgetUtils::eddyDateFormat());
     WidgetUtils::customizeCalendar(startDateEdit->calendarWidget());
 
     startTimeEdit = new QTimeEdit;
@@ -122,6 +407,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     endDateEdit = new QDateEdit;
     endDateEdit->setToolTip(endDateLabel->toolTip());
     endDateEdit->setCalendarPopup(true);
+    endDateEdit->setDisplayFormat(WidgetUtils::eddyDateFormat());
     WidgetUtils::customizeCalendar(endDateEdit->calendarWidget());
 
     endTimeEdit = new QTimeEdit;
@@ -163,13 +449,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     fftCheckBox->setToolTip(tr("<b>Use power-of-two samples to speed up the FFT: </b>Check this box to instruct EddyFlow to use a number of samples equal to the power-of-two closest to the currently available samples, for calculating spectra. This option greatly speeds up the FFT procedure and is therefore recommended."));
     fftCheckBox->setStyleSheet(QStringLiteral("QCheckBox { margin-left: 40px; }"));
 
-    spin31Label = WidgetUtils::createBlueLabel(this, tr("%1").arg(Defs::CO2_STRING));
-    spin32Label = WidgetUtils::createBlueLabel(this, tr("%2").arg(Defs::H2O_STRING));
-    spin33Label = WidgetUtils::createBlueLabel(this, tr("%3").arg(Defs::CH4_STRING));
-    spin34Label = WidgetUtils::createBlueLabel(this, tr("%4 Gas").arg(Defs::GAS4_STRING));
-
-    spin30Label = new ClickLabel(tr("Lowest noise frequency :"));
-    spin30Label->setToolTip(tr("<b>Lowest noise frequency:</b> High-frequency noise (blue noise) can compromise the spectral assessment by modifying the shape of spectra. EddyFlow has an option to eliminate such noise. Set the minimum frequency at which you expect the noise to start being relevant. EddyFlow will linearly (in a log-log sense) interpolate the high frequency portion of the spectra and subtract it from the spectra before calculating transfer functions. Set 0 Hz to instruct EddyFlow to not perform noise elimination. In this case the string <i>Do not remove noise</i> will appear in this field."));
+    const QString noiseFrequencyTooltip = tr("<b>Lowest noise frequency:</b> High-frequency noise (blue noise) can compromise the spectral assessment by modifying the shape of spectra. EddyFlow has an option to eliminate such noise. Set the minimum frequency at which you expect the noise to start being relevant. EddyFlow will linearly (in a log-log sense) interpolate the high frequency portion of the spectra and subtract it from the spectra before calculating transfer functions. Set 0 Hz to instruct EddyFlow to not perform noise elimination. In this case the string <i>Do not remove noise</i> will appear in this field.");
     spin31 = new QDoubleSpinBox;
     spin31->setRange(0.0, 50.0);
     spin31->setSingleStep(0.1);
@@ -177,6 +457,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     spin31->setSuffix(QStringLiteral(" [Hz]"));
     spin31->setAccelerated(true);
     spin31->setSpecialValueText(tr("Do not remove noise"));
+    spin31->setToolTip(noiseFrequencyTooltip);
     spin32 = new QDoubleSpinBox;
     spin32->setRange(0.0, 50.0);
     spin32->setSingleStep(0.1);
@@ -184,6 +465,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     spin32->setSuffix(QStringLiteral(" [Hz]"));
     spin32->setAccelerated(true);
     spin32->setSpecialValueText(tr("Do not remove noise"));
+    spin32->setToolTip(noiseFrequencyTooltip);
     spin33 = new QDoubleSpinBox;
     spin33->setRange(0.0, 50.0);
     spin33->setSingleStep(0.1);
@@ -191,6 +473,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     spin33->setSuffix(QStringLiteral(" [Hz]"));
     spin33->setAccelerated(true);
     spin33->setSpecialValueText(tr("Do not remove noise"));
+    spin33->setToolTip(noiseFrequencyTooltip);
     spin34 = new QDoubleSpinBox;
     spin34->setRange(0.0, 50.0);
     spin34->setSingleStep(0.1);
@@ -198,150 +481,136 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     spin34->setSuffix(QStringLiteral(" [Hz]"));
     spin34->setAccelerated(true);
     spin34->setSpecialValueText(tr("Do not remove noise"));
+    spin34->setToolTip(noiseFrequencyTooltip);
 
     // QA/QC section
-    auto spectraQATitle = new QLabel(tr("Spectra and Cospectra QA/QC"));
-    spectraQATitle->setProperty("groupTitle2", true);
+    const QString minUnstableTooltip = tr("<b>Minimum, unstable flux:</b> when fluxes are below these minima, corresponding cospectra are excluded from calculation of ensemble averaged cospectra in unstable stratifications, and corresponding spectra are excluded from calculation ensemble averaged spectra. For more details, click on the question mark at the right side of the title of this section <i>Spectra and cospectra QA/QC</i>.");
+    const QString minStableTooltip = tr("<b>Minimum, stable flux:</b> when fluxes are below these minima, corresponding cospectra are excluded from calculation of ensemble averaged cospectra in stable stratifications. For more details, click on the question mark at the right side of the title of this section <i>Spectra and cospectra QA/QC</i>.");
+    const QString maxTooltip = tr("<b>Maximum :</b> when fluxes are above these maxima, corresponding (co)spectra are excluded from any ensemble averaging procedure. Maxima are meant to exclude spikes or periods characterized by abnormal fluxes. For more details, click on the question mark at the right side of the title of this section <i>Spectra and cospectra QA/QC</i>.");
 
-    minUnstableLabel = new ClickLabel(tr("Minimum, unstable :"));
-    minUnstableLabel->setToolTip(tr("<b>Minimum, unstable flux:</b> when fluxes are below these minima, corresponding cospectra are excluded from calculation of ensemble averaged cospectra in unstable stratifications, and corresponding spectra are excluded from calculation ensemble averaged spectra. For more details, click on the question mark at the right side of the title of this section <i>Spectra and cospectra QA/QC</i>."));
-
-    minStableLabel = new ClickLabel(tr("Minimum, stable :"));
-    minStableLabel->setToolTip(tr("<b>Minimum, stable flux:</b> when fluxes are below these minima, corresponding cospectra are excluded from calculation of ensemble averaged cospectra in stable stratifications. For more details, click on the question mark at the right side of the title of this section <i>Spectra and cospectra QA/QC</i>."));
-
-    maxLabel = new ClickLabel(tr("Maximum :"));
-    maxLabel->setToolTip(tr("<b>Maximum :</b> when fluxes are above these maxima, corresponding (co)spectra are excluded from any ensemble averaging procedure. Maxima are meant to exclude spikes or periods characterized by abnormal fluxes. For more details, click on the question mark at the right side of the title of this section <i>Spectra and cospectra QA/QC</i>."));
-
-    frictionVelocityLabel = new ClickLabel(tr("Friction velocity"));
-    latentHeatLabel = new ClickLabel(tr("Latent heat flux"));
-    sensibleHeatLabel = new ClickLabel(tr("Sensible heat flux"));
-    qcCo2Label = new ClickLabel(tr("%1 flux").arg(Defs::CO2_STRING));
-    qcCh4Label = new ClickLabel(tr("%1 flux").arg(Defs::CH4_STRING));
-    qcGas4Label = new ClickLabel(tr("%1 gas flux").arg(Defs::GAS4_STRING));
-
-    qcMinUnstableUstarSpin = new QDoubleSpinBox;
+    qcMinUnstableUstarSpin = new AdaptivePrecisionDoubleSpinBox;
     qcMinUnstableUstarSpin->setRange(0.0, 5.0);
     qcMinUnstableUstarSpin->setSingleStep(0.05);
-    qcMinUnstableUstarSpin->setDecimals(4);
+    qcMinUnstableUstarSpin->setDecimals(6);
     qcMinUnstableUstarSpin->setSuffix(QStringLiteral(" [m/s]"));
     qcMinUnstableUstarSpin->setAccelerated(true);
 
-    qcMinUnstableHSpin = new QDoubleSpinBox;
+    qcMinUnstableHSpin = new AdaptivePrecisionDoubleSpinBox;
     qcMinUnstableHSpin->setRange(0.0, 10000.0);
     qcMinUnstableHSpin->setSingleStep(10.0);
-    qcMinUnstableHSpin->setDecimals(4);
+    qcMinUnstableHSpin->setDecimals(6);
     qcMinUnstableHSpin->setSuffix(tr(" [%1]").arg(Defs::W_M2_STRING));
     qcMinUnstableHSpin->setAccelerated(true);
 
-    qcMinUnstableLESpin = new QDoubleSpinBox;
+    qcMinUnstableLESpin = new AdaptivePrecisionDoubleSpinBox;
     qcMinUnstableLESpin->setRange(0.0, 10000.0);
     qcMinUnstableLESpin->setSingleStep(10.0);
-    qcMinUnstableLESpin->setDecimals(4);
+    qcMinUnstableLESpin->setDecimals(6);
     qcMinUnstableLESpin->setSuffix(tr(" [%1]").arg(Defs::W_M2_STRING));
     qcMinUnstableLESpin->setAccelerated(true);
 
-    qcMinUnstableCo2Spin = new QDoubleSpinBox;
+    qcMinUnstableCo2Spin = new AdaptivePrecisionDoubleSpinBox;
     qcMinUnstableCo2Spin->setRange(0.0, 5000.0);
     qcMinUnstableCo2Spin->setSingleStep(1.0);
-    qcMinUnstableCo2Spin->setDecimals(4);
+    qcMinUnstableCo2Spin->setDecimals(6);
     qcMinUnstableCo2Spin->setSuffix(tr(" [%1]").arg(Defs::UMOL_M2S_STRING));
     qcMinUnstableCo2Spin->setAccelerated(true);
 
-    qcMinUnstableCh4Spin = new QDoubleSpinBox;
+    qcMinUnstableCh4Spin = new AdaptivePrecisionDoubleSpinBox;
     qcMinUnstableCh4Spin->setRange(0.0, 5000.0);
     qcMinUnstableCh4Spin->setSingleStep(0.1);
-    qcMinUnstableCh4Spin->setDecimals(4);
+    qcMinUnstableCh4Spin->setDecimals(6);
     qcMinUnstableCh4Spin->setSuffix(tr(" [%1]").arg(Defs::UMOL_M2S_STRING));
     qcMinUnstableCh4Spin->setAccelerated(true);
 
-    qcMinUnstableGas4Spin = new QDoubleSpinBox;
+    qcMinUnstableGas4Spin = new AdaptivePrecisionDoubleSpinBox;
     qcMinUnstableGas4Spin->setRange(0.0, 5000.0);
     qcMinUnstableGas4Spin->setSingleStep(0.1);
-    qcMinUnstableGas4Spin->setDecimals(4);
+    qcMinUnstableGas4Spin->setDecimals(6);
     qcMinUnstableGas4Spin->setSuffix(tr(" [%1]").arg(Defs::UMOL_M2S_STRING));
     qcMinUnstableGas4Spin->setAccelerated(true);
 
-    qcMinStableUstarSpin = new QDoubleSpinBox;
+    qcMinStableUstarSpin = new AdaptivePrecisionDoubleSpinBox;
     qcMinStableUstarSpin->setRange(0.0, 5.0);
     qcMinStableUstarSpin->setSingleStep(0.05);
-    qcMinStableUstarSpin->setDecimals(4);
+    qcMinStableUstarSpin->setDecimals(6);
     qcMinStableUstarSpin->setSuffix(QStringLiteral(" [m/s]"));
     qcMinStableUstarSpin->setAccelerated(true);
 
-    qcMinStableHSpin = new QDoubleSpinBox;
+    qcMinStableHSpin = new AdaptivePrecisionDoubleSpinBox;
     qcMinStableHSpin->setRange(0.0, 10000.0);
     qcMinStableHSpin->setSingleStep(10.0);
-    qcMinStableHSpin->setDecimals(4);
+    qcMinStableHSpin->setDecimals(6);
     qcMinStableHSpin->setSuffix(tr(" [%1]").arg(Defs::W_M2_STRING));
     qcMinStableHSpin->setAccelerated(true);
 
-    qcMinStableLESpin = new QDoubleSpinBox;
+    qcMinStableLESpin = new AdaptivePrecisionDoubleSpinBox;
     qcMinStableLESpin->setRange(0.0, 10000.0);
     qcMinStableLESpin->setSingleStep(10.0);
-    qcMinStableLESpin->setDecimals(4);
+    qcMinStableLESpin->setDecimals(6);
     qcMinStableLESpin->setSuffix(tr(" [%1]").arg(Defs::W_M2_STRING));
     qcMinStableLESpin->setAccelerated(true);
 
-    qcMinStableCo2Spin = new QDoubleSpinBox;
+    qcMinStableCo2Spin = new AdaptivePrecisionDoubleSpinBox;
     qcMinStableCo2Spin->setRange(0.0, 5000.0);
     qcMinStableCo2Spin->setSingleStep(1.0);
-    qcMinStableCo2Spin->setDecimals(4);
+    qcMinStableCo2Spin->setDecimals(6);
     qcMinStableCo2Spin->setSuffix(tr(" [%1]").arg(Defs::UMOL_M2S_STRING));
     qcMinStableCo2Spin->setAccelerated(true);
 
-    qcMinStableCh4Spin = new QDoubleSpinBox;
+    qcMinStableCh4Spin = new AdaptivePrecisionDoubleSpinBox;
     qcMinStableCh4Spin->setRange(0.0, 5000.0);
     qcMinStableCh4Spin->setSingleStep(0.1);
-    qcMinStableCh4Spin->setDecimals(4);
+    qcMinStableCh4Spin->setDecimals(6);
     qcMinStableCh4Spin->setSuffix(tr(" [%1]").arg(Defs::UMOL_M2S_STRING));
     qcMinStableCh4Spin->setAccelerated(true);
 
-    qcMinStableGas4Spin = new QDoubleSpinBox;
+    qcMinStableGas4Spin = new AdaptivePrecisionDoubleSpinBox;
     qcMinStableGas4Spin->setRange(0.0, 5000.0);
     qcMinStableGas4Spin->setSingleStep(0.1);
-    qcMinStableGas4Spin->setDecimals(4);
+    qcMinStableGas4Spin->setDecimals(6);
     qcMinStableGas4Spin->setSuffix(tr(" [%1]").arg(Defs::UMOL_M2S_STRING));
     qcMinStableGas4Spin->setAccelerated(true);
 
-    qcMaxUstarSpin = new QDoubleSpinBox;
+    qcMaxUstarSpin = new AdaptivePrecisionDoubleSpinBox;
     qcMaxUstarSpin->setRange(0.0, 5.0);
     qcMaxUstarSpin->setSingleStep(0.1);
-    qcMaxUstarSpin->setDecimals(4);
+    qcMaxUstarSpin->setDecimals(6);
     qcMaxUstarSpin->setSuffix(QStringLiteral(" [m/s]"));
     qcMaxUstarSpin->setAccelerated(true);
 
-    qcMaxHSpin = new QDoubleSpinBox;
+    qcMaxHSpin = new AdaptivePrecisionDoubleSpinBox;
     qcMaxHSpin->setRange(0.0, 10000.0);
     qcMaxHSpin->setSingleStep(100.0);
-    qcMaxHSpin->setDecimals(4);
+    qcMaxHSpin->setDecimals(6);
     qcMaxHSpin->setSuffix(tr(" [%1]").arg(Defs::W_M2_STRING));
     qcMaxHSpin->setAccelerated(true);
 
-    qcMaxLESpin = new QDoubleSpinBox;
+    qcMaxLESpin = new AdaptivePrecisionDoubleSpinBox;
     qcMaxLESpin->setRange(0.0, 10000.0);
     qcMaxLESpin->setSingleStep(100.0);
-    qcMaxLESpin->setDecimals(4);
+    qcMaxLESpin->setDecimals(6);
     qcMaxLESpin->setSuffix(tr(" [%1]").arg(Defs::W_M2_STRING));
     qcMaxLESpin->setAccelerated(true);
 
-    qcMaxCo2Spin = new QDoubleSpinBox;
+    qcMaxCo2Spin = new AdaptivePrecisionDoubleSpinBox;
     qcMaxCo2Spin->setRange(0.0, 5000.0);
     qcMaxCo2Spin->setSingleStep(10.0);
-    qcMaxCo2Spin->setDecimals(4);
+    qcMaxCo2Spin->setDecimals(6);
     qcMaxCo2Spin->setSuffix(tr(" [%1]").arg(Defs::UMOL_M2S_STRING));
     qcMaxCo2Spin->setAccelerated(true);
 
-    qcMaxCh4Spin = new QDoubleSpinBox;
+    qcMaxCh4Spin = new AdaptivePrecisionDoubleSpinBox;
     qcMaxCh4Spin->setRange(0.0, 5000.0);
     qcMaxCh4Spin->setSingleStep(10.0);
-    qcMaxCh4Spin->setDecimals(4);
+    qcMaxCh4Spin->setDecimals(6);
     qcMaxCh4Spin->setSuffix(tr(" [%1]").arg(Defs::UMOL_M2S_STRING));
     qcMaxCh4Spin->setAccelerated(true);
 
-    qcMaxGas4Spin = new QDoubleSpinBox;
+    qcMaxGas4Spin = new AdaptivePrecisionDoubleSpinBox;
     qcMaxGas4Spin->setRange(0.0, 5000.0);
     qcMaxGas4Spin->setSingleStep(10.0);
-    qcMaxGas4Spin->setDecimals(4);
+    qcMaxGas4Spin->setDecimals(6);
     qcMaxGas4Spin->setSuffix(tr(" [%1]").arg(Defs::UMOL_M2S_STRING));
     qcMaxGas4Spin->setAccelerated(true);
 
@@ -451,35 +720,22 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     spectraNonExistingRadio = new QRadioButton(tr("Spectral assessment file not available"));
     spectraNonExistingRadio->setToolTip(tr("<b>Spectral assessment file not available:</b> Choose this option and provide the following information if you need to calculate cut-off frequencies for your system. The assessment will be performed as an intermediate step, after all binned (co)spectra for the current dataset are calculated and before calculating and correcting fluxes."));
 
+    automaticSpectraConfigCheck = new QCheckBox(tr("Automatically configure spectral assessment after this run"));
+    automaticSpectraConfigCheck->setToolTip(tr("<b>Automatically configure spectral assessment:</b> When an on-the-fly assessment identifies eligible spectra excluded by flux limits, save data-driven flux-limit recommendations to the output processing project. The current run is not changed; rerun using the generated processing project."));
+    automaticSpectraConfigCheck->setStyleSheet(QStringLiteral("QCheckBox { margin-left: 40px; }"));
+
     spectraFileBrowse = new FileBrowseWidget;
     spectraFileBrowse->setToolTip(tr("<b>Load:</b> Load an existing spectral assessment file"));
     spectraFileBrowse->setDialogTitle(tr("Select the Spectral Assessment File"));
-    spectraFileBrowse->setDialogWorkingDir(WidgetUtils::getSearchPathHint());
+    spectraFileBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("spectral_assessment_file")));
     spectraFileBrowse->setDialogFilter(tr("All Files (*.*)"));
 
     spectraRadioGroup = new QButtonGroup(this);
     spectraRadioGroup->addButton(spectraExistingRadio, 0);
     spectraRadioGroup->addButton(spectraNonExistingRadio, 1);
 
-    freqAttenuationTitle = new QLabel(tr("Assessment of high-frequency attenuation"));
-    freqAttenuationTitle->setProperty("groupLabel", true);
-
-    spin11Label = WidgetUtils::createBlueLabel(this, tr("%1").arg(Defs::CO2_STRING));
-    spin12Label = WidgetUtils::createBlueLabel(this, tr("%2").arg(Defs::H2O_STRING));
-    spin13Label = WidgetUtils::createBlueLabel(this, tr("%3").arg(Defs::CH4_STRING));
-    spin14Label = WidgetUtils::createBlueLabel(this, tr("%4 Gas").arg(Defs::GAS4_STRING));
-
-    minMaxFreqLabel = WidgetUtils::createBlueLabel(this, tr("Frequency range for fitting in-situ "
-                                            "transfer functions (based on "
-                                            "temperature and concentrations spectra)"));
-
-    noiseFreqLabel = WidgetUtils::createBlueLabel(this, tr("Removal of high frequency noise"));
-
-    spin10Label = new ClickLabel(tr("Lowest frequency :"));
-    spin10Label->setToolTip(tr("<b>Lowest frequency:</b> The assessment of the system transfer function implies the frequency-wise ratio of gas concentration to temperature spectra (temperature considered as proxy for un-attenuated atmospheric scalar spectra). This ratio must be taken in the frequency range where the system filtering is expected to occur. At lower frequencies, slow-paced atmospheric and source/sink dynamics may imply a breakdown of the similarity assumption. Default values can be good in most occasions, but the lower frequency should be adapted based mostly on the averaging interval."));
-
-    spin20Label = new ClickLabel(tr("Highest frequency :"));
-    spin20Label->setToolTip(tr("<b>Highest frequency:</b> The assessment of the system transfer function implies the frequency-wise ratio of gas concentration to temperature spectra (temperature being considered as a proxy for un-attenuated atmospheric scalar spectra). This ratio must be taken in the frequency range where the system filtering is expected to occur. At higher frequencies, noise and aliasing may corrupt the procedure. Default values can be good in most occasions, but the higher frequency should be adapted based on acquisition frequency and instrument performance."));
+    const QString lowestFrequencyTooltip = tr("<b>Lowest frequency:</b> The assessment of the system transfer function implies the frequency-wise ratio of gas concentration to temperature spectra (temperature considered as proxy for un-attenuated atmospheric scalar spectra). This ratio must be taken in the frequency range where the system filtering is expected to occur. At lower frequencies, slow-paced atmospheric and source/sink dynamics may imply a breakdown of the similarity assumption. Default values can be good in most occasions, but the lower frequency should be adapted based mostly on the averaging interval.");
+    const QString highestFrequencyTooltip = tr("<b>Highest frequency:</b> The assessment of the system transfer function implies the frequency-wise ratio of gas concentration to temperature spectra (temperature being considered as a proxy for un-attenuated atmospheric scalar spectra). This ratio must be taken in the frequency range where the system filtering is expected to occur. At higher frequencies, noise and aliasing may corrupt the procedure. Default values can be good in most occasions, but the higher frequency should be adapted based on acquisition frequency and instrument performance.");
 
     spin11 = new QDoubleSpinBox;
     spin11->setRange(0.0, 50.0);
@@ -487,48 +743,56 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     spin11->setDecimals(4);
     spin11->setSuffix(QStringLiteral(" [Hz]"));
     spin11->setAccelerated(true);
+    spin11->setToolTip(lowestFrequencyTooltip);
     spin12 = new QDoubleSpinBox;
     spin12->setRange(0.0, 50.0);
     spin12->setSingleStep(0.1);
     spin12->setDecimals(4);
     spin12->setSuffix(QStringLiteral(" [Hz]"));
     spin12->setAccelerated(true);
+    spin12->setToolTip(lowestFrequencyTooltip);
     spin13 = new QDoubleSpinBox;
     spin13->setRange(0.0, 50.0);
     spin13->setSingleStep(0.1);
     spin13->setDecimals(4);
     spin13->setSuffix(QStringLiteral(" [Hz]"));
     spin13->setAccelerated(true);
+    spin13->setToolTip(lowestFrequencyTooltip);
     spin14 = new QDoubleSpinBox;
     spin14->setRange(0.0, 50.0);
     spin14->setSingleStep(0.1);
     spin14->setDecimals(4);
     spin14->setSuffix(QStringLiteral(" [Hz]"));
     spin14->setAccelerated(true);
+    spin14->setToolTip(lowestFrequencyTooltip);
     spin21 = new QDoubleSpinBox;
     spin21->setRange(0.0, 50.0);
     spin21->setSingleStep(0.1);
     spin21->setDecimals(4);
     spin21->setSuffix(QStringLiteral(" [Hz]"));
     spin21->setAccelerated(true);
+    spin21->setToolTip(highestFrequencyTooltip);
     spin22 = new QDoubleSpinBox;
     spin22->setRange(0.0, 50.0);
     spin22->setSingleStep(0.1);
     spin22->setDecimals(4);
     spin22->setSuffix(QStringLiteral(" [Hz]"));
     spin22->setAccelerated(true);
+    spin22->setToolTip(highestFrequencyTooltip);
     spin23 = new QDoubleSpinBox;
     spin23->setRange(0.0, 50.0);
     spin23->setSingleStep(0.1);
     spin23->setDecimals(4);
     spin23->setSuffix(QStringLiteral(" [Hz]"));
     spin23->setAccelerated(true);
+    spin23->setToolTip(highestFrequencyTooltip);
     spin24 = new QDoubleSpinBox;
     spin24->setRange(0.0, 50.0);
     spin24->setSingleStep(0.1);
     spin24->setDecimals(4);
     spin24->setSuffix(QStringLiteral(" [Hz]"));
     spin24->setAccelerated(true);
+    spin24->setToolTip(highestFrequencyTooltip);
 
     minSmplLabel = new ClickLabel(tr("Minimum number of (co)spectra for valid averages :"));
     minSmplLabel->setToolTip(tr("<b>Minimum number of spectra for valid averages:</b> Select the minimum number of spectra that should be found in each class, for the corresponding ensemble average to be valid. Currently classes are defined only for H<sub>2</sub>O with respect to ambient relative humidity: 9 classes are defined between RH = 5% and RH = 95%. We expect to add classes also for passive gases, related to time periods. Entering a number that is too high may imply that, for certain classes, average spectra cannot be calculated. A number that is too small may result in poor characterization of average spectra. The higher this number, the longer the time period needed."));
@@ -551,7 +815,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     fullSpectraDirBrowse = new DirBrowseWidget;
     fullSpectraDirBrowse->setToolTip(tr("<b>Browse:</b> Specify the folder that contains the full w/T<sub>s</sub> cospectra files."));
     fullSpectraDirBrowse->setDialogTitle(tr("Select the Full Spectra Files Directory"));
-    fullSpectraDirBrowse->setDialogWorkingDir(WidgetUtils::getSearchPathHint());
+    fullSpectraDirBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("full_cospectra_dir")));
 
     fullSpectraRadioGroup = new QButtonGroup(this);
     fullSpectraRadioGroup->addButton(fullSpectraNonExistingRadio, 0);
@@ -561,24 +825,64 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     addSonicCheck->setToolTip(tr("<b>Include anemometer losses for path averaging and time response:</b> Select this option to instruct EddyFlow to correct sensible heat cospectra for those losses, before using them as a model to calculate correction factors according to Fratini et al. (2012)."));
     addSonicCheck->setStyleSheet(QStringLiteral("QCheckBox { margin-left: 40px; }"));
 
+    WidgetUtils::setCompactSpinBoxWidth(nBinsSpin, 76);
+    WidgetUtils::setCompactSpinBoxWidth(minSmplSpin, 76);
+    WidgetUtils::setCompactSpinBoxWidth(sonicFrequency, 76);
+
+    WidgetUtils::setCompactSpinBoxWidth(spin11, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin12, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin13, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin14, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin21, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin22, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin23, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin24, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin31, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin32, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin33, 86);
+    WidgetUtils::setCompactSpinBoxWidth(spin34, 86);
+
+    for (auto spin : { qcMinUnstableUstarSpin, qcMinUnstableHSpin, qcMinUnstableLESpin,
+                       qcMinUnstableCo2Spin, qcMinUnstableCh4Spin, qcMinUnstableGas4Spin })
+    {
+        spin->setToolTip(minUnstableTooltip);
+    }
+    for (auto spin : { qcMinStableUstarSpin, qcMinStableHSpin, qcMinStableLESpin,
+                       qcMinStableCo2Spin, qcMinStableCh4Spin, qcMinStableGas4Spin })
+    {
+        spin->setToolTip(minStableTooltip);
+    }
+    for (auto spin : { qcMaxUstarSpin, qcMaxHSpin, qcMaxLESpin,
+                       qcMaxCo2Spin, qcMaxCh4Spin, qcMaxGas4Spin })
+    {
+        spin->setToolTip(maxTooltip);
+    }
+
+    WidgetUtils::setCompactSpinBoxWidth(qcMinUnstableUstarSpin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinUnstableHSpin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinUnstableLESpin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinUnstableCo2Spin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinUnstableCh4Spin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinUnstableGas4Spin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinStableUstarSpin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinStableHSpin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinStableLESpin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinStableCo2Spin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinStableCh4Spin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMinStableGas4Spin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMaxUstarSpin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMaxHSpin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMaxLESpin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMaxCo2Spin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMaxCh4Spin, 96);
+    WidgetUtils::setCompactSpinBoxWidth(qcMaxGas4Spin, 96);
+
     // horizontal rules
     auto hrLabel_0 = new QLabel;
     hrLabel_0->setObjectName(QStringLiteral("hrLabel"));
-    auto hrLabel_1 = new QLabel;
-    hrLabel_1->setObjectName(QStringLiteral("hrLabel"));
-    auto hrLabel_2 = new QLabel;
-    hrLabel_2->setObjectName(QStringLiteral("hrLabel"));
-    hrLabel_2->setStyleSheet(QStringLiteral("QLabel {margin: 0px;}"));
-    auto hrLabel_3 = new QLabel;
-    hrLabel_3->setObjectName(QStringLiteral("hrLabel"));
-    hrLabel_3->setStyleSheet(QStringLiteral("QLabel {margin: 0px;}"));
 
     // question marks
     createQuestionMarks();
-    auto spectraQaQcLabel = new QHBoxLayout;
-    spectraQaQcLabel->addWidget(spectraQATitle);
-    spectraQaQcLabel->addWidget(questionMark_1, 0, Qt::AlignRight | Qt::AlignVCenter);
-    spectraQaQcLabel->addStretch();
     auto settingsGroup1Label = new QHBoxLayout;
     settingsGroup1Label->addWidget(settingsGroupTitle_1);
     settingsGroup1Label->addWidget(questionMark_11, 0, Qt::AlignRight | Qt::AlignVCenter);
@@ -591,10 +895,77 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     highFreqLabel->addWidget(highFreqTitle);
     highFreqLabel->addWidget(questionMark_33, 0, Qt::AlignLeft | Qt::AlignVCenter);
     highFreqLabel->addStretch();
-    auto assessmentHighFreqLabel= new QHBoxLayout;
-    assessmentHighFreqLabel->addWidget(freqAttenuationTitle);
-    assessmentHighFreqLabel->addWidget(questionMark_44, 0, Qt::AlignLeft | Qt::AlignVCenter);
-    assessmentHighFreqLabel->addStretch();
+
+    const auto spectralTooltips = QStringList{
+        noiseFrequencyTooltip,
+        minUnstableTooltip,
+        minStableTooltip,
+        maxTooltip,
+        lowestFrequencyTooltip,
+        highestFrequencyTooltip
+    };
+    spectralQaQcModel = new SpectralQaQcTableModel(this, QVector<SpectralQaQcRow>{}, spectralTooltips);
+    rebuildSpectralQaQcRows();
+
+    const QList<QDoubleSpinBox*> spectralTableSpins = {
+        spin31, spin32, spin33, spin34,
+        spin11, spin12, spin13, spin14,
+        spin21, spin22, spin23, spin24,
+        qcMinUnstableUstarSpin, qcMinUnstableHSpin, qcMinUnstableLESpin,
+        qcMinUnstableCo2Spin, qcMinUnstableCh4Spin, qcMinUnstableGas4Spin,
+        qcMinStableUstarSpin, qcMinStableHSpin, qcMinStableLESpin,
+        qcMinStableCo2Spin, qcMinStableCh4Spin, qcMinStableGas4Spin,
+        qcMaxUstarSpin, qcMaxHSpin, qcMaxLESpin,
+        qcMaxCo2Spin, qcMaxCh4Spin, qcMaxGas4Spin
+    };
+    for (auto spin : spectralTableSpins)
+    {
+        spin->setParent(this);
+        spin->hide();
+        connect(spin,
+                qOverload<double>(&QDoubleSpinBox::valueChanged),
+                spectralQaQcModel,
+                [model = spectralQaQcModel](){ static_cast<SpectralQaQcTableModel*>(model)->refreshAll(); });
+    }
+
+    spectralQaQcTable = new QTableView;
+    spectralQaQcTable->setModel(spectralQaQcModel);
+    spectralQaQcTable->setItemDelegate(new SpectralQaQcDelegate(spectralQaQcTable));
+    spectralQaQcTable->setAlternatingRowColors(true);
+    spectralQaQcTable->setSelectionBehavior(QAbstractItemView::SelectItems);
+    spectralQaQcTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    spectralQaQcTable->setEditTriggers(QAbstractItemView::DoubleClicked
+                                       | QAbstractItemView::SelectedClicked
+                                       | QAbstractItemView::EditKeyPressed);
+    spectralQaQcTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    spectralQaQcTable->verticalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    spectralQaQcTable->verticalHeader()->setMinimumSectionSize(24);
+    spectralQaQcTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    spectralQaQcTable->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
+    spectralQaQcTable->setMinimumHeight(260);
+    spectralQaQcTable->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+    connect(spectralQaQcTable->horizontalHeader(),
+            &QHeaderView::sectionClicked,
+            this,
+            [this](int column){ focusSpectralTableColumn(column); });
+
+    auto spectralTableTitle = new QWidget;
+    auto spectralTableTitleLayout = new QHBoxLayout(spectralTableTitle);
+    spectralTableTitleLayout->setContentsMargins(0, 0, 0, 0);
+    spectralTableTitleLayout->setSpacing(4);
+    auto spectralTableTitleLabel = new QLabel(tr("<b>Spectra, cospectra QA/QC, and attenuation assessment</b>"));
+    spectralTableTitleLabel->setTextFormat(Qt::RichText);
+    spectralTableTitleLayout->addWidget(spectralTableTitleLabel);
+    spectralTableTitleLayout->addWidget(questionMark_1, 0, Qt::AlignVCenter);
+    spectralTableTitleLayout->addWidget(questionMark_44, 0, Qt::AlignVCenter);
+    spectralTableTitleLayout->addStretch();
+
+    auto spectralTableContainer = new QWidget;
+    auto spectralTableLayout = new QVBoxLayout(spectralTableContainer);
+    spectralTableLayout->setContentsMargins(0, 0, 0, 0);
+    spectralTableLayout->setSpacing(4);
+    spectralTableLayout->addWidget(spectralTableTitle);
+    spectralTableLayout->addWidget(spectralQaQcTable);
 
     auto settingsLayout = new QGridLayout;
     settingsLayout->addLayout(settingsGroup1Label, 0, 0, 1, -1);
@@ -613,103 +984,44 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     settingsLayout->addWidget(nBinsSpin, 7, 1);
     settingsLayout->addWidget(fftCheckBox, 8, 0, 1, 2);
 
-    settingsLayout->addWidget(spin31Label, 9, 1);
-    settingsLayout->addWidget(spin32Label, 9, 2);
-    settingsLayout->addWidget(spin33Label, 9, 3);
-    settingsLayout->addWidget(spin34Label, 9, 4);
-    settingsLayout->addWidget(hrLabel_3, 10, 1, 1, 4);
+    settingsLayout->addWidget(spectralTableContainer, 9, 0, 1, -1);
+    settingsLayout->addWidget(minSmplLabel, 10, 0, Qt::AlignRight);
+    settingsLayout->addWidget(minSmplSpin, 10, 1);
+    settingsLayout->addWidget(vmFlagsCheckBox, 11, 0, 1, 2);
 
-    settingsLayout->addWidget(noiseFreqLabel, 11, 1, 1, 2);
-    settingsLayout->addWidget(spin30Label, 12, 0, Qt::AlignRight);
-    settingsLayout->addWidget(spin31, 12, 1);
-    settingsLayout->addWidget(spin32, 12, 2);
-    settingsLayout->addWidget(spin33, 12, 3);
-    settingsLayout->addWidget(spin34, 12, 4);
-    settingsLayout->addWidget(hrLabel_1 , 13, 0, 1, -1);
+    settingsLayout->addWidget(filterCospectraMauderTitle, 12, 0, 1, -1);
+    settingsLayout->addWidget(lowQualityCheckBox, 13, 0, 1, -1);
+    settingsLayout->addWidget(moderateQualityCheckBox, 14, 0, 1, 2);
+    settingsLayout->addWidget(hrLabel_0, 15, 0, 1, -1);
 
-    settingsLayout->addLayout(spectraQaQcLabel, 14, 0, 1, -1);
-    settingsLayout->addWidget(frictionVelocityLabel, 15, 1);
-    settingsLayout->addWidget(sensibleHeatLabel, 15, 2);
-    settingsLayout->addWidget(latentHeatLabel, 15, 3);
-    settingsLayout->addWidget(qcCo2Label, 15, 4);
-    settingsLayout->addWidget(qcCh4Label, 15, 5);
-    settingsLayout->addWidget(qcGas4Label, 15, 6);
+    settingsLayout->addWidget(spectralCorrectionTitle, 16, 0);
+    settingsLayout->addWidget(automaticSpectraConfigCheck, 17, 0, 1, -1);
+    settingsLayout->addLayout(lowFreqLabel, 18, 0);
+    settingsLayout->addWidget(lfMethodCheck, 19, 0, 1, 2);
 
-    settingsLayout->addWidget(minUnstableLabel, 16, 0, Qt::AlignRight);
-    settingsLayout->addWidget(qcMinUnstableUstarSpin, 16, 1);
-    settingsLayout->addWidget(qcMinUnstableHSpin, 16, 2);
-    settingsLayout->addWidget(qcMinUnstableLESpin, 16, 3);
-    settingsLayout->addWidget(qcMinUnstableCo2Spin, 16, 4);
-    settingsLayout->addWidget(qcMinUnstableCh4Spin, 16, 5);
-    settingsLayout->addWidget(qcMinUnstableGas4Spin, 16, 6);
-    settingsLayout->addWidget(minStableLabel, 17, 0, Qt::AlignRight);
-    settingsLayout->addWidget(qcMinStableUstarSpin, 17, 1);
-    settingsLayout->addWidget(qcMinStableHSpin, 17, 2);
-    settingsLayout->addWidget(qcMinStableLESpin, 17, 3);
-    settingsLayout->addWidget(qcMinStableCo2Spin, 17, 4);
-    settingsLayout->addWidget(qcMinStableCh4Spin, 17, 5);
-    settingsLayout->addWidget(qcMinStableGas4Spin, 17, 6);
-    settingsLayout->addWidget(maxLabel, 18, 0, Qt::AlignRight);
-    settingsLayout->addWidget(qcMaxUstarSpin, 18, 1);
-    settingsLayout->addWidget(qcMaxHSpin, 18, 2);
-    settingsLayout->addWidget(qcMaxLESpin, 18, 3);
-    settingsLayout->addWidget(qcMaxCo2Spin, 18, 4);
-    settingsLayout->addWidget(qcMaxCh4Spin, 18, 5);
-    settingsLayout->addWidget(qcMaxGas4Spin, 18, 6);
-    settingsLayout->addWidget(minSmplLabel, 19, 0, Qt::AlignRight);
-    settingsLayout->addWidget(minSmplSpin, 19, 1);
-    settingsLayout->addWidget(vmFlagsCheckBox, 20, 0, 1, 2);
+    settingsLayout->addLayout(highFreqLabel, 20, 0);
+    settingsLayout->addWidget(hfMethodCheck, 21, 0, 1, 2);
+    settingsLayout->addWidget(hfMethLabel, 21, 1, Qt::AlignRight);
+    settingsLayout->addWidget(hfMethCombo, 21, 2, 1, 3);
+    settingsLayout->addWidget(horstCheck, 22, 0, 1, 2);
+    settingsLayout->addWidget(horstMethodLabel, 22, 1, Qt::AlignRight);
+    settingsLayout->addWidget(horstCombo, 22, 2, 1, 3);
 
-    settingsLayout->addWidget(filterCospectraMauderTitle, 21, 0, 1, -1);
-    settingsLayout->addWidget(lowQualityCheckBox, 22, 0, 1, -1);
-    settingsLayout->addWidget(moderateQualityCheckBox, 23, 0, 1, 2);
-    settingsLayout->addWidget(hrLabel_0, 24, 0, 1, -1);
+    settingsLayout->addWidget(ghgSystemCorrectionTitle, 23, 0, 1, -1);
+    settingsLayout->addWidget(hfCorrectGhgBaCheck, 24, 0, 1, 2);
+    settingsLayout->addWidget(hfCorrectGhgZohCheck, 25, 0, 1, 2);
+    settingsLayout->addWidget(sonicFrequencyLabel, 25, 1, Qt::AlignRight);
+    settingsLayout->addWidget(sonicFrequency, 25, 2, 1, 1);
 
-    settingsLayout->addWidget(spectralCorrectionTitle, 25, 0);
-    settingsLayout->addLayout(lowFreqLabel, 26, 0);
-    settingsLayout->addWidget(lfMethodCheck, 27, 0, 1, 2);
+    settingsLayout->addWidget(spectraExistingRadio, 26, 0, 1, 2);
+    settingsLayout->addWidget(spectraFileBrowse, 26, 1, 1, 4);
+    settingsLayout->addWidget(spectraNonExistingRadio, 27, 0, 1, 2);
 
-    settingsLayout->addLayout(highFreqLabel, 28, 0);
-    settingsLayout->addWidget(hfMethodCheck, 29, 0, 1, 2);
-    settingsLayout->addWidget(hfMethLabel, 29, 1, Qt::AlignRight);
-    settingsLayout->addWidget(hfMethCombo, 29, 2, 1, 3);
-    settingsLayout->addWidget(horstCheck, 30, 0, 1, 2);
-    settingsLayout->addWidget(horstMethodLabel, 30, 1, Qt::AlignRight);
-    settingsLayout->addWidget(horstCombo, 30, 2, 1, 3);
-
-    settingsLayout->addWidget(ghgSystemCorrectionTitle, 31, 0, 1, -1);
-    settingsLayout->addWidget(hfCorrectGhgBaCheck, 32, 0, 1, 2);
-    settingsLayout->addWidget(hfCorrectGhgZohCheck, 33, 0, 1, 2);
-    settingsLayout->addWidget(sonicFrequencyLabel, 33, 1, Qt::AlignRight);
-    settingsLayout->addWidget(sonicFrequency, 33, 2, 1, 1);
-
-    settingsLayout->addWidget(spectraExistingRadio, 34, 0, 1, 2);
-    settingsLayout->addWidget(spectraFileBrowse, 34, 1, 1, 4);
-    settingsLayout->addWidget(spectraNonExistingRadio, 35, 0, 1, 2);
-
-    settingsLayout->addLayout(assessmentHighFreqLabel, 36, 0, 1, -1);
-    settingsLayout->addWidget(spin11Label, 37, 1);
-    settingsLayout->addWidget(spin12Label, 37, 2);
-    settingsLayout->addWidget(spin13Label, 37, 3);
-    settingsLayout->addWidget(spin14Label, 37, 4);
-    settingsLayout->addWidget(hrLabel_2, 38, 1, 1, 4);
-    settingsLayout->addWidget(minMaxFreqLabel, 39, 1, 1, -1);
-    settingsLayout->addWidget(spin10Label, 40, 0, Qt::AlignRight);
-    settingsLayout->addWidget(spin11, 40, 1);
-    settingsLayout->addWidget(spin12, 40, 2);
-    settingsLayout->addWidget(spin13, 40, 3);
-    settingsLayout->addWidget(spin14, 40, 4);
-    settingsLayout->addWidget(spin20Label, 41, 0, Qt::AlignRight);
-    settingsLayout->addWidget(spin21, 41, 1);
-    settingsLayout->addWidget(spin22, 41, 2);
-    settingsLayout->addWidget(spin23, 41, 3);
-    settingsLayout->addWidget(spin24, 41, 4);
-
-    settingsLayout->addWidget(fratiniTitle, 42, 0, 1, -1);
-    settingsLayout->addWidget(fullSpectraNonExistingRadio, 43, 0, 1, 2);
-    settingsLayout->addWidget(fullSpectraExistingRadio, 44, 0, 1, 2);
-    settingsLayout->addWidget(fullSpectraDirBrowse, 44, 1, 1, 4);
-    settingsLayout->addWidget(addSonicCheck, 45, 0, 1, -1);
+    settingsLayout->addWidget(fratiniTitle, 28, 0, 1, -1);
+    settingsLayout->addWidget(fullSpectraNonExistingRadio, 29, 0, 1, 2);
+    settingsLayout->addWidget(fullSpectraExistingRadio, 30, 0, 1, 2);
+    settingsLayout->addWidget(fullSpectraDirBrowse, 30, 1, 1, 4);
+    settingsLayout->addWidget(addSonicCheck, 31, 0, 1, -1);
     settingsLayout->setColumnStretch(7, 1);
 
     auto settingsGroupLayout = new QHBoxLayout;
@@ -822,6 +1134,8 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             { ecProject_->setSpectraUseFokenLow(checked); });
     connect(moderateQualityCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setSpectraUseFokenMid(checked); });
+    connect(automaticSpectraConfigCheck, &QCheckBox::toggled, [=](bool checked)
+            { ecProject_->setSpectraAutomaticConfig(checked); });
 
     connect(lfMethodCheck, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setGeneralLfMethod(checked); });
@@ -873,14 +1187,6 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             this, &AdvSpectralOptions::onMinSmplLabelClicked);
     connect(minSmplSpin, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &AdvSpectralOptions::updateMinSmpl);
-    connect(minUnstableLabel, &ClickLabel::clicked,
-            this, &AdvSpectralOptions::onMinCo2LabelClicked);
-    connect(minStableLabel, &ClickLabel::clicked,
-            this, &AdvSpectralOptions::onMinCh4LabelClicked);
-    connect(maxLabel, &ClickLabel::clicked,
-            this, &AdvSpectralOptions::onMinGas4LabelClicked);
-    connect(spin10Label, &ClickLabel::clicked,
-            this, &AdvSpectralOptions::onSpin10LabelClicked);
     connect(spin11, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvSpectralOptions::updateFminCo2);
     connect(spin12, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
@@ -889,8 +1195,6 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             this, &AdvSpectralOptions::updateFminCh4);
     connect(spin14, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvSpectralOptions::updateFminGas4);
-    connect(spin20Label, &ClickLabel::clicked,
-            this, &AdvSpectralOptions::onSpin20LabelClicked);
     connect(spin21, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvSpectralOptions::updateFmaxCo2);
     connect(spin22, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
@@ -899,8 +1203,6 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             this, &AdvSpectralOptions::updateFmaxCh4);
     connect(spin24, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvSpectralOptions::updateFmaxGas4);
-    connect(spin30Label, &ClickLabel::clicked,
-            this, &AdvSpectralOptions::onSpin30LabelClicked);
     connect(spin31, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvSpectralOptions::updateHfnCo2);
     connect(spin32, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
@@ -923,6 +1225,8 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             this, &AdvSpectralOptions::reset);
     connect(ecProject_, &EcProject::ecProjectChanged,
             this, &AdvSpectralOptions::refresh);
+    connect(ecProject_, &EcProject::updateInfo,
+            this, &AdvSpectralOptions::refreshSpectralAssessmentCreationMode);
 
     auto combo_list = QWidgetList() << hfMethCombo
                                     << horstCombo;
@@ -931,25 +1235,6 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
         auto combo = static_cast<QComboBox *>(widget);
         connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, &AdvSpectralOptions::updateTooltip);
-    }
-
-    // fix layout alignment
-    auto max_spin_width = spin33->width();
-    auto spin_list = QWidgetList() << spin34
-                                   << spin24
-                                   << qcMinUnstableCo2Spin
-                                   << qcMinUnstableCh4Spin
-                                   << qcMinUnstableGas4Spin
-                                   << qcMinStableCo2Spin
-                                   << qcMinStableCh4Spin
-                                   << qcMinStableGas4Spin
-                                   << qcMaxCo2Spin
-                                   << qcMaxCh4Spin
-                                   << qcMaxGas4Spin;
-
-    for (auto w : spin_list)
-    {
-        w->setMaximumWidth(max_spin_width);
     }
 
     QTimer::singleShot(0, this, &AdvSpectralOptions::reset);
@@ -1007,6 +1292,7 @@ void AdvSpectralOptions::reset()
     vmFlagsCheckBox->setChecked(ecProject_->defaultSettings.spectraSettings.use_vm_flags);
     lowQualityCheckBox->setChecked(ecProject_->defaultSettings.spectraSettings.use_foken_low);
     moderateQualityCheckBox->setChecked(ecProject_->defaultSettings.spectraSettings.use_foken_mid);
+    automaticSpectraConfigCheck->setChecked(ecProject_->defaultSettings.spectraSettings.automatic_spectra_config);
 
     filterCombo->setCurrentIndex(ecProject_->defaultSettings.screenSetting.tap_win);
     filterCombo->setEnabled(true);
@@ -1087,23 +1373,7 @@ void AdvSpectralOptions::reset()
 
     minSmplSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_smpl);
 
-    spin11Label->setEnabled(false);
-    spin12Label->setEnabled(false);
-    spin13Label->setEnabled(false);
-    spin14Label->setEnabled(false);
-    spin10Label->setEnabled(false);
-    spin20Label->setEnabled(false);
-    minMaxFreqLabel->setEnabled(false);
-    noiseFreqLabel->setEnabled(false);
-
-    spin11->setEnabled(false);
-    spin12->setEnabled(false);
-    spin13->setEnabled(false);
-    spin14->setEnabled(false);
-    spin21->setEnabled(false);
-    spin22->setEnabled(false);
-    spin23->setEnabled(false);
-    spin24->setEnabled(false);
+    setSpectralAssessmentFrequencyCellsEnabled(false);
 
     spin11->setValue(ecProject_->defaultSettings.spectraSettings.sa_fmin_co2);
     spin12->setValue(ecProject_->defaultSettings.spectraSettings.sa_fmin_h2o);
@@ -1128,6 +1398,8 @@ void AdvSpectralOptions::reset()
     ecProject_->setModified(oldmod);
     ecProject_->blockSignals(false);
 
+    refreshSpectralAssessmentCreationMode();
+    refreshSpectralQaQcTableState();
     emit updateOutputsRequest(0);
 }
 
@@ -1167,6 +1439,7 @@ void AdvSpectralOptions::refresh()
     vmFlagsCheckBox->setChecked(ecProject_->spectraUseVmFlags());
     lowQualityCheckBox->setChecked(ecProject_->spectraUseFokenLow());
     moderateQualityCheckBox->setChecked(ecProject_->spectraUseFokenMid());
+    automaticSpectraConfigCheck->setChecked(ecProject_->spectraAutomaticConfig());
 
     lfMethodCheck->setChecked(ecProject_->generalLfMethod());
     hfMethodCheck->setChecked(ecProject_->generalHfMethod());
@@ -1279,38 +1552,22 @@ void AdvSpectralOptions::refresh()
     qcMaxCh4Spin->setValue(ecProject_->spectraMaxCh4());
     qcMaxGas4Spin->setValue(ecProject_->spectraMaxGas4());
 
-    spin11Label->setEnabled(toEnable);
-    spin12Label->setEnabled(toEnable);
-    spin13Label->setEnabled(toEnable);
-    spin14Label->setEnabled(toEnable);
-    spin10Label->setEnabled(toEnable);
-    spin20Label->setEnabled(toEnable);
-    minMaxFreqLabel->setEnabled(toEnable);
-    noiseFreqLabel->setEnabled(toEnable);
-
     spin11->setValue(ecProject_->spectraFminCo2());
-    spin11->setEnabled(toEnable);
 
     spin12->setValue(ecProject_->spectraFminH2o());
-    spin12->setEnabled(toEnable);
 
     spin13->setValue(ecProject_->spectraFminCh4());
-    spin13->setEnabled(toEnable);
 
     spin14->setValue(ecProject_->spectraFminGas4());
-    spin14->setEnabled(toEnable);
 
     spin21->setValue(ecProject_->spectraFmaxCo2());
-    spin21->setEnabled(toEnable);
 
     spin22->setValue(ecProject_->spectraFmaxH2o());
-    spin22->setEnabled(toEnable);
 
     spin23->setValue(ecProject_->spectraFmaxCh4());
-    spin23->setEnabled(toEnable);
 
     spin24->setValue(ecProject_->spectraFmaxGas4());
-    spin24->setEnabled(toEnable);
+    setSpectralAssessmentFrequencyCellsEnabled(toEnable);
 
     spin31->setValue(ecProject_->spectraHfnCo2());
     spin32->setValue(ecProject_->spectraHfnH2o());
@@ -1335,6 +1592,190 @@ void AdvSpectralOptions::refresh()
     ecProject_->setModified(oldmod);
     ecProject_->blockSignals(false);
 
+    refreshSpectralAssessmentCreationMode();
+    refreshSpectralQaQcTableState();
+    emit updateOutputsRequest(hfMethCombo->currentIndex());
+}
+
+void AdvSpectralOptions::refreshSpectralAssessmentCreationMode()
+{
+    const auto createAssessment = ecProject_->spectraFluxRunMode() == 1;
+    const auto productionRun = ecProject_->spectraFluxRunMode() == 2;
+    if (createAssessment && configState_->project.smartfluxMode)
+    {
+        ecProject_->setSpectraFluxRunMode(0);
+        return;
+    }
+    if (productionRun && configState_->project.smartfluxMode)
+    {
+        ecProject_->setSpectraFluxRunMode(0);
+        return;
+    }
+
+    hfMethCombo->setItemData(0,
+                             createAssessment
+                             ? QStringLiteral("disabled")
+                             : QStringLiteral("enabled"),
+                             Qt::UserRole);
+    hfMethCombo->setItemData(1,
+                             createAssessment
+                             ? QStringLiteral("disabled")
+                             : QStringLiteral("enabled"),
+                             Qt::UserRole);
+    hfMethCombo->setItemData(2, QStringLiteral("enabled"), Qt::UserRole);
+    hfMethCombo->setItemData(3, QStringLiteral("enabled"), Qt::UserRole);
+    hfMethCombo->setItemData(4, QStringLiteral("enabled"), Qt::UserRole);
+
+    if (createAssessment)
+    {
+        if (ecProject_->generalHfMethod() < 2 || ecProject_->generalHfMethod() > 4)
+        {
+            ecProject_->setGeneralHfMethod(4);
+        }
+        if (ecProject_->spectraMode() != 1)
+        {
+            ecProject_->setSpectraMode(1);
+        }
+        if (ecProject_->generalBinSpectraAvail())
+        {
+            ecProject_->setGeneralBinSpectraAvail(0);
+        }
+        if (ecProject_->generalFullSpectraAvail())
+        {
+            ecProject_->setGeneralFullSpectraAvail(0);
+        }
+        if (ecProject_->spectraUseVmFlags())
+        {
+            ecProject_->setSpectraUseVmFlags(0);
+        }
+        if (ecProject_->spectraUseFokenMid())
+        {
+            ecProject_->setSpectraUseFokenMid(0);
+        }
+
+        QSignalBlocker hfMethodBlocker(hfMethodCheck);
+        QSignalBlocker hfComboBlocker(hfMethCombo);
+        QSignalBlocker spectraExistingBlocker(spectraExistingRadio);
+        QSignalBlocker spectraNonExistingBlocker(spectraNonExistingRadio);
+        QSignalBlocker binnedExistingBlocker(binnedSpectraExistingRadio);
+        QSignalBlocker binnedNonExistingBlocker(binnedSpectraNonExistingRadio);
+        QSignalBlocker fullExistingBlocker(fullSpectraExistingRadio);
+        QSignalBlocker fullNonExistingBlocker(fullSpectraNonExistingRadio);
+        QSignalBlocker vmBlocker(vmFlagsCheckBox);
+        QSignalBlocker moderateBlocker(moderateQualityCheckBox);
+
+        hfMethodCheck->setChecked(true);
+        hfMethCombo->setCurrentIndex(hfComboIndexFromProjectMethod());
+        spectraExistingRadio->setChecked(false);
+        spectraNonExistingRadio->setChecked(true);
+        binnedSpectraExistingRadio->setChecked(false);
+        binnedSpectraNonExistingRadio->setChecked(true);
+        fullSpectraExistingRadio->setChecked(false);
+        fullSpectraNonExistingRadio->setChecked(true);
+        vmFlagsCheckBox->setChecked(false);
+        moderateQualityCheckBox->setChecked(false);
+
+        hfMethodCheck->setEnabled(false);
+        hfMethLabel->setEnabled(true);
+        hfMethCombo->setEnabled(true);
+        spectraExistingRadio->setEnabled(false);
+        spectraNonExistingRadio->setEnabled(false);
+        spectraFileBrowse->setEnabled(false);
+        binnedSpectraExistingRadio->setEnabled(true);
+        binnedSpectraNonExistingRadio->setEnabled(true);
+        binnedSpectraDirBrowse->setEnabled(false);
+        fullSpectraExistingRadio->setEnabled(isFratini());
+        fullSpectraNonExistingRadio->setEnabled(isFratini());
+        fullSpectraDirBrowse->setEnabled(false);
+        vmFlagsCheckBox->setEnabled(false);
+        moderateQualityCheckBox->setEnabled(false);
+        lowQualityCheckBox->setEnabled(true);
+
+        const auto toEnable = isHorstIbromFratini();
+        setSpectralAssessmentFrequencyCellsEnabled(toEnable);
+    }
+    else if (productionRun)
+    {
+        if (ecProject_->generalHfMethod() < 2 || ecProject_->generalHfMethod() > 4)
+        {
+            ecProject_->setGeneralHfMethod(4);
+        }
+        ecProject_->setSpectraMode(0);
+        ecProject_->setGeneralBinSpectraAvail(1);
+        ecProject_->setGeneralFullSpectraAvail(1);
+        ecProject_->setSpectraUseVmFlags(1);
+        ecProject_->setSpectraUseFokenMid(1);
+        ecProject_->setSpectraUseFokenLow(1);
+
+        QSignalBlocker hfMethodBlocker(hfMethodCheck);
+        QSignalBlocker hfComboBlocker(hfMethCombo);
+        QSignalBlocker spectraExistingBlocker(spectraExistingRadio);
+        QSignalBlocker spectraNonExistingBlocker(spectraNonExistingRadio);
+        QSignalBlocker binnedExistingBlocker(binnedSpectraExistingRadio);
+        QSignalBlocker binnedNonExistingBlocker(binnedSpectraNonExistingRadio);
+        QSignalBlocker fullExistingBlocker(fullSpectraExistingRadio);
+        QSignalBlocker fullNonExistingBlocker(fullSpectraNonExistingRadio);
+        QSignalBlocker vmBlocker(vmFlagsCheckBox);
+        QSignalBlocker lowBlocker(lowQualityCheckBox);
+        QSignalBlocker moderateBlocker(moderateQualityCheckBox);
+
+        hfMethodCheck->setChecked(true);
+        hfMethCombo->setCurrentIndex(hfComboIndexFromProjectMethod());
+        spectraExistingRadio->setChecked(true);
+        spectraNonExistingRadio->setChecked(false);
+        binnedSpectraExistingRadio->setChecked(true);
+        binnedSpectraNonExistingRadio->setChecked(false);
+        fullSpectraExistingRadio->setChecked(true);
+        fullSpectraNonExistingRadio->setChecked(false);
+        vmFlagsCheckBox->setChecked(true);
+        lowQualityCheckBox->setChecked(true);
+        moderateQualityCheckBox->setChecked(true);
+
+        hfMethodCheck->setEnabled(true);
+        hfMethLabel->setEnabled(hfMethodCheck->isChecked());
+        hfMethCombo->setEnabled(hfMethodCheck->isChecked());
+
+        spectraExistingRadio->setEnabled(hfMethodCheck->isChecked()
+                                         && isHorstIbromFratini());
+        spectraNonExistingRadio->setEnabled(hfMethodCheck->isChecked()
+                                            && isHorstIbromFratini()
+                                            && !configState_->project.smartfluxMode);
+        spectraFileBrowse->setEnabled(spectraExistingRadio->isEnabled());
+        binnedSpectraExistingRadio->setEnabled(true);
+        binnedSpectraNonExistingRadio->setEnabled(true);
+        binnedSpectraDirBrowse->setEnabled(true);
+        fullSpectraExistingRadio->setEnabled(isFratini());
+        fullSpectraNonExistingRadio->setEnabled(isFratini());
+        fullSpectraDirBrowse->setEnabled(isFratini());
+        vmFlagsCheckBox->setEnabled(true);
+        moderateQualityCheckBox->setEnabled(true);
+        lowQualityCheckBox->setEnabled(false);
+    }
+    else
+    {
+        vmFlagsCheckBox->setEnabled(true);
+        lowQualityCheckBox->setEnabled(true);
+        moderateQualityCheckBox->setEnabled(true);
+        hfMethodCheck->setEnabled(true);
+        hfMethLabel->setEnabled(hfMethodCheck->isChecked());
+        hfMethCombo->setEnabled(hfMethodCheck->isChecked());
+
+        const auto smartfluxOn = configState_->project.smartfluxMode;
+        if (smartfluxOn)
+        {
+            hfMethCombo->setItemData(4, QStringLiteral("disabled"), Qt::UserRole);
+        }
+
+        spectraExistingRadio->setEnabled(hfMethodCheck->isChecked()
+                                         && isHorstIbromFratini());
+        spectraNonExistingRadio->setEnabled(hfMethodCheck->isChecked()
+                                            && isHorstIbromFratini()
+                                            && !smartfluxOn);
+        spectraFileBrowse->setEnabled(spectraExistingRadio->isEnabled()
+                                      && spectraExistingRadio->isChecked());
+    }
+
+    refreshSpectralQaQcTableState();
     emit updateOutputsRequest(hfMethCombo->currentIndex());
 }
 
@@ -1373,10 +1814,7 @@ void AdvSpectralOptions::testSelectedSpectraFile(const QString& fp)
     if (dialog_result)
     {
         spectraFileBrowse->setPath(fp);
-
-        QString lastPath = paramFilePath.canonicalPath();
-        configState_->window.last_data_path = lastPath;
-        GlobalSettings::updateLastDatapath(lastPath);
+        WidgetUtils::rememberDialogPath(QStringLiteral("spectral_assessment_file"), fp, true);
     }
     else
     {
@@ -1388,20 +1826,14 @@ void AdvSpectralOptions::binnedSpectraDirSelected(const QString& dir_path)
 {
     binnedSpectraDirBrowse->setPath(dir_path);
 
-    QDir dataDir(dir_path);
-    QString canonicalDataDir = dataDir.canonicalPath();
-    configState_->window.last_data_path = canonicalDataDir;
-    GlobalSettings::updateLastDatapath(canonicalDataDir);
+    WidgetUtils::rememberDialogPath(QStringLiteral("binned_cospectra_dir"), dir_path, false);
 }
 
 void AdvSpectralOptions::fullSpectraDirSelected(const QString& dir_path)
 {
     fullSpectraDirBrowse->setPath(dir_path);
 
-    QDir dataDir(dir_path);
-    QString canonicalDataDir = dataDir.canonicalPath();
-    configState_->window.last_data_path = canonicalDataDir;
-    GlobalSettings::updateLastDatapath(canonicalDataDir);
+    WidgetUtils::rememberDialogPath(QStringLiteral("full_cospectra_dir"), dir_path, false);
 }
 
 void AdvSpectralOptions::spectraRadioClicked(int radioButton)
@@ -1410,22 +1842,7 @@ void AdvSpectralOptions::spectraRadioClicked(int radioButton)
     if (radioButton == 0)
     {
         spectraFileBrowse->setEnabled(true);
-        spin11Label->setEnabled(false);
-        spin12Label->setEnabled(false);
-        spin13Label->setEnabled(false);
-        spin14Label->setEnabled(false);
-        spin10Label->setEnabled(false);
-        spin20Label->setEnabled(false);
-        minMaxFreqLabel->setEnabled(false);
-        noiseFreqLabel->setEnabled(false);
-        spin11->setEnabled(false);
-        spin12->setEnabled(false);
-        spin13->setEnabled(false);
-        spin14->setEnabled(false);
-        spin21->setEnabled(false);
-        spin22->setEnabled(false);
-        spin23->setEnabled(false);
-        spin24->setEnabled(false);
+        setSpectralAssessmentFrequencyCellsEnabled(false);
     }
     // non existing spectral assessment file
     else
@@ -1434,23 +1851,9 @@ void AdvSpectralOptions::spectraRadioClicked(int radioButton)
 
         auto toEnable = hfMethodCheck->isChecked() && isHorstIbromFratini();
 
-        spin11Label->setEnabled(toEnable);
-        spin12Label->setEnabled(toEnable);
-        spin13Label->setEnabled(toEnable);
-        spin14Label->setEnabled(toEnable);
-        spin10Label->setEnabled(toEnable);
-        spin20Label->setEnabled(toEnable);
-        minMaxFreqLabel->setEnabled(toEnable);
-        noiseFreqLabel->setEnabled(toEnable);
-        spin11->setEnabled(toEnable);
-        spin12->setEnabled(toEnable);
-        spin13->setEnabled(toEnable);
-        spin14->setEnabled(toEnable);
-        spin21->setEnabled(toEnable);
-        spin22->setEnabled(toEnable);
-        spin23->setEnabled(toEnable);
-        spin24->setEnabled(toEnable);
+        setSpectralAssessmentFrequencyCellsEnabled(toEnable);
     }
+    refreshSpectralQaQcTableState();
     emit updateOutputsRequest(hfMethCombo->currentIndex());
 }
 
@@ -1552,8 +1955,33 @@ void AdvSpectralOptions::setHfMethod(int hfMethComboIndex)
     }
 }
 
+int AdvSpectralOptions::hfComboIndexFromProjectMethod() const
+{
+    switch (ecProject_->generalHfMethod())
+    {
+    case 2:
+        return 2;
+    case 3:
+        return 3;
+    case 4:
+        return 4;
+    case 5:
+        return 1;
+    case 0:
+    case 1:
+    default:
+        return 0;
+    }
+}
+
 void AdvSpectralOptions::updateHfMethod_1(bool b)
 {
+    if (ecProject_->spectraFluxRunMode() == 1 && !b)
+    {
+        refreshSpectralAssessmentCreationMode();
+        return;
+    }
+
     bool smartfluxOn = configState_->project.smartfluxMode;
 
     if (b)
@@ -1576,22 +2004,7 @@ void AdvSpectralOptions::updateHfMethod_1(bool b)
         sonicFrequencyLabel->setEnabled(hfCorrectGhgZohCheck->isChecked());
         sonicFrequency->setEnabled(hfCorrectGhgZohCheck->isChecked());
 
-        spin11Label->setEnabled(toEnable);
-        spin12Label->setEnabled(toEnable);
-        spin13Label->setEnabled(toEnable);
-        spin14Label->setEnabled(toEnable);
-        spin10Label->setEnabled(toEnable);
-        spin20Label->setEnabled(toEnable);
-        minMaxFreqLabel->setEnabled(toEnable);
-        noiseFreqLabel->setEnabled(toEnable);
-        spin11->setEnabled(toEnable);
-        spin12->setEnabled(toEnable);
-        spin13->setEnabled(toEnable);
-        spin14->setEnabled(toEnable);
-        spin21->setEnabled(toEnable);
-        spin22->setEnabled(toEnable);
-        spin23->setEnabled(toEnable);
-        spin24->setEnabled(toEnable);
+        setSpectralAssessmentFrequencyCellsEnabled(toEnable);
 
         auto toEnableFratini = isFratini();
         fullSpectraNonExistingRadio->setEnabled(toEnableFratini);
@@ -1621,22 +2034,7 @@ void AdvSpectralOptions::updateHfMethod_1(bool b)
         spectraExistingRadio->setEnabled(false);
         spectraNonExistingRadio->setEnabled(false);
         spectraFileBrowse->setEnabled(false);
-        spin11Label->setEnabled(false);
-        spin12Label->setEnabled(false);
-        spin13Label->setEnabled(false);
-        spin14Label->setEnabled(false);
-        spin10Label->setEnabled(false);
-        spin20Label->setEnabled(false);
-        minMaxFreqLabel->setEnabled(false);
-        noiseFreqLabel->setEnabled(false);
-        spin11->setEnabled(false);
-        spin12->setEnabled(false);
-        spin13->setEnabled(false);
-        spin14->setEnabled(false);
-        spin21->setEnabled(false);
-        spin22->setEnabled(false);
-        spin23->setEnabled(false);
-        spin24->setEnabled(false);
+        setSpectralAssessmentFrequencyCellsEnabled(false);
 
         fullSpectraExistingRadio->setEnabled(false);
         fullSpectraNonExistingRadio->setEnabled(false);
@@ -1650,6 +2048,12 @@ void AdvSpectralOptions::updateHfMethod_1(bool b)
 // update project properties and fluxes rotation choices
 void AdvSpectralOptions::updateHfMethod_2(int n)
 {
+    if (ecProject_->spectraFluxRunMode() == 1 && n < 2)
+    {
+        refreshSpectralAssessmentCreationMode();
+        return;
+    }
+
     bool smartfluxOn = configState_->project.smartfluxMode;
 
     setHfMethod(n);
@@ -1664,22 +2068,7 @@ void AdvSpectralOptions::updateHfMethod_2(int n)
     horstMethodLabel->setEnabled(horstCheck->isEnabled() && horstCheck->isChecked());
     horstCombo->setEnabled(horstMethodLabel->isEnabled());
 
-    spin11Label->setEnabled(toEnable);
-    spin12Label->setEnabled(toEnable);
-    spin13Label->setEnabled(toEnable);
-    spin14Label->setEnabled(toEnable);
-    spin10Label->setEnabled(toEnable);
-    spin20Label->setEnabled(toEnable);
-    minMaxFreqLabel->setEnabled(toEnable);
-    noiseFreqLabel->setEnabled(toEnable);
-    spin11->setEnabled(toEnable);
-    spin12->setEnabled(toEnable);
-    spin13->setEnabled(toEnable);
-    spin14->setEnabled(toEnable);
-    spin21->setEnabled(toEnable);
-    spin22->setEnabled(toEnable);
-    spin23->setEnabled(toEnable);
-    spin24->setEnabled(toEnable);
+    setSpectralAssessmentFrequencyCellsEnabled(toEnable);
 
     // fratini only
     auto toEnableFratini = (n == 4);
@@ -1792,40 +2181,127 @@ void AdvSpectralOptions::updateHorst_2(int n)
     ecProject_->setSpectraHorst(n + 1);
 }
 
-void AdvSpectralOptions::onMinCo2LabelClicked()
+void AdvSpectralOptions::focusSpectralTableColumn(int column)
 {
-    qcMinStableCo2Spin->setFocus();
-    qcMinStableCo2Spin->selectAll();
+    if (!spectralQaQcModel || !spectralQaQcTable)
+    {
+        return;
+    }
+
+    const auto model = static_cast<SpectralQaQcTableModel*>(spectralQaQcModel);
+    const QModelIndex firstEditable = model->firstEditableIndex(column);
+    if (!firstEditable.isValid())
+    {
+        return;
+    }
+
+    spectralQaQcTable->setFocus();
+    spectralQaQcTable->setCurrentIndex(firstEditable);
+    spectralQaQcTable->edit(firstEditable);
 }
 
-void AdvSpectralOptions::onMinCh4LabelClicked()
+void AdvSpectralOptions::setSpectralAssessmentFrequencyCellsEnabled(bool enabled)
 {
-    qcMinStableCh4Spin->setFocus();
-    qcMinStableCh4Spin->selectAll();
+    for (auto spin : { spin31, spin32, spin33, spin34,
+                       spin11, spin12, spin13, spin14,
+                       spin21, spin22, spin23, spin24 })
+    {
+        spin->setEnabled(enabled);
+    }
+    refreshSpectralQaQcTableState();
 }
 
-void AdvSpectralOptions::onMinGas4LabelClicked()
+const VariableDesc* AdvSpectralOptions::rawVariableAtColumn(int column) const
 {
-    qcMinStableGas4Spin->setFocus();
-    qcMinStableGas4Spin->selectAll();
+    if (!dlProject_ || column <= 0)
+    {
+        return nullptr;
+    }
+
+    const auto variables = dlProject_->variables();
+    const int index = column - 1;
+    if (!variables || index < 0 || index >= variables->size())
+    {
+        return nullptr;
+    }
+    return &variables->at(index);
 }
 
-void AdvSpectralOptions::onSpin10LabelClicked()
+bool AdvSpectralOptions::selectedColumnIsVariable(int column, const QString& variableName) const
 {
-    spin11->setFocus();
-    spin11->selectAll();
+    const auto variable = rawVariableAtColumn(column);
+    return variable && variable->variable() == variableName;
 }
 
-void AdvSpectralOptions::onSpin20LabelClicked()
+bool AdvSpectralOptions::selectedColumnIsGas4(int column) const
 {
-    spin21->setFocus();
-    spin21->selectAll();
+    const auto variable = rawVariableAtColumn(column);
+    if (!variable)
+    {
+        return false;
+    }
+
+    const QString variableName = variable->variable();
+    if (variableName == VariableDesc::getVARIABLE_VAR_STRING_5()
+        || variableName == VariableDesc::getVARIABLE_VAR_STRING_6()
+        || variableName == VariableDesc::getVARIABLE_VAR_STRING_7())
+    {
+        return false;
+    }
+    return VariableDesc::isGoodGas(*variable, VariableDesc::isCustomVariable(variableName));
 }
 
-void AdvSpectralOptions::onSpin30LabelClicked()
+QString AdvSpectralOptions::gas4FluxLabel() const
 {
-    spin31->setFocus();
-    spin31->selectAll();
+    const auto variable = rawVariableAtColumn(ecProject_->generalColGas4());
+    if (!variable || variable->variable().isEmpty())
+    {
+        return tr("Selected gas flux");
+    }
+    return tr("%1 flux").arg(variable->variable());
+}
+
+void AdvSpectralOptions::rebuildSpectralQaQcRows()
+{
+    if (!spectralQaQcModel)
+    {
+        return;
+    }
+
+    QVector<SpectralQaQcRow> rows;
+    rows.append({ tr("Friction velocity"), nullptr, qcMinUnstableUstarSpin, qcMinStableUstarSpin, qcMaxUstarSpin, nullptr, nullptr });
+    rows.append({ tr("Sensible heat flux"), nullptr, qcMinUnstableHSpin, qcMinStableHSpin, qcMaxHSpin, nullptr, nullptr });
+
+    const bool hasH2o = selectedColumnIsVariable(ecProject_->generalColH2o(),
+                                                 VariableDesc::getVARIABLE_VAR_STRING_6());
+    if (hasH2o)
+    {
+        rows.append({ tr("Latent heat flux"), nullptr, qcMinUnstableLESpin, qcMinStableLESpin, qcMaxLESpin, nullptr, nullptr });
+    }
+    if (selectedColumnIsVariable(ecProject_->generalColCo2(), VariableDesc::getVARIABLE_VAR_STRING_5()))
+    {
+        rows.append({ tr("%1 flux").arg(VariableDesc::getVARIABLE_VAR_STRING_5()), spin31, qcMinUnstableCo2Spin, qcMinStableCo2Spin, qcMaxCo2Spin, spin11, spin21 });
+    }
+    if (hasH2o)
+    {
+        rows.append({ tr("%1 flux").arg(VariableDesc::getVARIABLE_VAR_STRING_6()), spin32, nullptr, nullptr, nullptr, spin12, spin22 });
+    }
+    if (selectedColumnIsVariable(ecProject_->generalColCh4(), VariableDesc::getVARIABLE_VAR_STRING_7()))
+    {
+        rows.append({ tr("%1 flux").arg(VariableDesc::getVARIABLE_VAR_STRING_7()), spin33, qcMinUnstableCh4Spin, qcMinStableCh4Spin, qcMaxCh4Spin, spin13, spin23 });
+    }
+    if (selectedColumnIsGas4(ecProject_->generalColGas4()))
+    {
+        rows.append({ gas4FluxLabel(), spin34, qcMinUnstableGas4Spin, qcMinStableGas4Spin, qcMaxGas4Spin, spin14, spin24 });
+    }
+
+    static_cast<SpectralQaQcTableModel*>(spectralQaQcModel)->setRows(rows);
+}
+
+void AdvSpectralOptions::refreshSpectralQaQcTableState()
+{
+    rebuildSpectralQaQcRows();
+    refreshSpectralQaQcTableView(spectralQaQcModel, spectralQaQcTable);
 }
 
 void AdvSpectralOptions::updateFminCo2(double d)

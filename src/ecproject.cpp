@@ -26,6 +26,7 @@
 #include "ecproject.h"
 
 #include <algorithm>
+#include <cmath>
 
 #include <QDebug>
 #include <QRegularExpression>
@@ -38,6 +39,32 @@
 #include "mainwindow.h"
 #include "stringutils.h"
 #include "widget_utils.h"
+
+namespace {
+
+QString formatSpectraQcMinimum(double value)
+{
+    const double roundedToFour = std::round(value * 10000.0) / 10000.0;
+    const bool needsExtraPrecision = value != 0.0
+            && (std::abs(value) < 0.0001
+                || std::abs(value - roundedToFour) > 0.0000005);
+
+    QString text = QString::number(value, 'f', needsExtraPrecision ? 6 : 4);
+    if (needsExtraPrecision)
+    {
+        while (text.contains(QLatin1Char('.')) && text.endsWith(QLatin1Char('0')))
+        {
+            text.chop(1);
+        }
+        if (text.endsWith(QLatin1Char('.')))
+        {
+            text.chop(1);
+        }
+    }
+    return text;
+}
+
+} // namespace
 
 EcProject::EcProject(QObject *parent, const ProjConfigState& project_config) :
     QObject(parent),
@@ -1086,6 +1113,8 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.spectraSettings.use_vm_flags = defaultEcProjectState.spectraSettings.use_vm_flags;
     ec_project_state_.spectraSettings.use_foken_low = defaultEcProjectState.spectraSettings.use_foken_low;
     ec_project_state_.spectraSettings.use_foken_mid = defaultEcProjectState.spectraSettings.use_foken_mid;
+    ec_project_state_.spectraSettings.flux_run_mode = defaultEcProjectState.spectraSettings.flux_run_mode;
+    ec_project_state_.spectraSettings.automatic_spectra_config = defaultEcProjectState.spectraSettings.automatic_spectra_config;
 
     ec_project_state_.screenTilt.start_date = QDate(2000, 1, 1).toString(Qt::ISODate);
     ec_project_state_.screenTilt.end_date = QDate::currentDate().toString(Qt::ISODate);
@@ -1100,6 +1129,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenTilt.fix_policy = defaultEcProjectState.screenTilt.fix_policy;
     ec_project_state_.screenTilt.angles.clear();
     ec_project_state_.screenTilt.subset = defaultEcProjectState.screenTilt.subset;
+    ec_project_state_.screenTilt.assessment_only = defaultEcProjectState.screenTilt.assessment_only;
 
     ec_project_state_.timelagOpt.start_date = QDate(2000, 1, 1).toString(Qt::ISODate);
     ec_project_state_.timelagOpt.end_date = QDate::currentDate().toString(Qt::ISODate);
@@ -1122,6 +1152,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.timelagOpt.gas4_min_lag = defaultEcProjectState.timelagOpt.gas4_min_lag;
     ec_project_state_.timelagOpt.gas4_max_lag = defaultEcProjectState.timelagOpt.gas4_max_lag;
     ec_project_state_.timelagOpt.subset  = defaultEcProjectState.timelagOpt.subset;
+    ec_project_state_.timelagOpt.assessment_only = defaultEcProjectState.timelagOpt.assessment_only;
 
     ec_project_state_.randomError.ru_method = defaultEcProjectState.randomError.ru_method;
     ec_project_state_.randomError.its_method = defaultEcProjectState.randomError.its_method;
@@ -1291,11 +1322,11 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_14, QString::number(ec_project_state_.spectraSettings.sa_hfn_h2o_fmin, 'f', 4));
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_15, QString::number(ec_project_state_.spectraSettings.sa_hfn_ch4_fmin, 'f', 4));
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_16, QString::number(ec_project_state_.spectraSettings.sa_hfn_gas4_fmin, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_17, QString::number(ec_project_state_.spectraSettings.sa_min_st_co2, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_18, QString::number(ec_project_state_.spectraSettings.sa_min_st_ch4, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_19, QString::number(ec_project_state_.spectraSettings.sa_min_st_gas4, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_20, QString::number(ec_project_state_.spectraSettings.sa_min_st_le, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_21, QString::number(ec_project_state_.spectraSettings.sa_min_st_h, 'f', 4));
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_17, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_st_co2));
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_18, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_st_ch4));
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_19, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_st_gas4));
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_20, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_st_le));
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_21, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_st_h));
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_22, ec_project_state_.spectraSettings.add_sonic_lptf);
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_28, ec_project_state_.spectraSettings.horst_lens);
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_29, QDir::fromNativeSeparators(ec_project_state_.spectraSettings.ex_file));
@@ -1304,21 +1335,23 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_32, QDir::fromNativeSeparators(ec_project_state_.spectraSettings.ex_dir));
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_33, ec_project_state_.spectraSettings.subset);
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_34, ec_project_state_.spectraSettings.use_vm_flags);
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_35, QString::number(ec_project_state_.spectraSettings.sa_min_st_ustar, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_36, QString::number(ec_project_state_.spectraSettings.sa_min_un_ustar, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_37, QString::number(ec_project_state_.spectraSettings.sa_min_un_h, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_38, QString::number(ec_project_state_.spectraSettings.sa_min_un_le, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_39, QString::number(ec_project_state_.spectraSettings.sa_min_un_co2, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_40, QString::number(ec_project_state_.spectraSettings.sa_min_un_ch4, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_41, QString::number(ec_project_state_.spectraSettings.sa_min_un_gas4, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_42, QString::number(ec_project_state_.spectraSettings.sa_max_ustar, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_43, QString::number(ec_project_state_.spectraSettings.sa_max_h, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_44, QString::number(ec_project_state_.spectraSettings.sa_max_le, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_45, QString::number(ec_project_state_.spectraSettings.sa_max_co2, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_46, QString::number(ec_project_state_.spectraSettings.sa_max_ch4, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_47, QString::number(ec_project_state_.spectraSettings.sa_max_gas4, 'f', 4));
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_35, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_st_ustar));
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_36, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_un_ustar));
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_37, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_un_h));
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_38, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_un_le));
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_39, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_un_co2));
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_40, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_un_ch4));
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_41, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_un_gas4));
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_42, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_max_ustar));
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_43, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_max_h));
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_44, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_max_le));
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_45, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_max_co2));
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_46, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_max_ch4));
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_47, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_max_gas4));
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_48, ec_project_state_.spectraSettings.use_foken_low);
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_49, ec_project_state_.spectraSettings.use_foken_mid);
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_52, ec_project_state_.spectraSettings.flux_run_mode);
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_53, ec_project_state_.spectraSettings.automatic_spectra_config);
 
         // NOTE: temporary placeholders for SA Groups. Not used right now
         project_ini.setValue(QStringLiteral("sa_co2_g1_start"), 1);
@@ -1564,6 +1597,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_TILT_7, QDir::fromNativeSeparators(ec_project_state_.screenTilt.file));
         project_ini.setValue(EcIni::INI_SCREEN_TILT_8, ec_project_state_.screenTilt.fix_policy);
         project_ini.setValue(EcIni::INI_SCREEN_TILT_11, ec_project_state_.screenTilt.subset);
+        project_ini.setValue(EcIni::INI_SCREEN_TILT_14, ec_project_state_.screenTilt.assessment_only);
 
         // iterate through angle list
         int k = 0;
@@ -1604,6 +1638,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_TIMELAG_OPT_15, QString::number(ec_project_state_.timelagOpt.gas4_min_lag, 'f', 1));
         project_ini.setValue(EcIni::INI_TIMELAG_OPT_16, QString::number(ec_project_state_.timelagOpt.gas4_max_lag, 'f', 1));
         project_ini.setValue(EcIni::INI_TIMELAG_OPT_18, ec_project_state_.timelagOpt.subset);
+        project_ini.setValue(EcIni::INI_TIMELAG_OPT_21, ec_project_state_.timelagOpt.assessment_only);
     project_ini.endGroup();
 
     // PWB timelag section
@@ -2162,6 +2197,12 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.spectraSettings.use_foken_mid
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_49,
                                     defaultEcProjectState.spectraSettings.use_foken_mid).toInt();
+        ec_project_state_.spectraSettings.flux_run_mode
+                = project_ini.value(EcIni::INI_SPEC_SETTINGS_52,
+                                    defaultEcProjectState.spectraSettings.flux_run_mode).toInt();
+        ec_project_state_.spectraSettings.automatic_spectra_config
+                = project_ini.value(EcIni::INI_SPEC_SETTINGS_53,
+                                    defaultEcProjectState.spectraSettings.automatic_spectra_config).toInt();
     project_ini.endGroup();
 
     // preproc general section
@@ -2832,6 +2873,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenTilt.subset
                 = project_ini.value(EcIni::INI_SCREEN_TILT_11,
                                     defaultEcProjectState.screenTilt.subset).toInt();
+        ec_project_state_.screenTilt.assessment_only
+                = project_ini.value(EcIni::INI_SCREEN_TILT_14,
+                                    defaultEcProjectState.screenTilt.assessment_only).toInt();
 
         ec_project_state_.screenTilt.angles.clear();
         int numAngles = countPlanarFitAngles(project_ini.allKeys());
@@ -2918,6 +2962,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.timelagOpt.subset
                 = project_ini.value(EcIni::INI_TIMELAG_OPT_18,
                                     defaultEcProjectState.timelagOpt.subset).toInt();
+        ec_project_state_.timelagOpt.assessment_only
+                = project_ini.value(EcIni::INI_TIMELAG_OPT_21,
+                                    defaultEcProjectState.timelagOpt.assessment_only).toInt();
     project_ini.endGroup();
 
     // PWB time lag section
@@ -5223,6 +5270,13 @@ void EcProject::setPlanarFitSubset(int n)
     setModified(true);
 }
 
+void EcProject::setPlanarFitAssessmentOnly(int n)
+{
+    ec_project_state_.screenTilt.assessment_only = n;
+    setModified(true);
+    emit updateInfo();
+}
+
 void EcProject::setSpectraStartDate(const QString& date)
 {
     ec_project_state_.spectraSettings.start_sa_date = date;
@@ -5259,6 +5313,19 @@ void EcProject::setSpectraFile(const QString &p)
     ec_project_state_.spectraSettings.sa_file = p;
     setModified(true);
     emit updateInfo();
+}
+
+void EcProject::setSpectraFluxRunMode(int n)
+{
+    ec_project_state_.spectraSettings.flux_run_mode = n;
+    setModified(true);
+    emit updateInfo();
+}
+
+void EcProject::setSpectraAutomaticConfig(int n)
+{
+    ec_project_state_.spectraSettings.automatic_spectra_config = n;
+    setModified(true);
 }
 
 void EcProject::setSpectraUseVmFlags(int n)
@@ -5405,6 +5472,13 @@ void EcProject::setTimelagOptGas4MaxLag(double d)
 {
     ec_project_state_.timelagOpt.gas4_max_lag = d;
     setModified(true);
+}
+
+void EcProject::setTimelagAssessmentOnly(int n)
+{
+    ec_project_state_.timelagOpt.assessment_only = n;
+    setModified(true);
+    emit updateInfo();
 }
 
 void EcProject::setPwbCo2MinLag(double d)
@@ -5619,6 +5693,11 @@ void EcProject::setBiomParamColPpfd(int n)
 
 bool EcProject::isEngineStep2Needed()
 {
+    if (timelagAssessmentOnly() || planarFitAssessmentOnly())
+    {
+        return false;
+    }
+
     bool test = false;
 
     switch (generalHfMethod())

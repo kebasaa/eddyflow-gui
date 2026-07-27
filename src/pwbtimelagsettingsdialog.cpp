@@ -6,18 +6,26 @@
 
 #include "pwbtimelagsettingsdialog.h"
 
+#include <QButtonGroup>
 #include <QCheckBox>
 #include <QDialogButtonBox>
+#include <QDir>
 #include <QDoubleSpinBox>
+#include <QFile>
+#include <QFileInfo>
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QRadioButton>
 #include <QSpinBox>
 #include <QVBoxLayout>
+#include <QWidget>
 
+#include "ancillaryfiletest.h"
 #include "defs.h"
 #include "ecproject.h"
+#include "filebrowsewidget.h"
 #include "widget_utils.h"
 
 PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
@@ -35,6 +43,29 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
 
     auto title = new QLabel(tr("Pre-whitening block-bootstrap time lag detection"));
     title->setProperty("groupLabel", true);
+
+    existingRadio = new QRadioButton(tr("Time-lag file available : "));
+    existingRadio->setToolTip(tr("<b>Time-lag file available:</b> Select either a per-period PWB cache or a standard Time-lag_optimisation_results file. A PWB cache reuses exact timestamp- and gas-specific lags; missing entries are detected and saved to a new output-side cache. An aggregate file uses its gas and H2O RH-class lags for the whole run and does not run PWB."));
+
+    nonExistingRadio = new QRadioButton(tr("Time lag file not available :"));
+    nonExistingRadio->setToolTip(tr("<b>Time lag file not available:</b> Choose this option and provide the following information if you need to detect time lags for your dataset with pre-whitening block-bootstrap."));
+
+    fileBrowse = new FileBrowseWidget;
+    fileBrowse->setToolTip(tr("<b>Load:</b> Load a PWB per-period cache or aggregate time-lag file"));
+    fileBrowse->setDialogTitle(tr("Select a PWB Cache or Time-Lag Results File"));
+    fileBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("timelag_file")));
+    fileBrowse->setDialogFilter(tr("All Files (*.*)"));
+
+    auto existingFileLayout = new QHBoxLayout;
+    existingFileLayout->addWidget(existingRadio);
+    existingFileLayout->addWidget(fileBrowse);
+    existingFileLayout->setStretch(1, 1);
+    existingFileLayout->setContentsMargins(0, 0, 0, 0);
+    existingFileLayout->setSpacing(0);
+
+    radioGroup = new QButtonGroup(this);
+    radioGroup->addButton(existingRadio, 0);
+    radioGroup->addButton(nonExistingRadio, 1);
 
     detectOnRawCheckBox = new QCheckBox(tr("Detect time lag on raw data (pre-processing step)"));
     detectOnRawCheckBox->setToolTip(tr(
@@ -180,18 +211,34 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
     speedLayout->addLayout(maxArRow);
     speedGroup->setLayout(speedLayout);
 
+    auto pwbOptionsLayout = new QVBoxLayout;
+    pwbOptionsLayout->addWidget(detectOnRawCheckBox);
+    pwbOptionsLayout->addLayout(windows);
+    pwbOptionsLayout->addSpacing(10);
+    pwbOptionsLayout->addLayout(detection);
+    pwbOptionsLayout->addSpacing(10);
+    pwbOptionsLayout->addWidget(speedGroup);
+    pwbOptionsLayout->setContentsMargins(0, 0, 0, 0);
+
+    pwbOptionsContainer = new QWidget;
+    pwbOptionsContainer->setLayout(pwbOptionsLayout);
+
     auto buttons = new QDialogButtonBox(QDialogButtonBox::Close);
     connect(buttons, &QDialogButtonBox::rejected, this, &PwbTimelagSettingsDialog::hide);
 
     auto mainLayout = new QVBoxLayout(this);
     mainLayout->addWidget(title);
-    mainLayout->addWidget(detectOnRawCheckBox);
-    mainLayout->addLayout(windows);
-    mainLayout->addSpacing(10);
-    mainLayout->addLayout(detection);
-    mainLayout->addSpacing(10);
-    mainLayout->addWidget(speedGroup);
+    mainLayout->addLayout(existingFileLayout);
+    mainLayout->addWidget(nonExistingRadio);
+    mainLayout->addWidget(pwbOptionsContainer);
     mainLayout->addWidget(buttons);
+
+    connect(radioGroup, &QButtonGroup::idClicked,
+            this, &PwbTimelagSettingsDialog::updateTlMode);
+    connect(fileBrowse, &FileBrowseWidget::pathChanged,
+            this, &PwbTimelagSettingsDialog::updateFile);
+    connect(fileBrowse, &FileBrowseWidget::pathSelected,
+            this, &PwbTimelagSettingsDialog::testSelectedFile);
 
     connect(co2MinLagSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             ecProject_, &EcProject::setPwbCo2MinLag);
@@ -245,6 +292,13 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
 
 void PwbTimelagSettingsDialog::refresh()
 {
+    bool oldmod = ecProject_->modified();
+    ecProject_->blockSignals(true);
+
+    existingRadio->setChecked(!ecProject_->timelagOptMode());
+    nonExistingRadio->setChecked(ecProject_->timelagOptMode());
+    fileBrowse->setPath(ecProject_->timelagOptFile());
+
     co2MinLagSpin->setValue(ecProject_->pwbCo2MinLag());
     co2MaxLagSpin->setValue(ecProject_->pwbCo2MaxLag());
     h2oMinLagSpin->setValue(ecProject_->pwbH2oMinLag());
@@ -271,6 +325,82 @@ void PwbTimelagSettingsDialog::refresh()
     maxArOrderSpin->setEnabled(capEnabled);
     if (capEnabled)
         maxArOrderSpin->setValue(maxAr);
+
+    setPwbControlsEnabled(ecProject_->timelagOptMode() != 0);
+
+    ecProject_->setModified(oldmod);
+    ecProject_->blockSignals(false);
+}
+
+void PwbTimelagSettingsDialog::updateTlMode(int radioButton)
+{
+    ecProject_->setTimelagOptMode(radioButton);
+    setPwbControlsEnabled(radioButton != 0);
+}
+
+void PwbTimelagSettingsDialog::setPwbControlsEnabled(bool enabled)
+{
+    fileBrowse->setEnabled(!enabled);
+    pwbOptionsContainer->setEnabled(enabled);
+    if (enabled)
+    {
+        maxArOrderSpin->setEnabled(maxArOrderCheckBox->isChecked());
+    }
+}
+
+void PwbTimelagSettingsDialog::updateFile(const QString& fp)
+{
+    ecProject_->setTimelagOptFile(QDir::cleanPath(fp));
+}
+
+void PwbTimelagSettingsDialog::testSelectedFile(const QString& fp)
+{
+    if (fp.isEmpty()) { return; }
+
+    QFileInfo paramFilePath(fp);
+    QString canonicalParamFile = paramFilePath.canonicalFilePath();
+    if (canonicalParamFile.isEmpty())
+    {
+        fileBrowse->clear();
+        return;
+    }
+
+    // PWB caches are validated by the engine. Standard aggregate time-lag
+    // assessment files continue through the existing ancillary-file validator.
+    QFile pwbCache(canonicalParamFile);
+    if (pwbCache.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+        const auto firstLine = QString::fromUtf8(pwbCache.readLine()).trimmed();
+        if (firstLine == QLatin1String("PWB_TIMELAG_CACHE_VERSION=1") ||
+            firstLine == QLatin1String("PWB_TIMELAG_CACHE_VERSION=2"))
+        {
+            fileBrowse->setPath(canonicalParamFile);
+            WidgetUtils::rememberDialogPath(QStringLiteral("timelag_file"), canonicalParamFile, true);
+            WidgetUtils::rememberDialogPath(QStringLiteral("timelag_import_file"), canonicalParamFile, true);
+            return;
+        }
+    }
+
+    AncillaryFileTest test_dialog(AncillaryFileTest::FileType::TimeLag, ecProject_, this);
+    test_dialog.refresh(canonicalParamFile);
+
+    auto test_result = test_dialog.makeTest();
+    auto dialog_result = true;
+    if (!test_result)
+    {
+        dialog_result = test_dialog.exec();
+    }
+
+    if (dialog_result)
+    {
+        fileBrowse->setPath(canonicalParamFile);
+        WidgetUtils::rememberDialogPath(QStringLiteral("timelag_file"), canonicalParamFile, true);
+        WidgetUtils::rememberDialogPath(QStringLiteral("timelag_import_file"), canonicalParamFile, true);
+    }
+    else
+    {
+        fileBrowse->clear();
+    }
 }
 
 QDoubleSpinBox *PwbTimelagSettingsDialog::createLagSpin()

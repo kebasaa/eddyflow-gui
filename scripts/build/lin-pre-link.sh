@@ -2,6 +2,7 @@
 echo "Copying dynamic libraries in the debug or release build folder... "
 
 DEBUG_OR_RELEASE=$1
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
 if [ "$DEBUG_OR_RELEASE" == "debug" ]; then
   QUAZIP_LIB="libquazip_debug.so.1.0.0"
@@ -20,3 +21,7 @@ echo "[QUAZIP_BUILD_DIR: $QUAZIP_BUILD_DIR]"
 
 echo "Copy quazip in the app binary folder..."
 cp "../libs/$QUAZIP_BUILD_DIR/$QUAZIP_LIB" "$BUILD_DIR"
+
+echo "Copy ancillary template files in the app binary folder..."
+mkdir -p "$BUILD_DIR/file-templates" || exit 1
+cp "$SCRIPT_DIR/../../file-templates/"*.txt "$BUILD_DIR/file-templates" || exit 1

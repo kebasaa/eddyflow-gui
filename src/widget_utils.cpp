@@ -27,12 +27,14 @@
 
 #include <limits>
 
+#include <QAbstractSpinBox>
 #include <QCalendarWidget>
 #include <QComboBox>
 #include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
 #include <QDesktopServices>
+#include <QFileInfo>
 #include <QFontMetrics>
 #include <QLabel>
 #include <QLineEdit>
@@ -43,6 +45,7 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSettings>
+#include <QSizePolicy>
 #include <QStyle>
 #include <QTextEdit>
 #include <QToolButton>
@@ -533,16 +536,24 @@ void WidgetUtils::setProgressValue(QProgressBar* bar, int value)
     bar->setValue(boundValue);
 }
 
+void WidgetUtils::setCompactSpinBoxWidth(QAbstractSpinBox* spinBox, int width)
+{
+    spinBox->setMinimumWidth(width);
+    spinBox->setMaximumWidth(width);
+    spinBox->setSizePolicy(QSizePolicy::Fixed, spinBox->sizePolicy().verticalPolicy());
+}
+
 QScrollArea *WidgetUtils::getContainerScrollArea(QWidget* parent, QLayout* layout)
 {
     auto frame = new QWidget(parent);
     frame->setLayout(layout);
     frame->setProperty("scrollContainerWidget", true);
-    frame->setMinimumWidth(frame->sizeHint().width());
+    frame->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
 
     auto scrollArea = new QScrollArea(parent);
     scrollArea->setWidget(frame);
     scrollArea->setWidgetResizable(true);
+    scrollArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     return scrollArea;
 }
 
@@ -560,6 +571,48 @@ QString WidgetUtils::getSearchPathHint(/*ConfigState *config*/)
     }
 
     return searchPath;
+}
+
+QString WidgetUtils::getDialogPathHint(const QString& contextKey)
+{
+    if (!contextKey.isEmpty())
+    {
+        auto dialogPath = GlobalSettings::getAppPersistentSettings(
+                    Defs::CONFGROUP_WINDOW,
+                    QStringLiteral("/dialog_paths/%1").arg(contextKey),
+                    QString()).toString();
+
+        if (!dialogPath.isEmpty() && FileUtils::existsPath(dialogPath))
+        {
+            return dialogPath;
+        }
+    }
+
+    return getSearchPathHint();
+}
+
+void WidgetUtils::rememberDialogPath(const QString& contextKey,
+                                     const QString& selectedPath,
+                                     bool isFile)
+{
+    if (contextKey.isEmpty() || selectedPath.isEmpty()) { return; }
+
+    auto pathInfo = QFileInfo(selectedPath);
+    QString dirPath = isFile ? pathInfo.canonicalPath()
+                             : QDir(selectedPath).canonicalPath();
+
+    if (dirPath.isEmpty())
+    {
+        dirPath = isFile ? pathInfo.absolutePath()
+                         : QDir(selectedPath).absolutePath();
+    }
+
+    if (dirPath.isEmpty() || !FileUtils::existsPath(dirPath)) { return; }
+
+    GlobalSettings::setAppPersistentSettings(
+                Defs::CONFGROUP_WINDOW,
+                QStringLiteral("/dialog_paths/%1").arg(contextKey),
+                dirPath);
 }
 
 bool WidgetUtils::okToCloseSmartFlux(QWidget* parent)

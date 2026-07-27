@@ -74,6 +74,11 @@ private slots:
     void updateFixedOuputFormat(int n);
     void updateErrorLabel(const QString& s);
     void updateFluxnetErrLabelMode(bool checked);
+    void updateSpectralAssessmentCreationMode(bool checked);
+    void updateProductionRunMode(bool checked);
+    void updateDefaultRunMode(bool checked);
+    void updateTimelagAssessmentOnly(bool checked);
+    void updatePlanarFitAssessmentOnly(bool checked);
 
     void checkFullSpectraAll(bool b);
     void checkFullCospectraAll(bool b);
@@ -118,10 +123,29 @@ private slots:
 private:
     bool areAllCheckedVars();
     void setVarsAvailable(bool ok);
+    bool isCo2OutputAvailable() const;
+    bool isH2oOutputAvailable() const;
+    bool isCh4OutputAvailable() const;
+    bool isGas4OutputAvailable() const;
     bool areTimeSeriesChecked();
     void updateVarsAvailable();
     void restoreOutputs();
+    bool canCreateTimelagAssessmentOnly() const;
+    bool canCreatePlanarFitAssessmentOnly() const;
+    bool canCreateSpectralAssessment() const;
+    bool validateSpectralAssessmentCreationRequest();
+    int estimatedSpectralAssessmentIntervals() const;
+    int currentSpectralMethodIndex() const;
+    bool isSpectralAssessmentCreationMode() const;
+    bool isProductionRunMode() const;
+    void applySpectralAssessmentCreationRequirements();
+    void applyProductionRunRequirements();
+    void clearRunModeRadios();
+    void updateSpectralAssessmentCreationAvailability();
+    void updatePreprocessingAssessmentAvailability();
+    void updateGasOutputAvailability();
     void setRequiredSpectralOutputState(int methodIndex);
+    void setRequiredGasFullCospectraOutputState(int methodIndex);
     void setRequiredIcon(QLabel* label, bool visible);
 
     void createQuestionMark();
@@ -135,6 +159,14 @@ private:
     QLabel* minSelectionDesc;
     QPushButton* typicalSelectionButton;
     QLabel* typicalSelectionDesc;
+
+    QRadioButton* spectralAssessmentCreationRadioButton;
+    QRadioButton* productionRunRadioButton;
+    QRadioButton* defaultRunRadioButton;
+    QButtonGroup* assessmentRunModeRadioGroup;
+    QLabel* spectralAssessmentCreationWarningIcon;
+    QCheckBox* timelagAssessmentOnlyCheckBox;
+    QCheckBox* planarFitAssessmentOnlyCheckBox;
 
     QCheckBox* outBinSpectraCheckBox;
     QLabel* outBinSpectraRequiredIcon;
