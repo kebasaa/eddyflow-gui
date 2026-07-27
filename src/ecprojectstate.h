@@ -171,6 +171,7 @@ struct SpectraSettingsState
     int use_foken_low = 1;
     int use_foken_mid = 0;
     int flux_run_mode = 0;
+    int automatic_spectra_config = 0;
 };
 
 /// \struct ScreenGeneralState

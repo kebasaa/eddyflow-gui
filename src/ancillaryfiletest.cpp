@@ -31,6 +31,7 @@
 #include <QFileDialog>
 #include <QTextBrowser>
 #include <QPushButton>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <QVBoxLayout>
 
@@ -42,6 +43,147 @@
 #include "widget_utils.h"
 
 const auto helpPage = QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Assessment_Tests.html");
+
+namespace {
+
+QString joinedLine(const QStringList& line)
+{
+    return line.join(QLatin1Char(' ')).simplified();
+}
+
+QString firstField(const QStringList& line)
+{
+    return joinedLine(line).split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts).value(0).trimmed();
+}
+
+QStringList whitespaceFields(const QStringList& line)
+{
+    return joinedLine(line).split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
+}
+
+QString normalizedTimelagLabel(QString label)
+{
+    label = label.trimmed().toLower();
+    label.replace(QLatin1Char('-'), QLatin1Char('_'));
+    label.replace(QStringLiteral("optimisation"), QStringLiteral("optimization"));
+    label.replace(QStringLiteral("mimimum"), QStringLiteral("minimum"));
+    while (label.endsWith(QLatin1Char(':')))
+    {
+        label.chop(1);
+    }
+    return label.simplified();
+}
+
+QString normalizedTimelagLine(const QStringList& line)
+{
+    QString label = joinedLine(line).toLower();
+    label.replace(QLatin1Char('-'), QLatin1Char('_'));
+    label.replace(QStringLiteral("optimisation"), QStringLiteral("optimization"));
+    label.replace(QStringLiteral("mimimum"), QStringLiteral("minimum"));
+    while (label.endsWith(QLatin1Char(':')))
+    {
+        label.chop(1);
+    }
+    return label.simplified();
+}
+
+bool matchesTimelagHeaderRow(const QStringList& line, int row)
+{
+    const QString label = normalizedTimelagLabel(firstField(line));
+    switch (row)
+    {
+        case 0:
+            return label == QLatin1String("time_lag_optimization_results");
+        case 1:
+            return label == QLatin1String("plausibility_range_[timefolds_standard_deviation]");
+        case 2:
+            return label == QLatin1String("beginning_of_timelag_optimization_period");
+        case 3:
+            return label == QLatin1String("end_of_timelag_optimization_period");
+        case 4:
+            return joinedLine(line).isEmpty();
+        default:
+            return false;
+    }
+}
+
+bool parseGasTimelagLabel(const QStringList& line, const QString& expectedPrefix, QString* gas)
+{
+    const QString label = normalizedTimelagLabel(firstField(line));
+    const QString suffix = QStringLiteral("_timelag_[s]");
+    if (!label.startsWith(expectedPrefix) || !label.endsWith(suffix))
+    {
+        return false;
+    }
+
+    const int gasStart = expectedPrefix.size();
+    const int gasLength = label.size() - gasStart - suffix.size();
+    if (gasLength <= 0)
+    {
+        return false;
+    }
+
+    if (gas)
+    {
+        *gas = label.mid(gasStart, gasLength);
+    }
+    return true;
+}
+
+bool parseNumberOfTimelagsLabel(const QStringList& line, QString* gas)
+{
+    const QString label = normalizedTimelagLabel(firstField(line));
+    const QString prefix = QStringLiteral("number_of_timelags_used_for_");
+    if (!label.startsWith(prefix) || label.size() <= prefix.size())
+    {
+        return false;
+    }
+
+    if (gas)
+    {
+        *gas = label.mid(prefix.size());
+    }
+    return true;
+}
+
+bool matchesGasTimelagBlock(const QList<QStringList>& lines, int start)
+{
+    QString gas;
+    if (!parseNumberOfTimelagsLabel(lines.value(start), &gas))
+    {
+        return false;
+    }
+
+    QString medianGas;
+    QString minGas;
+    QString maxGas;
+    return parseGasTimelagLabel(lines.value(start + 1), QStringLiteral("median_"), &medianGas)
+            && parseGasTimelagLabel(lines.value(start + 2), QStringLiteral("minimum_"), &minGas)
+            && parseGasTimelagLabel(lines.value(start + 3), QStringLiteral("maximum_"), &maxGas)
+            && medianGas == gas
+            && minGas == gas
+            && maxGas == gas;
+}
+
+bool matchesRhTimelagHeader(const QList<QStringList>& lines, int start)
+{
+    const QString title = normalizedTimelagLabel(firstField(lines.value(start)));
+    const QString details = normalizedTimelagLine(lines.value(start + 1));
+    const QStringList columns = whitespaceFields(lines.value(start + 2));
+
+    return title == QLatin1String("h2o_timelag_determinations_as_a_function_of_relative_humidity")
+            && details.contains(QStringLiteral("classes with numerosity"))
+            && details.contains(QStringLiteral("30"))
+            && details.contains(QStringLiteral("inferred"))
+            && columns.value(0).compare(QLatin1String("class"), Qt::CaseInsensitive) == 0
+            && columns.value(1).compare(QLatin1String("RH-range"), Qt::CaseInsensitive) == 0
+            && columns.value(2).compare(QLatin1String("med_h2o"), Qt::CaseInsensitive) == 0
+            && columns.value(3).compare(QLatin1String("min_h2o"), Qt::CaseInsensitive) == 0
+            && columns.value(4).compare(QLatin1String("max_h2o"), Qt::CaseInsensitive) == 0
+            && columns.value(5).compare(QLatin1String("class_num"), Qt::CaseInsensitive) == 0;
+}
+
+} // namespace
 
 AncillaryFileTest::AncillaryFileTest(FileType type,
                                      EcProject* ecProject,
@@ -822,6 +964,8 @@ bool AncillaryFileTest::testPlanarFitS(const LineList &actualList)
 
 bool AncillaryFileTest::testTimeLagF(const LineList &templateList, const LineList &actualList)
 {
+    Q_UNUSED(templateList);
+
     // preliminary test, number of rows
     auto rowCountTest = (actualList.size() > 2);
     testResults_->append(QLatin1String("Number of rows [")
@@ -836,7 +980,7 @@ bool AncillaryFileTest::testTimeLagF(const LineList &templateList, const LineLis
     // test a
     for (auto i = 0; i < 5; ++i)
     {
-        test << (templateList.value(i).value(0) == actualList.value(i).value(0));
+        test << matchesTimelagHeaderRow(actualList.value(i), i);
         testResults_->append(QLatin1String("Header, row ")
                              + QString::number(i + 1)
                              + QStringLiteral(": ")
@@ -846,25 +990,7 @@ bool AncillaryFileTest::testTimeLagF(const LineList &templateList, const LineLis
     // test b
     auto gasCount = 0;
     timelagValues.resize(3);
-    while (actualList.value(5 + 5 * gasCount).value(0).contains(QStringLiteral("Number_of_timelags_used_for_"))
-           && actualList.value(6 + 5 * gasCount).value(0)
-                        .split(QStringLiteral("_")).value(0) == QLatin1String("Median")
-           && actualList.value(6 + 5 * gasCount).value(0)
-                        .split(QStringLiteral("_")).value(2) == QLatin1String("timelag")
-           && actualList.value(6 + 5 * gasCount).value(0)
-                        .split(QStringLiteral("_")).value(3) == QLatin1String("[s]:")
-           && actualList.value(7 + 5 * gasCount).value(0)
-                        .split(QStringLiteral("_")).value(0) == QLatin1String("Mimimum")
-           && actualList.value(7 + 5 * gasCount).value(0)
-                        .split(QStringLiteral("_")).value(2) == QLatin1String("timelag")
-           && actualList.value(7 + 5 * gasCount).value(0)
-                        .split(QStringLiteral("_")).value(3) == QLatin1String("[s]:")
-           && actualList.value(8 + 5 * gasCount).value(0)
-                        .split(QStringLiteral("_")).value(0) == QLatin1String("Maximum")
-           && actualList.value(8 + 5 * gasCount).value(0)
-                        .split(QStringLiteral("_")).value(2) == QLatin1String("timelag")
-           && actualList.value(8 + 5 * gasCount).value(0)
-                        .split(QStringLiteral("_")).value(3) == QLatin1String("[s]:"))
+    while (matchesGasTimelagBlock(actualList, 5 + 5 * gasCount))
     {
         ++gasCount;
 
@@ -879,8 +1005,7 @@ bool AncillaryFileTest::testTimeLagF(const LineList &templateList, const LineLis
 
     // test c1
     // compare 3 lines of RH headers
-    if (std::equal(templateList.begin() + 15, templateList.begin() + 18,
-                   actualList.begin() + (5 + 5 * gasCount)))
+    if (matchesRhTimelagHeader(actualList, 5 + 5 * gasCount))
     {
         test << true;
         testResults_->append(QLatin1String("Header of RH sorted H<sub>2</sub>O classes (3 rows): ")

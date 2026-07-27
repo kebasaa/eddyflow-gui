@@ -25,6 +25,9 @@
 
 #include "basicsettingspage.h"
 
+#include <QAbstractItemView>
+#include <QAbstractScrollArea>
+#include <QAbstractTableModel>
 #include <QApplication>
 #include <QButtonGroup>
 #include <QCheckBox>
@@ -49,11 +52,14 @@
 #include <QTimer>
 #include <QUrl>
 #include <QUrlQuery>
+#include <QVector>
 #include <QIcon>
 #include <QPixmap>
 #include <QSize>
 #include <QToolButton>
 #include <QHeaderView>
+#include <QStyledItemDelegate>
+#include <QTableView>
 
 #include <cmath>
 
@@ -99,6 +105,532 @@
 const QString BasicSettingsPage::FLAG_POLICY_STRING_0 = QObject::tr("Above threshold");
 const QString BasicSettingsPage::FLAG_POLICY_STRING_1 = QObject::tr("Below threshold");
 
+namespace {
+
+enum class VariableTableRowKind
+{
+    GasCo2,
+    GasH2o,
+    GasCh4,
+    Gas4,
+    Cell,
+    Ambient
+};
+
+enum class VariableTableRole
+{
+    Co2,
+    H2o,
+    Ch4,
+    Gas4,
+    IntTc,
+    IntT1,
+    IntT2,
+    IntP,
+    Diag7500,
+    Diag7200,
+    Diag7700,
+    AmbientT,
+    AmbientP,
+    Rh,
+    Rg,
+    Lwin,
+    Ppfd
+};
+
+struct VariableTableRow
+{
+    QComboBox* combo = nullptr;
+    const char* updateSlot = nullptr;
+    VariableTableRowKind kind = VariableTableRowKind::Cell;
+    VariableTableRole role = VariableTableRole::Co2;
+    QString tooltip;
+};
+
+struct VariableTableCandidate
+{
+    VariableTableRow row;
+    int comboIndex = -1;
+    int rawColumn = -1;
+    QString variableText;
+    QString sourceText;
+};
+
+double builtInMolecularWeight(VariableTableRowKind kind)
+{
+    switch (kind)
+    {
+        case VariableTableRowKind::GasCo2: return 44.01;
+        case VariableTableRowKind::GasH2o: return 18.02;
+        case VariableTableRowKind::GasCh4: return 16.04;
+        case VariableTableRowKind::Gas4: return 44.01;
+        default: return 0.0;
+    }
+}
+
+double builtInDiffusivity(VariableTableRowKind kind)
+{
+    switch (kind)
+    {
+        case VariableTableRowKind::GasCo2: return 0.1381;
+        case VariableTableRowKind::GasH2o: return 0.2178;
+        case VariableTableRowKind::GasCh4: return 0.1952;
+        case VariableTableRowKind::Gas4: return 0.1436;
+        default: return 0.0;
+    }
+}
+
+QString variableCandidateName(const QString& text, VariableTableRowKind kind)
+{
+    QString variableText = text;
+    const QString fromToken = QObject::tr("from ");
+    const int fromIndex = variableText.indexOf(fromToken, 0, Qt::CaseInsensitive);
+    if (fromIndex >= 0)
+    {
+        variableText = variableText.left(fromIndex).trimmed();
+    }
+
+    if (kind == VariableTableRowKind::GasCo2
+        || kind == VariableTableRowKind::GasH2o
+        || kind == VariableTableRowKind::GasCh4
+        || kind == VariableTableRowKind::Gas4)
+    {
+        return variableText.section(QLatin1Char(' '), 0, 0).trimmed();
+    }
+    return variableText.trimmed();
+}
+
+QString variableCandidateSource(const QString& text)
+{
+    const QString fromToken = QObject::tr("from ");
+    const int fromIndex = text.indexOf(fromToken, 0, Qt::CaseInsensitive);
+    if (fromIndex < 0)
+    {
+        return QString();
+    }
+    QString sourceText = text.mid(fromIndex + fromToken.size()).trimmed();
+    const QString rawPrefix = QObject::tr("raw data files: Column #");
+    if (sourceText.startsWith(rawPrefix, Qt::CaseInsensitive))
+    {
+        return QObject::tr("raw data files");
+    }
+    return sourceText;
+}
+
+class BasicVariableSelectionModel final : public QAbstractTableModel
+{
+public:
+    enum Column
+    {
+        Active = 0,
+        Variable,
+        Selection,
+        MolecularWeight,
+        Diffusivity,
+        ColumnCount
+    };
+
+    BasicVariableSelectionModel(QObject* parent,
+                                BasicSettingsPage* page,
+                                const QVector<VariableTableRow>& rows,
+                                bool molecularColumns,
+                                const QString& selectionHeader,
+                                QDoubleSpinBox* gasMw = nullptr,
+                                QDoubleSpinBox* gasDiff = nullptr)
+        : QAbstractTableModel(parent),
+          page_(page),
+          rows_(rows),
+          molecularColumns_(molecularColumns),
+          selectionHeader_(selectionHeader),
+          gasMw_(gasMw),
+          gasDiff_(gasDiff)
+    {
+        rebuildVisibleRows();
+    }
+
+    int rowCount(const QModelIndex& parent = QModelIndex()) const override
+    {
+        return parent.isValid() ? 0 : visibleRows_.size();
+    }
+
+    int columnCount(const QModelIndex& parent = QModelIndex()) const override
+    {
+        if (parent.isValid()) { return 0; }
+        return molecularColumns_ ? ColumnCount : Selection + 1;
+    }
+
+    QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override
+    {
+        if (role == Qt::ToolTipRole && orientation == Qt::Horizontal)
+        {
+            switch (section)
+            {
+                case Active: return tr("Check the rows to include in flux computation.");
+                case Variable: return tr("Available variable candidates from the raw file description.");
+                case Selection: return selectionHeader_;
+                case MolecularWeight: return tr("Molecular weight used for gas calculations.");
+                case Diffusivity: return tr("Molecular diffusivity in air used for gas calculations.");
+                default: return QVariant();
+            }
+        }
+        if (role != Qt::DisplayRole) { return QVariant(); }
+        if (orientation == Qt::Vertical) { return section + 1; }
+        switch (section)
+        {
+            case Active: return tr("Active");
+            case Variable: return tr("Variable");
+            case Selection: return selectionHeader_;
+            case MolecularWeight: return tr("Molecular weight");
+            case Diffusivity: return tr("Molecular diffusivity in air");
+            default: return QVariant();
+        }
+    }
+
+    QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override
+    {
+        if (!index.isValid() || index.row() < 0 || index.row() >= visibleRows_.size())
+        {
+            return QVariant();
+        }
+
+        const auto& row = rowAt(index.row());
+        if (role == Qt::TextAlignmentRole)
+        {
+            return index.column() >= MolecularWeight
+                    ? static_cast<int>(Qt::AlignRight | Qt::AlignVCenter)
+                    : static_cast<int>(Qt::AlignLeft | Qt::AlignVCenter);
+        }
+        if (index.column() == Active && role == Qt::CheckStateRole)
+        {
+            return isActive(row) ? Qt::Checked : Qt::Unchecked;
+        }
+        if (role != Qt::DisplayRole && role != Qt::EditRole && role != Qt::ToolTipRole)
+        {
+            return QVariant();
+        }
+
+        switch (index.column())
+        {
+            case Active:
+                return role == Qt::ToolTipRole ? row.row.tooltip : QVariant();
+            case Variable:
+                if (role == Qt::ToolTipRole
+                    && (row.row.kind == VariableTableRowKind::GasCo2
+                        || row.row.kind == VariableTableRowKind::GasH2o
+                        || row.row.kind == VariableTableRowKind::GasCh4
+                        || row.row.kind == VariableTableRowKind::Gas4))
+                {
+                    QString tooltip = row.row.tooltip;
+                    tooltip += QStringLiteral("\n\n");
+                    tooltip += tr("Only one measurement per gas can be selected in this version. "
+                                  "Multiple gas measurements will be supported in a future project format.");
+                    return tooltip;
+                }
+                if (role == Qt::ToolTipRole)
+                {
+                    return row.row.tooltip;
+                }
+                return row.variableText;
+            case Selection:
+                if (role == Qt::ToolTipRole)
+                {
+                    return row.row.tooltip;
+                }
+                return row.sourceText.isEmpty() ? tr("raw data files") : row.sourceText;
+            case MolecularWeight:
+                if (role == Qt::ToolTipRole)
+                {
+                    return row.row.tooltip;
+                }
+                return molecularText(row, true);
+            case Diffusivity:
+                if (role == Qt::ToolTipRole)
+                {
+                    return row.row.tooltip;
+                }
+                return molecularText(row, false);
+            default:
+                return QVariant();
+        }
+    }
+
+    bool setData(const QModelIndex& index, const QVariant& value, int role = Qt::EditRole) override
+    {
+        if (!index.isValid() || index.row() < 0 || index.row() >= visibleRows_.size())
+        {
+            return false;
+        }
+
+        auto& row = mutableRowAt(index.row());
+        if (index.column() == Active && role == Qt::CheckStateRole)
+        {
+            const bool checked = value.toInt() == Qt::Checked;
+            const int comboIndex = checked ? row.comboIndex : noneIndex(row);
+            if (comboIndex < 0)
+            {
+                return false;
+            }
+            applyComboIndex(row, comboIndex);
+            rebuildVisibleRows();
+            if (rowCount() > 0)
+            {
+                emit dataChanged(this->index(0, 0),
+                                 this->index(rowCount() - 1, columnCount() - 1),
+                                 { Qt::DisplayRole, Qt::EditRole, Qt::CheckStateRole });
+            }
+            return true;
+        }
+
+        if (role != Qt::EditRole)
+        {
+            return false;
+        }
+
+        if (row.row.kind == VariableTableRowKind::Gas4
+            && index.column() == MolecularWeight
+            && isActive(row)
+            && gasMw_
+            && gasMw_->isEnabled())
+        {
+            gasMw_->setValue(value.toDouble());
+            emit dataChanged(index, index, { Qt::DisplayRole, Qt::EditRole });
+            return true;
+        }
+
+        if (row.row.kind == VariableTableRowKind::Gas4
+            && index.column() == Diffusivity
+            && isActive(row)
+            && gasDiff_
+            && gasDiff_->isEnabled())
+        {
+            gasDiff_->setValue(value.toDouble());
+            emit dataChanged(index, index, { Qt::DisplayRole, Qt::EditRole });
+            return true;
+        }
+
+        return false;
+    }
+
+    Qt::ItemFlags flags(const QModelIndex& index) const override
+    {
+        if (!index.isValid()) { return Qt::NoItemFlags; }
+        Qt::ItemFlags itemFlags = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
+        const auto& row = rowAt(index.row());
+        if (index.column() == Active)
+        {
+            return itemFlags | Qt::ItemIsUserCheckable;
+        }
+        if (row.row.kind == VariableTableRowKind::Gas4
+            && isActive(row)
+            && ((index.column() == MolecularWeight && gasMw_ && gasMw_->isEnabled())
+                || (index.column() == Diffusivity && gasDiff_ && gasDiff_->isEnabled())))
+        {
+            itemFlags |= Qt::ItemIsEditable;
+        }
+        return itemFlags;
+    }
+
+    const VariableTableCandidate& rowAt(int row) const
+    {
+        return visibleRows_.at(row);
+    }
+
+    void refresh()
+    {
+        beginResetModel();
+        rebuildVisibleRows();
+        endResetModel();
+    }
+
+private:
+    VariableTableCandidate& mutableRowAt(int row)
+    {
+        return visibleRows_[row];
+    }
+
+    static bool isNoneCandidate(const QComboBox* combo, int index)
+    {
+        if (!combo || index < 0 || index >= combo->count())
+        {
+            return true;
+        }
+
+        const auto data = combo->itemData(index);
+        if (data.isValid())
+        {
+            bool ok = false;
+            const int value = data.toInt(&ok);
+            if (ok && (value == 0 || value == 1000))
+            {
+                return true;
+            }
+        }
+
+        const QString text = combo->itemText(index).trimmed();
+        return text.isEmpty() || text.compare(QObject::tr("None"), Qt::CaseInsensitive) == 0;
+    }
+
+    static int noneIndex(const VariableTableCandidate& row)
+    {
+        if (!row.row.combo) { return -1; }
+        for (int i = 0; i < row.row.combo->count(); ++i)
+        {
+            if (isNoneCandidate(row.row.combo, i))
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    static bool isActive(const VariableTableCandidate& row)
+    {
+        return row.row.combo
+                && row.row.combo->currentIndex() >= 0
+                && row.row.combo->currentIndex() == row.comboIndex
+                && !isNoneCandidate(row.row.combo, row.comboIndex);
+    }
+
+    void applyComboIndex(VariableTableCandidate& row, int comboIndex)
+    {
+        row.row.combo->setCurrentIndex(comboIndex);
+        if (row.row.updateSlot)
+        {
+            QMetaObject::invokeMethod(page_, row.row.updateSlot, Qt::DirectConnection, Q_ARG(int, comboIndex));
+        }
+        if (row.row.kind == VariableTableRowKind::Gas4)
+        {
+            QMetaObject::invokeMethod(page_, "showFourthGasDiffWarning", Qt::DirectConnection, Q_ARG(int, comboIndex));
+            QMetaObject::invokeMethod(page_, "updateFourthGasMinLimit", Qt::DirectConnection, Q_ARG(int, comboIndex));
+        }
+    }
+
+    void rebuildVisibleRows()
+    {
+        visibleRows_.clear();
+        for (const auto& row : rows_)
+        {
+            if (!row.combo)
+            {
+                continue;
+            }
+            for (int i = 0; i < row.combo->count(); ++i)
+            {
+                if (isNoneCandidate(row.combo, i))
+                {
+                    continue;
+                }
+
+                VariableTableCandidate candidate;
+                candidate.row = row;
+                candidate.comboIndex = i;
+                candidate.rawColumn = row.combo->itemData(i).toInt();
+                candidate.variableText = variableCandidateName(row.combo->itemText(i), row.kind)
+                                         + tr(" (col %1)").arg(candidate.rawColumn);
+                candidate.sourceText = variableCandidateSource(row.combo->itemText(i));
+                visibleRows_.append(candidate);
+            }
+        }
+    }
+
+    QVariant molecularText(const VariableTableCandidate& row, bool weight) const
+    {
+        if (!molecularColumns_) { return QVariant(); }
+        if (row.row.kind == VariableTableRowKind::Cell || row.row.kind == VariableTableRowKind::Ambient)
+        {
+            return QVariant();
+        }
+
+        if (row.row.kind == VariableTableRowKind::Gas4)
+        {
+            if (!isActive(row)) { return QVariant(); }
+            const double value = weight
+                    ? (gasMw_ ? gasMw_->value() : builtInMolecularWeight(row.row.kind))
+                    : (gasDiff_ ? gasDiff_->value() : builtInDiffusivity(row.row.kind));
+            return QString::number(value, 'f', weight ? 4 : 5);
+        }
+
+        const double value = weight ? builtInMolecularWeight(row.row.kind) : builtInDiffusivity(row.row.kind);
+        return QString::number(value, 'f', weight ? 4 : 5);
+    }
+
+    BasicSettingsPage* page_;
+    QVector<VariableTableRow> rows_;
+    QVector<VariableTableCandidate> visibleRows_;
+    bool molecularColumns_;
+    QString selectionHeader_;
+    QDoubleSpinBox* gasMw_;
+    QDoubleSpinBox* gasDiff_;
+};
+
+class BasicVariableSelectionDelegate final : public QStyledItemDelegate
+{
+public:
+    explicit BasicVariableSelectionDelegate(QObject* parent = nullptr)
+        : QStyledItemDelegate(parent)
+    {}
+
+    QWidget* createEditor(QWidget* parent,
+                          const QStyleOptionViewItem& option,
+                          const QModelIndex& index) const override
+    {
+        Q_UNUSED(option)
+        const auto model = dynamic_cast<const BasicVariableSelectionModel*>(index.model());
+        if (!model) { return nullptr; }
+
+        if (index.column() == BasicVariableSelectionModel::MolecularWeight
+            || index.column() == BasicVariableSelectionModel::Diffusivity)
+        {
+            auto editor = new QDoubleSpinBox(parent);
+            editor->setDecimals(index.column() == BasicVariableSelectionModel::MolecularWeight ? 4 : 5);
+            editor->setRange(0.0, index.column() == BasicVariableSelectionModel::MolecularWeight ? 1000.0 : 1.0);
+            editor->setSingleStep(index.column() == BasicVariableSelectionModel::MolecularWeight ? 1.0 : 0.1);
+            return editor;
+        }
+
+        return nullptr;
+    }
+
+    void setEditorData(QWidget* editor, const QModelIndex& index) const override
+    {
+        if (auto spin = qobject_cast<QDoubleSpinBox*>(editor))
+        {
+            spin->setValue(index.data(Qt::EditRole).toDouble());
+        }
+    }
+
+    void setModelData(QWidget* editor, QAbstractItemModel* model, const QModelIndex& index) const override
+    {
+        if (auto spin = qobject_cast<QDoubleSpinBox*>(editor))
+        {
+            model->setData(index, spin->value(), Qt::EditRole);
+        }
+    }
+};
+
+void configureBasicVariablesTable(QTableView* table)
+{
+    table->setAlternatingRowColors(true);
+    table->setSelectionBehavior(QAbstractItemView::SelectRows);
+    table->setSelectionMode(QAbstractItemView::SingleSelection);
+    table->setEditTriggers(QAbstractItemView::DoubleClicked
+                           | QAbstractItemView::SelectedClicked
+                           | QAbstractItemView::EditKeyPressed);
+    table->verticalHeader()->setVisible(false);
+    table->horizontalHeader()->setStretchLastSection(false);
+    table->horizontalHeader()->setSectionResizeMode(BasicVariableSelectionModel::Active, QHeaderView::ResizeToContents);
+    table->horizontalHeader()->setSectionResizeMode(BasicVariableSelectionModel::Variable, QHeaderView::Stretch);
+    table->horizontalHeader()->setSectionResizeMode(BasicVariableSelectionModel::Selection, QHeaderView::Stretch);
+    if (table->model() && table->model()->columnCount() > BasicVariableSelectionModel::MolecularWeight)
+    {
+        table->horizontalHeader()->setSectionResizeMode(BasicVariableSelectionModel::MolecularWeight, QHeaderView::ResizeToContents);
+        table->horizontalHeader()->setSectionResizeMode(BasicVariableSelectionModel::Diffusivity, QHeaderView::ResizeToContents);
+    }
+    table->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
+}
+
+} // namespace
+
 
 BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcProject *ecProject, ConfigState* config) :
     QWidget(parent),
@@ -113,7 +645,11 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     magneticDeclinationFetchProgress(nullptr),
     currentRawDataList_(QStringList()),
     currentFilteredRawDataList_(QStringList()),
-    biomList_(QList<BiomItem>())
+    biomList_(QList<BiomItem>()),
+    fluxVariablesModel_(nullptr),
+    ambientVariablesModel_(nullptr),
+    fluxVariablesTable_(nullptr),
+    ambientVariablesTable_(nullptr)
 {
     findFileProgressWidget = new QProgressIndicator;
     findFileProgressWidget->setAnimationDelay(40);
@@ -411,25 +947,20 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     tsRefCombo = new QComboBox;
     tsRefCombo->setToolTip(tsRefLabel->toolTip());
 
-    co2RefLabel = new ClickLabel(tr("%1 :").arg(Defs::CO2_STRING), this);
-    co2RefLabel->setToolTip(tr("Select the variables to be used for calculating fluxes, among those available."));
+    const QString fluxVariableTooltip = tr("Select the variables to be used for calculating fluxes, among those available.");
+    const QString diagnosticVariableTooltip = tr("Select the variables to be used for diagnostics of this gas analyzer.");
+
     co2RefCombo = new QComboBox;
-    co2RefCombo->setToolTip(co2RefLabel->toolTip());
+    co2RefCombo->setToolTip(fluxVariableTooltip);
 
-    h2oRefLabel = new ClickLabel(tr("%1 :").arg(Defs::H2O_STRING), this);
-    h2oRefLabel->setToolTip(tr("Select the variables to be used for calculating fluxes, among those available."));
     h2oRefCombo = new QComboBox;
-    h2oRefCombo->setToolTip(h2oRefLabel->toolTip());
+    h2oRefCombo->setToolTip(fluxVariableTooltip);
 
-    ch4RefLabel = new ClickLabel(tr("%1 :").arg(Defs::CH4_STRING), this);
-    ch4RefLabel->setToolTip(tr("Select the variables to be used for calculating fluxes, among those available."));
     ch4RefCombo = new QComboBox;
-    ch4RefCombo->setToolTip(ch4RefLabel->toolTip());
+    ch4RefCombo->setToolTip(fluxVariableTooltip);
 
-    fourthGasRefLabel = new ClickLabel(tr("%1 trace gas (passive scalar) :").arg(Defs::GAS4_STRING), this);
-    fourthGasRefLabel->setToolTip(tr("Select the variables to be used for calculating fluxes, among those available."));
     fourthGasRefCombo = new QComboBox;
-    fourthGasRefCombo->setToolTip(fourthGasRefLabel->toolTip());
+    fourthGasRefCombo->setToolTip(fluxVariableTooltip);
 
     gasMwLabel = new ClickLabel(tr("Molecular weight :"), this);
     gasMw = new QDoubleSpinBox;
@@ -467,70 +998,44 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     gasExtension->setLayout(extensionLayout);
     gasExtension->hide();
 
-    intTcRefLabel = new ClickLabel(tr("Average Cell Temperature :"), this);
-    intTcRefLabel->setToolTip(tr("Select the variables to be used for calculating fluxes, among those available."));
     intTcRefCombo = new QComboBox;
-    intTcRefCombo->setToolTip(intTcRefLabel->toolTip());
+    intTcRefCombo->setToolTip(fluxVariableTooltip);
 
-    intT1RefLabel = new ClickLabel(tr("Cell Temperature In :"), this);
-    intT1RefLabel->setToolTip(tr("Select the variables to be used for calculating fluxes, among those available."));
     intT1RefCombo = new QComboBox;
-    intT1RefCombo->setToolTip(intT1RefLabel->toolTip());
+    intT1RefCombo->setToolTip(fluxVariableTooltip);
 
-    intT2RefLabel = new ClickLabel(tr("Cell Temperature Out :"), this);
-    intT2RefLabel->setToolTip(tr("Select the variables to be used for calculating fluxes, among those available."));
     intT2RefCombo = new QComboBox;
-    intT2RefCombo->setToolTip(intT2RefLabel->toolTip());
+    intT2RefCombo->setToolTip(fluxVariableTooltip);
 
-    intPRefLabel = new ClickLabel(tr("Cell Pressure :"), this);
-    intPRefLabel->setToolTip(tr("Select the variables to be used for calculating fluxes, among those available."));
     intPRefCombo = new QComboBox;
-    intPRefCombo->setToolTip(intPRefLabel->toolTip());
+    intPRefCombo->setToolTip(fluxVariableTooltip);
 
-    airTRefLabel = new ClickLabel(tr("Ambient Temperature :"), this);
-    airTRefLabel->setToolTip(tr("Select the variables to be used for calculating fluxes, among those available."));
     airTRefCombo = new QComboBox;
-    airTRefCombo->setToolTip(airTRefLabel->toolTip());
+    airTRefCombo->setToolTip(fluxVariableTooltip);
 
-    airPRefLabel = new ClickLabel(tr("Ambient Pressure :"), this);
-    airPRefLabel->setToolTip(tr("Select the variables to be used for calculating fluxes, among those available."));
     airPRefCombo = new QComboBox;
-    airPRefCombo->setToolTip(airPRefLabel->toolTip());
+    airPRefCombo->setToolTip(fluxVariableTooltip);
 
-    rhLabel = new ClickLabel(tr("Ambient Relative Humidity :"), this);
-    rhLabel->setToolTip(tr("Select the variables to be used for calculating fluxes, among those available."));
     rhCombo = new QComboBox;
-    rhCombo->setToolTip(rhLabel->toolTip());
+    rhCombo->setToolTip(fluxVariableTooltip);
 
-    rgLabel = new ClickLabel(tr("Global Radiation :"), this);
-    rgLabel->setToolTip(tr("Select the variables to be used for calculating fluxes, among those available."));
     rgCombo = new QComboBox;
-    rgCombo->setToolTip(rgLabel->toolTip());
+    rgCombo->setToolTip(fluxVariableTooltip);
 
-    lwinLabel = new ClickLabel(tr("Longwave Incoming Radiation :"), this);
-    lwinLabel->setToolTip(tr("Select the variables to be used for calculating fluxes, among those available."));
     lwinCombo = new QComboBox;
-    lwinCombo->setToolTip(lwinLabel->toolTip());
+    lwinCombo->setToolTip(fluxVariableTooltip);
 
-    ppfdLabel = new ClickLabel(tr("Photosynthetically Active Radiation (PAR, PPFD) :"), this);
-    ppfdLabel->setToolTip(tr("Select the variables to be used for calculating fluxes, among those available."));
     ppfdCombo = new QComboBox;
-    ppfdCombo->setToolTip(ppfdLabel->toolTip());
+    ppfdCombo->setToolTip(fluxVariableTooltip);
 
-    diag7500Label = new ClickLabel(tr("LI-7500/A/RS/DS Diagnostics :"), this);
-    diag7500Label->setToolTip(tr("Select the variables to be used for diagnostics of this gas analyzer."));
     diag7500Combo = new QComboBox;
-    diag7500Combo->setToolTip(diag7500Label->toolTip());
+    diag7500Combo->setToolTip(diagnosticVariableTooltip);
 
-    diag7200Label = new ClickLabel(tr("LI-7200/RS Diagnostics :"), this);
-    diag7200Label->setToolTip(tr("Select the variables to be used for diagnostics of this gas analyzer."));
     diag7200Combo = new QComboBox;
-    diag7200Combo->setToolTip(diag7200Label->toolTip());
+    diag7200Combo->setToolTip(diagnosticVariableTooltip);
 
-    diag7700Label = new ClickLabel(tr("LI-7700 Diagnostics :"), this);
-    diag7700Label->setToolTip(tr("Select the variables to be used for diagnostics of this gas analyzer."));
     diag7700Combo = new QComboBox;
-    diag7700Combo->setToolTip(diag7700Label->toolTip());
+    diag7700Combo->setToolTip(diagnosticVariableTooltip);
 
     flag1Label = new ClickLabel(tr("Flag 1 :"), this);
     flag1Label->setObjectName(QStringLiteral("flag1Label"));
@@ -734,61 +1239,79 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     flag10PolicyCombo->addItem(FLAG_POLICY_STRING_0);
     flag10PolicyCombo->addItem(FLAG_POLICY_STRING_1);
 
-    auto varTitle_1 = new QLabel(tr("Gas measurements (eddy data, used for covariances and fluxes)"));
+    auto varTitle_1 = new QLabel(tr("Gas, cell, and diagnostic measurements (eddy data)"));
     varTitle_1->setProperty("groupLabel", true);
-    auto varTitle_2 = new QLabel(tr("Cell measurements (closed-path eddy data, used for covariances and fluxes)"));
+    auto varTitle_2 = new QLabel(tr("Ambient measurements (eddy or biomet data, used for flux correction and calculation of other parameters)"));
     varTitle_2->setProperty("groupLabel", true);
-    auto varTitle_3 = new QLabel(tr("Ambient measurements (eddy or biomet data, used for flux correction and calculation of other parameters)"));
-    varTitle_3->setProperty("groupLabel", true);
-    auto varTitle_4 = new QLabel(tr("Diagnostic measurements (eddy data, for quality screening and assurance)"));
-    varTitle_4->setProperty("groupLabel", true);
 
-    auto varLayout = new QGridLayout;
-    varLayout->addWidget(varTitle_1, 0, 1);
-    varLayout->addWidget(co2RefLabel, 1, 0, Qt::AlignRight);
-    varLayout->addWidget(co2RefCombo, 1, 1);
-    varLayout->addWidget(h2oRefLabel, 2, 0, Qt::AlignRight);
-    varLayout->addWidget(h2oRefCombo, 2, 1);
-    varLayout->addWidget(ch4RefLabel, 3, 0, Qt::AlignRight);
-    varLayout->addWidget(ch4RefCombo, 3, 1);
-    varLayout->addWidget(fourthGasRefLabel, 4, 0, Qt::AlignRight);
-    varLayout->addWidget(fourthGasRefCombo, 4, 1);
-    varLayout->addWidget(moreButton, 4, 2, Qt::AlignLeft);
-    varLayout->addWidget(gasExtension, 5, 1, Qt::AlignRight);
-    varLayout->addWidget(varTitle_2, 6, 1);
-    varLayout->addWidget(intTcRefLabel, 7, 0, Qt::AlignRight);
-    varLayout->addWidget(intTcRefCombo, 7, 1);
-    varLayout->addWidget(intT1RefLabel, 8, 0, Qt::AlignRight);
-    varLayout->addWidget(intT1RefCombo, 8, 1);
-    varLayout->addWidget(intT2RefLabel, 9, 0, Qt::AlignRight);
-    varLayout->addWidget(intT2RefCombo, 9, 1);
-    varLayout->addWidget(intPRefLabel, 10, 0, Qt::AlignRight);
-    varLayout->addWidget(intPRefCombo, 10, 1);
-    varLayout->addWidget(varTitle_3, 11, 1);
-    varLayout->addWidget(airTRefLabel, 12, 0, Qt::AlignRight);
-    varLayout->addWidget(airTRefCombo, 12, 1);
-    varLayout->addWidget(airPRefLabel, 13, 0, Qt::AlignRight);
-    varLayout->addWidget(airPRefCombo, 13, 1);
-    varLayout->addWidget(rhLabel, 14, 0, Qt::AlignRight);
-    varLayout->addWidget(rhCombo, 14, 1);
-    varLayout->addWidget(rgLabel, 15, 0, Qt::AlignRight);
-    varLayout->addWidget(rgCombo, 15, 1);
-    varLayout->addWidget(lwinLabel, 16, 0, Qt::AlignRight);
-    varLayout->addWidget(lwinCombo, 16, 1);
-    varLayout->addWidget(ppfdLabel, 17, 0, Qt::AlignRight);
-    varLayout->addWidget(ppfdCombo, 17, 1);
-    varLayout->addWidget(varTitle_4, 18, 1);
-    varLayout->addWidget(diag7500Label, 19, 0, Qt::AlignRight);
-    varLayout->addWidget(diag7500Combo, 19, 1);
-    varLayout->addWidget(diag7200Label, 20, 0, Qt::AlignRight);
-    varLayout->addWidget(diag7200Combo, 20, 1);
-    varLayout->addWidget(diag7700Label, 21, 0, Qt::AlignRight);
-    varLayout->addWidget(diag7700Combo, 21, 1);
+    const QVector<VariableTableRow> fluxRows = {
+        { co2RefCombo, "updateCo2RefCombo", VariableTableRowKind::GasCo2, VariableTableRole::Co2, fluxVariableTooltip },
+        { h2oRefCombo, "updateH2oRefCombo", VariableTableRowKind::GasH2o, VariableTableRole::H2o, fluxVariableTooltip },
+        { ch4RefCombo, "updateCh4RefCombo", VariableTableRowKind::GasCh4, VariableTableRole::Ch4, fluxVariableTooltip },
+        { fourthGasRefCombo, "updateFourthGasRefCombo", VariableTableRowKind::Gas4, VariableTableRole::Gas4, fluxVariableTooltip },
+        { intTcRefCombo, "updateIntTcRefCombo", VariableTableRowKind::Cell, VariableTableRole::IntTc, fluxVariableTooltip },
+        { intT1RefCombo, "updateIntT1RefCombo", VariableTableRowKind::Cell, VariableTableRole::IntT1, fluxVariableTooltip },
+        { intT2RefCombo, "updateIntT2RefCombo", VariableTableRowKind::Cell, VariableTableRole::IntT2, fluxVariableTooltip },
+        { intPRefCombo, "updateIntPRefCombo", VariableTableRowKind::Cell, VariableTableRole::IntP, fluxVariableTooltip },
+        { diag7500Combo, "updateDiag7500Combo", VariableTableRowKind::Cell, VariableTableRole::Diag7500, diagnosticVariableTooltip },
+        { diag7200Combo, "updateDiag7200Combo", VariableTableRowKind::Cell, VariableTableRole::Diag7200, diagnosticVariableTooltip },
+        { diag7700Combo, "updateDiag7700Combo", VariableTableRowKind::Cell, VariableTableRole::Diag7700, diagnosticVariableTooltip }
+    };
+    const QVector<VariableTableRow> ambientRows = {
+        { airTRefCombo, "updateAirTRefCombo", VariableTableRowKind::Ambient, VariableTableRole::AmbientT, fluxVariableTooltip },
+        { airPRefCombo, "updateAirPRefCombo", VariableTableRowKind::Ambient, VariableTableRole::AmbientP, fluxVariableTooltip },
+        { rhCombo, "updateRhCombo", VariableTableRowKind::Ambient, VariableTableRole::Rh, fluxVariableTooltip },
+        { rgCombo, "updateRgCombo", VariableTableRowKind::Ambient, VariableTableRole::Rg, fluxVariableTooltip },
+        { lwinCombo, "updateLwinCombo", VariableTableRowKind::Ambient, VariableTableRole::Lwin, fluxVariableTooltip },
+        { ppfdCombo, "updatePpfdCombo", VariableTableRowKind::Ambient, VariableTableRole::Ppfd, fluxVariableTooltip }
+    };
+
+    fluxVariablesModel_ = new BasicVariableSelectionModel(this,
+                                                          this,
+                                                          fluxRows,
+                                                          true,
+                                                          tr("Instrument"),
+                                                          gasMw,
+                                                          gasDiff);
+    ambientVariablesModel_ = new BasicVariableSelectionModel(this,
+                                                             this,
+                                                             ambientRows,
+                                                             false,
+                                                             tr("Source"));
+    auto variableDelegate = new BasicVariableSelectionDelegate(this);
+    fluxVariablesTable_ = new QTableView;
+    fluxVariablesTable_->setModel(fluxVariablesModel_);
+    fluxVariablesTable_->setItemDelegate(variableDelegate);
+    configureBasicVariablesTable(fluxVariablesTable_);
+    fluxVariablesTable_->setMinimumHeight(270);
+    ambientVariablesTable_ = new QTableView;
+    ambientVariablesTable_->setModel(ambientVariablesModel_);
+    ambientVariablesTable_->setItemDelegate(variableDelegate);
+    configureBasicVariablesTable(ambientVariablesTable_);
+    ambientVariablesTable_->setMinimumHeight(165);
+
+    const QList<QWidget*> hiddenVariableControls = {
+        co2RefCombo, h2oRefCombo, ch4RefCombo, fourthGasRefCombo,
+        intTcRefCombo, intT1RefCombo, intT2RefCombo, intPRefCombo,
+        airTRefCombo, airPRefCombo, rhCombo, rgCombo, lwinCombo, ppfdCombo,
+        diag7500Combo, diag7200Combo, diag7700Combo,
+        moreButton, gasExtension
+    };
+    for (auto widget : hiddenVariableControls)
+    {
+        widget->setParent(this);
+        widget->hide();
+    }
+
+    auto varLayout = new QVBoxLayout;
     varLayout->setContentsMargins(15, 0, 0, 0);
-    varLayout->setRowStretch(22, 1);
-    varLayout->setColumnStretch(0, 1);
-    varLayout->setColumnStretch(1, 2);
-    varLayout->setColumnStretch(2, 1);
+    varLayout->setSpacing(6);
+    varLayout->addWidget(varTitle_1);
+    varLayout->addWidget(fluxVariablesTable_);
+    varLayout->addSpacing(6);
+    varLayout->addWidget(varTitle_2);
+    varLayout->addWidget(ambientVariablesTable_);
+    varLayout->addStretch();
 
     auto descLabel = new QLabel(tr("Optionally, each variable in raw data files can be "
                       "used as a mask, to filter out individual "
@@ -1035,18 +1558,12 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     connect(anemFlagCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateAnemFlagCombo);
 
-    connect(co2RefLabel, &ClickLabel::clicked,
-            this, &BasicSettingsPage::onClickCo2RefLabel);
     connect(co2RefCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateCo2RefCombo);
 
-    connect(h2oRefLabel, &ClickLabel::clicked,
-            this, &BasicSettingsPage::onClickH2oRefLabel);
     connect(h2oRefCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateH2oRefCombo);
 
-    connect(ch4RefLabel, &ClickLabel::clicked,
-            this, &BasicSettingsPage::onClickCh4RefLabel);
     connect(ch4RefCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateCh4RefCombo);
 
@@ -1055,8 +1572,6 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     connect(gasDiff, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &BasicSettingsPage::updateGasDiff);
 
-    connect(fourthGasRefLabel, &ClickLabel::clicked,
-            this, &BasicSettingsPage::onClickFourthGasRefLabel);
     connect(fourthGasRefCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateFourthGasRefCombo);
     connect(fourthGasRefCombo, QOverload<int>::of(&QComboBox::activated),
@@ -1066,68 +1581,42 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     connect(fourthGasRefCombo, &QComboBox::currentTextChanged,
             this, &BasicSettingsPage::updateFourthGasSettings);
 
-    connect(intTcRefLabel, &ClickLabel::clicked,
-            this, &BasicSettingsPage::onClickIntTcRefLabel);
     connect(intTcRefCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateIntTcRefCombo);
 
-    connect(intT1RefLabel, &ClickLabel::clicked,
-            this, &BasicSettingsPage::onClickIntT1RefLabel);
     connect(intT1RefCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateIntT1RefCombo);
 
-    connect(intT2RefLabel, &ClickLabel::clicked,
-            this, &BasicSettingsPage::onClickIntT2RefLabel);
     connect(intT2RefCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateIntT2RefCombo);
 
-    connect(intPRefLabel, &ClickLabel::clicked,
-            this, &BasicSettingsPage::onClickIntPRefLabel);
     connect(intPRefCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateIntPRefCombo);
 
-    connect(airTRefLabel, &ClickLabel::clicked,
-            this, &BasicSettingsPage::onClickAirTRefLabel);
     connect(airTRefCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateAirTRefCombo);
 
-    connect(airPRefLabel, &ClickLabel::clicked,
-            this, &BasicSettingsPage::onClickAirPRefLabel);
     connect(airPRefCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateAirPRefCombo);
 
-    connect(rhLabel, &ClickLabel::clicked,
-            this, &BasicSettingsPage::onClickRhLabel);
     connect(rhCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateRhCombo);
 
-    connect(rgLabel, &ClickLabel::clicked,
-            this, &BasicSettingsPage::onClickRgLabel);
     connect(rgCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateRgCombo);
 
-    connect(lwinLabel, &ClickLabel::clicked,
-            this, &BasicSettingsPage::onClickLwinLabel);
     connect(lwinCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateLwinCombo);
 
-    connect(ppfdLabel, &ClickLabel::clicked,
-            this, &BasicSettingsPage::onClickPpfdLabel);
     connect(ppfdCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updatePpfdCombo);
 
-    connect(diag7500Label, &ClickLabel::clicked,
-            this, &BasicSettingsPage::onClickDiag7500Label);
     connect(diag7500Combo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateDiag7500Combo);
 
-    connect(diag7200Label, &ClickLabel::clicked,
-            this, &BasicSettingsPage::onClickDiag7200Label);
     connect(diag7200Combo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateDiag7200Combo);
 
-    connect(diag7700Label, &ClickLabel::clicked,
-            this, &BasicSettingsPage::onClickDiag7700Label);
     connect(diag7700Combo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateDiag7700Combo);
 
@@ -1859,7 +2348,6 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                     if (varName == VariableDesc::getVARIABLE_VAR_STRING_5()
                             && VariableDesc::isGoodGas(var, isCustomLabel))
                     {
-                        co2RefLabel->setEnabled(true);
                         co2RefCombo->setEnabled(true);
                         co2RefCombo->addItem(varString, k);
                     }
@@ -1868,7 +2356,6 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                     else if (varName == VariableDesc::getVARIABLE_VAR_STRING_6()
                              && VariableDesc::isGoodGas(var, isCustomLabel))
                     {
-                        h2oRefLabel->setEnabled(true);
                         h2oRefCombo->setEnabled(true);
                         h2oRefCombo->addItem(varString, k);
                     }
@@ -1877,7 +2364,6 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                     else if (varName == VariableDesc::getVARIABLE_VAR_STRING_7()
                              && VariableDesc::isGoodGas(var, isCustomLabel))
                     {
-                        ch4RefLabel->setEnabled(true);
                         ch4RefCombo->setEnabled(true);
                         ch4RefCombo->addItem(varString, k);
                     }
@@ -1885,7 +2371,6 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                     // 4th gas o custom gas
                     else if (VariableDesc::isGoodGas(var, isCustomLabel))
                     {
-                        fourthGasRefLabel->setEnabled(true);
                         fourthGasRefCombo->setEnabled(true);
                         fourthGasRefCombo->addItem(varString, k);
 
@@ -1904,7 +2389,6 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                     else if (varName == VariableDesc::getVARIABLE_VAR_STRING_9()
                         && VariableDesc::isGoodTemperature(var))
                     {
-                        intT1RefLabel->setEnabled(true);
                         intT1RefCombo->setEnabled(true);
                         intT1RefCombo->addItem(varString, k);
                     }
@@ -1913,7 +2397,6 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                     else if (varName == VariableDesc::getVARIABLE_VAR_STRING_10()
                         && VariableDesc::isGoodTemperature(var))
                     {
-                        intT2RefLabel->setEnabled(true);
                         intT2RefCombo->setEnabled(true);
                         intT2RefCombo->addItem(varString, k);
                     }
@@ -1922,7 +2405,6 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                     else if (varName == VariableDesc::getVARIABLE_VAR_STRING_11()
                         && VariableDesc::isGoodPressure(var))
                     {
-                        intPRefLabel->setEnabled(true);
                         intPRefCombo->setEnabled(true);
                         intPRefCombo->addItem(varString, k);
                     }
@@ -1931,7 +2413,6 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                     else if (varName == VariableDesc::getVARIABLE_VAR_STRING_15()
                         && VariableDesc::isGoodTemperature(var))
                     {
-                        intTcRefLabel->setEnabled(true);
                         intTcRefCombo->setEnabled(true);
                         intTcRefCombo->addItem(varString, k);
                     } // if
@@ -1951,7 +2432,6 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                 if (varName == VariableDesc::getVARIABLE_VAR_STRING_12()
                     && VariableDesc::isGoodTemperature(var))
                 {
-                    airTRefLabel->setEnabled(true);
                     airTRefCombo->setEnabled(true);
                     airTRefCombo->addItem(varString, k);
                 }
@@ -1967,7 +2447,6 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                 else if (varName == VariableDesc::getVARIABLE_VAR_STRING_13()
                     && VariableDesc::isGoodPressure(var))
                 {
-                    airPRefLabel->setEnabled(true);
                     airPRefCombo->setEnabled(true);
                     airPRefCombo->addItem(varString, k);
                 }
@@ -1975,7 +2454,6 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                 else if (varName == VariableDesc::getVARIABLE_VAR_STRING_25()
                     && instrType != QLatin1String("Other"))
                 {
-                    diag7500Label->setEnabled(true);
                     diag7500Combo->setEnabled(true);
                     diag7500Combo->addItem(varString, k);
                 }
@@ -1983,7 +2461,6 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                 else if (varName == VariableDesc::getVARIABLE_VAR_STRING_26()
                     && instrType != QLatin1String("Other"))
                 {
-                    diag7200Label->setEnabled(true);
                     diag7200Combo->setEnabled(true);
                     diag7200Combo->addItem(varString, k);
                 }
@@ -1991,7 +2468,6 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                 else if (varName == VariableDesc::getVARIABLE_VAR_STRING_27()
                     && instrType != tr("Other"))
                 {
-                    diag7700Label->setEnabled(true);
                     diag7700Combo->setEnabled(true);
                     diag7700Combo->addItem(varString, k);
                 }
@@ -2096,42 +2572,36 @@ void BasicSettingsPage::parseBiomMetadata()
         if (bi.type_.contains(BiomMetadataReader::getVAR_TA()))
         {
             varString.prepend(tr("Ambient Temperature '"));
-            airTRefLabel->setEnabled(true);
             airTRefCombo->setEnabled(true);
             airTRefCombo->addItem(varString, bi.col_ + 1000);
         }
         else if (bi.type_.contains(BiomMetadataReader::getVAR_PA()))
         {
             varString.prepend(tr("Ambient Pressure '"));
-            airPRefLabel->setEnabled(true);
             airPRefCombo->setEnabled(true);
             airPRefCombo->addItem(varString, bi.col_ + 1000);
         }
         else if (bi.type_.contains(BiomMetadataReader::getVAR_RH()))
         {
             varString.prepend(tr("Ambient Relative Humidity '"));
-            rhLabel->setEnabled(true);
             rhCombo->setEnabled(true);
             rhCombo->addItem(varString, bi.col_);
         }
         else if (bi.type_.contains(BiomMetadataReader::getVAR_RG()))
         {
             varString.prepend(tr("Global Radiation '"));
-            rgLabel->setEnabled(true);
             rgCombo->setEnabled(true);
             rgCombo->addItem(varString, bi.col_);
         }
         else if (bi.type_.contains(BiomMetadataReader::getVAR_LWIN()))
         {
             varString.prepend(tr("Longwave Incoming Radiation '"));
-            lwinLabel->setEnabled(true);
             lwinCombo->setEnabled(true);
             lwinCombo->addItem(varString, bi.col_);
         }
         else if (bi.type_.contains(BiomMetadataReader::getVAR_PPFD()))
         {
             varString.prepend(tr("Photosynthetically Active Radiation '"));
-            ppfdLabel->setEnabled(true);
             ppfdCombo->setEnabled(true);
             ppfdCombo->addItem(varString, bi.col_);
         }
@@ -2252,25 +2722,8 @@ void BasicSettingsPage::clearVarsCombo()
     auto label_list = QWidgetList()
                          << anemRefLabel
                          << anemFlagLabel
-                         << co2RefLabel
-                         << h2oRefLabel
-                         << ch4RefLabel
-                         << fourthGasRefLabel
                          << gasMwLabel
                          << gasDiffLabel
-                         << intTcRefLabel
-                         << intT1RefLabel
-                         << intT2RefLabel
-                         << intPRefLabel
-                         << airTRefLabel
-                         << airPRefLabel
-                         << rhLabel
-                         << rgLabel
-                         << lwinLabel
-                         << ppfdLabel
-                         << diag7500Label
-                         << diag7200Label
-                         << diag7700Label
                          << tsRefLabel;
     for (auto widget : label_list)
     {
@@ -3485,112 +3938,10 @@ void BasicSettingsPage::onClickAnemFlagLabel()
     anemFlagCombo->showPopup();
 }
 
-void BasicSettingsPage::onClickCo2RefLabel()
-{
-    co2RefCombo->setFocus();
-    co2RefCombo->showPopup();
-}
-
-void BasicSettingsPage::onClickH2oRefLabel()
-{
-    h2oRefCombo->setFocus();
-    h2oRefCombo->showPopup();
-}
-
-void BasicSettingsPage::onClickCh4RefLabel()
-{
-    ch4RefCombo->setFocus();
-    ch4RefCombo->showPopup();
-}
-
-void BasicSettingsPage::onClickFourthGasRefLabel()
-{
-    fourthGasRefCombo->setFocus();
-    fourthGasRefCombo->showPopup();
-}
-
-void BasicSettingsPage::onClickIntTcRefLabel()
-{
-    intTcRefCombo->setFocus();
-    intTcRefCombo->showPopup();
-}
-
-void BasicSettingsPage::onClickIntT1RefLabel()
-{
-    intT1RefCombo->setFocus();
-    intT1RefCombo->showPopup();
-}
-
-void BasicSettingsPage::onClickIntT2RefLabel()
-{
-    intT2RefCombo->setFocus();
-    intT2RefCombo->showPopup();
-}
-
-void BasicSettingsPage::onClickIntPRefLabel()
-{
-    intPRefCombo->setFocus();
-    intPRefCombo->showPopup();
-}
-
-void BasicSettingsPage::onClickDiag7500Label()
-{
-    diag7500Combo->setFocus();
-    diag7500Combo->showPopup();
-}
-
-void BasicSettingsPage::onClickDiag7200Label()
-{
-    diag7200Combo->setFocus();
-    diag7200Combo->showPopup();
-}
-
-void BasicSettingsPage::onClickDiag7700Label()
-{
-    diag7700Combo->setFocus();
-    diag7700Combo->showPopup();
-}
-
 void BasicSettingsPage::onClickTsRefLabel()
 {
     tsRefCombo->setFocus();
     tsRefCombo->showPopup();
-}
-
-void BasicSettingsPage::onClickAirTRefLabel()
-{
-    airTRefCombo->setFocus();
-    airTRefCombo->showPopup();
-}
-
-void BasicSettingsPage::onClickAirPRefLabel()
-{
-    airPRefCombo->setFocus();
-    airPRefCombo->showPopup();
-}
-
-void BasicSettingsPage::onClickRhLabel()
-{
-    rhCombo->setFocus();
-    rhCombo->showPopup();
-}
-
-void BasicSettingsPage::onClickRgLabel()
-{
-    rgCombo->setFocus();
-    rgCombo->showPopup();
-}
-
-void BasicSettingsPage::onClickLwinLabel()
-{
-    lwinCombo->setFocus();
-    lwinCombo->showPopup();
-}
-
-void BasicSettingsPage::onClickPpfdLabel()
-{
-    ppfdCombo->setFocus();
-    ppfdCombo->showPopup();
 }
 
 void BasicSettingsPage::createQuestionMark()
@@ -4148,6 +4499,8 @@ void BasicSettingsPage::reloadSelectedItems_1()
     flag9PolicyCombo->setCurrentIndex(ecProject_->screenFlag9Upper());
     flag10ThresholdSpin->setValue(ecProject_->screenFlag10Threshold());
     flag10PolicyCombo->setCurrentIndex(ecProject_->screenFlag10Upper());
+
+    refreshVariableTables();
 }
 
 void BasicSettingsPage::reloadSelectedItems_2()
@@ -4272,6 +4625,23 @@ void BasicSettingsPage::reloadSelectedItems_2()
     {
         ppfdCombo->setCurrentIndex(0);
         ecProject_->setBiomParamColPpfd(firstIndexData);
+    }
+
+    refreshVariableTables();
+}
+
+void BasicSettingsPage::refreshVariableTables()
+{
+    if (moreButton) { moreButton->hide(); }
+    if (gasExtension) { gasExtension->hide(); }
+
+    if (auto model = dynamic_cast<BasicVariableSelectionModel*>(fluxVariablesModel_))
+    {
+        model->refresh();
+    }
+    if (auto model = dynamic_cast<BasicVariableSelectionModel*>(ambientVariablesModel_))
+    {
+        model->refresh();
     }
 }
 
