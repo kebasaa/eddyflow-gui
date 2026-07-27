@@ -741,9 +741,9 @@ void TimeLagSettingsDialog::testSelectedFile(const QString& fp)
 
     if (dialog_result)
     {
-        fileBrowse->setPath(fp);
-        WidgetUtils::rememberDialogPath(QStringLiteral("timelag_file"), fp, true);
-        WidgetUtils::rememberDialogPath(QStringLiteral("timelag_import_file"), paramFile, true);
+        fileBrowse->setPath(canonicalParamFile);
+        WidgetUtils::rememberDialogPath(QStringLiteral("timelag_file"), canonicalParamFile, true);
+        WidgetUtils::rememberDialogPath(QStringLiteral("timelag_import_file"), canonicalParamFile, true);
     }
     else
     {

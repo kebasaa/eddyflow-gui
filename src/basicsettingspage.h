@@ -65,6 +65,8 @@ class QSpinBox;
 class QGridLayout;
 class QToolButton;
 class QItemSelectionModel;
+class QAbstractTableModel;
+class QTableView;
 
 class QProgressIndicator;
 
@@ -174,13 +176,9 @@ private:
     QComboBox* anemFlagCombo;
     ClickLabel* tsRefLabel;
     QComboBox* tsRefCombo;
-    ClickLabel* co2RefLabel;
     QComboBox* co2RefCombo;
-    ClickLabel* h2oRefLabel;
     QComboBox* h2oRefCombo;
-    ClickLabel* ch4RefLabel;
     QComboBox* ch4RefCombo;
-    ClickLabel* fourthGasRefLabel;
     QComboBox* fourthGasRefCombo;
     QWidget *gasExtension;
     ClickLabel* gasMwLabel;
@@ -188,31 +186,18 @@ private:
     ClickLabel* gasDiffLabel;
     QDoubleSpinBox *gasDiff;
     QPushButton* moreButton;
-    ClickLabel* intTcRefLabel;
     QComboBox* intTcRefCombo;
-    ClickLabel* intT1RefLabel;
     QComboBox* intT1RefCombo;
-    ClickLabel* intT2RefLabel;
     QComboBox* intT2RefCombo;
-    ClickLabel* intPRefLabel;
     QComboBox* intPRefCombo;
-    ClickLabel* airTRefLabel;
     QComboBox* airTRefCombo;
-    ClickLabel* airPRefLabel;
     QComboBox* airPRefCombo;
-    ClickLabel* rhLabel;
     QComboBox* rhCombo;
-    ClickLabel* rgLabel;
     QComboBox* rgCombo;
-    ClickLabel* lwinLabel;
     QComboBox* lwinCombo;
-    ClickLabel* ppfdLabel;
     QComboBox* ppfdCombo;
-    ClickLabel* diag7500Label;
     QComboBox* diag7500Combo;
-    ClickLabel* diag7200Label;
     QComboBox* diag7200Combo;
-    ClickLabel* diag7700Label;
     QComboBox* diag7700Combo;
     ClickLabel* flag1Label;
     QComboBox* flag1VarCombo;
@@ -291,6 +276,11 @@ private:
 
     QList<BiomItem> biomList_;
 
+    QAbstractTableModel* fluxVariablesModel_;
+    QAbstractTableModel* ambientVariablesModel_;
+    QTableView* fluxVariablesTable_;
+    QTableView* ambientVariablesTable_;
+
     QString lastEmbeddedMdFileRead_;
     bool gas4WasN2o_ = false;
 
@@ -318,6 +308,7 @@ private:
 
     void reloadSelectedItems_1();
     void reloadSelectedItems_2();
+    void refreshVariableTables();
 
     int getSuggestedFilesToMerge();
 
@@ -377,23 +368,6 @@ private slots:
 
     void onClickAnemRefLabel();
     void onClickAnemFlagLabel();
-    void onClickCo2RefLabel();
-    void onClickH2oRefLabel();
-    void onClickCh4RefLabel();
-    void onClickFourthGasRefLabel();
-    void onClickIntTcRefLabel();
-    void onClickIntT1RefLabel();
-    void onClickIntT2RefLabel();
-    void onClickIntPRefLabel();
-    void onClickAirTRefLabel();
-    void onClickAirPRefLabel();
-    void onClickRhLabel();
-    void onClickRgLabel();
-    void onClickLwinLabel();
-    void onClickPpfdLabel();
-    void onClickDiag7500Label();
-    void onClickDiag7200Label();
-    void onClickDiag7700Label();
     void onClickTsRefLabel();
     void updateAnemRefCombo(const QString& s);
     void updateAnemFlagCombo(int i);

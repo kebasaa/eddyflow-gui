@@ -30,6 +30,7 @@
 #include "configstate.h"
 
 class QButtonGroup;
+class QAbstractTableModel;
 class QCheckBox;
 class QComboBox;
 class QDate;
@@ -40,7 +41,9 @@ class QLineEdit;
 class QPushButton;
 class QRadioButton;
 class QSpinBox;
+class QTableView;
 class QTimeEdit;
+class VariableDesc;
 
 class AncillaryFileTest;
 class ClickLabel;
@@ -91,10 +94,6 @@ private slots:
     void updateHorst_1(bool b);
     void updateHorst_2(int n);
 
-    void onMinCo2LabelClicked();
-    void onMinCh4LabelClicked();
-    void onMinGas4LabelClicked();
-
     void updateFminCo2(double d);
     void updateFminH2o(double d);
     void updateFminCh4(double d);
@@ -107,10 +106,6 @@ private slots:
     void updateHfnH2o(double d);
     void updateHfnCh4(double d);
     void updateHfnGas4(double d);
-
-    void onSpin10LabelClicked();
-    void onSpin20LabelClicked();
-    void onSpin30LabelClicked();
 
     void onStartDateLabelClicked();
     void onEndDateLabelClicked();
@@ -148,6 +143,14 @@ private:
     void createQuestionMarks();
     void setHfMethod(int hfMethComboIndex);
     int hfComboIndexFromProjectMethod() const;
+    void focusSpectralTableColumn(int column);
+    void setSpectralAssessmentFrequencyCellsEnabled(bool enabled);
+    void rebuildSpectralQaQcRows();
+    void refreshSpectralQaQcTableState();
+    const VariableDesc* rawVariableAtColumn(int column) const;
+    bool selectedColumnIsVariable(int column, const QString& variableName) const;
+    bool selectedColumnIsGas4(int column) const;
+    QString gas4FluxLabel() const;
 
     QCheckBox* vmFlagsCheckBox;
     QCheckBox* lowQualityCheckBox;
@@ -188,13 +191,6 @@ private:
     QSpinBox* sonicFrequency;
     ClickLabel* minSmplLabel;
     QSpinBox* minSmplSpin;
-    ClickLabel* minUnstableLabel;
-    ClickLabel* minStableLabel;
-    ClickLabel* maxLabel;
-    QLabel* spin31Label;
-    QLabel* spin32Label;
-    QLabel* spin33Label;
-    QLabel* spin34Label;
     QDoubleSpinBox* qcMinUnstableUstarSpin;
     QDoubleSpinBox* qcMinUnstableHSpin;
     QDoubleSpinBox* qcMinUnstableLESpin;
@@ -213,15 +209,6 @@ private:
     QDoubleSpinBox* qcMaxCo2Spin;
     QDoubleSpinBox* qcMaxCh4Spin;
     QDoubleSpinBox* qcMaxGas4Spin;
-    QLabel* spin11Label;
-    QLabel* spin12Label;
-    QLabel* spin13Label;
-    QLabel* spin14Label;
-    ClickLabel* spin10Label;
-    ClickLabel* spin20Label;
-    ClickLabel* spin30Label;
-    QLabel* minMaxFreqLabel;
-    QLabel* noiseFreqLabel;
     QDoubleSpinBox* spin11;
     QDoubleSpinBox* spin12;
     QDoubleSpinBox* spin13;
@@ -240,20 +227,14 @@ private:
     QButtonGroup* fullSpectraRadioGroup;
     QLabel* fratiniTitle;
     QCheckBox* addSonicCheck;
-
-    ClickLabel* frictionVelocityLabel;
-    ClickLabel* sensibleHeatLabel;
-    ClickLabel* latentHeatLabel;
-    ClickLabel* qcCo2Label;
-    ClickLabel* qcCh4Label;
-    ClickLabel* qcGas4Label;
+    QCheckBox* automaticSpectraConfigCheck;
+    QAbstractTableModel* spectralQaQcModel;
+    QTableView* spectralQaQcTable;
 
     QLabel* settingsGroupTitle_1;
     QLabel* lowFreqTitle;
     QLabel* highFreqTitle;
     QLabel* ghgSystemCorrectionTitle;
-    QLabel* freqAttenuationTitle;
-
     QPushButton* questionMark_1;
     QPushButton* questionMark_11;
     QPushButton* questionMark_22;
