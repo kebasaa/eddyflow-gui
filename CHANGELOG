@@ -1,3 +1,18 @@
+7.2.5 (2026-07-27)
+
+    GUI:
+	- New feature: New options for timelag and timelag files in output and spectral settings
+	- New feature: Bundled sample file templates (planar fit, spectral assessment, timelag optimization)
+	- Change: PWB now runs before flux calculations
+	- Change: Simplified file opening, with file dialogs narrowed to relevant file types
+	- Change: Allow up to 99% missing samples
+
+7.2.4 (2026-07-07)
+
+    GUI:
+	- New feature: Optional pre-whitening block-bootstrap (PWB) run in pre-processing
+	- Update default project settings
+
 7.2.3 (2026-07-02)
 
     GUI:
