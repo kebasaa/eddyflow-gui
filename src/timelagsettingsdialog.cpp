@@ -30,7 +30,6 @@
 #include <QDebug>
 #include <QDoubleSpinBox>
 #include <QEvent>
-#include <QFileDialog>
 #include <QGridLayout>
 #include <QPushButton>
 #include <QRadioButton>
@@ -716,14 +715,9 @@ void TimeLagSettingsDialog::updateFile(const QString& fp)
 
 void TimeLagSettingsDialog::testSelectedFile(const QString& fp)
 {
-    QString paramFile = QFileDialog::getOpenFileName(this,
-                        tr("Select the Timelag Optimization File"),
-                        WidgetUtils::getDialogPathHint(QStringLiteral("timelag_import_file")),
-                        tr("All Files (*.*)")
-                        );
-    if (paramFile.isEmpty()) { return; }
+    if (fp.isEmpty()) { return; }
 
-    QFileInfo paramFilePath(paramFile);
+    QFileInfo paramFilePath(fp);
     QString canonicalParamFile = paramFilePath.canonicalFilePath();
 
     AncillaryFileTest test_dialog(AncillaryFileTest::FileType::TimeLag, ecProject_, this);
