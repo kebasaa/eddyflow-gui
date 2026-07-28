@@ -29,6 +29,7 @@
 
 #include "angle_item.h"
 #include "defs.h"
+#include "measurement_record.h"
 #include "sector_item.h"
 
 /// \struct ProjectGeneralState
@@ -72,6 +73,15 @@ struct ProjectGeneralState
     int col_ts = -1;
     qreal gas_mw = -1.0;
     qreal gas_diff = -1.0;
+    //> Measured columns, named by species and instrument.
+    //>
+    //> Supersedes the col_* ints above, which allow one column per gas and
+    //> cannot say which analyser a column came from. The old fields are kept
+    //> so that projects written before this can still be read and migrated;
+    //> when gasColumns is non-empty it is what gets written and processed.
+    QVector<GasRecord> gasColumns;
+    QVector<MeasurementRecord> cellColumns;
+    QVector<MeasurementRecord> diagColumns;
     int out_rich = 1;
     int fluxnet_standardize_biomet = 1;
     int fluxnet_err_label = 1;

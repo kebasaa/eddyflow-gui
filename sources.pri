@@ -31,6 +31,7 @@ HEADERS += \
     src/ecinidefs.h \
     src/ecproject.h \
     src/ecprojectstate.h \
+    src/measurement_record.h \
     src/faderwidget.h \
     src/fileutils.h \
     src/gas_metadata.h \
@@ -110,6 +111,7 @@ HEADERS += \
     src/logging.h
 
 SOURCES +=  \
+    src/measurement_record.cpp \
     src/globalsettings.cpp \
     src/widget_utils.cpp \
     src/aboutdialog.cpp \

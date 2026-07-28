@@ -1175,6 +1175,174 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
 }
 
 // Save an ec project
+/// Write the gas, cell and diagnostic records into the open [Project] group.
+///
+/// Only the records that exist are written: a project with four gases carries
+/// gas_1_* .. gas_4_* and nothing else, so the file does not describe columns
+/// the site does not have.
+///
+/// Every gas_*, cell_* and diag_* key is removed first. Shrinking a list
+/// otherwise leaves orphaned keys behind for the reader to pick back up -
+/// which is exactly what pf_sect_* and wdf_sect_* do today.
+/// Build records from the legacy col_* fields, for a project written before
+/// records existed.
+///
+/// Instrument ids are left empty and the moisture reference left on auto:
+/// neither can be recovered from the project file alone, since col_* names a
+/// raw column number and nothing else. BasicSettingsPage fills the instrument
+/// in once the metadata is parsed, and auto resolves to the single H2O that
+/// such a project necessarily has - which is the behaviour it had before.
+void EcProject::migrateLegacyColumnsToRecords()
+{
+    auto& g = ec_project_state_.projectGeneral;
+    if (!g.gasColumns.isEmpty()) { return; }
+
+    const auto addGas = [&](const QString& slug, int col)
+    {
+        // Slot order is preserved even for gases the project does not have:
+        // the engine assigns record i to slot firstGas+i-1, so dropping an
+        // absent gas here would shift every gas after it into the wrong slot
+        // and silently change which settings apply to which gas.
+        GasRecord rec;
+        rec.slug = slug;
+        rec.rawColumn = col > 0 ? col : -1;
+        g.gasColumns.append(rec);
+    };
+    addGas(QStringLiteral("co2"), g.col_co2);
+    addGas(QStringLiteral("h2o"), g.col_h2o);
+    addGas(QStringLiteral("ch4"), g.col_ch4);
+    // The fourth slot holds whichever gas the site measured; its species is
+    // only recoverable from the metadata, so it is resolved later and left
+    // blank rather than guessed at here.
+    addGas(QString(), g.col_gas4);
+    if (g.gas_mw >= 0.0) { g.gasColumns.last().mw = g.gas_mw; }
+    if (g.gas_diff >= 0.0) { g.gasColumns.last().diff = g.gas_diff; }
+
+    const auto addPlain = [](QVector<MeasurementRecord>& recs,
+                             const QString& slug, int col)
+    {
+        if (col <= 0) { return; }
+        MeasurementRecord rec;
+        rec.slug = slug;
+        rec.rawColumn = col;
+        recs.append(rec);
+    };
+    addPlain(g.cellColumns, QStringLiteral("cell_t"), g.col_int_t_c);
+    addPlain(g.cellColumns, QStringLiteral("int_t_1"), g.col_int_t_1);
+    addPlain(g.cellColumns, QStringLiteral("int_t_2"), g.col_int_t_2);
+    addPlain(g.cellColumns, QStringLiteral("int_p"), g.col_int_p);
+    addPlain(g.diagColumns, QStringLiteral("diag_75"), g.col_diag_75);
+    addPlain(g.diagColumns, QStringLiteral("diag_72"), g.col_diag_72);
+    addPlain(g.diagColumns, QStringLiteral("diag_77"), g.col_diag_77);
+    addPlain(g.diagColumns, QStringLiteral("diag_anem"), g.col_diag_anem);
+}
+
+void EcProject::writeMeasurementRecords(QSettings& project_ini)
+{
+    const auto& g = ec_project_state_.projectGeneral;
+
+    const auto stale = project_ini.childKeys().filter(
+        QRegularExpression(QStringLiteral("^(gas|cell|diag)_")));
+    for (const auto& key : stale) { project_ini.remove(key); }
+
+    if (g.gasColumns.isEmpty() && g.cellColumns.isEmpty()
+        && g.diagColumns.isEmpty())
+    {
+        return;
+    }
+
+    project_ini.setValue(QStringLiteral("gas_num"), g.gasColumns.size());
+    for (int i = 0; i < g.gasColumns.size(); ++i)
+    {
+        const auto& rec = g.gasColumns.at(i);
+        const auto p = QStringLiteral("gas_%1_").arg(i + 1);
+        project_ini.setValue(p + QStringLiteral("var"), rec.slug);
+        project_ini.setValue(p + QStringLiteral("instr"), rec.instrumentId);
+        project_ini.setValue(p + QStringLiteral("col"), rec.rawColumn);
+        project_ini.setValue(p + QStringLiteral("moist"), rec.moistureRef);
+        project_ini.setValue(p + QStringLiteral("cell"), rec.cellRef);
+        // Written empty rather than omitted when there is no override, so the
+        // record keeps a uniform shape for the engine's stride reader.
+        project_ini.setValue(p + QStringLiteral("mw"),
+            rec.mw >= 0.0 ? QString::number(rec.mw, 'f', 4) : QString());
+        project_ini.setValue(p + QStringLiteral("diff"),
+            rec.diff >= 0.0 ? QString::number(rec.diff, 'f', 5) : QString());
+    }
+
+    const auto writePlain = [&](const QString& prefix,
+                                const QVector<MeasurementRecord>& recs)
+    {
+        project_ini.setValue(prefix + QStringLiteral("_num"), recs.size());
+        for (int i = 0; i < recs.size(); ++i)
+        {
+            const auto p = QStringLiteral("%1_%2_").arg(prefix).arg(i + 1);
+            project_ini.setValue(p + QStringLiteral("var"), recs.at(i).slug);
+            project_ini.setValue(p + QStringLiteral("instr"),
+                                 recs.at(i).instrumentId);
+            project_ini.setValue(p + QStringLiteral("col"),
+                                 recs.at(i).rawColumn);
+        }
+    };
+    writePlain(QStringLiteral("cell"), g.cellColumns);
+    writePlain(QStringLiteral("diag"), g.diagColumns);
+}
+
+/// Read the records back. Absent gas_num means a project written before
+/// records existed; the caller migrates it from the legacy col_* fields.
+bool EcProject::readMeasurementRecords(QSettings& project_ini)
+{
+    auto& g = ec_project_state_.projectGeneral;
+    g.gasColumns.clear();
+    g.cellColumns.clear();
+    g.diagColumns.clear();
+
+    const int gasNum = project_ini.value(QStringLiteral("gas_num"), 0).toInt();
+    if (gasNum <= 0) { return false; }
+
+    for (int i = 1; i <= gasNum; ++i)
+    {
+        const auto p = QStringLiteral("gas_%1_").arg(i);
+        GasRecord rec;
+        rec.slug = project_ini.value(p + QStringLiteral("var")).toString();
+        rec.instrumentId =
+            project_ini.value(p + QStringLiteral("instr")).toString();
+        rec.rawColumn =
+            project_ini.value(p + QStringLiteral("col"), -1).toInt();
+        rec.moistureRef =
+            project_ini.value(p + QStringLiteral("moist"), 0).toInt();
+        rec.cellRef = project_ini.value(p + QStringLiteral("cell"), 0).toInt();
+        const auto mw = project_ini.value(p + QStringLiteral("mw")).toString();
+        const auto diff =
+            project_ini.value(p + QStringLiteral("diff")).toString();
+        rec.mw = mw.isEmpty() ? -1.0 : mw.toDouble();
+        rec.diff = diff.isEmpty() ? -1.0 : diff.toDouble();
+        g.gasColumns.append(rec);
+    }
+
+    const auto readPlain = [&](const QString& prefix,
+                               QVector<MeasurementRecord>& recs)
+    {
+        const int n =
+            project_ini.value(prefix + QStringLiteral("_num"), 0).toInt();
+        for (int i = 1; i <= n; ++i)
+        {
+            const auto p = QStringLiteral("%1_%2_").arg(prefix).arg(i);
+            MeasurementRecord rec;
+            rec.slug = project_ini.value(p + QStringLiteral("var")).toString();
+            rec.instrumentId =
+                project_ini.value(p + QStringLiteral("instr")).toString();
+            rec.rawColumn =
+                project_ini.value(p + QStringLiteral("col"), -1).toInt();
+            recs.append(rec);
+        }
+    };
+    readPlain(QStringLiteral("cell"), g.cellColumns);
+    readPlain(QStringLiteral("diag"), g.diagColumns);
+
+    MeasurementRecords::validateReferences(g.gasColumns, g.cellColumns);
+    return true;
+}
+
 bool EcProject::saveEcProject(const QString &filename)
 {
     // try to open file just for checking
@@ -1258,6 +1426,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_PROJECT_31, QString::number(ec_project_state_.projectGeneral.gas_mw, 'f', 4));
         project_ini.setValue(EcIni::INI_PROJECT_32, QString::number(ec_project_state_.projectGeneral.gas_diff, 'f', 5));
         project_ini.setValue(EcIni::INI_PROJECT_36, ec_project_state_.projectGeneral.col_ts);
+        writeMeasurementRecords(project_ini);
         project_ini.setValue(EcIni::INI_PROJECT_39, ec_project_state_.projectGeneral.out_rich);
         project_ini.setValue(EcIni::INI_PROJECT_70, ec_project_state_.projectGeneral.fluxnet_standardize_biomet);
         project_ini.setValue(EcIni::INI_PROJECT_71, ec_project_state_.projectGeneral.fluxnet_err_label);
@@ -1637,6 +1806,40 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_TIMELAG_OPT_14, QString::number(ec_project_state_.timelagOpt.ch4_max_lag, 'f', 1));
         project_ini.setValue(EcIni::INI_TIMELAG_OPT_15, QString::number(ec_project_state_.timelagOpt.gas4_min_lag, 'f', 1));
         project_ini.setValue(EcIni::INI_TIMELAG_OPT_16, QString::number(ec_project_state_.timelagOpt.gas4_max_lag, 'f', 1));
+        //> Per-gas search windows, for gases the four flat keys cannot reach.
+        //> These are SNTags, and ReadIniRP only sweeps RawProcess* sections,
+        //> so they belong here rather than in [Project].
+        //>
+        //> Written only where the record holds a real value: the engine
+        //> applies an override whenever the tag is present, so a sentinel
+        //> would replace the legacy window with nonsense.
+        {
+            const auto staleTo = project_ini.childKeys().filter(
+                QRegularExpression(QStringLiteral("^gas_\d+_to_")));
+            for (const auto& key : staleTo) { project_ini.remove(key); }
+
+            const auto& gases = ec_project_state_.projectGeneral.gasColumns;
+            for (int i = 0; i < gases.size(); ++i)
+            {
+                const auto pfx = QStringLiteral("gas_%1_to_").arg(i + 1);
+                const auto& proc = gases.at(i).proc;
+                if (proc.toMinLag > -9000.0 && proc.toMinLag != -1.0)
+                {
+                    project_ini.setValue(pfx + QStringLiteral("min_lag"),
+                                         QString::number(proc.toMinLag, 'f', 1));
+                }
+                if (proc.toMaxLag > -9000.0 && proc.toMaxLag != -1.0)
+                {
+                    project_ini.setValue(pfx + QStringLiteral("max_lag"),
+                                         QString::number(proc.toMaxLag, 'f', 1));
+                }
+                if (proc.toMinFlux >= 0.0)
+                {
+                    project_ini.setValue(pfx + QStringLiteral("min_flux"),
+                                         QString::number(proc.toMinFlux, 'f', 3));
+                }
+            }
+        }
         project_ini.setValue(EcIni::INI_TIMELAG_OPT_18, ec_project_state_.timelagOpt.subset);
         project_ini.setValue(EcIni::INI_TIMELAG_OPT_21, ec_project_state_.timelagOpt.assessment_only);
     project_ini.endGroup();
@@ -1651,6 +1854,37 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_PWB_TIMELAG_5, QString::number(ec_project_state_.pwbTimelag.ch4_max_lag, 'f', 1));
         project_ini.setValue(EcIni::INI_PWB_TIMELAG_6, QString::number(ec_project_state_.pwbTimelag.gas4_min_lag, 'f', 1));
         project_ini.setValue(EcIni::INI_PWB_TIMELAG_7, QString::number(ec_project_state_.pwbTimelag.gas4_max_lag, 'f', 1));
+        //> Per-gas search windows, for gases the four flat keys above cannot
+        //> reach. These are SNTags read by ReadIniRP, which only sweeps
+        //> sections named RawProcess*, so they belong here and not in
+        //> [Project] beside gas_N_col.
+        //>
+        //> Only written where the record carries a real value: the engine
+        //> applies an override whenever the tag is *present*, so emitting a
+        //> sentinel would override the legacy window with nonsense.
+        {
+            const auto stalePwb = project_ini.childKeys().filter(
+                QRegularExpression(QStringLiteral("^gas_\d+_pwb_")));
+            for (const auto& key : stalePwb) { project_ini.remove(key); }
+
+            const auto& gases = ec_project_state_.projectGeneral.gasColumns;
+            for (int i = 0; i < gases.size(); ++i)
+            {
+                const auto p = QStringLiteral("gas_%1_pwb_").arg(i + 1);
+                if (gases.at(i).proc.pwbMinLag > -9000.0
+                    && gases.at(i).proc.pwbMinLag != -1.0)
+                {
+                    project_ini.setValue(p + QStringLiteral("min_lag"),
+                        QString::number(gases.at(i).proc.pwbMinLag, 'f', 1));
+                }
+                if (gases.at(i).proc.pwbMaxLag > -9000.0
+                    && gases.at(i).proc.pwbMaxLag != -1.0)
+                {
+                    project_ini.setValue(p + QStringLiteral("max_lag"),
+                        QString::number(gases.at(i).proc.pwbMaxLag, 'f', 1));
+                }
+            }
+        }
         project_ini.setValue(EcIni::INI_PWB_TIMELAG_8, ec_project_state_.pwbTimelag.n_bootstrap);
         project_ini.setValue(EcIni::INI_PWB_TIMELAG_9, QString::number(ec_project_state_.pwbTimelag.block_length_s, 'f', 1));
         project_ini.setValue(EcIni::INI_PWB_TIMELAG_10, QString::number(ec_project_state_.pwbTimelag.min_valid_frac, 'f', 3));
@@ -1892,6 +2126,14 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.projectGeneral.col_ts
                 = project_ini.value(EcIni::INI_PROJECT_36,
                                     defaultEcProjectState.projectGeneral.col_ts).toInt();
+
+        // Records if the file has them, otherwise built from the col_* fields
+        // read just above. Reading them here, after those fields, is what lets
+        // the migration work off values rather than re-reading the file.
+        if (!readMeasurementRecords(project_ini))
+        {
+            migrateLegacyColumnsToRecords();
+        }
         ec_project_state_.projectGeneral.gas_mw
                 = project_ini.value(EcIni::INI_PROJECT_31,
                                     defaultEcProjectState.projectGeneral.gas_mw).toReal();
@@ -2965,6 +3207,28 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.timelagOpt.assessment_only
                 = project_ini.value(EcIni::INI_TIMELAG_OPT_21,
                                     defaultEcProjectState.timelagOpt.assessment_only).toInt();
+
+        //> Per-gas search windows; absent keys leave the record's sentinel in
+        //> place and the dialog falls back to the flat value.
+        for (int i = 0; i < ec_project_state_.projectGeneral.gasColumns.size(); ++i)
+        {
+            const auto pfx = QStringLiteral("gas_%1_to_").arg(i + 1);
+            const auto lo = project_ini.value(pfx + QStringLiteral("min_lag")).toString();
+            const auto hi = project_ini.value(pfx + QStringLiteral("max_lag")).toString();
+            if (!lo.isEmpty())
+            {
+                ec_project_state_.projectGeneral.gasColumns[i].proc.toMinLag = lo.toDouble();
+            }
+            if (!hi.isEmpty())
+            {
+                ec_project_state_.projectGeneral.gasColumns[i].proc.toMaxLag = hi.toDouble();
+            }
+            const auto mf = project_ini.value(pfx + QStringLiteral("min_flux")).toString();
+            if (!mf.isEmpty())
+            {
+                ec_project_state_.projectGeneral.gasColumns[i].proc.toMinFlux = mf.toDouble();
+            }
+        }
     project_ini.endGroup();
 
     // PWB time lag section
@@ -3026,6 +3290,26 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.pwbTimelag.detect_on_raw
                 = project_ini.value(EcIni::INI_PWB_TIMELAG_18,
                                     defaultEcProjectState.pwbTimelag.detect_on_raw).toInt();
+
+        //> Per-gas search windows. Read after the gas records exist, so the
+        //> loop can address them; absent keys leave the record's sentinel in
+        //> place and the dialog falls back to the flat value.
+        for (int i = 0; i < ec_project_state_.projectGeneral.gasColumns.size(); ++i)
+        {
+            const auto p = QStringLiteral("gas_%1_pwb_").arg(i + 1);
+            const auto lo = project_ini.value(p + QStringLiteral("min_lag")).toString();
+            const auto hi = project_ini.value(p + QStringLiteral("max_lag")).toString();
+            if (!lo.isEmpty())
+            {
+                ec_project_state_.projectGeneral.gasColumns[i].proc.pwbMinLag =
+                    lo.toDouble();
+            }
+            if (!hi.isEmpty())
+            {
+                ec_project_state_.projectGeneral.gasColumns[i].proc.pwbMaxLag =
+                    hi.toDouble();
+            }
+        }
     project_ini.endGroup();
 
     // random error section

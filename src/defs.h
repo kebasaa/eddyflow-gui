@@ -53,8 +53,8 @@ class QStringLiteral;
 /// \brief Contains global string literals
 namespace Defs
 {
-    const auto APP_VERSION = 0x070205;
-    const auto APP_VERSION_STR = QStringLiteral("7.2.5");
+    const auto APP_VERSION = 0x070300;
+    const auto APP_VERSION_STR = QStringLiteral("7.3.0");
     const auto APP_STAGE_STR = QStringLiteral(""); // -rc1
 
     const auto PROJECT_FILE_VERSION = 0x040500;
@@ -197,6 +197,17 @@ namespace Defs
     const auto N2O_STRING   = QStringLiteral("N<sub>2</sub>O");
     const auto O3_STRING    = QStringLiteral("O<sub>3</sub>");
     const auto TSON_STRING  = QStringLiteral("T<sub>s</sub>");
+    //> Capacity limits, matching the engine's m_typedef.f90. Exceeding them
+    //> there is silent - extra instruments and gases are simply not read - so
+    //> the interface blocks at the point of action instead.
+    //>
+    //> MAX_INSTRUMENTS counts *devices*: the .metadata file gives anemometers
+    //> and gas analysers one shared counter, so two sonics leave room for six
+    //> analysers, not eight.
+    const int MAX_INSTRUMENTS = 8;
+    const int MAX_GASES = 64;
+    const int MAX_GASES_PER_INSTRUMENT = 8;
+
     const auto GAS4_STRING  = QStringLiteral("4<sup>th</sup>");
 
     const auto READY      = QObject::tr("Ready");

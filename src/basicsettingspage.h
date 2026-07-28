@@ -94,6 +94,29 @@ class BasicSettingsPage : public QWidget
     Q_OBJECT
 
 public:
+    //> Moisture column support.
+    //>
+    //> hasMoistureCandidates is false when the project has no H2O at all, in
+    //> which case the column stays blank rather than offering an empty list.
+    //> moistureLabelForGas resolves through the same rule as the engine, so
+    //> what the table shows is what the fluxes were computed with.
+    //> Multi-select support: gases are held as records, so a site can select
+    //> the same species more than once - two H2O columns, say, one per
+    //> analyser, which is what the Moisture column needs to be useful.
+    QString canonicalInstrumentForColumn(int rawColumn) const;
+    bool gasRecordExists(const QString& slug, int rawColumn) const;
+    //> Why a gas cannot be added, or an empty string if it can.
+    QString gasLimitBlockReason(int rawColumn) const;
+    void addGasRecord(const QString& slug, int rawColumn);
+    void removeGasRecord(const QString& slug, int rawColumn);
+    int firstGasColumn(const QString& slug) const;
+
+    bool hasMoistureCandidates() const;
+    QString moistureLabelForGas(int gasRecordIndex) const;
+    QVector<QPair<int, QString>> moistureChoices() const;
+    int moistureRefForGas(int gasRecordIndex) const;
+    void setMoistureRefForGas(int gasRecordIndex, int moistureRef);
+
     enum EmbeddedFileFlag
     {
         rawEmbeddedFile    = 1,

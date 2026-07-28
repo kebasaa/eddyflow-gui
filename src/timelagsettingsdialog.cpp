@@ -40,6 +40,7 @@
 #include "configstate.h"
 #include "customclearlineedit.h"
 #include "ecproject.h"
+#include "measurement_record.h"
 #include "filebrowsewidget.h"
 #include "globalsettings.h"
 #include "widget_utils.h"
@@ -157,35 +158,9 @@ TimeLagSettingsDialog::TimeLagSettingsDialog(QWidget *parent, EcProject *ecProje
 
     gasTitleLabel = WidgetUtils::createBlueLabel(this, tr("Passive gases"));
 
-    co2MinFluxLabel = new ClickLabel(tr("Minimum (absolute) %1 flux :").arg(Defs::CO2_STRING));
-    co2MinFluxLabel->setToolTip(tr("<b>Minimum (absolute) %1 flux:</b> %1 time lags corresponding to fluxes smaller (in module) than this value will not be considered in the time lag optimization. Selecting high-enough fluxes assures that well developed turbulent conditions are met and the correlation function is well characterized.").arg(Defs::CO2_STRING));
-    co2MinFluxSpin = new QDoubleSpinBox;
-    co2MinFluxSpin->setDecimals(3);
-    co2MinFluxSpin->setRange(0.0, 100.0);
-    co2MinFluxSpin->setSingleStep(0.001);
-    co2MinFluxSpin->setAccelerated(true);
-    co2MinFluxSpin->setSuffix(tr("  [%1]").arg(Defs::UMOL_M2S_STRING));
-    co2MinFluxSpin->setToolTip(co2MinFluxLabel->toolTip());
-
-    ch4MinFluxLabel = new ClickLabel(tr("Minimum (absolute) %1 flux :").arg(Defs::CH4_STRING));
-    ch4MinFluxLabel->setToolTip(tr("<b>Minimum (absolute) %1 flux:</b> %1 time lags corresponding to fluxes smaller (in module) than this value will not be considered in the time lag optimization. Selecting high-enough fluxes assures that well developed turbulent conditions are met and the correlation function is well characterized.").arg(Defs::CH4_STRING));
-    ch4MinFluxSpin = new QDoubleSpinBox;
-    ch4MinFluxSpin->setDecimals(3);
-    ch4MinFluxSpin->setRange(0.0, 100.0);
-    ch4MinFluxSpin->setSingleStep(0.001);
-    ch4MinFluxSpin->setAccelerated(true);
-    ch4MinFluxSpin->setSuffix(tr("  [%1]").arg(Defs::UMOL_M2S_STRING));
-    ch4MinFluxSpin->setToolTip(ch4MinFluxLabel->toolTip());
-
-    gas4MinFluxLabel = new ClickLabel(tr("Minimum (absolute) %1 gas flux :").arg(Defs::GAS4_STRING));
-    gas4MinFluxLabel->setToolTip(tr("<b>Minimum (absolute) %1 gas flux:</b> %1 gas time lags corresponding to fluxes smaller (in module) than this value will not be considered in the time lag optimization. Selecting high-enough fluxes assures that well developed turbulent conditions are met and the correlation function is well characterized.").arg(Defs::GAS4_STRING));
-    gas4MinFluxSpin = new QDoubleSpinBox;
-    gas4MinFluxSpin->setDecimals(3);
-    gas4MinFluxSpin->setRange(0.0, 100.0);
-    gas4MinFluxSpin->setSingleStep(0.001);
-    gas4MinFluxSpin->setAccelerated(true);
-    gas4MinFluxSpin->setSuffix(tr("  [%1]").arg(Defs::UMOL_M2S_STRING));
-    gas4MinFluxSpin->setToolTip(gas4MinFluxLabel->toolTip());
+    // The gas minimum-flux rows and the search-window header are placed in
+    // rebuildGasRows(): their grid rows depend on how many gases the project
+    // has, so they cannot be laid out at fixed positions here.
 
     leMinFluxLabel = new ClickLabel(tr("Minimum latent heat flux :"));
     leMinFluxLabel->setToolTip(tr("<b>Minimum latent heat flux:</b> Minimum latent heat flux: H<sub>2</sub>O time lags corresponding to latent heat fluxes smaller than this value will not be considered in the time lag optimization. Selecting high-enough fluxes assures that well developed turbulent conditions are met and the correlation function is well characterized."));
@@ -205,85 +180,10 @@ TimeLagSettingsDialog::TimeLagSettingsDialog(QWidget *parent, EcProject *ecProje
     maxLabel = WidgetUtils::createBlueLabel(this, tr("Maximum"));
     maxLabel->setToolTip(tr("<b>Maximum:</b> Maximum time lag for each gas, for initializing the time lag optimization procedure. The searching window defined by Minimum and Maximum should be large enough to accommodate all possible time lags. In particular, maximum time lags of water vapor in closed path systems can up to ten times higher than its nominal value, or even higher. Leave as <i>Not set</i> if in doubt, EddyFlow will initialize it automatically."));
 
-    co2Label = new ClickLabel(tr("%1 :").arg(Defs::CO2_STRING));
-
-    minCo2TlSpin = new QDoubleSpinBox;
-    minCo2TlSpin->setDecimals(1);
-    minCo2TlSpin->setRange(-1000.1, 1000.0);
-    minCo2TlSpin->setSingleStep(0.1);
-    minCo2TlSpin->setSpecialValueText(tr("Detect automatically"));
-    minCo2TlSpin->setAccelerated(true);
-    minCo2TlSpin->setSuffix(tr("  [s]"));
-    minCo2TlSpin->setToolTip(minLabel->toolTip());
-
-    maxCo2TlSpin = new QDoubleSpinBox;
-    maxCo2TlSpin->setDecimals(1);
-    maxCo2TlSpin->setRange(-1000.1, 1000.0);
-    maxCo2TlSpin->setSingleStep(0.1);
-    maxCo2TlSpin->setSpecialValueText(tr("Detect automatically"));
-    maxCo2TlSpin->setAccelerated(true);
-    maxCo2TlSpin->setSuffix(tr("  [s]"));
-    maxCo2TlSpin->setToolTip(maxLabel->toolTip());
-
-    h2oLabel = new ClickLabel(tr("%1 :").arg(Defs::H2O_STRING));
-
-    minH2oTlSpin = new QDoubleSpinBox;
-    minH2oTlSpin->setDecimals(1);
-    minH2oTlSpin->setRange(-1000.1, 1000.0);
-    minH2oTlSpin->setSingleStep(0.1);
-    minH2oTlSpin->setSpecialValueText(tr("Detect automatically"));
-    minH2oTlSpin->setAccelerated(true);
-    minH2oTlSpin->setSuffix(tr("  [s]"));
-    minH2oTlSpin->setToolTip(minLabel->toolTip());
-
-    maxH2oTlSpin = new QDoubleSpinBox;
-    maxH2oTlSpin->setDecimals(1);
-    maxH2oTlSpin->setRange(-1000.1, 1000.0);
-    maxH2oTlSpin->setSingleStep(0.1);
-    maxH2oTlSpin->setSpecialValueText(tr("Detect automatically"));
-    maxH2oTlSpin->setAccelerated(true);
-    maxH2oTlSpin->setSuffix(tr("  [s]"));
-    maxH2oTlSpin->setToolTip(maxLabel->toolTip());
-
-    ch4Label = new ClickLabel(tr("%1 :").arg(Defs::CH4_STRING));
-
-    minCh4TlSpin = new QDoubleSpinBox;
-    minCh4TlSpin->setDecimals(1);
-    minCh4TlSpin->setRange(-1000.1, 1000.0);
-    minCh4TlSpin->setSingleStep(0.1);
-    minCh4TlSpin->setSpecialValueText(tr("Detect automatically"));
-    minCh4TlSpin->setAccelerated(true);
-    minCh4TlSpin->setSuffix(tr("  [s]"));
-    minCh4TlSpin->setToolTip(minLabel->toolTip());
-
-    maxCh4TlSpin = new QDoubleSpinBox;
-    maxCh4TlSpin->setDecimals(1);
-    maxCh4TlSpin->setRange(-1000.1, 1000.0);
-    maxCh4TlSpin->setSingleStep(0.1);
-    maxCh4TlSpin->setSpecialValueText(tr("Detect automatically"));
-    maxCh4TlSpin->setAccelerated(true);
-    maxCh4TlSpin->setSuffix(tr("  [s]"));
-    maxCh4TlSpin->setToolTip(maxLabel->toolTip());
-
-    gas4Label = new ClickLabel(tr("%1 gas :").arg(Defs::GAS4_STRING));
-
-    minGas4TlSpin = new QDoubleSpinBox;
-    minGas4TlSpin->setDecimals(1);
-    minGas4TlSpin->setRange(-1000.1, 1000.0);
-    minGas4TlSpin->setSingleStep(0.1);
-    minGas4TlSpin->setSpecialValueText(tr("Detect automatically"));
-    minGas4TlSpin->setAccelerated(true);
-    minGas4TlSpin->setSuffix(tr("  [s]"));
-    minGas4TlSpin->setToolTip(minLabel->toolTip());
-
-    maxGas4TlSpin = new QDoubleSpinBox;
-    maxGas4TlSpin->setDecimals(1);
-    maxGas4TlSpin->setRange(-1000.1, 1000.0);
-    maxGas4TlSpin->setSingleStep(0.1);
-    maxGas4TlSpin->setSpecialValueText(tr("Detect automatically"));
-    maxGas4TlSpin->setAccelerated(true);
-    maxGas4TlSpin->setSuffix(tr("  [s]"));
-    maxGas4TlSpin->setToolTip(maxLabel->toolTip());
+    // Rows are built from the project's gases in rebuildTlRows(), so the
+    // dialog follows whatever the site selected rather than a fixed four.
+    minSpinTip_ = minLabel->toolTip();
+    maxSpinTip_ = maxLabel->toolTip();
 
     auto propertiesLayout = new QGridLayout;
     propertiesLayout->addLayout(existingFileLayout, 0, 0, 1, -1);
@@ -305,28 +205,7 @@ TimeLagSettingsDialog::TimeLagSettingsDialog(QWidget *parent, EcProject *ecProje
 
     propertiesLayout->addWidget(gasTitleLabel, 7, 0);
 
-    propertiesLayout->addWidget(co2MinFluxLabel, 8, 1, Qt::AlignRight);
-    propertiesLayout->addWidget(co2MinFluxSpin, 8, 2);
-    propertiesLayout->addWidget(ch4MinFluxLabel, 9, 1, Qt::AlignRight);
-    propertiesLayout->addWidget(ch4MinFluxSpin, 9, 2);
-    propertiesLayout->addWidget(gas4MinFluxLabel, 10, 1, Qt::AlignRight);
-    propertiesLayout->addWidget(gas4MinFluxSpin, 10, 2);
-
-    propertiesLayout->addWidget(searchWindowLabel, 11, 0);
-    propertiesLayout->addWidget(minLabel, 12, 1);
-    propertiesLayout->addWidget(maxLabel, 12, 2);
-    propertiesLayout->addWidget(co2Label, 13, 0, Qt::AlignRight);
-    propertiesLayout->addWidget(minCo2TlSpin, 13, 1);
-    propertiesLayout->addWidget(maxCo2TlSpin, 13, 2);
-    propertiesLayout->addWidget(h2oLabel, 14, 0, Qt::AlignRight);
-    propertiesLayout->addWidget(minH2oTlSpin, 14, 1);
-    propertiesLayout->addWidget(maxH2oTlSpin, 14, 2);
-    propertiesLayout->addWidget(ch4Label, 15, 0, Qt::AlignRight);
-    propertiesLayout->addWidget(minCh4TlSpin, 15, 1);
-    propertiesLayout->addWidget(maxCh4TlSpin, 15, 2);
-    propertiesLayout->addWidget(gas4Label, 16, 0, Qt::AlignRight);
-    propertiesLayout->addWidget(minGas4TlSpin, 16, 1);
-    propertiesLayout->addWidget(maxGas4TlSpin, 16, 2);
+    propertiesLayout_ = propertiesLayout;
     propertiesLayout->setVerticalSpacing(3);
     propertiesLayout->setRowMinimumHeight(2, 10);
     propertiesLayout->setContentsMargins(3, 3, 3, 3);
@@ -380,20 +259,8 @@ TimeLagSettingsDialog::TimeLagSettingsDialog(QWidget *parent, EcProject *ecProje
     connect(rhClassSpin, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &TimeLagSettingsDialog::updateRhClass);
 
-    connect(co2MinFluxLabel, &ClickLabel::clicked,
-            this, &TimeLagSettingsDialog::onCo2MinFluxClicked);
-    connect(co2MinFluxSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &TimeLagSettingsDialog::updateCo2MinFlux);
 
-    connect(ch4MinFluxLabel, &ClickLabel::clicked,
-            this, &TimeLagSettingsDialog::onCh4MinFluxClicked);
-    connect(ch4MinFluxSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &TimeLagSettingsDialog::updateCh4MinFlux);
 
-    connect(gas4MinFluxLabel, &ClickLabel::clicked,
-            this, &TimeLagSettingsDialog::onGas4MinFluxClicked);
-    connect(gas4MinFluxSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &TimeLagSettingsDialog::updateGas4MinFlux);
 
     connect(leMinFluxLabel, &ClickLabel::clicked,
             this, &TimeLagSettingsDialog::onLeMinFluxClicked);
@@ -405,33 +272,9 @@ TimeLagSettingsDialog::TimeLagSettingsDialog(QWidget *parent, EcProject *ecProje
     connect(pgRangeSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &TimeLagSettingsDialog::updatePgRange);
 
-    connect(co2Label, &ClickLabel::clicked,
-            this, &TimeLagSettingsDialog::onCo2LabelClicked);
-    connect(minCo2TlSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &TimeLagSettingsDialog::updateMinCo2Tl);
-    connect(maxCo2TlSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &TimeLagSettingsDialog::updateMaxCo2Tl);
 
-    connect(h2oLabel, &ClickLabel::clicked,
-            this, &TimeLagSettingsDialog::onH2oLabelClicked);
-    connect(minH2oTlSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &TimeLagSettingsDialog::updateMinH2oTl);
-    connect(maxH2oTlSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &TimeLagSettingsDialog::updateMaxH2oTl);
 
-    connect(ch4Label, &ClickLabel::clicked,
-            this, &TimeLagSettingsDialog::onCh4LabelClicked);
-    connect(minCh4TlSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &TimeLagSettingsDialog::updateMinCh4Tl);
-    connect(maxCh4TlSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &TimeLagSettingsDialog::updateMaxCh4Tl);
 
-    connect(gas4Label, &ClickLabel::clicked,
-            this, &TimeLagSettingsDialog::onGas4LabelClicked);
-    connect(minGas4TlSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &TimeLagSettingsDialog::updateMinGas4Tl);
-    connect(maxGas4TlSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &TimeLagSettingsDialog::updateMaxGas4Tl);
 
     connect(okButton, &QPushButton::clicked,
             this, &TimeLagSettingsDialog::close);
@@ -472,18 +315,7 @@ void TimeLagSettingsDialog::reset()
     pgRangeSpin->setValue(1.5);
     rhClassSpin->setValue(10);
     leMinFluxSpin->setValue(20.0);
-    co2MinFluxSpin->setValue(2.0);
-    ch4MinFluxSpin->setValue(0.2);
-    gas4MinFluxSpin->setValue(0.02);
 
-    minCo2TlSpin->setValue(-1000.1);
-    maxCo2TlSpin->setValue(-1000.1);
-    minH2oTlSpin->setValue(-1000.1);
-    maxH2oTlSpin->setValue(-1000.1);
-    minCh4TlSpin->setValue(-1000.1);
-    maxCh4TlSpin->setValue(-1000.1);
-    minGas4TlSpin->setValue(-1000.1);
-    maxGas4TlSpin->setValue(-1000.1);
 
     radioClicked(1);
 }
@@ -524,6 +356,8 @@ void TimeLagSettingsDialog::refresh()
     existingRadio->setChecked(!ecProject_->timelagOptMode());
     nonExistingRadio->setChecked(ecProject_->timelagOptMode());
 
+    rebuildGasRows();
+
     fileBrowse->setPath(ecProject_->timelagOptFile());
 
     subsetCheckBox->setChecked(ecProject_->timelagOptSubset());
@@ -543,20 +377,9 @@ void TimeLagSettingsDialog::refresh()
     }
 
     rhClassSpin->setValue(ecProject_->timelagOptH2oNClass());
-    co2MinFluxSpin->setValue(ecProject_->timelagOptCo2MinFlux());
-    ch4MinFluxSpin->setValue(ecProject_->timelagOptCh4MinFlux());
-    gas4MinFluxSpin->setValue(ecProject_->timelagOptGas4MinFlux());
     leMinFluxSpin->setValue(ecProject_->timelagOptLeMinFlux());
     pgRangeSpin->setValue(ecProject_->timelagOptPgRange());
 
-    minCo2TlSpin->setValue(ecProject_->timelagOptCo2MinLag());
-    maxCo2TlSpin->setValue(ecProject_->timelagOptCo2MaxLag());
-    minH2oTlSpin->setValue(ecProject_->timelagOptH2oMinLag());
-    maxH2oTlSpin->setValue(ecProject_->timelagOptH2oMaxLag());
-    minCh4TlSpin->setValue(ecProject_->timelagOptCh4MinLag());
-    maxCh4TlSpin->setValue(ecProject_->timelagOptCh4MaxLag());
-    minGas4TlSpin->setValue(ecProject_->timelagOptGas4MinLag());
-    maxGas4TlSpin->setValue(ecProject_->timelagOptGas4MaxLag());
 
     radioClicked(ecProject_->timelagOptMode());
 
@@ -592,29 +415,12 @@ void TimeLagSettingsDialog::radioClicked(int radioButton)
         endDateEdit->setEnabled(false);
         rhClassLabel->setEnabled(false);
         rhClassSpin->setEnabled(false);
-        co2MinFluxLabel->setEnabled(false);
-        co2MinFluxSpin->setEnabled(false);
-        ch4MinFluxLabel->setEnabled(false);
-        ch4MinFluxSpin->setEnabled(false);
-        gas4MinFluxLabel->setEnabled(false);
-        gas4MinFluxSpin->setEnabled(false);
         leMinFluxLabel->setEnabled(false);
         leMinFluxSpin->setEnabled(false);
         pgRangeLabel->setEnabled(false);
         pgRangeLabel_2->setEnabled(false);
         pgRangeSpin->setEnabled(false);
-        co2Label->setEnabled(false);
-        h2oLabel->setEnabled(false);
-        ch4Label->setEnabled(false);
-        gas4Label->setEnabled(false);
-        minCo2TlSpin->setEnabled(false);
-        maxCo2TlSpin->setEnabled(false);
-        minH2oTlSpin->setEnabled(false);
-        maxH2oTlSpin->setEnabled(false);
-        minCh4TlSpin->setEnabled(false);
-        maxCh4TlSpin->setEnabled(false);
-        minGas4TlSpin->setEnabled(false);
-        maxGas4TlSpin->setEnabled(false);
+        setGasRowsEnabled(false);
     }
     else
     {
@@ -627,29 +433,256 @@ void TimeLagSettingsDialog::radioClicked(int radioButton)
         endDateEdit->setEnabled(subsetCheckBox->isChecked());
         rhClassLabel->setEnabled(true);
         rhClassSpin->setEnabled(true);
-        co2MinFluxLabel->setEnabled(true);
-        co2MinFluxSpin->setEnabled(true);
-        ch4MinFluxLabel->setEnabled(true);
-        ch4MinFluxSpin->setEnabled(true);
-        gas4MinFluxLabel->setEnabled(true);
-        gas4MinFluxSpin->setEnabled(true);
         leMinFluxLabel->setEnabled(true);
         leMinFluxSpin->setEnabled(true);
         pgRangeLabel->setEnabled(true);
         pgRangeLabel_2->setEnabled(true);
         pgRangeSpin->setEnabled(true);
-        co2Label->setEnabled(true);
-        h2oLabel->setEnabled(true);
-        ch4Label->setEnabled(true);
-        gas4Label->setEnabled(true);
-        minCo2TlSpin->setEnabled(true);
-        maxCo2TlSpin->setEnabled(true);
-        minH2oTlSpin->setEnabled(true);
-        maxH2oTlSpin->setEnabled(true);
-        minCh4TlSpin->setEnabled(true);
-        maxCh4TlSpin->setEnabled(true);
-        minGas4TlSpin->setEnabled(true);
-        maxGas4TlSpin->setEnabled(true);
+        setGasRowsEnabled(true);
+    }
+}
+
+/// One time-lag search window per configured gas.
+///
+/// The first four records also mirror the flat timelagOpt*Lag keys, so an
+/// older version reads the same windows and a project written by one keeps
+/// its values. Gases past the fourth live only in the record.
+void TimeLagSettingsDialog::rebuildGasRows()
+{
+    if (!propertiesLayout_ || !ecProject_) { return; }
+
+    for (const auto& row : minFluxRows_)
+    {
+        if (row.label) { row.label->deleteLater(); }
+        if (row.spin) { row.spin->deleteLater(); }
+    }
+    minFluxRows_.clear();
+    for (const auto& row : tlRows_)
+    {
+        if (row.label) { row.label->deleteLater(); }
+        if (row.minSpin) { row.minSpin->deleteLater(); }
+        if (row.maxSpin) { row.maxSpin->deleteLater(); }
+    }
+    tlRows_.clear();
+
+    const auto& gases = ecProject_->gasColumns();
+    const auto gasName = [&](int i)
+    {
+        auto text = gases.at(i).slug.toUpper();
+        if (MeasurementRecords::isRealInstrument(gases.at(i).instrumentId))
+        {
+            text += QStringLiteral(" (") + gases.at(i).instrumentId
+                    + QStringLiteral(")");
+        }
+        return text;
+    };
+
+    // Both tables and the header between them are placed here, because the
+    // header's grid row depends on how many minimum-flux rows precede it.
+    int gridRow = kFirstGasGridRow;
+
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        // A record with no column is a slot kept for ordering, not a
+        // measurement. H2O is excluded: its threshold is the latent-heat one
+        // in the H2O section, not a gas flux.
+        if (gases.at(i).rawColumn <= 0) { continue; }
+        if (gases.at(i).slug == QLatin1String("h2o")) { continue; }
+
+        MinFluxRow row;
+        row.gasIndex = i;
+        row.label = new ClickLabel(
+            tr("Minimum (absolute) %1 flux :").arg(gasName(i)));
+        row.label->setToolTip(
+            tr("<b>Minimum (absolute) %1 flux:</b> %1 time lags corresponding "
+               "to fluxes smaller (in module) than this value will not be "
+               "considered in the time lag optimization. Selecting high-enough "
+               "fluxes assures that well developed turbulent conditions are met "
+               "and the correlation function is well characterized.")
+                .arg(gasName(i)));
+
+        row.spin = new QDoubleSpinBox;
+        row.spin->setDecimals(3);
+        row.spin->setRange(0.0, 100.0);
+        row.spin->setSingleStep(0.001);
+        row.spin->setAccelerated(true);
+        row.spin->setSuffix(tr("  [%1]").arg(Defs::UMOL_M2S_STRING));
+        row.spin->setToolTip(row.label->toolTip());
+        row.spin->setValue(minFluxFor(i));
+
+        propertiesLayout_->addWidget(row.label, gridRow, 1, Qt::AlignRight);
+        propertiesLayout_->addWidget(row.spin, gridRow, 2);
+
+        const int idx = i;
+        auto spin = row.spin;
+        connect(row.label, &ClickLabel::clicked, this, [=]()
+                { spin->setFocus(); spin->selectAll(); });
+        connect(row.spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                this, [=](double v) { onMinFluxChanged(idx, v); });
+
+        minFluxRows_.append(row);
+        ++gridRow;
+    }
+
+    propertiesLayout_->addWidget(searchWindowLabel, gridRow, 0);
+    ++gridRow;
+    propertiesLayout_->addWidget(minLabel, gridRow, 1);
+    propertiesLayout_->addWidget(maxLabel, gridRow, 2);
+    ++gridRow;
+
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        if (gases.at(i).rawColumn <= 0) { continue; }
+
+        TlRow row;
+        row.gasIndex = i;
+        row.minSpin = createTlSpin(true);
+        row.maxSpin = createTlSpin(false);
+        row.label = new ClickLabel(tr("%1 :").arg(gasName(i)));
+
+        propertiesLayout_->addWidget(row.label, gridRow, 0, Qt::AlignRight);
+        propertiesLayout_->addWidget(row.minSpin, gridRow, 1);
+        propertiesLayout_->addWidget(row.maxSpin, gridRow, 2);
+
+        row.minSpin->setValue(tlMinFor(i));
+        row.maxSpin->setValue(tlMaxFor(i));
+
+        const int idx = i;
+        auto minSpin = row.minSpin;
+        connect(row.label, &ClickLabel::clicked, this, [=]()
+                { minSpin->setFocus(); minSpin->selectAll(); });
+        connect(row.minSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                this, [=](double v) { onTlChanged(idx, true, v); });
+        connect(row.maxSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                this, [=](double v) { onTlChanged(idx, false, v); });
+
+        tlRows_.append(row);
+        ++gridRow;
+    }
+}
+
+void TimeLagSettingsDialog::onMinFluxChanged(int gasIndex, double value)
+{
+    if (!ecProject_) { return; }
+    auto gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size()) { return; }
+
+    gases[gasIndex].proc.toMinFlux = value;
+    ecProject_->setGasColumns(gases);
+
+    switch (gasIndex)
+    {
+        case 0: ecProject_->setTimelagOptCo2MinFlux(value); break;
+        case 2: ecProject_->setTimelagOptCh4MinFlux(value); break;
+        case 3: ecProject_->setTimelagOptGas4MinFlux(value); break;
+        default: break;   // slot 1 is H2O, which has no gas-flux threshold
+    }
+}
+
+double TimeLagSettingsDialog::minFluxFor(int gasIndex) const
+{
+    const auto& gases = ecProject_->gasColumns();
+    if (gasIndex >= 0 && gasIndex < gases.size()
+        && gases.at(gasIndex).proc.toMinFlux >= 0.0)
+    {
+        return gases.at(gasIndex).proc.toMinFlux;
+    }
+    switch (gasIndex)
+    {
+        case 0: return ecProject_->timelagOptCo2MinFlux();
+        case 2: return ecProject_->timelagOptCh4MinFlux();
+        case 3: return ecProject_->timelagOptGas4MinFlux();
+        default: return 0.0;
+    }
+}
+
+QDoubleSpinBox* TimeLagSettingsDialog::createTlSpin(bool isMin)
+{
+    auto spin = new QDoubleSpinBox;
+    spin->setDecimals(1);
+    spin->setRange(-1000.1, 1000.0);
+    spin->setSingleStep(0.1);
+    spin->setSpecialValueText(tr("Detect automatically"));
+    spin->setAccelerated(true);
+    spin->setSuffix(tr("  [s]"));
+    spin->setToolTip(isMin ? minSpinTip_ : maxSpinTip_);
+    return spin;
+}
+
+void TimeLagSettingsDialog::setGasRowsEnabled(bool enabled)
+{
+    for (const auto& row : minFluxRows_)
+    {
+        if (row.label) { row.label->setEnabled(enabled); }
+        if (row.spin) { row.spin->setEnabled(enabled); }
+    }
+    for (const auto& row : tlRows_)
+    {
+        if (row.label) { row.label->setEnabled(enabled); }
+        if (row.minSpin) { row.minSpin->setEnabled(enabled); }
+        if (row.maxSpin) { row.maxSpin->setEnabled(enabled); }
+    }
+}
+
+void TimeLagSettingsDialog::onTlChanged(int gasIndex, bool isMin, double value)
+{
+    if (!ecProject_) { return; }
+    auto gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size()) { return; }
+
+    if (isMin) { gases[gasIndex].proc.toMinLag = value; }
+    else       { gases[gasIndex].proc.toMaxLag = value; }
+    ecProject_->setGasColumns(gases);
+
+    switch (gasIndex)
+    {
+        case 0: if (isMin) { ecProject_->setTimelagOptCo2MinLag(value); }
+                else       { ecProject_->setTimelagOptCo2MaxLag(value); } break;
+        case 1: if (isMin) { ecProject_->setTimelagOptH2oMinLag(value); }
+                else       { ecProject_->setTimelagOptH2oMaxLag(value); } break;
+        case 2: if (isMin) { ecProject_->setTimelagOptCh4MinLag(value); }
+                else       { ecProject_->setTimelagOptCh4MaxLag(value); } break;
+        case 3: if (isMin) { ecProject_->setTimelagOptGas4MinLag(value); }
+                else       { ecProject_->setTimelagOptGas4MaxLag(value); } break;
+        default: break;
+    }
+}
+
+double TimeLagSettingsDialog::tlMinFor(int gasIndex) const
+{
+    const auto& gases = ecProject_->gasColumns();
+    if (gasIndex >= 0 && gasIndex < gases.size()
+        && gases.at(gasIndex).proc.toMinLag > -9000.0
+        && gases.at(gasIndex).proc.toMinLag != -1.0)
+    {
+        return gases.at(gasIndex).proc.toMinLag;
+    }
+    switch (gasIndex)
+    {
+        case 0: return ecProject_->timelagOptCo2MinLag();
+        case 1: return ecProject_->timelagOptH2oMinLag();
+        case 2: return ecProject_->timelagOptCh4MinLag();
+        case 3: return ecProject_->timelagOptGas4MinLag();
+        default: return -1000.1;
+    }
+}
+
+double TimeLagSettingsDialog::tlMaxFor(int gasIndex) const
+{
+    const auto& gases = ecProject_->gasColumns();
+    if (gasIndex >= 0 && gasIndex < gases.size()
+        && gases.at(gasIndex).proc.toMaxLag > -9000.0
+        && gases.at(gasIndex).proc.toMaxLag != -1.0)
+    {
+        return gases.at(gasIndex).proc.toMaxLag;
+    }
+    switch (gasIndex)
+    {
+        case 0: return ecProject_->timelagOptCo2MaxLag();
+        case 1: return ecProject_->timelagOptH2oMaxLag();
+        case 2: return ecProject_->timelagOptCh4MaxLag();
+        case 3: return ecProject_->timelagOptGas4MaxLag();
+        default: return -1000.1;
     }
 }
 
@@ -756,38 +789,11 @@ void TimeLagSettingsDialog::updateRhClass(int n)
     ecProject_->setTimelagOptH2oNClass(n);
 }
 
-void TimeLagSettingsDialog::onCo2MinFluxClicked()
-{
-    co2MinFluxSpin->setFocus();
-    co2MinFluxSpin->selectAll();
-}
 
-void TimeLagSettingsDialog::updateCo2MinFlux(double d)
-{
-    ecProject_->setTimelagOptCo2MinFlux(d);
-}
 
-void TimeLagSettingsDialog::onCh4MinFluxClicked()
-{
-    ch4MinFluxSpin->setFocus();
-    ch4MinFluxSpin->selectAll();
-}
 
-void TimeLagSettingsDialog::updateCh4MinFlux(double d)
-{
-    ecProject_->setTimelagOptCh4MinFlux(d);
-}
 
-void TimeLagSettingsDialog::onGas4MinFluxClicked()
-{
-    gas4MinFluxSpin->setFocus();
-    gas4MinFluxSpin->selectAll();
-}
 
-void TimeLagSettingsDialog::updateGas4MinFlux(double d)
-{
-    ecProject_->setTimelagOptGas4MinFlux(d);
-}
 
 void TimeLagSettingsDialog::onLeMinFluxClicked()
 {
@@ -811,117 +817,17 @@ void TimeLagSettingsDialog::updatePgRange(double d)
     ecProject_->setTimelagOptPgRange(d);
 }
 
-void TimeLagSettingsDialog::onCo2LabelClicked()
-{
-    minCo2TlSpin->setFocus();
-    minCo2TlSpin->selectAll();
-}
 
-void TimeLagSettingsDialog::updateMinCo2Tl(double d)
-{
-    ecProject_->setTimelagOptCo2MinLag(d);
 
-    // min/max constraint
-    if (d >= maxCo2TlSpin->value())
-    {
-        maxCo2TlSpin->setValue(d + 0.1);
-    }
-}
 
-void TimeLagSettingsDialog::updateMaxCo2Tl(double d)
-{
-    ecProject_->setTimelagOptCo2MaxLag(d);
 
-    // min/max constraint
-    if (d <= minCo2TlSpin->value())
-    {
-        minCo2TlSpin->setValue(d - 0.1);
-    }
-}
 
-void TimeLagSettingsDialog::onH2oLabelClicked()
-{
-    minH2oTlSpin->setFocus();
-    minH2oTlSpin->selectAll();
-}
 
-void TimeLagSettingsDialog::updateMinH2oTl(double d)
-{
-    ecProject_->setTimelagOptH2oMinLag(d);
 
-    // min/max constraint
-    if (d >= maxH2oTlSpin->value())
-    {
-        maxH2oTlSpin->setValue(d + 0.1);
-    }
-}
 
-void TimeLagSettingsDialog::updateMaxH2oTl(double d)
-{
-    ecProject_->setTimelagOptH2oMaxLag(d);
 
-    // min/max constraint
-    if (d <= minH2oTlSpin->value())
-    {
-        minH2oTlSpin->setValue(d - 0.1);
-    }
-}
 
-void TimeLagSettingsDialog::onCh4LabelClicked()
-{
-    minCh4TlSpin->setFocus();
-    minCh4TlSpin->selectAll();
-}
 
-void TimeLagSettingsDialog::updateMinCh4Tl(double d)
-{
-    ecProject_->setTimelagOptCh4MinLag(d);
-
-    // min/max constraint
-    if (d >= maxCh4TlSpin->value())
-    {
-        maxCh4TlSpin->setValue(d + 0.1);
-    }
-}
-
-void TimeLagSettingsDialog::updateMaxCh4Tl(double d)
-{
-    ecProject_->setTimelagOptCh4MaxLag(d);
-
-    // min/max constraint
-    if (d <= minCh4TlSpin->value())
-    {
-        minCh4TlSpin->setValue(d - 0.1);
-    }
-}
-
-void TimeLagSettingsDialog::onGas4LabelClicked()
-{
-    minGas4TlSpin->setFocus();
-    minGas4TlSpin->selectAll();
-}
-
-void TimeLagSettingsDialog::updateMinGas4Tl(double d)
-{
-    ecProject_->setTimelagOptGas4MinLag(d);
-
-    // min/max constraint
-    if (d >= maxGas4TlSpin->value())
-    {
-        maxGas4TlSpin->setValue(d + 0.1);
-    }
-}
-
-void TimeLagSettingsDialog::updateMaxGas4Tl(double d)
-{
-    ecProject_->setTimelagOptGas4MaxLag(d);
-
-    // min/max constraint
-    if (d <= minGas4TlSpin->value())
-    {
-        minGas4TlSpin->setValue(d - 0.1);
-    }
-}
 
 void TimeLagSettingsDialog::updateSubsetSelection(bool b)
 {

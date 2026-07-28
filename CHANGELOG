@@ -1,3 +1,8 @@
+7.3.0 (2026-07-28)
+
+    GUI:
+	- Bugfix: Time lag optimization file browse no longer opens a second, redundant file dialog
+
 7.2.5 (2026-07-27)
 
     GUI:

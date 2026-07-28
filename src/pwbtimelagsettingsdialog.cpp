@@ -25,6 +25,7 @@
 #include "ancillaryfiletest.h"
 #include "defs.h"
 #include "ecproject.h"
+#include "measurement_record.h"
 #include "filebrowsewidget.h"
 #include "widget_utils.h"
 
@@ -83,32 +84,14 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
     auto minTitle = WidgetUtils::createBlueLabel(this, tr("Minimum"));
     auto maxTitle = WidgetUtils::createBlueLabel(this, tr("Maximum"));
 
-    co2MinLagSpin = createLagSpin();
-    co2MaxLagSpin = createLagSpin();
-    h2oMinLagSpin = createLagSpin();
-    h2oMaxLagSpin = createLagSpin();
-    ch4MinLagSpin = createLagSpin();
-    ch4MaxLagSpin = createLagSpin();
-    gas4MinLagSpin = createLagSpin();
-    gas4MaxLagSpin = createLagSpin();
-
+    // Rows are built from the project's gases in rebuildLagRows(), so the
+    // dialog follows whatever the site selected rather than a fixed four.
     auto windows = new QGridLayout;
     windows->addWidget(windowTitle, 0, 0);
     windows->addWidget(minTitle, 0, 1);
     windows->addWidget(maxTitle, 0, 2);
-    windows->addWidget(new QLabel(tr("%1 :").arg(Defs::CO2_STRING)), 1, 0, Qt::AlignRight);
-    windows->addWidget(co2MinLagSpin, 1, 1);
-    windows->addWidget(co2MaxLagSpin, 1, 2);
-    windows->addWidget(new QLabel(tr("%1 :").arg(Defs::H2O_STRING)), 2, 0, Qt::AlignRight);
-    windows->addWidget(h2oMinLagSpin, 2, 1);
-    windows->addWidget(h2oMaxLagSpin, 2, 2);
-    windows->addWidget(new QLabel(tr("%1 :").arg(Defs::CH4_STRING)), 3, 0, Qt::AlignRight);
-    windows->addWidget(ch4MinLagSpin, 3, 1);
-    windows->addWidget(ch4MaxLagSpin, 3, 2);
-    windows->addWidget(new QLabel(tr("%1 :").arg(Defs::GAS4_STRING)), 4, 0, Qt::AlignRight);
-    windows->addWidget(gas4MinLagSpin, 4, 1);
-    windows->addWidget(gas4MaxLagSpin, 4, 2);
     windows->setColumnStretch(3, 1);
+    lagGrid_ = windows;
 
     nBootstrapSpin = new QSpinBox;
     nBootstrapSpin->setRange(1, 9999);
@@ -213,7 +196,18 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
 
     auto pwbOptionsLayout = new QVBoxLayout;
     pwbOptionsLayout->addWidget(detectOnRawCheckBox);
+    // Gases on one analyser share a detected lag (PWB's S4_instrument_shared
+    // rule), so a window set for one of them decides the others too. Without
+    // saying so, narrowing CO2's window and watching H2O move looks like a bug.
+    auto sharingNote = new QLabel(tr(
+        "<i>Gases measured by the same instrument share a detected time lag: "
+        "when one is detected natively, the others on that instrument adopt "
+        "it. Narrowing one gas's window therefore affects every gas on the "
+        "same analyser.</i>"));
+    sharingNote->setWordWrap(true);
+
     pwbOptionsLayout->addLayout(windows);
+    pwbOptionsLayout->addWidget(sharingNote);
     pwbOptionsLayout->addSpacing(10);
     pwbOptionsLayout->addLayout(detection);
     pwbOptionsLayout->addSpacing(10);
@@ -240,22 +234,6 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
     connect(fileBrowse, &FileBrowseWidget::pathSelected,
             this, &PwbTimelagSettingsDialog::testSelectedFile);
 
-    connect(co2MinLagSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            ecProject_, &EcProject::setPwbCo2MinLag);
-    connect(co2MaxLagSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            ecProject_, &EcProject::setPwbCo2MaxLag);
-    connect(h2oMinLagSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            ecProject_, &EcProject::setPwbH2oMinLag);
-    connect(h2oMaxLagSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            ecProject_, &EcProject::setPwbH2oMaxLag);
-    connect(ch4MinLagSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            ecProject_, &EcProject::setPwbCh4MinLag);
-    connect(ch4MaxLagSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            ecProject_, &EcProject::setPwbCh4MaxLag);
-    connect(gas4MinLagSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            ecProject_, &EcProject::setPwbGas4MinLag);
-    connect(gas4MaxLagSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            ecProject_, &EcProject::setPwbGas4MaxLag);
     connect(nBootstrapSpin, QOverload<int>::of(&QSpinBox::valueChanged),
             ecProject_, &EcProject::setPwbNBootstrap);
     connect(blockLengthSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
@@ -299,14 +277,8 @@ void PwbTimelagSettingsDialog::refresh()
     nonExistingRadio->setChecked(ecProject_->timelagOptMode());
     fileBrowse->setPath(ecProject_->timelagOptFile());
 
-    co2MinLagSpin->setValue(ecProject_->pwbCo2MinLag());
-    co2MaxLagSpin->setValue(ecProject_->pwbCo2MaxLag());
-    h2oMinLagSpin->setValue(ecProject_->pwbH2oMinLag());
-    h2oMaxLagSpin->setValue(ecProject_->pwbH2oMaxLag());
-    ch4MinLagSpin->setValue(ecProject_->pwbCh4MinLag());
-    ch4MaxLagSpin->setValue(ecProject_->pwbCh4MaxLag());
-    gas4MinLagSpin->setValue(ecProject_->pwbGas4MinLag());
-    gas4MaxLagSpin->setValue(ecProject_->pwbGas4MaxLag());
+    rebuildLagRows();
+
     nBootstrapSpin->setValue(ecProject_->pwbNBootstrap());
     blockLengthSpin->setValue(ecProject_->pwbBlockLength());
     minValidFracSpin->setValue(ecProject_->pwbMinValidFrac());
@@ -400,6 +372,128 @@ void PwbTimelagSettingsDialog::testSelectedFile(const QString& fp)
     else
     {
         fileBrowse->clear();
+    }
+}
+
+/// Rebuild one search-window row per configured gas.
+///
+/// The first four gas records also mirror the flat pwb_*_lag keys, so a
+/// project written by an older version keeps its values and an older version
+/// can still read what this writes. Gases past the fourth live only in the
+/// record's own settings, which is where the engine reads them from.
+void PwbTimelagSettingsDialog::rebuildLagRows()
+{
+    if (!lagGrid_ || !ecProject_) { return; }
+
+    for (const auto &row : lagRows_)
+    {
+        if (row.label) { row.label->deleteLater(); }
+        if (row.minSpin) { row.minSpin->deleteLater(); }
+        if (row.maxSpin) { row.maxSpin->deleteLater(); }
+    }
+    lagRows_.clear();
+
+    const auto &gases = ecProject_->gasColumns();
+    int gridRow = 1;
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        // A record with no column is a slot the project keeps for ordering,
+        // not a measurement; it gets no row.
+        if (gases.at(i).rawColumn <= 0) { continue; }
+
+        LagRow row;
+        row.gasIndex = i;
+        row.minSpin = createLagSpin();
+        row.maxSpin = createLagSpin();
+
+        auto text = gases.at(i).slug.toUpper();
+        if (MeasurementRecords::isRealInstrument(gases.at(i).instrumentId))
+        {
+            text += QStringLiteral(" (") + gases.at(i).instrumentId
+                    + QStringLiteral(")");
+        }
+        row.label = new QLabel(tr("%1 :").arg(text));
+
+        lagGrid_->addWidget(row.label, gridRow, 0, Qt::AlignRight);
+        lagGrid_->addWidget(row.minSpin, gridRow, 1);
+        lagGrid_->addWidget(row.maxSpin, gridRow, 2);
+
+        row.minSpin->setValue(pwbMinLagFor(i));
+        row.maxSpin->setValue(pwbMaxLagFor(i));
+
+        const int idx = i;
+        connect(row.minSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                this, [=](double v) { onLagChanged(idx, true, v); });
+        connect(row.maxSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                this, [=](double v) { onLagChanged(idx, false, v); });
+
+        lagRows_.append(row);
+        ++gridRow;
+    }
+}
+
+void PwbTimelagSettingsDialog::onLagChanged(int gasIndex, bool isMin, double value)
+{
+    if (!ecProject_) { return; }
+    auto gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size()) { return; }
+
+    if (isMin) { gases[gasIndex].proc.pwbMinLag = value; }
+    else       { gases[gasIndex].proc.pwbMaxLag = value; }
+    ecProject_->setGasColumns(gases);
+
+    // Mirror the historical four, so the flat keys stay in step with the
+    // records and an older version reads the same windows.
+    switch (gasIndex)
+    {
+        case 0: if (isMin) { ecProject_->setPwbCo2MinLag(value); }
+                else       { ecProject_->setPwbCo2MaxLag(value); } break;
+        case 1: if (isMin) { ecProject_->setPwbH2oMinLag(value); }
+                else       { ecProject_->setPwbH2oMaxLag(value); } break;
+        case 2: if (isMin) { ecProject_->setPwbCh4MinLag(value); }
+                else       { ecProject_->setPwbCh4MaxLag(value); } break;
+        case 3: if (isMin) { ecProject_->setPwbGas4MinLag(value); }
+                else       { ecProject_->setPwbGas4MaxLag(value); } break;
+        default: break;
+    }
+}
+
+/// Stored minimum for a gas: the record if it has one, else the flat key.
+double PwbTimelagSettingsDialog::pwbMinLagFor(int gasIndex) const
+{
+    const auto &gases = ecProject_->gasColumns();
+    if (gasIndex >= 0 && gasIndex < gases.size()
+        && gases.at(gasIndex).proc.pwbMinLag > -9000.0
+        && gases.at(gasIndex).proc.pwbMinLag != -1.0)
+    {
+        return gases.at(gasIndex).proc.pwbMinLag;
+    }
+    switch (gasIndex)
+    {
+        case 0: return ecProject_->pwbCo2MinLag();
+        case 1: return ecProject_->pwbH2oMinLag();
+        case 2: return ecProject_->pwbCh4MinLag();
+        case 3: return ecProject_->pwbGas4MinLag();
+        default: return 0.0;
+    }
+}
+
+double PwbTimelagSettingsDialog::pwbMaxLagFor(int gasIndex) const
+{
+    const auto &gases = ecProject_->gasColumns();
+    if (gasIndex >= 0 && gasIndex < gases.size()
+        && gases.at(gasIndex).proc.pwbMaxLag > -9000.0
+        && gases.at(gasIndex).proc.pwbMaxLag != -1.0)
+    {
+        return gases.at(gasIndex).proc.pwbMaxLag;
+    }
+    switch (gasIndex)
+    {
+        case 0: return ecProject_->pwbCo2MaxLag();
+        case 1: return ecProject_->pwbH2oMaxLag();
+        case 2: return ecProject_->pwbCh4MaxLag();
+        case 3: return ecProject_->pwbGas4MaxLag();
+        default: return 0.0;
     }
 }
 

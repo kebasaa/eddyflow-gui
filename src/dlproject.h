@@ -197,6 +197,13 @@ public:
     static const QString getANEM_MODEL_STRING_20();
     static const QString getANEM_MODEL_STRING_21();
 
+    //> Canonical instrument id for a variable's instrument string, e.g.
+    //> "li7200_1". Exposed because the project's measurement records store
+    //> this id: pairing a gas with the H2O from its own analyser matches on
+    //> it, never on the translated label the table displays.
+    QString canonicalInstrumentId(const QString& instrument)
+        { return toIniVariableInstrument(instrument); }
+
 signals:
     // send that a new project has been created
     void projectNew();

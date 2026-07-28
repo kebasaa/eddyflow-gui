@@ -28,6 +28,8 @@
 
 #include <QObject>
 
+class QSettings;
+
 #include "configstate.h"
 #include "defs.h"
 #include "ecprojectstate.h"
@@ -516,6 +518,32 @@ public:
     bool generalUseTimelineFile() const { return ec_project_state_.projectGeneral.use_tlfile; }
     const QString& generalTimelineFilepath() const { return ec_project_state_.projectGeneral.timeline_file; }
     const QString& generalColMasterSonic() const { return ec_project_state_.projectGeneral.master_sonic; }
+    //> Measurement records. Prefer these over the generalCol* accessors
+    //> below, which can only ever name one column per gas.
+    const QVector<GasRecord>& gasColumns() const
+        { return ec_project_state_.projectGeneral.gasColumns; }
+    const QVector<MeasurementRecord>& cellColumns() const
+        { return ec_project_state_.projectGeneral.cellColumns; }
+    const QVector<MeasurementRecord>& diagColumns() const
+        { return ec_project_state_.projectGeneral.diagColumns; }
+    void setGasColumns(const QVector<GasRecord>& recs)
+        { ec_project_state_.projectGeneral.gasColumns = recs; setModified(true); }
+    void setCellColumns(const QVector<MeasurementRecord>& recs)
+        { ec_project_state_.projectGeneral.cellColumns = recs; setModified(true); }
+    void setDiagColumns(const QVector<MeasurementRecord>& recs)
+        { ec_project_state_.projectGeneral.diagColumns = recs; setModified(true); }
+
+    //> Records of one species, in list order.
+    QVector<const GasRecord*> gasRecordsFor(const QString& slug) const
+    {
+        QVector<const GasRecord*> out;
+        for (const auto& rec : ec_project_state_.projectGeneral.gasColumns)
+        {
+            if (rec.slug == slug) { out.append(&rec); }
+        }
+        return out;
+    }
+
     int generalColCo2() const { return ec_project_state_.projectGeneral.col_co2; }
     int generalColH2o() const { return ec_project_state_.projectGeneral.col_h2o; }
     int generalColCh4() const { return ec_project_state_.projectGeneral.col_ch4; }
@@ -939,6 +967,14 @@ signals:
     void updateInfo();
 
 private:
+    //> Persistence for the measurement records. writeMeasurementRecords
+    //> clears every gas_*/cell_*/diag_* key before writing, so shrinking a
+    //> list cannot leave orphans behind. readMeasurementRecords returns false
+    //> when the file predates records, which is the signal to migrate.
+    void writeMeasurementRecords(QSettings& project_ini);
+    bool readMeasurementRecords(QSettings& project_ini);
+    void migrateLegacyColumnsToRecords();
+
     bool modified_;
     EcProjectState ec_project_state_;
     ProjConfigState project_config_state_;
