@@ -60,9 +60,14 @@ struct GasProcessingSettings
     qreal saMinSt = -1.0;
     qreal saMinUn = -1.0;
     qreal saMax = -1.0;
-    int outFullSp = 0;
-    int outFullCospW = 0;
-    int outRaw = 0;
+    //> Output selections. **-1 means the record carries no decision**, which
+    //> is not the same as 0: the engine applies a per-gas override whenever
+    //> the tag is present, so an undecided flag must be left out of the file
+    //> rather than written as off, and the interface must fall back to the
+    //> legacy flat key rather than showing the box unchecked.
+    int outFullSp = -1;
+    int outFullCospW = -1;
+    int outRaw = -1;
 };
 
 /// A measured gas.

@@ -27,6 +27,11 @@
 #define BASICSETTINGSPAGE_H
 
 #include <QDateTime>
+#include <QString>
+#include <QMap>
+#include <QVector>
+
+#include <functional>
 #include <QWidget>
 
 #include <vector>
@@ -89,6 +94,23 @@ class WindFilterTableView;
 
 /// \class BasicSettingsPage
 /// \brief Class representing the 'General Options' tab in the 'RawProcess' page
+/// Which measurement a variable-table row stands for.
+enum class VariableTableRole
+{
+    Co2, H2o, Ch4, Gas4,
+    IntTc, IntT1, IntT2, IntP,
+    Diag7500, Diag7200, Diag7700,
+    AmbientT, AmbientP, Rh, Rg, Lwin, Ppfd
+};
+
+/// One selectable variable for a variable-table role: the raw column and the
+/// label shown for it.
+struct VariableCandidateItem
+{
+    int rawColumn = 0;
+    QString text;
+};
+
 class BasicSettingsPage : public QWidget
 {
     Q_OBJECT
@@ -104,6 +126,8 @@ public:
     //> the same species more than once - two H2O columns, say, one per
     //> analyser, which is what the Moisture column needs to be useful.
     QString canonicalInstrumentForColumn(int rawColumn) const;
+    //> Species of the fourth record slot, read from the record.
+    QString fourthGasSpecies() const;
     bool gasRecordExists(const QString& slug, int rawColumn) const;
     //> Why a gas cannot be added, or an empty string if it can.
     QString gasLimitBlockReason(int rawColumn) const;
@@ -199,29 +223,18 @@ private:
     QComboBox* anemFlagCombo;
     ClickLabel* tsRefLabel;
     QComboBox* tsRefCombo;
-    QComboBox* co2RefCombo;
-    QComboBox* h2oRefCombo;
-    QComboBox* ch4RefCombo;
-    QComboBox* fourthGasRefCombo;
     QWidget *gasExtension;
     ClickLabel* gasMwLabel;
     QDoubleSpinBox *gasMw;
     ClickLabel* gasDiffLabel;
     QDoubleSpinBox *gasDiff;
     QPushButton* moreButton;
-    QComboBox* intTcRefCombo;
-    QComboBox* intT1RefCombo;
-    QComboBox* intT2RefCombo;
-    QComboBox* intPRefCombo;
     QComboBox* airTRefCombo;
     QComboBox* airPRefCombo;
     QComboBox* rhCombo;
     QComboBox* rgCombo;
     QComboBox* lwinCombo;
     QComboBox* ppfdCombo;
-    QComboBox* diag7500Combo;
-    QComboBox* diag7200Combo;
-    QComboBox* diag7700Combo;
     ClickLabel* flag1Label;
     QComboBox* flag1VarCombo;
     QLabel* flag1UnitLabel;
@@ -305,7 +318,9 @@ private:
     QTableView* ambientVariablesTable_;
 
     QString lastEmbeddedMdFileRead_;
-    bool gas4WasN2o_ = false;
+    //> Species the absolute-limit floor was last applied for, so a
+    //> user's custom value survives re-selecting the same gas.
+    QString lastAbsLimitSpecies_;
 
     SmartFluxBar* smartfluxBar_;
 
@@ -332,6 +347,47 @@ private:
     void reloadSelectedItems_1();
     void reloadSelectedItems_2();
     void refreshVariableTables();
+
+    //> Fill the species and instrument a migrated project could not carry:
+    //> a pre-record file names a raw column and nothing else.
+    void resolveMigratedGasRecords();
+    //> Auto-select plausible gases the first time a metadata file is read,
+    //> replacing the combo preselection that used to fill col_* invisibly.
+    void seedGasRecordsFromMetadata();
+    //> The anemometer diagnostic is the one diagnostic with a visible combo
+    //> rather than a table row; it is restored from its record.
+    void restoreAnemFlagFromRecord();
+
+public:
+    //> Candidate list for a variable-table role, when that role does not keep
+    //> one in a combo. Empty for every role today: the flux-table roles still
+    //> store their candidates in their (never laid out) combos, because
+    //> filterVariables() prunes them there by item text. Converting that
+    //> pruning is what stands between here and deleting the widgets.
+    QVector<VariableCandidateItem> candidatesForRole(int role) const;
+
+private:
+    //> Candidates for the flux-table roles. They used to live in eleven
+    //> QComboBoxes that were never laid out - widgets used as containers,
+    //> which also let them shadow the selection into col_*. The shadowing is
+    //> gone and so are the widgets; this is what is left.
+    QMap<int, QVector<VariableCandidateItem>> fluxCandidates_;
+    void addCandidate(VariableTableRole role, int rawColumn, const QString& text);
+    void clearCandidates();
+    void pruneCandidates(VariableTableRole role,
+                         const std::function<bool(const QString&)>& drop);
+
+
+public:
+    //> Cell temperature/pressure and diagnostic records, driven by the
+    //> variable table exactly as the gas records are. Public because the
+    //> table model calls them, like the gas equivalents beside them.
+    static QString nonGasSlugForRole(int role);
+    void addNonGasRecord(const QString& slug, int rawColumn);
+    void removeNonGasRecord(const QString& slug, int rawColumn);
+    bool nonGasRecordExists(const QString& slug, int rawColumn) const;
+
+private:
 
     int getSuggestedFilesToMerge();
 
@@ -394,28 +450,19 @@ private slots:
     void onClickTsRefLabel();
     void updateAnemRefCombo(const QString& s);
     void updateAnemFlagCombo(int i);
-    void updateCo2RefCombo(int);
-    void updateH2oRefCombo(int);
-    void updateCh4RefCombo(int);
     void updateGasMw(double value);
     void updateGasDiff(double value);
-    void updateFourthGasRefCombo(int);
     void updateFourthGasSettings(const QString& s);
-    void updateFourthGasMinLimit(int index);
-    void showFourthGasDiffWarning(int index);
-    void updateIntTcRefCombo(int i);
-    void updateIntT1RefCombo(int i);
-    void updateIntT2RefCombo(int);
-    void updateIntPRefCombo(int i);
+    //> Species questions, not slot questions: they apply to whichever gas
+    //> row takes its species from the data, and say nothing about N2O.
+    void applyGasAbsoluteLimitMin(const QString& species);
+    void showGasDiffusivityWarning(const QString& species);
     void updateAirTRefCombo(int i);
     void updateAirPRefCombo(int);
     void updateRhCombo(int);
     void updateRgCombo(int);
     void updateLwinCombo(int);
     void updatePpfdCombo(int);
-    void updateDiag7500Combo(int i);
-    void updateDiag7200Combo(int);
-    void updateDiag7700Combo(int i);
     void updateTsRefCombo(int i);
 
     void updateFlag1Combo(int i);

@@ -1,3 +1,7 @@
 /_docs_toto
 /_temp
 /build-check
+
+# Python bytecode from the static checks in tests/
+__pycache__/
+*.pyc

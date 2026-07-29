@@ -757,7 +757,7 @@ public:
     double screenParamSrCo2Lim() const { return ec_project_state_.screenParam.sr_lim_co2; }
     double screenParamSrH2oLim() const { return ec_project_state_.screenParam.sr_lim_h2o; }
     double screenParamSrCh4Lim() const { return ec_project_state_.screenParam.sr_lim_ch4; }
-    double screenParamSrGas4Lim() const { return ec_project_state_.screenParam.sr_lim_gas4; }
+    double screenParamSrGas4Lim() const { return ec_project_state_.screenParam.sr_lim_other; }
     double screenParamSrHfLim() const { return ec_project_state_.screenParam.sr_lim_hf; }
 
     double screenParamArLim() const { return ec_project_state_.screenParam.ar_lim; }
@@ -778,8 +778,8 @@ public:
     double screenParamAlH2oMax() const { return ec_project_state_.screenParam.al_h2o_max; }
     double screenParamAlCh4Min() const { return ec_project_state_.screenParam.al_ch4_min; }
     double screenParamAlCh4Max() const { return ec_project_state_.screenParam.al_ch4_max; }
-    double screenParamAlGas4Min() const { return ec_project_state_.screenParam.al_gas4_min; }
-    double screenParamAlGas4Max() const { return ec_project_state_.screenParam.al_gas4_max; }
+    double screenParamAlGas4Min() const { return ec_project_state_.screenParam.al_other_min; }
+    double screenParamAlGas4Max() const { return ec_project_state_.screenParam.al_other_max; }
 
     double screenParamSkHfSkmin() const { return ec_project_state_.screenParam.sk_hf_skmin; }
     double screenParamSkHfSkmax() const { return ec_project_state_.screenParam.sk_hf_skmax; }
@@ -796,7 +796,7 @@ public:
     double screenParamDsHfCo2() const { return ec_project_state_.screenParam.ds_hf_co2; }
     double screenParamDsHfH2o() const { return ec_project_state_.screenParam.ds_hf_h2o; }
     double screenParamDsHfCh4() const { return ec_project_state_.screenParam.ds_hf_ch4; }
-    double screenParamDsHfGas4() const { return ec_project_state_.screenParam.ds_hf_gas4; }
+    double screenParamDsHfGas4() const { return ec_project_state_.screenParam.ds_hf_other; }
     double screenParamDsHfVar() const { return ec_project_state_.screenParam.ds_hf_var; }
     double screenParamDsSfUV() const { return ec_project_state_.screenParam.ds_sf_uv; }
     double screenParamDsSfW() const { return ec_project_state_.screenParam.ds_sf_w; }
@@ -804,7 +804,7 @@ public:
     double screenParamDsSfCo2() const { return ec_project_state_.screenParam.ds_sf_co2; }
     double screenParamDsSfH2o() const { return ec_project_state_.screenParam.ds_sf_h2o; }
     double screenParamDsSfCh4() const { return ec_project_state_.screenParam.ds_sf_ch4; }
-    double screenParamDsSfGas4() const { return ec_project_state_.screenParam.ds_sf_gas4; }
+    double screenParamDsSfGas4() const { return ec_project_state_.screenParam.ds_sf_other; }
     double screenParamDsSfVar() const { return ec_project_state_.screenParam.ds_sf_var; }
     int screenParamDespikeVm() const { return ec_project_state_.screenParam.despike_vm; }
 
@@ -813,7 +813,7 @@ public:
     double screenParamTlDefCo2() const { return ec_project_state_.screenParam.tl_def_co2; }
     double screenParamTlDefH2o() const { return ec_project_state_.screenParam.tl_def_h2o; }
     double screenParamTlDefCh4() const { return ec_project_state_.screenParam.tl_def_ch4; }
-    double screenParamTlDefGas4() const { return ec_project_state_.screenParam.tl_def_gas4; }
+    double screenParamTlDefGas4() const { return ec_project_state_.screenParam.tl_def_other; }
 
     double screenParamAaMin() const { return ec_project_state_.screenParam.aa_min; }
     double screenParamAaMax() const { return ec_project_state_.screenParam.aa_max; }
@@ -848,34 +848,34 @@ public:
     double spectraFminCo2() const { return ec_project_state_.spectraSettings.sa_fmin_co2; }
     double spectraFminH2o() const { return ec_project_state_.spectraSettings.sa_fmin_h2o; }
     double spectraFminCh4() const { return ec_project_state_.spectraSettings.sa_fmin_ch4; }
-    double spectraFminGas4() const { return ec_project_state_.spectraSettings.sa_fmin_gas4; }
+    double spectraFminGas4() const { return ec_project_state_.spectraSettings.sa_fmin_other; }
     double spectraFmaxCo2() const { return ec_project_state_.spectraSettings.sa_fmax_co2; }
     double spectraFmaxH2o() const { return ec_project_state_.spectraSettings.sa_fmax_h2o; }
     double spectraFmaxCh4() const { return ec_project_state_.spectraSettings.sa_fmax_ch4; }
-    double spectraFmaxGas4() const { return ec_project_state_.spectraSettings.sa_fmax_gas4; }
+    double spectraFmaxGas4() const { return ec_project_state_.spectraSettings.sa_fmax_other; }
     double spectraHfnCo2() const { return ec_project_state_.spectraSettings.sa_hfn_co2_fmin; }
     double spectraHfnH2o() const { return ec_project_state_.spectraSettings.sa_hfn_h2o_fmin; }
     double spectraHfnCh4() const { return ec_project_state_.spectraSettings.sa_hfn_ch4_fmin; }
-    double spectraHfnGas4() const { return ec_project_state_.spectraSettings.sa_hfn_gas4_fmin; }
+    double spectraHfnGas4() const { return ec_project_state_.spectraSettings.sa_hfn_other_fmin; }
     int spectraAddSonic() const { return ec_project_state_.spectraSettings.add_sonic_lptf; }
     double spectraMinUnstableUstar() const { return ec_project_state_.spectraSettings.sa_min_un_ustar; }
     double spectraMinUnstableH() const { return ec_project_state_.spectraSettings.sa_min_un_h; }
     double spectraMinUnstableLE() const { return ec_project_state_.spectraSettings.sa_min_un_le; }
     double spectraMinUnstableCo2() const { return ec_project_state_.spectraSettings.sa_min_un_co2; }
     double spectraMinUnstableCh4() const { return ec_project_state_.spectraSettings.sa_min_un_ch4; }
-    double spectraMinUnstableGas4() const { return ec_project_state_.spectraSettings.sa_min_un_gas4; }
+    double spectraMinUnstableGas4() const { return ec_project_state_.spectraSettings.sa_min_un_other; }
     double spectraMinStableUstar() const { return ec_project_state_.spectraSettings.sa_min_st_ustar; }
     double spectraMinStableH() const { return ec_project_state_.spectraSettings.sa_min_st_h; }
     double spectraMinStableLE() const { return ec_project_state_.spectraSettings.sa_min_st_le; }
     double spectraMinStableCo2() const { return ec_project_state_.spectraSettings.sa_min_st_co2; }
     double spectraMinStableCh4() const { return ec_project_state_.spectraSettings.sa_min_st_ch4; }
-    double spectraMinStableGas4() const { return ec_project_state_.spectraSettings.sa_min_st_gas4; }
+    double spectraMinStableGas4() const { return ec_project_state_.spectraSettings.sa_min_st_other; }
     double spectraMaxUstar() const { return ec_project_state_.spectraSettings.sa_max_ustar; }
     double spectraMaxH() const { return ec_project_state_.spectraSettings.sa_max_h; }
     double spectraMaxLE() const { return ec_project_state_.spectraSettings.sa_max_le; }
     double spectraMaxCo2() const { return ec_project_state_.spectraSettings.sa_max_co2; }
     double spectraMaxCh4() const { return ec_project_state_.spectraSettings.sa_max_ch4; }
-    double spectraMaxGas4() const { return ec_project_state_.spectraSettings.sa_max_gas4; }
+    double spectraMaxGas4() const { return ec_project_state_.spectraSettings.sa_max_other; }
     const QString& spectraExFile() const { return ec_project_state_.spectraSettings.ex_file; }
     const QString& spectraBinSpectra() const { return ec_project_state_.spectraSettings.sa_bin_spectra; }
     const QString& spectraFullSpectra() const { return ec_project_state_.spectraSettings.sa_full_spectra; }
@@ -944,6 +944,14 @@ public:
     // is the project modified?
     bool modified() const;
 
+    //> Whether the project just loaded predated the record format and was
+    //> migrated. Only the reader understands the old shape; an upgraded
+    //> project is saved back in the new one, so the interface uses this to
+    //> notify the user once and to resolve the fourth slot's species from
+    //> the metadata before that save.
+    bool wasUpgradedOnLoad() const;
+    void clearUpgradedOnLoad();
+
     QList<AngleItem>* planarFitAngles();
     bool hasPlanarFitFullAngle();
 
@@ -974,8 +982,14 @@ private:
     void writeMeasurementRecords(QSettings& project_ini);
     bool readMeasurementRecords(QSettings& project_ini);
     void migrateLegacyColumnsToRecords();
+    //> Carries the 19 per-gas processing settings onto the records. Separate
+    //> from the column migration because those settings live in five sections
+    //> read long after the [Project] group, so it can only run once the whole
+    //> file is in.
+    void migrateLegacyGasSettings();
 
     bool modified_;
+    bool wasUpgradedOnLoad_ = false;
     EcProjectState ec_project_state_;
     ProjConfigState project_config_state_;
 
@@ -984,8 +998,13 @@ private:
 
     bool previousFileNameCompare(const QString &currentPath, const QString &previousPath);
     bool previousSettingsCompare(bool current, bool previous);
-    bool previousFourthGasCompare(int currentGas, double currGasMw, double currGasDiff,
-                                  int previousGas, double previousGasMw, double previousGasDiff);
+    //> Order-insensitive comparison of the measurement record sets. Adding a
+    //> gas must not invalidate previously processed data for the others, so
+    //> these compare as sets rather than positionally.
+    static bool gasRecordsCompare(const QVector<GasRecord>& current,
+                                  const QVector<GasRecord>& previous);
+    static bool plainRecordsCompare(const QVector<MeasurementRecord>& current,
+                                    const QVector<MeasurementRecord>& previous);
     bool compareDates(const QString& currStartDate, const QString& prevStartDate,
                       const QString& currStartTime, const QString& prevStartTime,
                       const QString& currEndDate, const QString& prevEndDate,

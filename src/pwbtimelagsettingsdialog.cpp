@@ -377,10 +377,9 @@ void PwbTimelagSettingsDialog::testSelectedFile(const QString& fp)
 
 /// Rebuild one search-window row per configured gas.
 ///
-/// The first four gas records also mirror the flat pwb_*_lag keys, so a
-/// project written by an older version keeps its values and an older version
-/// can still read what this writes. Gases past the fourth live only in the
-/// record's own settings, which is where the engine reads them from.
+/// Every gas keeps its window on its own record, which is where the engine
+/// reads it from. The flat pwb_*_lag keys the first four used to mirror are
+/// retired; an upgraded project has had them moved onto its records.
 void PwbTimelagSettingsDialog::rebuildLagRows()
 {
     if (!lagGrid_ || !ecProject_) { return; }
@@ -442,23 +441,9 @@ void PwbTimelagSettingsDialog::onLagChanged(int gasIndex, bool isMin, double val
     else       { gases[gasIndex].proc.pwbMaxLag = value; }
     ecProject_->setGasColumns(gases);
 
-    // Mirror the historical four, so the flat keys stay in step with the
-    // records and an older version reads the same windows.
-    switch (gasIndex)
-    {
-        case 0: if (isMin) { ecProject_->setPwbCo2MinLag(value); }
-                else       { ecProject_->setPwbCo2MaxLag(value); } break;
-        case 1: if (isMin) { ecProject_->setPwbH2oMinLag(value); }
-                else       { ecProject_->setPwbH2oMaxLag(value); } break;
-        case 2: if (isMin) { ecProject_->setPwbCh4MinLag(value); }
-                else       { ecProject_->setPwbCh4MaxLag(value); } break;
-        case 3: if (isMin) { ecProject_->setPwbGas4MinLag(value); }
-                else       { ecProject_->setPwbGas4MaxLag(value); } break;
-        default: break;
-    }
 }
 
-/// Stored minimum for a gas: the record if it has one, else the flat key.
+/// Stored minimum for a gas: its record, or 0 when it has none.
 double PwbTimelagSettingsDialog::pwbMinLagFor(int gasIndex) const
 {
     const auto &gases = ecProject_->gasColumns();
@@ -468,14 +453,7 @@ double PwbTimelagSettingsDialog::pwbMinLagFor(int gasIndex) const
     {
         return gases.at(gasIndex).proc.pwbMinLag;
     }
-    switch (gasIndex)
-    {
-        case 0: return ecProject_->pwbCo2MinLag();
-        case 1: return ecProject_->pwbH2oMinLag();
-        case 2: return ecProject_->pwbCh4MinLag();
-        case 3: return ecProject_->pwbGas4MinLag();
-        default: return 0.0;
-    }
+    return 0.0;
 }
 
 double PwbTimelagSettingsDialog::pwbMaxLagFor(int gasIndex) const
@@ -487,14 +465,7 @@ double PwbTimelagSettingsDialog::pwbMaxLagFor(int gasIndex) const
     {
         return gases.at(gasIndex).proc.pwbMaxLag;
     }
-    switch (gasIndex)
-    {
-        case 0: return ecProject_->pwbCo2MaxLag();
-        case 1: return ecProject_->pwbH2oMaxLag();
-        case 2: return ecProject_->pwbCh4MaxLag();
-        case 3: return ecProject_->pwbGas4MaxLag();
-        default: return 0.0;
-    }
+    return 0.0;
 }
 
 QDoubleSpinBox *PwbTimelagSettingsDialog::createLagSpin()

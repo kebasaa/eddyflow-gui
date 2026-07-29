@@ -169,7 +169,14 @@ class MoistureColumn(unittest.TestCase):
         self.assertLess(order.index("Moisture"), order.index("MolecularWeight"))
 
     def test_blank_on_h2o_row(self):
-        self.assertIn("VariableTableRowKind::GasH2o", self.avail)
+        """Water is not corrected with itself, so it gets no moisture choice.
+
+        This used to key off a dedicated GasH2o row kind. The row kinds are
+        collapsed now - a gas row carries its species rather than being one
+        of four fixed sorts - so the test asks the question the code now
+        asks: is this row's species water?
+        """
+        self.assertIn('gasSlug(row) == QLatin1String("h2o")', self.avail)
         self.assertIn("return false", self.avail)
 
     def test_blank_on_non_gas_and_inactive_rows(self):

@@ -116,21 +116,65 @@ bool EcProject::previousSettingsCompare(bool current, bool previous)
     }
 }
 
-bool EcProject::previousFourthGasCompare(int currentGas, double currGasMw, double currGasDiff,
-                                         int previousGas, double previousGasMw, double previousGasDiff)
+/// Whether two gas record sets describe the same measurements.
+///
+/// **Order-insensitive**, which is the point: the records are a set, and a
+/// site that adds a fifth gas has not changed what it says about the first
+/// four. Comparing them positionally would invalidate previously processed
+/// data for every gas whenever one was added or removed.
+///
+/// Replaces the flat col_co2/col_h2o/col_ch4 conjunction and the fourth-gas
+/// special case that went with it.
+bool EcProject::gasRecordsCompare(const QVector<GasRecord>& current,
+                                  const QVector<GasRecord>& previous)
 {
-    if (currentGas >= 0 && currentGas == previousGas)
+    //> A record with no column is a slot kept for the engine's
+    //> record-to-slot mapping, not a measurement, and does not count.
+    const auto measured = [](const QVector<GasRecord>& recs)
     {
-        if (qFuzzyCompare(currGasMw, previousGasMw) && qFuzzyCompare(currGasDiff, previousGasDiff))
+        QStringList keys;
+        for (const auto& rec : recs)
         {
-            return true;
+            if (rec.rawColumn <= 0) { continue; }
+            //> Molecular weight and diffusivity are part of the identity:
+            //> reprocessing with a different diffusivity gives different
+            //> fluxes for the same column.
+            keys << QStringLiteral("%1|%2|%3|%4|%5")
+                        .arg(rec.slug, rec.instrumentId)
+                        .arg(rec.rawColumn)
+                        .arg(rec.mw, 0, 'f', 4)
+                        .arg(rec.diff, 0, 'f', 5);
         }
-        else
+        keys.sort();
+        return keys;
+    };
+
+    return measured(current) == measured(previous);
+}
+
+/// The same, for cell and diagnostic records, which carry no overrides.
+///
+/// This also retires a copy/paste bug the flat comparison carried: it tested
+/// col_diag_75 against the previous project's col_diag_77 and never compared
+/// col_diag_77 against itself, so a changed diagnostic column could go
+/// undetected and stale results be reused.
+bool EcProject::plainRecordsCompare(const QVector<MeasurementRecord>& current,
+                                    const QVector<MeasurementRecord>& previous)
+{
+    const auto measured = [](const QVector<MeasurementRecord>& recs)
+    {
+        QStringList keys;
+        for (const auto& rec : recs)
         {
-            return false;
+            if (rec.rawColumn <= 0) { continue; }
+            keys << QStringLiteral("%1|%2|%3")
+                        .arg(rec.slug, rec.instrumentId).arg(rec.rawColumn);
         }
-    }
-    return false;
+        keys.sort();
+        return keys;
+    };
+
+    return measured(current) == measured(previous);
 }
 
 bool EcProject::previousFileNameCompare(const QString& currentPath, const QString& previousPath)
@@ -177,25 +221,18 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
     bool dataSetTest = (ec_project_state_.projectGeneral.file_type == previousProject.ec_project_state_.projectGeneral.file_type)
         && (ec_project_state_.projectGeneral.file_prototype == previousProject.ec_project_state_.projectGeneral.file_prototype)
         && (ec_project_state_.projectGeneral.col_ts == previousProject.ec_project_state_.projectGeneral.col_ts)
-        && (ec_project_state_.projectGeneral.col_co2 == previousProject.ec_project_state_.projectGeneral.col_co2)
-        && (ec_project_state_.projectGeneral.col_h2o == previousProject.ec_project_state_.projectGeneral.col_h2o)
-        && (ec_project_state_.projectGeneral.col_ch4 == previousProject.ec_project_state_.projectGeneral.col_ch4)
-        && previousFourthGasCompare(ec_project_state_.projectGeneral.col_gas4,
-                                    ec_project_state_.projectGeneral.gas_mw,
-                                    ec_project_state_.projectGeneral.gas_diff,
-                                    previousProject.ec_project_state_.projectGeneral.col_gas4,
-                                    previousProject.ec_project_state_.projectGeneral.gas_mw,
-                                    previousProject.ec_project_state_.projectGeneral.gas_diff)
-        && (ec_project_state_.projectGeneral.col_int_t_1 == previousProject.ec_project_state_.projectGeneral.col_int_t_1)
-        && (ec_project_state_.projectGeneral.col_int_t_2 == previousProject.ec_project_state_.projectGeneral.col_int_t_2)
-        && (ec_project_state_.projectGeneral.col_int_p == previousProject.ec_project_state_.projectGeneral.col_int_p)
+        //> Gases, cell measurements and diagnostics compare as record sets.
+        //> The flat col_* conjunction they replace could only describe one
+        //> column per role, and compared the fourth gas through a special
+        //> case that no longer has a fourth gas to be special about.
+        && gasRecordsCompare(ec_project_state_.projectGeneral.gasColumns,
+                             previousProject.ec_project_state_.projectGeneral.gasColumns)
+        && plainRecordsCompare(ec_project_state_.projectGeneral.cellColumns,
+                               previousProject.ec_project_state_.projectGeneral.cellColumns)
+        && plainRecordsCompare(ec_project_state_.projectGeneral.diagColumns,
+                               previousProject.ec_project_state_.projectGeneral.diagColumns)
         && (ec_project_state_.projectGeneral.col_air_t == previousProject.ec_project_state_.projectGeneral.col_air_t)
-        && (ec_project_state_.projectGeneral.col_air_p == previousProject.ec_project_state_.projectGeneral.col_air_p)
-        && (ec_project_state_.projectGeneral.col_int_t_c == previousProject.ec_project_state_.projectGeneral.col_int_t_c)
-        && (ec_project_state_.projectGeneral.col_diag_72 == previousProject.ec_project_state_.projectGeneral.col_diag_72)
-        && (ec_project_state_.projectGeneral.col_diag_75 == previousProject.ec_project_state_.projectGeneral.col_diag_75)
-        && (ec_project_state_.projectGeneral.col_diag_75 == previousProject.ec_project_state_.projectGeneral.col_diag_77)
-        && (ec_project_state_.projectGeneral.col_diag_anem == previousProject.ec_project_state_.projectGeneral.col_diag_anem);
+        && (ec_project_state_.projectGeneral.col_air_p == previousProject.ec_project_state_.projectGeneral.col_air_p);
 
     if (ec_project_state_.projectGeneral.subset)
     {
@@ -402,7 +439,7 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
                && qFuzzyCompare(ec_project_state_.screenParam.sr_lim_co2, previousProject.ec_project_state_.screenParam.sr_lim_co2)
                && qFuzzyCompare(ec_project_state_.screenParam.sr_lim_h2o, previousProject.ec_project_state_.screenParam.sr_lim_h2o)
                && qFuzzyCompare(ec_project_state_.screenParam.sr_lim_ch4, previousProject.ec_project_state_.screenParam.sr_lim_ch4)
-               && qFuzzyCompare(ec_project_state_.screenParam.sr_lim_gas4, previousProject.ec_project_state_.screenParam.sr_lim_gas4);
+               && qFuzzyCompare(ec_project_state_.screenParam.sr_lim_other, previousProject.ec_project_state_.screenParam.sr_lim_other);
     }
 
     subTest = (ec_project_state_.screenTest.test_ar && previousProject.ec_project_state_.screenTest.test_ar);
@@ -437,8 +474,8 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
                && qFuzzyCompare(ec_project_state_.screenParam.al_h2o_max, previousProject.ec_project_state_.screenParam.al_h2o_max)
                && qFuzzyCompare(ec_project_state_.screenParam.al_ch4_min, previousProject.ec_project_state_.screenParam.al_ch4_min)
                && qFuzzyCompare(ec_project_state_.screenParam.al_ch4_max, previousProject.ec_project_state_.screenParam.al_ch4_max)
-               && qFuzzyCompare(ec_project_state_.screenParam.al_gas4_min, previousProject.ec_project_state_.screenParam.al_gas4_min)
-               && qFuzzyCompare(ec_project_state_.screenParam.al_gas4_max, previousProject.ec_project_state_.screenParam.al_gas4_max)
+               && qFuzzyCompare(ec_project_state_.screenParam.al_other_min, previousProject.ec_project_state_.screenParam.al_other_min)
+               && qFuzzyCompare(ec_project_state_.screenParam.al_other_max, previousProject.ec_project_state_.screenParam.al_other_max)
                && (ec_project_state_.screenSetting.filter_al == previousProject.ec_project_state_.screenSetting.filter_al);
     }
 
@@ -463,7 +500,7 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_hf_ch4, previousProject.ec_project_state_.screenParam.ds_hf_ch4)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_hf_co2, previousProject.ec_project_state_.screenParam.ds_hf_co2)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_hf_h2o, previousProject.ec_project_state_.screenParam.ds_hf_h2o)
-               && qFuzzyCompare(ec_project_state_.screenParam.ds_hf_gas4, previousProject.ec_project_state_.screenParam.ds_hf_gas4)
+               && qFuzzyCompare(ec_project_state_.screenParam.ds_hf_other, previousProject.ec_project_state_.screenParam.ds_hf_other)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_hf_t, previousProject.ec_project_state_.screenParam.ds_hf_t)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_hf_uv, previousProject.ec_project_state_.screenParam.ds_hf_uv)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_hf_var, previousProject.ec_project_state_.screenParam.ds_hf_var)
@@ -471,7 +508,7 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_ch4, previousProject.ec_project_state_.screenParam.ds_sf_ch4)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_co2, previousProject.ec_project_state_.screenParam.ds_sf_co2)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_h2o, previousProject.ec_project_state_.screenParam.ds_sf_h2o)
-               && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_gas4, previousProject.ec_project_state_.screenParam.ds_sf_gas4)
+               && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_other, previousProject.ec_project_state_.screenParam.ds_sf_other)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_t, previousProject.ec_project_state_.screenParam.ds_sf_t)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_uv, previousProject.ec_project_state_.screenParam.ds_sf_uv)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_var, previousProject.ec_project_state_.screenParam.ds_sf_var)
@@ -486,7 +523,7 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
                && qFuzzyCompare(ec_project_state_.screenParam.tl_def_ch4, previousProject.ec_project_state_.screenParam.tl_def_ch4)
                && qFuzzyCompare(ec_project_state_.screenParam.tl_def_co2, previousProject.ec_project_state_.screenParam.tl_def_co2)
                && qFuzzyCompare(ec_project_state_.screenParam.tl_def_h2o, previousProject.ec_project_state_.screenParam.tl_def_h2o)
-               && qFuzzyCompare(ec_project_state_.screenParam.tl_def_gas4, previousProject.ec_project_state_.screenParam.tl_def_gas4)
+               && qFuzzyCompare(ec_project_state_.screenParam.tl_def_other, previousProject.ec_project_state_.screenParam.tl_def_other)
                && qFuzzyCompare(ec_project_state_.screenParam.tl_hf_lim, previousProject.ec_project_state_.screenParam.tl_hf_lim)
                && qFuzzyCompare(ec_project_state_.screenParam.tl_sf_lim, previousProject.ec_project_state_.screenParam.tl_sf_lim);
     }
@@ -1013,8 +1050,8 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenParam.al_h2o_max = defaultEcProjectState.screenParam.al_h2o_max;
     ec_project_state_.screenParam.al_ch4_min = defaultEcProjectState.screenParam.al_ch4_min;
     ec_project_state_.screenParam.al_ch4_max = defaultEcProjectState.screenParam.al_ch4_max;
-    ec_project_state_.screenParam.al_gas4_min = defaultEcProjectState.screenParam.al_gas4_min;
-    ec_project_state_.screenParam.al_gas4_max = defaultEcProjectState.screenParam.al_gas4_max;
+    ec_project_state_.screenParam.al_other_min = defaultEcProjectState.screenParam.al_other_min;
+    ec_project_state_.screenParam.al_other_max = defaultEcProjectState.screenParam.al_other_max;
     ec_project_state_.screenParam.al_tson_min = defaultEcProjectState.screenParam.al_tson_min;
     ec_project_state_.screenParam.al_tson_max = defaultEcProjectState.screenParam.al_tson_max;
     ec_project_state_.screenParam.al_u_max = defaultEcProjectState.screenParam.al_u_max;
@@ -1028,7 +1065,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenParam.ds_hf_co2 = defaultEcProjectState.screenParam.ds_hf_co2;
     ec_project_state_.screenParam.ds_hf_h2o = defaultEcProjectState.screenParam.ds_hf_h2o;
     ec_project_state_.screenParam.ds_hf_ch4 = defaultEcProjectState.screenParam.ds_hf_ch4;
-    ec_project_state_.screenParam.ds_hf_gas4 = defaultEcProjectState.screenParam.ds_hf_gas4;
+    ec_project_state_.screenParam.ds_hf_other = defaultEcProjectState.screenParam.ds_hf_other;
     ec_project_state_.screenParam.ds_hf_var = defaultEcProjectState.screenParam.ds_hf_var;
     ec_project_state_.screenParam.ds_sf_uv = defaultEcProjectState.screenParam.ds_sf_uv;
     ec_project_state_.screenParam.ds_sf_w = defaultEcProjectState.screenParam.ds_sf_w;
@@ -1036,7 +1073,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenParam.ds_sf_co2 = defaultEcProjectState.screenParam.ds_sf_co2;
     ec_project_state_.screenParam.ds_sf_h2o = defaultEcProjectState.screenParam.ds_sf_h2o;
     ec_project_state_.screenParam.ds_sf_ch4 = defaultEcProjectState.screenParam.ds_sf_ch4;
-    ec_project_state_.screenParam.ds_sf_gas4 = defaultEcProjectState.screenParam.ds_sf_gas4;
+    ec_project_state_.screenParam.ds_sf_other = defaultEcProjectState.screenParam.ds_sf_other;
     ec_project_state_.screenParam.ds_sf_var = defaultEcProjectState.screenParam.ds_sf_var;
     ec_project_state_.screenParam.despike_vm = defaultEcProjectState.screenParam.despike_vm;
     ec_project_state_.screenParam.do_extlim_dw = defaultEcProjectState.screenParam.do_extlim_dw;
@@ -1057,13 +1094,13 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenParam.sr_lim_co2 = defaultEcProjectState.screenParam.sr_lim_co2;
     ec_project_state_.screenParam.sr_lim_h2o = defaultEcProjectState.screenParam.sr_lim_h2o;
     ec_project_state_.screenParam.sr_lim_ch4 = defaultEcProjectState.screenParam.sr_lim_ch4;
-    ec_project_state_.screenParam.sr_lim_gas4 = defaultEcProjectState.screenParam.sr_lim_gas4;
+    ec_project_state_.screenParam.sr_lim_other = defaultEcProjectState.screenParam.sr_lim_other;
     ec_project_state_.screenParam.sr_lim_hf = defaultEcProjectState.screenParam.sr_lim_hf;
     ec_project_state_.screenParam.tl_hf_lim = defaultEcProjectState.screenParam.tl_hf_lim;
     ec_project_state_.screenParam.tl_def_co2 = defaultEcProjectState.screenParam.tl_def_co2;
     ec_project_state_.screenParam.tl_def_h2o = defaultEcProjectState.screenParam.tl_def_h2o;
     ec_project_state_.screenParam.tl_def_ch4 = defaultEcProjectState.screenParam.tl_def_ch4;
-    ec_project_state_.screenParam.tl_def_gas4 = defaultEcProjectState.screenParam.tl_def_gas4;
+    ec_project_state_.screenParam.tl_def_other = defaultEcProjectState.screenParam.tl_def_other;
     ec_project_state_.screenParam.tl_sf_lim = defaultEcProjectState.screenParam.tl_sf_lim;
 
     ec_project_state_.spectraSettings.start_sa_date = QDate(2000, 1, 1).toString(Qt::ISODate);
@@ -1077,34 +1114,34 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.spectraSettings.sa_fmin_co2 = defaultEcProjectState.spectraSettings.sa_fmin_co2;
     ec_project_state_.spectraSettings.sa_fmin_h2o = defaultEcProjectState.spectraSettings.sa_fmin_h2o;
     ec_project_state_.spectraSettings.sa_fmin_ch4 = defaultEcProjectState.spectraSettings.sa_fmin_ch4;
-    ec_project_state_.spectraSettings.sa_fmin_gas4 = defaultEcProjectState.spectraSettings.sa_fmin_gas4;
+    ec_project_state_.spectraSettings.sa_fmin_other = defaultEcProjectState.spectraSettings.sa_fmin_other;
     ec_project_state_.spectraSettings.sa_fmax_co2 = defaultEcProjectState.spectraSettings.sa_fmax_co2;
     ec_project_state_.spectraSettings.sa_fmax_h2o = defaultEcProjectState.spectraSettings.sa_fmax_h2o;
     ec_project_state_.spectraSettings.sa_fmax_ch4 = defaultEcProjectState.spectraSettings.sa_fmax_ch4;
-    ec_project_state_.spectraSettings.sa_fmax_gas4 = defaultEcProjectState.spectraSettings.sa_fmax_gas4;
+    ec_project_state_.spectraSettings.sa_fmax_other = defaultEcProjectState.spectraSettings.sa_fmax_other;
     ec_project_state_.spectraSettings.sa_hfn_co2_fmin = defaultEcProjectState.spectraSettings.sa_hfn_co2_fmin;
     ec_project_state_.spectraSettings.sa_hfn_h2o_fmin = defaultEcProjectState.spectraSettings.sa_hfn_h2o_fmin;
     ec_project_state_.spectraSettings.sa_hfn_ch4_fmin = defaultEcProjectState.spectraSettings.sa_hfn_ch4_fmin;
-    ec_project_state_.spectraSettings.sa_hfn_gas4_fmin = defaultEcProjectState.spectraSettings.sa_hfn_gas4_fmin;
+    ec_project_state_.spectraSettings.sa_hfn_other_fmin = defaultEcProjectState.spectraSettings.sa_hfn_other_fmin;
     ec_project_state_.spectraSettings.add_sonic_lptf = defaultEcProjectState.spectraSettings.add_sonic_lptf;
     ec_project_state_.spectraSettings.sa_min_un_ustar = defaultEcProjectState.spectraSettings.sa_min_un_ustar;
     ec_project_state_.spectraSettings.sa_min_un_h = defaultEcProjectState.spectraSettings.sa_min_un_h;
     ec_project_state_.spectraSettings.sa_min_un_le = defaultEcProjectState.spectraSettings.sa_min_un_le;
     ec_project_state_.spectraSettings.sa_min_un_co2 = defaultEcProjectState.spectraSettings.sa_min_un_co2;
     ec_project_state_.spectraSettings.sa_min_un_ch4 = defaultEcProjectState.spectraSettings.sa_min_un_ch4;
-    ec_project_state_.spectraSettings.sa_min_un_gas4 = defaultEcProjectState.spectraSettings.sa_min_un_gas4;
+    ec_project_state_.spectraSettings.sa_min_un_other = defaultEcProjectState.spectraSettings.sa_min_un_other;
     ec_project_state_.spectraSettings.sa_min_st_ustar = defaultEcProjectState.spectraSettings.sa_min_st_ustar;
     ec_project_state_.spectraSettings.sa_min_st_h = defaultEcProjectState.spectraSettings.sa_min_st_h;
     ec_project_state_.spectraSettings.sa_min_st_le = defaultEcProjectState.spectraSettings.sa_min_st_le;
     ec_project_state_.spectraSettings.sa_min_st_co2 = defaultEcProjectState.spectraSettings.sa_min_st_co2;
     ec_project_state_.spectraSettings.sa_min_st_ch4 = defaultEcProjectState.spectraSettings.sa_min_st_ch4;
-    ec_project_state_.spectraSettings.sa_min_st_gas4 = defaultEcProjectState.spectraSettings.sa_min_st_gas4;
+    ec_project_state_.spectraSettings.sa_min_st_other = defaultEcProjectState.spectraSettings.sa_min_st_other;
     ec_project_state_.spectraSettings.sa_max_ustar = defaultEcProjectState.spectraSettings.sa_max_ustar;
     ec_project_state_.spectraSettings.sa_max_h = defaultEcProjectState.spectraSettings.sa_max_h;
     ec_project_state_.spectraSettings.sa_max_le = defaultEcProjectState.spectraSettings.sa_max_le;
     ec_project_state_.spectraSettings.sa_max_co2 = defaultEcProjectState.spectraSettings.sa_max_co2;
     ec_project_state_.spectraSettings.sa_max_ch4 = defaultEcProjectState.spectraSettings.sa_max_ch4;
-    ec_project_state_.spectraSettings.sa_max_gas4 = defaultEcProjectState.spectraSettings.sa_max_gas4;
+    ec_project_state_.spectraSettings.sa_max_other = defaultEcProjectState.spectraSettings.sa_max_other;
     ec_project_state_.spectraSettings.ex_file.clear();
     ec_project_state_.spectraSettings.sa_bin_spectra.clear();
     ec_project_state_.spectraSettings.sa_full_spectra.clear();
@@ -1244,6 +1281,25 @@ void EcProject::writeMeasurementRecords(QSettings& project_ini)
     const auto stale = project_ini.childKeys().filter(
         QRegularExpression(QStringLiteral("^(gas|cell|diag)_")));
     for (const auto& key : stale) { project_ini.remove(key); }
+
+    //> The retired legacy keys go too, not just the record keys. QSettings
+    //> preserves whatever it is not asked to overwrite, so an upgraded
+    //> project would otherwise keep col_co2 = 7 beside its records for ever
+    //> - the same orphan problem the record keys are cleared to avoid, and
+    //> confusing to anyone reading the file.
+    //>
+    //> col_air_t, col_air_p and col_ts are deliberately absent from this
+    //> list: they are still live keys.
+    for (const auto& retired : { EcIni::INI_PROJECT_18, EcIni::INI_PROJECT_19,
+                                 EcIni::INI_PROJECT_20, EcIni::INI_PROJECT_21,
+                                 EcIni::INI_PROJECT_22, EcIni::INI_PROJECT_23,
+                                 EcIni::INI_PROJECT_24, EcIni::INI_PROJECT_27,
+                                 EcIni::INI_PROJECT_28, EcIni::INI_PROJECT_29,
+                                 EcIni::INI_PROJECT_30, EcIni::INI_PROJECT_69,
+                                 EcIni::INI_PROJECT_31, EcIni::INI_PROJECT_32 })
+    {
+        project_ini.remove(retired);
+    }
 
     if (g.gasColumns.isEmpty() && g.cellColumns.isEmpty()
         && g.diagColumns.isEmpty())
@@ -1409,22 +1465,20 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_PROJECT_15, ec_project_state_.projectGeneral.binary_nbytes);
         project_ini.setValue(EcIni::INI_PROJECT_16, ec_project_state_.projectGeneral.binary_little_end);
         project_ini.setValue(EcIni::INI_PROJECT_17, ec_project_state_.projectGeneral.master_sonic);
-        project_ini.setValue(EcIni::INI_PROJECT_18, ec_project_state_.projectGeneral.col_co2);
-        project_ini.setValue(EcIni::INI_PROJECT_19, ec_project_state_.projectGeneral.col_h2o);
-        project_ini.setValue(EcIni::INI_PROJECT_20, ec_project_state_.projectGeneral.col_ch4);
-        project_ini.setValue(EcIni::INI_PROJECT_21, ec_project_state_.projectGeneral.col_gas4);
-        project_ini.setValue(EcIni::INI_PROJECT_22, ec_project_state_.projectGeneral.col_int_t_1);
-        project_ini.setValue(EcIni::INI_PROJECT_23, ec_project_state_.projectGeneral.col_int_t_2);
-        project_ini.setValue(EcIni::INI_PROJECT_24, ec_project_state_.projectGeneral.col_int_p);
+        //> col_co2 .. col_diag_anem, gas_mw and gas_diff are **not written any
+        //> more** - the records below carry all of it, and carry what those
+        //> keys never could: which analyser each column came from, and more
+        //> than one measurement of the same species.
+        //>
+        //> They are still *read*: migrateLegacyColumnsToRecords() needs them
+        //> to upgrade a file written before records existed. Reading without
+        //> writing is the whole shape of the retirement.
+        //>
+        //> col_air_t, col_air_p and col_ts stay - ambient temperature and
+        //> pressure and the sonic temperature are one per project, not one
+        //> per instrument, and are out of scope.
         project_ini.setValue(EcIni::INI_PROJECT_25, ec_project_state_.projectGeneral.col_air_t);
         project_ini.setValue(EcIni::INI_PROJECT_26, ec_project_state_.projectGeneral.col_air_p);
-        project_ini.setValue(EcIni::INI_PROJECT_27, ec_project_state_.projectGeneral.col_int_t_c);
-        project_ini.setValue(EcIni::INI_PROJECT_28, ec_project_state_.projectGeneral.col_diag_75);
-        project_ini.setValue(EcIni::INI_PROJECT_29, ec_project_state_.projectGeneral.col_diag_72);
-        project_ini.setValue(EcIni::INI_PROJECT_30, ec_project_state_.projectGeneral.col_diag_77);
-        project_ini.setValue(EcIni::INI_PROJECT_69, ec_project_state_.projectGeneral.col_diag_anem);
-        project_ini.setValue(EcIni::INI_PROJECT_31, QString::number(ec_project_state_.projectGeneral.gas_mw, 'f', 4));
-        project_ini.setValue(EcIni::INI_PROJECT_32, QString::number(ec_project_state_.projectGeneral.gas_diff, 'f', 5));
         project_ini.setValue(EcIni::INI_PROJECT_36, ec_project_state_.projectGeneral.col_ts);
         writeMeasurementRecords(project_ini);
         project_ini.setValue(EcIni::INI_PROJECT_39, ec_project_state_.projectGeneral.out_rich);
@@ -1479,21 +1533,6 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_2, ec_project_state_.spectraSettings.sa_mode);
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_3, QDir::fromNativeSeparators(ec_project_state_.spectraSettings.sa_file));
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_4, ec_project_state_.spectraSettings.sa_min_smpl);
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_5, QString::number(ec_project_state_.spectraSettings.sa_fmin_co2, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_6, QString::number(ec_project_state_.spectraSettings.sa_fmin_h2o, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_7, QString::number(ec_project_state_.spectraSettings.sa_fmin_ch4, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_8, QString::number(ec_project_state_.spectraSettings.sa_fmin_gas4, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_9, QString::number(ec_project_state_.spectraSettings.sa_fmax_co2, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_10, QString::number(ec_project_state_.spectraSettings.sa_fmax_h2o, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_11, QString::number(ec_project_state_.spectraSettings.sa_fmax_ch4, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_12, QString::number(ec_project_state_.spectraSettings.sa_fmax_gas4, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_13, QString::number(ec_project_state_.spectraSettings.sa_hfn_co2_fmin, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_14, QString::number(ec_project_state_.spectraSettings.sa_hfn_h2o_fmin, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_15, QString::number(ec_project_state_.spectraSettings.sa_hfn_ch4_fmin, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_16, QString::number(ec_project_state_.spectraSettings.sa_hfn_gas4_fmin, 'f', 4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_17, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_st_co2));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_18, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_st_ch4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_19, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_st_gas4));
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_20, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_st_le));
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_21, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_st_h));
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_22, ec_project_state_.spectraSettings.add_sonic_lptf);
@@ -1508,15 +1547,9 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_36, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_un_ustar));
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_37, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_un_h));
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_38, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_un_le));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_39, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_un_co2));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_40, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_un_ch4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_41, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_min_un_gas4));
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_42, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_max_ustar));
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_43, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_max_h));
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_44, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_max_le));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_45, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_max_co2));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_46, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_max_ch4));
-        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_47, formatSpectraQcMinimum(ec_project_state_.spectraSettings.sa_max_gas4));
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_48, ec_project_state_.spectraSettings.use_foken_low);
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_49, ec_project_state_.spectraSettings.use_foken_mid);
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_52, ec_project_state_.spectraSettings.flux_run_mode);
@@ -1529,6 +1562,57 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(QStringLiteral("sa_ch4_g1_stop"), 12);
         project_ini.setValue(QStringLiteral("sa_gas4_g1_start"), 1);
         project_ini.setValue(QStringLiteral("sa_gas4_g1_stop"), 12);
+
+        //> Per-gas spectral settings, for the gases the flat keys above
+        //> cannot reach. These are FCC SNTags and ReadIniFCC only sweeps
+        //> sections named FluxCorrection*, so they belong here rather than in
+        //> [Project] - the FCC counterpart of the RawProcess* rule.
+        //>
+        //> Written only where the record holds a real value: the engine
+        //> applies a record override whenever the tag is *present*, so
+        //> emitting a sentinel would replace the legacy setting with one.
+        {
+            const auto staleGas = project_ini.childKeys().filter(
+                QRegularExpression(QStringLiteral("^gas_\\d+_sa_")));
+            for (const auto& key : staleGas) { project_ini.remove(key); }
+
+            const auto& gases = ec_project_state_.projectGeneral.gasColumns;
+            for (int i = 0; i < gases.size(); ++i)
+            {
+                const auto p = QStringLiteral("gas_%1_sa_").arg(i + 1);
+                const auto& proc = gases.at(i).proc;
+                if (proc.saFmin >= 0.0)
+                {
+                    project_ini.setValue(p + QStringLiteral("fmin"),
+                                         QString::number(proc.saFmin, 'f', 4));
+                }
+                if (proc.saFmax >= 0.0)
+                {
+                    project_ini.setValue(p + QStringLiteral("fmax"),
+                                         QString::number(proc.saFmax, 'f', 4));
+                }
+                if (proc.saHfnFmin >= 0.0)
+                {
+                    project_ini.setValue(p + QStringLiteral("hfn_fmin"),
+                                         QString::number(proc.saHfnFmin, 'f', 4));
+                }
+                if (proc.saMinSt >= 0.0)
+                {
+                    project_ini.setValue(p + QStringLiteral("min_st"),
+                                         QString::number(proc.saMinSt, 'f', 6));
+                }
+                if (proc.saMinUn >= 0.0)
+                {
+                    project_ini.setValue(p + QStringLiteral("min_un"),
+                                         QString::number(proc.saMinUn, 'f', 6));
+                }
+                if (proc.saMax >= 0.0)
+                {
+                    project_ini.setValue(p + QStringLiteral("max"),
+                                         QString::number(proc.saMax, 'f', 6));
+                }
+            }
+        }
     project_ini.endGroup();
 
     // screen general section
@@ -1592,10 +1676,6 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_17, ec_project_state_.screenSetting.out_full_sp_v);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_18, ec_project_state_.screenSetting.out_full_sp_w);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_19, ec_project_state_.screenSetting.out_full_sp_ts);
-        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_20, ec_project_state_.screenSetting.out_full_sp_co2);
-        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_21, ec_project_state_.screenSetting.out_full_sp_h2o);
-        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_22, ec_project_state_.screenSetting.out_full_sp_ch4);
-        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_23, ec_project_state_.screenSetting.out_full_sp_gas4);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_24, ec_project_state_.screenSetting.out_st_1);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_25, ec_project_state_.screenSetting.out_st_2);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_26, ec_project_state_.screenSetting.out_st_3);
@@ -1614,19 +1694,11 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_90, ec_project_state_.screenSetting.out_raw_v);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_91, ec_project_state_.screenSetting.out_raw_w);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_92, ec_project_state_.screenSetting.out_raw_ts);
-        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_93, ec_project_state_.screenSetting.out_raw_co2);
-        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_94, ec_project_state_.screenSetting.out_raw_h2o);
-        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_95, ec_project_state_.screenSetting.out_raw_ch4);
-        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_96, ec_project_state_.screenSetting.out_raw_gas4);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_97, ec_project_state_.screenSetting.out_raw_tair);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_98, ec_project_state_.screenSetting.out_raw_pair);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_31, ec_project_state_.screenSetting.out_full_cosp_u);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_32, ec_project_state_.screenSetting.out_full_cosp_v);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_33, ec_project_state_.screenSetting.out_full_cosp_ts);
-        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_34, ec_project_state_.screenSetting.out_full_cosp_co2);
-        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_35, ec_project_state_.screenSetting.out_full_cosp_h2o);
-        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_36, ec_project_state_.screenSetting.out_full_cosp_ch4);
-        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_37, ec_project_state_.screenSetting.out_full_cosp_gas4);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_40, ec_project_state_.screenSetting.filter_sr);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_41, ec_project_state_.screenSetting.filter_al);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_44, ec_project_state_.screenSetting.bu_corr);
@@ -1669,6 +1741,40 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_81, QString::number(ec_project_state_.screenSetting.m_night_spar4, 'f', 8));
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_99, ec_project_state_.screenSetting.out_details);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_100, ec_project_state_.screenSetting.power_of_two);
+
+        //> Per-gas output selections, for the gases the flat keys above
+        //> cannot reach. These are SCTags, read by ReadIniRP, which only
+        //> sweeps sections named RawProcess* - so they belong here.
+        //>
+        //> Written only where the record carries a decision: the engine
+        //> applies a record override whenever the tag is *present*, so an
+        //> unset flag must be absent rather than written as 0.
+        {
+            const auto staleGas = project_ini.childKeys().filter(
+                QRegularExpression(QStringLiteral("^gas_\\d+_out_")));
+            for (const auto& key : staleGas) { project_ini.remove(key); }
+
+            const auto& gases = ec_project_state_.projectGeneral.gasColumns;
+            for (int i = 0; i < gases.size(); ++i)
+            {
+                const auto p = QStringLiteral("gas_%1_out_").arg(i + 1);
+                const auto& proc = gases.at(i).proc;
+                if (proc.outFullSp >= 0)
+                {
+                    project_ini.setValue(p + QStringLiteral("full_sp"),
+                                         proc.outFullSp);
+                }
+                if (proc.outFullCospW >= 0)
+                {
+                    project_ini.setValue(p + QStringLiteral("full_cosp_w"),
+                                         proc.outFullCospW);
+                }
+                if (proc.outRaw >= 0)
+                {
+                    project_ini.setValue(p + QStringLiteral("raw"), proc.outRaw);
+                }
+            }
+        }
     project_ini.endGroup();
 
     // screen test section
@@ -1689,10 +1795,6 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_0 , ec_project_state_.screenParam.sr_num_spk);
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_1 , QString::number(ec_project_state_.screenParam.sr_lim_u, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_45 , QString::number(ec_project_state_.screenParam.sr_lim_w, 'f', 1));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_46 , QString::number(ec_project_state_.screenParam.sr_lim_co2, 'f', 1));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_47 , QString::number(ec_project_state_.screenParam.sr_lim_h2o, 'f', 1));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_48 , QString::number(ec_project_state_.screenParam.sr_lim_ch4, 'f', 1));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_49 , QString::number(ec_project_state_.screenParam.sr_lim_gas4, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_2 , QString::number(ec_project_state_.screenParam.sr_lim_hf, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_3 , QString::number(ec_project_state_.screenParam.ar_lim, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_4 , ec_project_state_.screenParam.ar_bins);
@@ -1704,14 +1806,6 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_10, QString::number(ec_project_state_.screenParam.al_w_max, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_11, QString::number(ec_project_state_.screenParam.al_tson_min, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_12, QString::number(ec_project_state_.screenParam.al_tson_max, 'f', 1));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_13, QString::number(ec_project_state_.screenParam.al_co2_min, 'f', 3));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_14, QString::number(ec_project_state_.screenParam.al_co2_max, 'f', 3));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_15, QString::number(ec_project_state_.screenParam.al_h2o_min, 'f', 3));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_16, QString::number(ec_project_state_.screenParam.al_h2o_max, 'f', 3));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_54, QString::number(ec_project_state_.screenParam.al_ch4_min, 'f', 3));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_55, QString::number(ec_project_state_.screenParam.al_ch4_max, 'f', 3));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_56, QString::number(ec_project_state_.screenParam.al_gas4_min, 'f', 3));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_57, QString::number(ec_project_state_.screenParam.al_gas4_max, 'f', 3));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_17, QString::number(ec_project_state_.screenParam.sk_hf_skmin, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_18, QString::number(ec_project_state_.screenParam.sk_hf_skmax, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_19, QString::number(ec_project_state_.screenParam.sk_sf_skmin, 'f', 1));
@@ -1723,30 +1817,67 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_25, QString::number(ec_project_state_.screenParam.ds_hf_uv, 'f', 2));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_26, QString::number(ec_project_state_.screenParam.ds_hf_w, 'f', 2));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_27, QString::number(ec_project_state_.screenParam.ds_hf_t, 'f', 2));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_28, QString::number(ec_project_state_.screenParam.ds_hf_co2, 'f', 2));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_29, QString::number(ec_project_state_.screenParam.ds_hf_h2o, 'f', 2));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_50, QString::number(ec_project_state_.screenParam.ds_hf_ch4, 'f', 2));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_51, QString::number(ec_project_state_.screenParam.ds_hf_gas4, 'f', 2));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_30, QString::number(ec_project_state_.screenParam.ds_hf_var, 'f', 2));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_31, QString::number(ec_project_state_.screenParam.ds_sf_uv, 'f', 2));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_32, QString::number(ec_project_state_.screenParam.ds_sf_w, 'f', 2));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_33, QString::number(ec_project_state_.screenParam.ds_sf_t, 'f', 2));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_34, QString::number(ec_project_state_.screenParam.ds_sf_co2, 'f', 2));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_35, QString::number(ec_project_state_.screenParam.ds_sf_h2o, 'f', 2));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_52, QString::number(ec_project_state_.screenParam.ds_sf_ch4, 'f', 2));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_53, QString::number(ec_project_state_.screenParam.ds_sf_gas4, 'f', 2));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_36, QString::number(ec_project_state_.screenParam.ds_sf_var, 'f', 2));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_60, ec_project_state_.screenParam.despike_vm);
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_37, QString::number(ec_project_state_.screenParam.tl_hf_lim, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_38, QString::number(ec_project_state_.screenParam.tl_sf_lim, 'f', 1));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_39, QString::number(ec_project_state_.screenParam.tl_def_co2, 'f', 1));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_40, QString::number(ec_project_state_.screenParam.tl_def_h2o, 'f', 1));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_58, QString::number(ec_project_state_.screenParam.tl_def_ch4, 'f', 1));
-        project_ini.setValue(EcIni::INI_SCREEN_PARAM_59, QString::number(ec_project_state_.screenParam.tl_def_gas4, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_41, QString::number(ec_project_state_.screenParam.aa_min, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_42, QString::number(ec_project_state_.screenParam.aa_max, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_43, QString::number(ec_project_state_.screenParam.aa_lim, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_44, QString::number(ec_project_state_.screenParam.ns_hf_lim, 'f', 1));
+        //> Per-gas screening thresholds, for the gases the flat keys above
+        //> cannot reach. These are SNTags and ReadIniRP only sweeps sections
+        //> named RawProcess*, so they belong here rather than in [Project].
+        //>
+        //> Written only where the record holds a real value: the engine
+        //> applies a record override whenever the tag is *present*, so
+        //> emitting a sentinel would replace the legacy threshold with one.
+        {
+            const auto staleGas = project_ini.childKeys().filter(
+                QRegularExpression(QStringLiteral("^gas_\\d+_")));
+            for (const auto& key : staleGas) { project_ini.remove(key); }
+
+            const auto& gases = ec_project_state_.projectGeneral.gasColumns;
+            for (int i = 0; i < gases.size(); ++i)
+            {
+                const auto p = QStringLiteral("gas_%1_").arg(i + 1);
+                const auto& proc = gases.at(i).proc;
+                if (proc.srLim >= 0.0)
+                {
+                    project_ini.setValue(p + QStringLiteral("sr_lim"),
+                                         QString::number(proc.srLim, 'f', 1));
+                }
+                if (proc.alMin >= 0.0)
+                {
+                    project_ini.setValue(p + QStringLiteral("al_min"),
+                                         QString::number(proc.alMin, 'f', 3));
+                }
+                if (proc.alMax >= 0.0)
+                {
+                    project_ini.setValue(p + QStringLiteral("al_max"),
+                                         QString::number(proc.alMax, 'f', 3));
+                }
+                if (proc.dsHf >= 0.0)
+                {
+                    project_ini.setValue(p + QStringLiteral("ds_hf"),
+                                         QString::number(proc.dsHf, 'f', 2));
+                }
+                if (proc.dsSf >= 0.0)
+                {
+                    project_ini.setValue(p + QStringLiteral("ds_sf"),
+                                         QString::number(proc.dsSf, 'f', 2));
+                }
+                if (proc.tlDef >= 0.0)
+                {
+                    project_ini.setValue(p + QStringLiteral("tl_def"),
+                                         QString::number(proc.tlDef, 'f', 1));
+                }
+            }
+        }
     project_ini.endGroup();
 
     // planar fit section
@@ -1793,19 +1924,8 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_TIMELAG_OPT_2, ec_project_state_.timelagOpt.mode);
         project_ini.setValue(EcIni::INI_TIMELAG_OPT_3, QDir::fromNativeSeparators(ec_project_state_.timelagOpt.file));
         project_ini.setValue(EcIni::INI_TIMELAG_OPT_17, ec_project_state_.timelagOpt.to_h2o_nclass);
-        project_ini.setValue(EcIni::INI_TIMELAG_OPT_4, QString::number(ec_project_state_.timelagOpt.co2_min_flux, 'f', 3));
-        project_ini.setValue(EcIni::INI_TIMELAG_OPT_5, QString::number(ec_project_state_.timelagOpt.ch4_min_flux, 'f', 3));
-        project_ini.setValue(EcIni::INI_TIMELAG_OPT_6, QString::number(ec_project_state_.timelagOpt.gas4_min_flux, 'f', 3));
         project_ini.setValue(EcIni::INI_TIMELAG_OPT_7, QString::number(ec_project_state_.timelagOpt.le_min_flux, 'f', 1));
         project_ini.setValue(EcIni::INI_TIMELAG_OPT_8, QString::number(ec_project_state_.timelagOpt.pg_range, 'f', 1));
-        project_ini.setValue(EcIni::INI_TIMELAG_OPT_9, QString::number(ec_project_state_.timelagOpt.co2_min_lag, 'f', 1));
-        project_ini.setValue(EcIni::INI_TIMELAG_OPT_10, QString::number(ec_project_state_.timelagOpt.co2_max_lag, 'f', 1));
-        project_ini.setValue(EcIni::INI_TIMELAG_OPT_11, QString::number(ec_project_state_.timelagOpt.h2o_min_lag, 'f', 1));
-        project_ini.setValue(EcIni::INI_TIMELAG_OPT_12, QString::number(ec_project_state_.timelagOpt.h2o_max_lag, 'f', 1));
-        project_ini.setValue(EcIni::INI_TIMELAG_OPT_13, QString::number(ec_project_state_.timelagOpt.ch4_min_lag, 'f', 1));
-        project_ini.setValue(EcIni::INI_TIMELAG_OPT_14, QString::number(ec_project_state_.timelagOpt.ch4_max_lag, 'f', 1));
-        project_ini.setValue(EcIni::INI_TIMELAG_OPT_15, QString::number(ec_project_state_.timelagOpt.gas4_min_lag, 'f', 1));
-        project_ini.setValue(EcIni::INI_TIMELAG_OPT_16, QString::number(ec_project_state_.timelagOpt.gas4_max_lag, 'f', 1));
         //> Per-gas search windows, for gases the four flat keys cannot reach.
         //> These are SNTags, and ReadIniRP only sweeps RawProcess* sections,
         //> so they belong here rather than in [Project].
@@ -1815,7 +1935,7 @@ bool EcProject::saveEcProject(const QString &filename)
         //> would replace the legacy window with nonsense.
         {
             const auto staleTo = project_ini.childKeys().filter(
-                QRegularExpression(QStringLiteral("^gas_\d+_to_")));
+                QRegularExpression(QStringLiteral("^gas_\\d+_to_")));
             for (const auto& key : staleTo) { project_ini.remove(key); }
 
             const auto& gases = ec_project_state_.projectGeneral.gasColumns;
@@ -1846,14 +1966,6 @@ bool EcProject::saveEcProject(const QString &filename)
 
     // PWB timelag section
     project_ini.beginGroup(EcIni::INIGROUP_PWB_TIMELAG);
-        project_ini.setValue(EcIni::INI_PWB_TIMELAG_0, QString::number(ec_project_state_.pwbTimelag.co2_min_lag, 'f', 1));
-        project_ini.setValue(EcIni::INI_PWB_TIMELAG_1, QString::number(ec_project_state_.pwbTimelag.co2_max_lag, 'f', 1));
-        project_ini.setValue(EcIni::INI_PWB_TIMELAG_2, QString::number(ec_project_state_.pwbTimelag.h2o_min_lag, 'f', 1));
-        project_ini.setValue(EcIni::INI_PWB_TIMELAG_3, QString::number(ec_project_state_.pwbTimelag.h2o_max_lag, 'f', 1));
-        project_ini.setValue(EcIni::INI_PWB_TIMELAG_4, QString::number(ec_project_state_.pwbTimelag.ch4_min_lag, 'f', 1));
-        project_ini.setValue(EcIni::INI_PWB_TIMELAG_5, QString::number(ec_project_state_.pwbTimelag.ch4_max_lag, 'f', 1));
-        project_ini.setValue(EcIni::INI_PWB_TIMELAG_6, QString::number(ec_project_state_.pwbTimelag.gas4_min_lag, 'f', 1));
-        project_ini.setValue(EcIni::INI_PWB_TIMELAG_7, QString::number(ec_project_state_.pwbTimelag.gas4_max_lag, 'f', 1));
         //> Per-gas search windows, for gases the four flat keys above cannot
         //> reach. These are SNTags read by ReadIniRP, which only sweeps
         //> sections named RawProcess*, so they belong here and not in
@@ -1864,7 +1976,7 @@ bool EcProject::saveEcProject(const QString &filename)
         //> sentinel would override the legacy window with nonsense.
         {
             const auto stalePwb = project_ini.childKeys().filter(
-                QRegularExpression(QStringLiteral("^gas_\d+_pwb_")));
+                QRegularExpression(QStringLiteral("^gas_\\d+_pwb_")));
             for (const auto& key : stalePwb) { project_ini.remove(key); }
 
             const auto& gases = ec_project_state_.projectGeneral.gasColumns;
@@ -2130,9 +2242,14 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         // Records if the file has them, otherwise built from the col_* fields
         // read just above. Reading them here, after those fields, is what lets
         // the migration work off values rather than re-reading the file.
+        //> A file with no gas_num predates the record format. Build the
+        //> records from the legacy col_* ints and mark the project as
+        //> upgraded: it is saved back in the new format, and from then on
+        //> nothing but this branch needs to understand the old shape.
         if (!readMeasurementRecords(project_ini))
         {
             migrateLegacyColumnsToRecords();
+            wasUpgradedOnLoad_ = true;
         }
         ec_project_state_.projectGeneral.gas_mw
                 = project_ini.value(EcIni::INI_PROJECT_31,
@@ -2328,9 +2445,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.spectraSettings.sa_fmin_ch4
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_7,
                                     defaultEcProjectState.spectraSettings.sa_fmin_ch4).toDouble();
-        ec_project_state_.spectraSettings.sa_fmin_gas4
+        ec_project_state_.spectraSettings.sa_fmin_other
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_8,
-                                    defaultEcProjectState.spectraSettings.sa_fmin_gas4).toDouble();
+                                    defaultEcProjectState.spectraSettings.sa_fmin_other).toDouble();
         ec_project_state_.spectraSettings.sa_fmax_co2
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_9,
                                     defaultEcProjectState.spectraSettings.sa_fmax_co2).toDouble();
@@ -2340,9 +2457,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.spectraSettings.sa_fmax_ch4
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_11,
                                     defaultEcProjectState.spectraSettings.sa_fmax_ch4).toDouble();
-        ec_project_state_.spectraSettings.sa_fmax_gas4
+        ec_project_state_.spectraSettings.sa_fmax_other
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_12,
-                                    defaultEcProjectState.spectraSettings.sa_fmax_gas4).toDouble();
+                                    defaultEcProjectState.spectraSettings.sa_fmax_other).toDouble();
         ec_project_state_.spectraSettings.sa_hfn_co2_fmin
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_13,
                                     defaultEcProjectState.spectraSettings.sa_hfn_co2_fmin).toDouble();
@@ -2352,9 +2469,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.spectraSettings.sa_hfn_ch4_fmin
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_15,
                                     defaultEcProjectState.spectraSettings.sa_hfn_ch4_fmin).toDouble();
-        ec_project_state_.spectraSettings.sa_hfn_gas4_fmin
+        ec_project_state_.spectraSettings.sa_hfn_other_fmin
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_16,
-                                    defaultEcProjectState.spectraSettings.sa_hfn_gas4_fmin).toDouble();
+                                    defaultEcProjectState.spectraSettings.sa_hfn_other_fmin).toDouble();
         ec_project_state_.spectraSettings.sa_min_un_ustar
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_36,
                                     defaultEcProjectState.spectraSettings.sa_min_un_ustar).toDouble();
@@ -2370,9 +2487,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.spectraSettings.sa_min_un_ch4
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_40,
                                     defaultEcProjectState.spectraSettings.sa_min_un_ch4).toDouble();
-        ec_project_state_.spectraSettings.sa_min_un_gas4
+        ec_project_state_.spectraSettings.sa_min_un_other
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_41,
-                                    defaultEcProjectState.spectraSettings.sa_min_un_gas4).toDouble();
+                                    defaultEcProjectState.spectraSettings.sa_min_un_other).toDouble();
         ec_project_state_.spectraSettings.sa_min_st_ustar
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_35,
                                     defaultEcProjectState.spectraSettings.sa_min_st_ustar).toDouble();
@@ -2388,9 +2505,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.spectraSettings.sa_min_st_ch4
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_18,
                                     defaultEcProjectState.spectraSettings.sa_min_st_ch4).toDouble();
-        ec_project_state_.spectraSettings.sa_min_st_gas4
+        ec_project_state_.spectraSettings.sa_min_st_other
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_19,
-                                    defaultEcProjectState.spectraSettings.sa_min_st_gas4).toDouble();
+                                    defaultEcProjectState.spectraSettings.sa_min_st_other).toDouble();
         ec_project_state_.spectraSettings.sa_max_ustar
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_42,
                                     defaultEcProjectState.spectraSettings.sa_max_ustar).toDouble();
@@ -2406,9 +2523,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.spectraSettings.sa_max_ch4
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_46,
                                     defaultEcProjectState.spectraSettings.sa_max_ch4).toDouble();
-        ec_project_state_.spectraSettings.sa_max_gas4
+        ec_project_state_.spectraSettings.sa_max_other
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_47,
-                                    defaultEcProjectState.spectraSettings.sa_max_gas4).toDouble();
+                                    defaultEcProjectState.spectraSettings.sa_max_other).toDouble();
         ec_project_state_.spectraSettings.add_sonic_lptf
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_22,
                                     defaultEcProjectState.spectraSettings.add_sonic_lptf).toInt();
@@ -2445,6 +2562,27 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.spectraSettings.automatic_spectra_config
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_53,
                                     defaultEcProjectState.spectraSettings.automatic_spectra_config).toInt();
+
+        //> Per-gas spectral settings. Read after the gas records exist, so the
+        //> loop can address them; an absent key leaves the record's sentinel
+        //> in place and the page falls back to the flat value.
+        for (int i = 0; i < ec_project_state_.projectGeneral.gasColumns.size(); ++i)
+        {
+            const auto p = QStringLiteral("gas_%1_sa_").arg(i + 1);
+            auto& proc = ec_project_state_.projectGeneral.gasColumns[i].proc;
+
+            const auto readInto = [&](const QString& key, qreal& target)
+            {
+                const auto value = project_ini.value(p + key).toString();
+                if (!value.isEmpty()) { target = value.toDouble(); }
+            };
+            readInto(QStringLiteral("fmin"), proc.saFmin);
+            readInto(QStringLiteral("fmax"), proc.saFmax);
+            readInto(QStringLiteral("hfn_fmin"), proc.saHfnFmin);
+            readInto(QStringLiteral("min_st"), proc.saMinSt);
+            readInto(QStringLiteral("min_un"), proc.saMinUn);
+            readInto(QStringLiteral("max"), proc.saMax);
+        }
     project_ini.endGroup();
 
     // preproc general section
@@ -2851,6 +2989,24 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenSetting.power_of_two
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_100,
                                     defaultEcProjectState.screenSetting.power_of_two).toInt();
+
+        //> Per-gas output selections. Read after the gas records exist, so the
+        //> loop can address them; an absent key leaves the record's -1 in
+        //> place and the page falls back to the flat value.
+        for (int i = 0; i < ec_project_state_.projectGeneral.gasColumns.size(); ++i)
+        {
+            const auto p = QStringLiteral("gas_%1_out_").arg(i + 1);
+            auto& proc = ec_project_state_.projectGeneral.gasColumns[i].proc;
+
+            const auto readInto = [&](const QString& key, int& target)
+            {
+                const auto value = project_ini.value(p + key).toString();
+                if (!value.isEmpty()) { target = value.toInt(); }
+            };
+            readInto(QStringLiteral("full_sp"), proc.outFullSp);
+            readInto(QStringLiteral("full_cosp_w"), proc.outFullCospW);
+            readInto(QStringLiteral("raw"), proc.outRaw);
+        }
     project_ini.endGroup();
 
     // preproc test section
@@ -2904,10 +3060,10 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenParam.sr_lim_ch4
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_48,
                                     defaultEcProjectState.screenParam.sr_lim_ch4).toDouble();
-        ec_project_state_.screenParam.sr_lim_gas4
+        ec_project_state_.screenParam.sr_lim_other
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_49,
                                     project_ini.value(QStringLiteral("sr_lim_n2o"),
-                                    defaultEcProjectState.screenParam.sr_lim_gas4)).toDouble();
+                                    defaultEcProjectState.screenParam.sr_lim_other)).toDouble();
         ec_project_state_.screenParam.sr_lim_hf
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_2,
                                     defaultEcProjectState.screenParam.sr_lim_hf).toDouble();
@@ -2959,14 +3115,14 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenParam.al_ch4_max
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_55,
                                     defaultEcProjectState.screenParam.al_ch4_max).toDouble();
-        ec_project_state_.screenParam.al_gas4_min
+        ec_project_state_.screenParam.al_other_min
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_56,
                                     project_ini.value(QStringLiteral("al_n2o_min"),
-                                    defaultEcProjectState.screenParam.al_gas4_min)).toDouble();
-        ec_project_state_.screenParam.al_gas4_max
+                                    defaultEcProjectState.screenParam.al_other_min)).toDouble();
+        ec_project_state_.screenParam.al_other_max
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_57,
                                     project_ini.value(QStringLiteral("al_n2o_max"),
-                                    defaultEcProjectState.screenParam.al_gas4_max)).toDouble();
+                                    defaultEcProjectState.screenParam.al_other_max)).toDouble();
         ec_project_state_.screenParam.sk_hf_skmin
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_17,
                                     defaultEcProjectState.screenParam.sk_hf_skmin).toDouble();
@@ -3009,10 +3165,10 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenParam.ds_hf_ch4
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_50,
                                     defaultEcProjectState.screenParam.ds_hf_ch4).toDouble();
-        ec_project_state_.screenParam.ds_hf_gas4
+        ec_project_state_.screenParam.ds_hf_other
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_51,
                                     project_ini.value(QStringLiteral("ds_hf_n2o"),
-                                    defaultEcProjectState.screenParam.ds_hf_gas4)).toDouble();
+                                    defaultEcProjectState.screenParam.ds_hf_other)).toDouble();
         ec_project_state_.screenParam.ds_hf_var
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_30,
                                     defaultEcProjectState.screenParam.ds_hf_var).toDouble();
@@ -3034,10 +3190,10 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenParam.ds_sf_ch4
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_52,
                                     defaultEcProjectState.screenParam.ds_sf_ch4).toDouble();
-        ec_project_state_.screenParam.ds_sf_gas4
+        ec_project_state_.screenParam.ds_sf_other
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_53,
                                     project_ini.value(QStringLiteral("ds_sf_n2o"),
-                                    defaultEcProjectState.screenParam.ds_sf_gas4)).toDouble();
+                                    defaultEcProjectState.screenParam.ds_sf_other)).toDouble();
         ec_project_state_.screenParam.ds_sf_var
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_36,
                                     defaultEcProjectState.screenParam.ds_sf_var).toDouble();
@@ -3059,10 +3215,10 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenParam.tl_def_ch4
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_58,
                                     defaultEcProjectState.screenParam.tl_def_ch4).toDouble();
-        ec_project_state_.screenParam.tl_def_gas4
+        ec_project_state_.screenParam.tl_def_other
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_59,
                                     project_ini.value(QStringLiteral("tl_def_n2o"),
-                                    defaultEcProjectState.screenParam.tl_def_gas4)).toDouble();
+                                    defaultEcProjectState.screenParam.tl_def_other)).toDouble();
         ec_project_state_.screenParam.aa_min
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_41,
                                     defaultEcProjectState.screenParam.aa_min).toDouble();
@@ -3075,6 +3231,27 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenParam.ns_hf_lim
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_44,
                                     defaultEcProjectState.screenParam.ns_hf_lim).toDouble();
+
+        //> Per-gas screening thresholds. Read after the gas records exist, so
+        //> the loop can address them; an absent key leaves the record's
+        //> sentinel in place and the page falls back to the flat value.
+        for (int i = 0; i < ec_project_state_.projectGeneral.gasColumns.size(); ++i)
+        {
+            const auto p = QStringLiteral("gas_%1_").arg(i + 1);
+            auto& proc = ec_project_state_.projectGeneral.gasColumns[i].proc;
+
+            const auto readInto = [&](const QString& key, qreal& target)
+            {
+                const auto value = project_ini.value(p + key).toString();
+                if (!value.isEmpty()) { target = value.toDouble(); }
+            };
+            readInto(QStringLiteral("sr_lim"), proc.srLim);
+            readInto(QStringLiteral("al_min"), proc.alMin);
+            readInto(QStringLiteral("al_max"), proc.alMax);
+            readInto(QStringLiteral("ds_hf"), proc.dsHf);
+            readInto(QStringLiteral("ds_sf"), proc.dsSf);
+            readInto(QStringLiteral("tl_def"), proc.tlDef);
+        }
     project_ini.endGroup();
 
     // planar fit section
@@ -3389,7 +3566,134 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
     if (!isVersionCompatible)
         *modified = true;
 
+    //> An upgraded project must be saved back, or the next run still reads
+    //> the legacy shape - which nothing writes any more.
+    if (wasUpgradedOnLoad_)
+    {
+        //> Only possible here: the per-gas settings live in five sections
+        //> that are read long after the records are built.
+        migrateLegacyGasSettings();
+        *modified = true;
+    }
+
     return true;
+}
+
+/// Carry the legacy per-gas processing settings onto the records.
+///
+/// migrateLegacyColumnsToRecords() runs while the [Project] group is being
+/// read and can only see the columns; the 19 per-gas settings live in five
+/// later sections, so this has to run once the whole file is in. It is called
+/// at the end of loadEcProject for an upgraded project.
+///
+/// **Without this, retiring the flat keys silently resets every upgraded
+/// project's thresholds to the built-in defaults** - the record would carry
+/// its -1 sentinel and the pages, having lost the flat fallback, would fall
+/// through to the species default. The numbers would look plausible and be
+/// wrong.
+///
+/// Records 0..3 are the historical CO2/H2O/CH4/4th-gas slots, which is what
+/// makes the mapping possible at all.
+void EcProject::migrateLegacyGasSettings()
+{
+    auto& gases = ec_project_state_.projectGeneral.gasColumns;
+    if (gases.size() < 4) { return; }
+
+    const auto& sp = ec_project_state_.screenParam;
+    const auto& sa = ec_project_state_.spectraSettings;
+    const auto& to = ec_project_state_.timelagOpt;
+    const auto& pw = ec_project_state_.pwbTimelag;
+    const auto& os = ec_project_state_.screenSetting;
+
+    const auto put = [](qreal& target, qreal value)
+    {
+        if (target < 0.0) { target = value; }
+    };
+    const auto putFlag = [](int& target, int value)
+    {
+        if (target < 0) { target = value; }
+    };
+
+    //> Spike, absolute-limit, discontinuity and nominal-lag thresholds.
+    const qreal srLim[4]  = { sp.sr_lim_co2, sp.sr_lim_h2o, sp.sr_lim_ch4, sp.sr_lim_other };
+    const qreal alMin[4]  = { sp.al_co2_min, sp.al_h2o_min, sp.al_ch4_min, sp.al_other_min };
+    const qreal alMax[4]  = { sp.al_co2_max, sp.al_h2o_max, sp.al_ch4_max, sp.al_other_max };
+    const qreal dsHf[4]   = { sp.ds_hf_co2, sp.ds_hf_h2o, sp.ds_hf_ch4, sp.ds_hf_other };
+    const qreal dsSf[4]   = { sp.ds_sf_co2, sp.ds_sf_h2o, sp.ds_sf_ch4, sp.ds_sf_other };
+    const qreal tlDef[4]  = { sp.tl_def_co2, sp.tl_def_h2o, sp.tl_def_ch4, sp.tl_def_other };
+
+    //> Spectral windows. The noise frequency is spelled sa_hfn_<gas>_fmin.
+    const qreal saFmin[4] = { sa.sa_fmin_co2, sa.sa_fmin_h2o, sa.sa_fmin_ch4, sa.sa_fmin_other };
+    const qreal saFmax[4] = { sa.sa_fmax_co2, sa.sa_fmax_h2o, sa.sa_fmax_ch4, sa.sa_fmax_other };
+    const qreal saHfn[4]  = { sa.sa_hfn_co2_fmin, sa.sa_hfn_h2o_fmin,
+                              sa.sa_hfn_ch4_fmin, sa.sa_hfn_other_fmin };
+
+    //> Time-lag windows, both optimiser and PWB.
+    const qreal toMinLag[4] = { to.co2_min_lag, to.h2o_min_lag, to.ch4_min_lag, to.gas4_min_lag };
+    const qreal toMaxLag[4] = { to.co2_max_lag, to.h2o_max_lag, to.ch4_max_lag, to.gas4_max_lag };
+    const qreal pwMinLag[4] = { pw.co2_min_lag, pw.h2o_min_lag, pw.ch4_min_lag, pw.gas4_min_lag };
+    const qreal pwMaxLag[4] = { pw.co2_max_lag, pw.h2o_max_lag, pw.ch4_max_lag, pw.gas4_max_lag };
+
+    //> Output selections.
+    const int outSp[4]   = { os.out_full_sp_co2, os.out_full_sp_h2o,
+                             os.out_full_sp_ch4, os.out_full_sp_gas4 };
+    const int outCosp[4] = { os.out_full_cosp_co2, os.out_full_cosp_h2o,
+                             os.out_full_cosp_ch4, os.out_full_cosp_gas4 };
+    const int outRaw[4]  = { os.out_raw_co2, os.out_raw_h2o,
+                             os.out_raw_ch4, os.out_raw_gas4 };
+
+    for (int i = 0; i < 4; ++i)
+    {
+        auto& proc = gases[i].proc;
+        put(proc.srLim, srLim[i]);
+        put(proc.alMin, alMin[i]);
+        put(proc.alMax, alMax[i]);
+        put(proc.dsHf, dsHf[i]);
+        put(proc.dsSf, dsSf[i]);
+        put(proc.tlDef, tlDef[i]);
+        put(proc.saFmin, saFmin[i]);
+        put(proc.saFmax, saFmax[i]);
+        put(proc.saHfnFmin, saHfn[i]);
+        put(proc.toMinLag, toMinLag[i]);
+        put(proc.toMaxLag, toMaxLag[i]);
+        put(proc.pwbMinLag, pwMinLag[i]);
+        put(proc.pwbMaxLag, pwMaxLag[i]);
+        putFlag(proc.outFullSp, outSp[i]);
+        putFlag(proc.outFullCospW, outCosp[i]);
+        putFlag(proc.outRaw, outRaw[i]);
+    }
+
+    //> H2O is the exception in three places, and getting it wrong would move
+    //> a latent-heat threshold onto a gas. Its minimum-flux counterpart is
+    //> le_min_flux and its spectral QA/QC thresholds are the LE triple -
+    //> neither is a per-gas quantity, so slot 1 takes none of them.
+    const qreal toMinFlux[4] = { to.co2_min_flux, -1.0, to.ch4_min_flux, to.gas4_min_flux };
+    const qreal saMinUn[4]   = { sa.sa_min_un_co2, -1.0, sa.sa_min_un_ch4, sa.sa_min_un_other };
+    const qreal saMinSt[4]   = { sa.sa_min_st_co2, -1.0, sa.sa_min_st_ch4, sa.sa_min_st_other };
+    const qreal saMax[4]     = { sa.sa_max_co2, -1.0, sa.sa_max_ch4, sa.sa_max_other };
+
+    for (int i = 0; i < 4; ++i)
+    {
+        if (i == 1) { continue; }
+        auto& proc = gases[i].proc;
+        put(proc.toMinFlux, toMinFlux[i]);
+        put(proc.saMinUn, saMinUn[i]);
+        put(proc.saMinSt, saMinSt[i]);
+        put(proc.saMax, saMax[i]);
+    }
+}
+
+/// Whether the project just loaded was written in the pre-record format and
+/// had to be migrated. The interface uses this to tell the user once, and to
+/// resolve the fourth slot's species from the metadata before the first save.
+bool EcProject::wasUpgradedOnLoad() const
+{
+    return wasUpgradedOnLoad_;
+}
+
+void EcProject::clearUpgradedOnLoad()
+{
+    wasUpgradedOnLoad_ = false;
 }
 
 bool EcProject::nativeFormat(const QString &filename)
@@ -3583,7 +3887,7 @@ void EcProject::setSpectraFminCh4(double d)
 
 void EcProject::setSpectraFminGas4(double d)
 {
-    ec_project_state_.spectraSettings.sa_fmin_gas4 = d;
+    ec_project_state_.spectraSettings.sa_fmin_other = d;
     setModified(true);
 }
 
@@ -3607,7 +3911,7 @@ void EcProject::setSpectraFmaxCh4(double d)
 
 void EcProject::setSpectraFmaxGas4(double d)
 {
-    ec_project_state_.spectraSettings.sa_fmax_gas4 = d;
+    ec_project_state_.spectraSettings.sa_fmax_other = d;
     setModified(true);
 }
 
@@ -3631,7 +3935,7 @@ void EcProject::setSpectraHfnCh4(double d)
 
 void EcProject::setSpectraHfnGas4(double d)
 {
-    ec_project_state_.spectraSettings.sa_hfn_gas4_fmin = d;
+    ec_project_state_.spectraSettings.sa_hfn_other_fmin = d;
     setModified(true);
 }
 
@@ -3667,7 +3971,7 @@ void EcProject::setSpectraMinUnstableCh4(double d)
 
 void EcProject::setSpectraMinUnstableGas4(double d)
 {
-    ec_project_state_.spectraSettings.sa_min_un_gas4 = d;
+    ec_project_state_.spectraSettings.sa_min_un_other = d;
     setModified(true);
 }
 
@@ -3703,7 +4007,7 @@ void EcProject::setSpectraMinStableCh4(double d)
 
 void EcProject::setSpectraMinStableGas4(double d)
 {
-    ec_project_state_.spectraSettings.sa_min_st_gas4 = d;
+    ec_project_state_.spectraSettings.sa_min_st_other = d;
     setModified(true);
 }
 
@@ -3739,7 +4043,7 @@ void EcProject::setSpectraMaxCh4(double d)
 
 void EcProject::setSpectraMaxGas4(double d)
 {
-    ec_project_state_.spectraSettings.sa_max_gas4 = d;
+    ec_project_state_.spectraSettings.sa_max_other = d;
     setModified(true);
 }
 
@@ -4609,7 +4913,7 @@ void EcProject::setScreenParamSrCh4Lim(double n)
 
 void EcProject::setScreenParamSrGas4Lim(double n)
 {
-    ec_project_state_.screenParam.sr_lim_gas4 = n;
+    ec_project_state_.screenParam.sr_lim_other = n;
     setModified(true);
 }
 
@@ -4711,13 +5015,13 @@ void EcProject::setScreenParamAlCh4Max(double n)
 
 void EcProject::setScreenParamAlGas4Min(double n)
 {
-    ec_project_state_.screenParam.al_gas4_min = n;
+    ec_project_state_.screenParam.al_other_min = n;
     setModified(true);
 }
 
 void EcProject::setScreenParamAlGas4Max(double n)
 {
-    ec_project_state_.screenParam.al_gas4_max = n;
+    ec_project_state_.screenParam.al_other_max = n;
     setModified(true);
 }
 
@@ -4807,7 +5111,7 @@ void EcProject::setScreenParamDsHfCh4(double n)
 
 void EcProject::setScreenParamDsHfGas4(double n)
 {
-    ec_project_state_.screenParam.ds_hf_gas4 = n;
+    ec_project_state_.screenParam.ds_hf_other = n;
     setModified(true);
 }
 
@@ -4861,7 +5165,7 @@ void EcProject::setScreenParamDsSfCh4(double n)
 
 void EcProject::setScreenParamDsSfGas4(double n)
 {
-    ec_project_state_.screenParam.ds_sf_gas4 = n;
+    ec_project_state_.screenParam.ds_sf_other = n;
     setModified(true);
 }
 
@@ -4903,7 +5207,7 @@ void EcProject::setScreenParamTlDefCh4(double n)
 
 void EcProject::setScreenParamTlDefGas4(double n)
 {
-    ec_project_state_.screenParam.tl_def_gas4 = n;
+    ec_project_state_.screenParam.tl_def_other = n;
     setModified(true);
 }
 

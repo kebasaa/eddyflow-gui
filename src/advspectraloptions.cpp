@@ -64,6 +64,7 @@
 #include "fileutils.h"
 #include "filebrowsewidget.h"
 #include "globalsettings.h"
+#include "measurement_record.h"
 #include "variable_desc.h"
 #include "widget_utils.h"
 
@@ -449,44 +450,18 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     fftCheckBox->setToolTip(tr("<b>Use power-of-two samples to speed up the FFT: </b>Check this box to instruct EddyFlow to use a number of samples equal to the power-of-two closest to the currently available samples, for calculating spectra. This option greatly speeds up the FFT procedure and is therefore recommended."));
     fftCheckBox->setStyleSheet(QStringLiteral("QCheckBox { margin-left: 40px; }"));
 
-    const QString noiseFrequencyTooltip = tr("<b>Lowest noise frequency:</b> High-frequency noise (blue noise) can compromise the spectral assessment by modifying the shape of spectra. EddyFlow has an option to eliminate such noise. Set the minimum frequency at which you expect the noise to start being relevant. EddyFlow will linearly (in a log-log sense) interpolate the high frequency portion of the spectra and subtract it from the spectra before calculating transfer functions. Set 0 Hz to instruct EddyFlow to not perform noise elimination. In this case the string <i>Do not remove noise</i> will appear in this field.");
-    spin31 = new QDoubleSpinBox;
-    spin31->setRange(0.0, 50.0);
-    spin31->setSingleStep(0.1);
-    spin31->setDecimals(4);
-    spin31->setSuffix(QStringLiteral(" [Hz]"));
-    spin31->setAccelerated(true);
-    spin31->setSpecialValueText(tr("Do not remove noise"));
-    spin31->setToolTip(noiseFrequencyTooltip);
-    spin32 = new QDoubleSpinBox;
-    spin32->setRange(0.0, 50.0);
-    spin32->setSingleStep(0.1);
-    spin32->setDecimals(4);
-    spin32->setSuffix(QStringLiteral(" [Hz]"));
-    spin32->setAccelerated(true);
-    spin32->setSpecialValueText(tr("Do not remove noise"));
-    spin32->setToolTip(noiseFrequencyTooltip);
-    spin33 = new QDoubleSpinBox;
-    spin33->setRange(0.0, 50.0);
-    spin33->setSingleStep(0.1);
-    spin33->setDecimals(4);
-    spin33->setSuffix(QStringLiteral(" [Hz]"));
-    spin33->setAccelerated(true);
-    spin33->setSpecialValueText(tr("Do not remove noise"));
-    spin33->setToolTip(noiseFrequencyTooltip);
-    spin34 = new QDoubleSpinBox;
-    spin34->setRange(0.0, 50.0);
-    spin34->setSingleStep(0.1);
-    spin34->setDecimals(4);
-    spin34->setSuffix(QStringLiteral(" [Hz]"));
-    spin34->setAccelerated(true);
-    spin34->setSpecialValueText(tr("Do not remove noise"));
-    spin34->setToolTip(noiseFrequencyTooltip);
+    // The per-gas noise-frequency spins are generated in
+    // rebuildGasSpectralSpins(), one set per gas record.
+    noiseFrequencyTip_ = tr("<b>Lowest noise frequency:</b> High-frequency noise (blue noise) can compromise the spectral assessment by modifying the shape of spectra. EddyFlow has an option to eliminate such noise. Set the minimum frequency at which you expect the noise to start being relevant. EddyFlow will linearly (in a log-log sense) interpolate the high frequency portion of the spectra and subtract it from the spectra before calculating transfer functions. Set 0 Hz to instruct EddyFlow to not perform noise elimination. In this case the string <i>Do not remove noise</i> will appear in this field.");
+    const QString noiseFrequencyTooltip = noiseFrequencyTip_;
 
     // QA/QC section
-    const QString minUnstableTooltip = tr("<b>Minimum, unstable flux:</b> when fluxes are below these minima, corresponding cospectra are excluded from calculation of ensemble averaged cospectra in unstable stratifications, and corresponding spectra are excluded from calculation ensemble averaged spectra. For more details, click on the question mark at the right side of the title of this section <i>Spectra and cospectra QA/QC</i>.");
-    const QString minStableTooltip = tr("<b>Minimum, stable flux:</b> when fluxes are below these minima, corresponding cospectra are excluded from calculation of ensemble averaged cospectra in stable stratifications. For more details, click on the question mark at the right side of the title of this section <i>Spectra and cospectra QA/QC</i>.");
-    const QString maxTooltip = tr("<b>Maximum :</b> when fluxes are above these maxima, corresponding (co)spectra are excluded from any ensemble averaging procedure. Maxima are meant to exclude spikes or periods characterized by abnormal fluxes. For more details, click on the question mark at the right side of the title of this section <i>Spectra and cospectra QA/QC</i>.");
+    minUnstableTip_ = tr("<b>Minimum, unstable flux:</b> when fluxes are below these minima, corresponding cospectra are excluded from calculation of ensemble averaged cospectra in unstable stratifications, and corresponding spectra are excluded from calculation ensemble averaged spectra. For more details, click on the question mark at the right side of the title of this section <i>Spectra and cospectra QA/QC</i>.");
+    minStableTip_ = tr("<b>Minimum, stable flux:</b> when fluxes are below these minima, corresponding cospectra are excluded from calculation of ensemble averaged cospectra in stable stratifications. For more details, click on the question mark at the right side of the title of this section <i>Spectra and cospectra QA/QC</i>.");
+    maxTip_ = tr("<b>Maximum :</b> when fluxes are above these maxima, corresponding (co)spectra are excluded from any ensemble averaging procedure. Maxima are meant to exclude spikes or periods characterized by abnormal fluxes. For more details, click on the question mark at the right side of the title of this section <i>Spectra and cospectra QA/QC</i>.");
+    const QString minUnstableTooltip = minUnstableTip_;
+    const QString minStableTooltip = minStableTip_;
+    const QString maxTooltip = maxTip_;
 
     qcMinUnstableUstarSpin = new AdaptivePrecisionDoubleSpinBox;
     qcMinUnstableUstarSpin->setRange(0.0, 5.0);
@@ -509,27 +484,6 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     qcMinUnstableLESpin->setSuffix(tr(" [%1]").arg(Defs::W_M2_STRING));
     qcMinUnstableLESpin->setAccelerated(true);
 
-    qcMinUnstableCo2Spin = new AdaptivePrecisionDoubleSpinBox;
-    qcMinUnstableCo2Spin->setRange(0.0, 5000.0);
-    qcMinUnstableCo2Spin->setSingleStep(1.0);
-    qcMinUnstableCo2Spin->setDecimals(6);
-    qcMinUnstableCo2Spin->setSuffix(tr(" [%1]").arg(Defs::UMOL_M2S_STRING));
-    qcMinUnstableCo2Spin->setAccelerated(true);
-
-    qcMinUnstableCh4Spin = new AdaptivePrecisionDoubleSpinBox;
-    qcMinUnstableCh4Spin->setRange(0.0, 5000.0);
-    qcMinUnstableCh4Spin->setSingleStep(0.1);
-    qcMinUnstableCh4Spin->setDecimals(6);
-    qcMinUnstableCh4Spin->setSuffix(tr(" [%1]").arg(Defs::UMOL_M2S_STRING));
-    qcMinUnstableCh4Spin->setAccelerated(true);
-
-    qcMinUnstableGas4Spin = new AdaptivePrecisionDoubleSpinBox;
-    qcMinUnstableGas4Spin->setRange(0.0, 5000.0);
-    qcMinUnstableGas4Spin->setSingleStep(0.1);
-    qcMinUnstableGas4Spin->setDecimals(6);
-    qcMinUnstableGas4Spin->setSuffix(tr(" [%1]").arg(Defs::UMOL_M2S_STRING));
-    qcMinUnstableGas4Spin->setAccelerated(true);
-
     qcMinStableUstarSpin = new AdaptivePrecisionDoubleSpinBox;
     qcMinStableUstarSpin->setRange(0.0, 5.0);
     qcMinStableUstarSpin->setSingleStep(0.05);
@@ -551,27 +505,6 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     qcMinStableLESpin->setSuffix(tr(" [%1]").arg(Defs::W_M2_STRING));
     qcMinStableLESpin->setAccelerated(true);
 
-    qcMinStableCo2Spin = new AdaptivePrecisionDoubleSpinBox;
-    qcMinStableCo2Spin->setRange(0.0, 5000.0);
-    qcMinStableCo2Spin->setSingleStep(1.0);
-    qcMinStableCo2Spin->setDecimals(6);
-    qcMinStableCo2Spin->setSuffix(tr(" [%1]").arg(Defs::UMOL_M2S_STRING));
-    qcMinStableCo2Spin->setAccelerated(true);
-
-    qcMinStableCh4Spin = new AdaptivePrecisionDoubleSpinBox;
-    qcMinStableCh4Spin->setRange(0.0, 5000.0);
-    qcMinStableCh4Spin->setSingleStep(0.1);
-    qcMinStableCh4Spin->setDecimals(6);
-    qcMinStableCh4Spin->setSuffix(tr(" [%1]").arg(Defs::UMOL_M2S_STRING));
-    qcMinStableCh4Spin->setAccelerated(true);
-
-    qcMinStableGas4Spin = new AdaptivePrecisionDoubleSpinBox;
-    qcMinStableGas4Spin->setRange(0.0, 5000.0);
-    qcMinStableGas4Spin->setSingleStep(0.1);
-    qcMinStableGas4Spin->setDecimals(6);
-    qcMinStableGas4Spin->setSuffix(tr(" [%1]").arg(Defs::UMOL_M2S_STRING));
-    qcMinStableGas4Spin->setAccelerated(true);
-
     qcMaxUstarSpin = new AdaptivePrecisionDoubleSpinBox;
     qcMaxUstarSpin->setRange(0.0, 5.0);
     qcMaxUstarSpin->setSingleStep(0.1);
@@ -592,27 +525,6 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     qcMaxLESpin->setDecimals(6);
     qcMaxLESpin->setSuffix(tr(" [%1]").arg(Defs::W_M2_STRING));
     qcMaxLESpin->setAccelerated(true);
-
-    qcMaxCo2Spin = new AdaptivePrecisionDoubleSpinBox;
-    qcMaxCo2Spin->setRange(0.0, 5000.0);
-    qcMaxCo2Spin->setSingleStep(10.0);
-    qcMaxCo2Spin->setDecimals(6);
-    qcMaxCo2Spin->setSuffix(tr(" [%1]").arg(Defs::UMOL_M2S_STRING));
-    qcMaxCo2Spin->setAccelerated(true);
-
-    qcMaxCh4Spin = new AdaptivePrecisionDoubleSpinBox;
-    qcMaxCh4Spin->setRange(0.0, 5000.0);
-    qcMaxCh4Spin->setSingleStep(10.0);
-    qcMaxCh4Spin->setDecimals(6);
-    qcMaxCh4Spin->setSuffix(tr(" [%1]").arg(Defs::UMOL_M2S_STRING));
-    qcMaxCh4Spin->setAccelerated(true);
-
-    qcMaxGas4Spin = new AdaptivePrecisionDoubleSpinBox;
-    qcMaxGas4Spin->setRange(0.0, 5000.0);
-    qcMaxGas4Spin->setSingleStep(10.0);
-    qcMaxGas4Spin->setDecimals(6);
-    qcMaxGas4Spin->setSuffix(tr(" [%1]").arg(Defs::UMOL_M2S_STRING));
-    qcMaxGas4Spin->setAccelerated(true);
 
     vmFlagsCheckBox = new QCheckBox(tr("Filter (co)spectra according "
                                        "to Vickers and Mahrt (1997) "
@@ -734,65 +646,12 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     spectraRadioGroup->addButton(spectraExistingRadio, 0);
     spectraRadioGroup->addButton(spectraNonExistingRadio, 1);
 
-    const QString lowestFrequencyTooltip = tr("<b>Lowest frequency:</b> The assessment of the system transfer function implies the frequency-wise ratio of gas concentration to temperature spectra (temperature considered as proxy for un-attenuated atmospheric scalar spectra). This ratio must be taken in the frequency range where the system filtering is expected to occur. At lower frequencies, slow-paced atmospheric and source/sink dynamics may imply a breakdown of the similarity assumption. Default values can be good in most occasions, but the lower frequency should be adapted based mostly on the averaging interval.");
-    const QString highestFrequencyTooltip = tr("<b>Highest frequency:</b> The assessment of the system transfer function implies the frequency-wise ratio of gas concentration to temperature spectra (temperature being considered as a proxy for un-attenuated atmospheric scalar spectra). This ratio must be taken in the frequency range where the system filtering is expected to occur. At higher frequencies, noise and aliasing may corrupt the procedure. Default values can be good in most occasions, but the higher frequency should be adapted based on acquisition frequency and instrument performance.");
-
-    spin11 = new QDoubleSpinBox;
-    spin11->setRange(0.0, 50.0);
-    spin11->setSingleStep(0.1);
-    spin11->setDecimals(4);
-    spin11->setSuffix(QStringLiteral(" [Hz]"));
-    spin11->setAccelerated(true);
-    spin11->setToolTip(lowestFrequencyTooltip);
-    spin12 = new QDoubleSpinBox;
-    spin12->setRange(0.0, 50.0);
-    spin12->setSingleStep(0.1);
-    spin12->setDecimals(4);
-    spin12->setSuffix(QStringLiteral(" [Hz]"));
-    spin12->setAccelerated(true);
-    spin12->setToolTip(lowestFrequencyTooltip);
-    spin13 = new QDoubleSpinBox;
-    spin13->setRange(0.0, 50.0);
-    spin13->setSingleStep(0.1);
-    spin13->setDecimals(4);
-    spin13->setSuffix(QStringLiteral(" [Hz]"));
-    spin13->setAccelerated(true);
-    spin13->setToolTip(lowestFrequencyTooltip);
-    spin14 = new QDoubleSpinBox;
-    spin14->setRange(0.0, 50.0);
-    spin14->setSingleStep(0.1);
-    spin14->setDecimals(4);
-    spin14->setSuffix(QStringLiteral(" [Hz]"));
-    spin14->setAccelerated(true);
-    spin14->setToolTip(lowestFrequencyTooltip);
-    spin21 = new QDoubleSpinBox;
-    spin21->setRange(0.0, 50.0);
-    spin21->setSingleStep(0.1);
-    spin21->setDecimals(4);
-    spin21->setSuffix(QStringLiteral(" [Hz]"));
-    spin21->setAccelerated(true);
-    spin21->setToolTip(highestFrequencyTooltip);
-    spin22 = new QDoubleSpinBox;
-    spin22->setRange(0.0, 50.0);
-    spin22->setSingleStep(0.1);
-    spin22->setDecimals(4);
-    spin22->setSuffix(QStringLiteral(" [Hz]"));
-    spin22->setAccelerated(true);
-    spin22->setToolTip(highestFrequencyTooltip);
-    spin23 = new QDoubleSpinBox;
-    spin23->setRange(0.0, 50.0);
-    spin23->setSingleStep(0.1);
-    spin23->setDecimals(4);
-    spin23->setSuffix(QStringLiteral(" [Hz]"));
-    spin23->setAccelerated(true);
-    spin23->setToolTip(highestFrequencyTooltip);
-    spin24 = new QDoubleSpinBox;
-    spin24->setRange(0.0, 50.0);
-    spin24->setSingleStep(0.1);
-    spin24->setDecimals(4);
-    spin24->setSuffix(QStringLiteral(" [Hz]"));
-    spin24->setAccelerated(true);
-    spin24->setToolTip(highestFrequencyTooltip);
+    // The per-gas transfer-function windows are generated in
+    // rebuildGasSpectralSpins(), one pair per gas record.
+    lowestFrequencyTip_ = tr("<b>Lowest frequency:</b> The assessment of the system transfer function implies the frequency-wise ratio of gas concentration to temperature spectra (temperature considered as proxy for un-attenuated atmospheric scalar spectra). This ratio must be taken in the frequency range where the system filtering is expected to occur. At lower frequencies, slow-paced atmospheric and source/sink dynamics may imply a breakdown of the similarity assumption. Default values can be good in most occasions, but the lower frequency should be adapted based mostly on the averaging interval.");
+    highestFrequencyTip_ = tr("<b>Highest frequency:</b> The assessment of the system transfer function implies the frequency-wise ratio of gas concentration to temperature spectra (temperature being considered as a proxy for un-attenuated atmospheric scalar spectra). This ratio must be taken in the frequency range where the system filtering is expected to occur. At higher frequencies, noise and aliasing may corrupt the procedure. Default values can be good in most occasions, but the higher frequency should be adapted based on acquisition frequency and instrument performance.");
+    const QString lowestFrequencyTooltip = lowestFrequencyTip_;
+    const QString highestFrequencyTooltip = highestFrequencyTip_;
 
     minSmplLabel = new ClickLabel(tr("Minimum number of (co)spectra for valid averages :"));
     minSmplLabel->setToolTip(tr("<b>Minimum number of spectra for valid averages:</b> Select the minimum number of spectra that should be found in each class, for the corresponding ensemble average to be valid. Currently classes are defined only for H<sub>2</sub>O with respect to ambient relative humidity: 9 classes are defined between RH = 5% and RH = 95%. We expect to add classes also for passive gases, related to time periods. Entering a number that is too high may imply that, for certain classes, average spectra cannot be calculated. A number that is too small may result in poor characterization of average spectra. The higher this number, the longer the time period needed."));
@@ -829,31 +688,15 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     WidgetUtils::setCompactSpinBoxWidth(minSmplSpin, 76);
     WidgetUtils::setCompactSpinBoxWidth(sonicFrequency, 76);
 
-    WidgetUtils::setCompactSpinBoxWidth(spin11, 86);
-    WidgetUtils::setCompactSpinBoxWidth(spin12, 86);
-    WidgetUtils::setCompactSpinBoxWidth(spin13, 86);
-    WidgetUtils::setCompactSpinBoxWidth(spin14, 86);
-    WidgetUtils::setCompactSpinBoxWidth(spin21, 86);
-    WidgetUtils::setCompactSpinBoxWidth(spin22, 86);
-    WidgetUtils::setCompactSpinBoxWidth(spin23, 86);
-    WidgetUtils::setCompactSpinBoxWidth(spin24, 86);
-    WidgetUtils::setCompactSpinBoxWidth(spin31, 86);
-    WidgetUtils::setCompactSpinBoxWidth(spin32, 86);
-    WidgetUtils::setCompactSpinBoxWidth(spin33, 86);
-    WidgetUtils::setCompactSpinBoxWidth(spin34, 86);
-
-    for (auto spin : { qcMinUnstableUstarSpin, qcMinUnstableHSpin, qcMinUnstableLESpin,
-                       qcMinUnstableCo2Spin, qcMinUnstableCh4Spin, qcMinUnstableGas4Spin })
+    for (auto spin : { qcMinUnstableUstarSpin, qcMinUnstableHSpin, qcMinUnstableLESpin })
     {
         spin->setToolTip(minUnstableTooltip);
     }
-    for (auto spin : { qcMinStableUstarSpin, qcMinStableHSpin, qcMinStableLESpin,
-                       qcMinStableCo2Spin, qcMinStableCh4Spin, qcMinStableGas4Spin })
+    for (auto spin : { qcMinStableUstarSpin, qcMinStableHSpin, qcMinStableLESpin })
     {
         spin->setToolTip(minStableTooltip);
     }
-    for (auto spin : { qcMaxUstarSpin, qcMaxHSpin, qcMaxLESpin,
-                       qcMaxCo2Spin, qcMaxCh4Spin, qcMaxGas4Spin })
+    for (auto spin : { qcMaxUstarSpin, qcMaxHSpin, qcMaxLESpin })
     {
         spin->setToolTip(maxTooltip);
     }
@@ -861,21 +704,12 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     WidgetUtils::setCompactSpinBoxWidth(qcMinUnstableUstarSpin, 96);
     WidgetUtils::setCompactSpinBoxWidth(qcMinUnstableHSpin, 96);
     WidgetUtils::setCompactSpinBoxWidth(qcMinUnstableLESpin, 96);
-    WidgetUtils::setCompactSpinBoxWidth(qcMinUnstableCo2Spin, 96);
-    WidgetUtils::setCompactSpinBoxWidth(qcMinUnstableCh4Spin, 96);
-    WidgetUtils::setCompactSpinBoxWidth(qcMinUnstableGas4Spin, 96);
     WidgetUtils::setCompactSpinBoxWidth(qcMinStableUstarSpin, 96);
     WidgetUtils::setCompactSpinBoxWidth(qcMinStableHSpin, 96);
     WidgetUtils::setCompactSpinBoxWidth(qcMinStableLESpin, 96);
-    WidgetUtils::setCompactSpinBoxWidth(qcMinStableCo2Spin, 96);
-    WidgetUtils::setCompactSpinBoxWidth(qcMinStableCh4Spin, 96);
-    WidgetUtils::setCompactSpinBoxWidth(qcMinStableGas4Spin, 96);
     WidgetUtils::setCompactSpinBoxWidth(qcMaxUstarSpin, 96);
     WidgetUtils::setCompactSpinBoxWidth(qcMaxHSpin, 96);
     WidgetUtils::setCompactSpinBoxWidth(qcMaxLESpin, 96);
-    WidgetUtils::setCompactSpinBoxWidth(qcMaxCo2Spin, 96);
-    WidgetUtils::setCompactSpinBoxWidth(qcMaxCh4Spin, 96);
-    WidgetUtils::setCompactSpinBoxWidth(qcMaxGas4Spin, 96);
 
     // horizontal rules
     auto hrLabel_0 = new QLabel;
@@ -905,18 +739,13 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
         highestFrequencyTooltip
     };
     spectralQaQcModel = new SpectralQaQcTableModel(this, QVector<SpectralQaQcRow>{}, spectralTooltips);
-    rebuildSpectralQaQcRows();
 
+    //> The fixed rows only. The per-gas spins are parented, hidden and
+    //> connected in rebuildGasSpectralSpins(), which runs next.
     const QList<QDoubleSpinBox*> spectralTableSpins = {
-        spin31, spin32, spin33, spin34,
-        spin11, spin12, spin13, spin14,
-        spin21, spin22, spin23, spin24,
         qcMinUnstableUstarSpin, qcMinUnstableHSpin, qcMinUnstableLESpin,
-        qcMinUnstableCo2Spin, qcMinUnstableCh4Spin, qcMinUnstableGas4Spin,
         qcMinStableUstarSpin, qcMinStableHSpin, qcMinStableLESpin,
-        qcMinStableCo2Spin, qcMinStableCh4Spin, qcMinStableGas4Spin,
-        qcMaxUstarSpin, qcMaxHSpin, qcMaxLESpin,
-        qcMaxCo2Spin, qcMaxCh4Spin, qcMaxGas4Spin
+        qcMaxUstarSpin, qcMaxHSpin, qcMaxLESpin
     };
     for (auto spin : spectralTableSpins)
     {
@@ -927,6 +756,8 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
                 spectralQaQcModel,
                 [model = spectralQaQcModel](){ static_cast<SpectralQaQcTableModel*>(model)->refreshAll(); });
     }
+
+    rebuildSpectralQaQcRows();
 
     spectralQaQcTable = new QTableView;
     spectralQaQcTable->setModel(spectralQaQcModel);
@@ -1080,16 +911,6 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     connect(qcMinUnstableLESpin,
             static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
             [=](double d){ ecProject_->setSpectraMinUnstableLE(d); });
-    connect(qcMinUnstableCo2Spin,
-            static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
-            [=](double d){ ecProject_->setSpectraMinUnstableCo2(d); });
-    connect(qcMinUnstableCh4Spin,
-            static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
-            [=](double d){ ecProject_->setSpectraMinUnstableCh4(d); });
-    connect(qcMinUnstableGas4Spin,
-            static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
-            [=](double d){ ecProject_->setSpectraMinUnstableGas4(d); });
-
     connect(qcMinStableUstarSpin,
             static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
             [=](double d){ ecProject_->setSpectraMinStableUstar(d); });
@@ -1099,16 +920,6 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     connect(qcMinStableLESpin,
             static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
             [=](double d){ ecProject_->setSpectraMinStableLE(d); });
-    connect(qcMinStableCo2Spin,
-            static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
-            [=](double d){ ecProject_->setSpectraMinStableCo2(d); });
-    connect(qcMinStableCh4Spin,
-            static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
-            [=](double d){ ecProject_->setSpectraMinStableCh4(d); });
-    connect(qcMinStableGas4Spin,
-            static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
-            [=](double d){ ecProject_->setSpectraMinStableGas4(d); });
-
     connect(qcMaxUstarSpin,
             static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
             [=](double d){ ecProject_->setSpectraMaxUstar(d); });
@@ -1118,16 +929,6 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     connect(qcMaxLESpin,
             static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
             [=](double d){ ecProject_->setSpectraMaxLE(d); });
-    connect(qcMaxCo2Spin,
-            static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
-            [=](double d){ ecProject_->setSpectraMaxCo2(d); });
-    connect(qcMaxCh4Spin,
-            static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
-            [=](double d){ ecProject_->setSpectraMaxCh4(d); });
-    connect(qcMaxGas4Spin,
-            static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
-            [=](double d){ ecProject_->setSpectraMaxGas4(d); });
-
     connect(vmFlagsCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setSpectraUseVmFlags(checked); });
     connect(lowQualityCheckBox, &QCheckBox::toggled, [=](bool checked)
@@ -1187,31 +988,6 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             this, &AdvSpectralOptions::onMinSmplLabelClicked);
     connect(minSmplSpin, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &AdvSpectralOptions::updateMinSmpl);
-    connect(spin11, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvSpectralOptions::updateFminCo2);
-    connect(spin12, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvSpectralOptions::updateFminH2o);
-    connect(spin13, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvSpectralOptions::updateFminCh4);
-    connect(spin14, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvSpectralOptions::updateFminGas4);
-    connect(spin21, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvSpectralOptions::updateFmaxCo2);
-    connect(spin22, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvSpectralOptions::updateFmaxH2o);
-    connect(spin23, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvSpectralOptions::updateFmaxCh4);
-    connect(spin24, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvSpectralOptions::updateFmaxGas4);
-    connect(spin31, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvSpectralOptions::updateHfnCo2);
-    connect(spin32, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvSpectralOptions::updateHfnH2o);
-    connect(spin33, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvSpectralOptions::updateHfnCh4);
-    connect(spin34, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvSpectralOptions::updateHfnGas4);
-
     connect(fullSpectraRadioGroup, &QButtonGroup::idClicked,
             this, &AdvSpectralOptions::fullSpectraRadioClicked);
     connect(fullSpectraDirBrowse, &DirBrowseWidget::pathChanged,
@@ -1301,11 +1077,6 @@ void AdvSpectralOptions::reset()
     fftCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.power_of_two);
     fftCheckBox->setEnabled(true);
 
-    spin31->setValue(ecProject_->defaultSettings.spectraSettings.sa_hfn_co2_fmin);
-    spin32->setValue(ecProject_->defaultSettings.spectraSettings.sa_hfn_h2o_fmin);
-    spin33->setValue(ecProject_->defaultSettings.spectraSettings.sa_hfn_ch4_fmin);
-    spin34->setValue(ecProject_->defaultSettings.spectraSettings.sa_hfn_gas4_fmin);
-
     spectraExistingRadio->setEnabled(false);
     spectraExistingRadio->setChecked(!ecProject_->defaultSettings.spectraSettings.sa_mode);
     spectraFileBrowse->setEnabled(false);
@@ -1355,34 +1126,20 @@ void AdvSpectralOptions::reset()
     qcMinUnstableUstarSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_un_ustar);
     qcMinUnstableHSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_un_h);
     qcMinUnstableLESpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_un_le);
-    qcMinUnstableCo2Spin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_un_co2);
-    qcMinUnstableCh4Spin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_un_ch4);
-    qcMinUnstableGas4Spin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_un_gas4);
     qcMinStableUstarSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_st_ustar);
     qcMinStableHSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_st_h);
     qcMinStableLESpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_st_le);
-    qcMinStableCo2Spin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_st_co2);
-    qcMinStableCh4Spin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_st_ch4);
-    qcMinStableGas4Spin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_st_gas4);
     qcMaxUstarSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_max_ustar);
     qcMaxHSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_max_h);
     qcMaxLESpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_max_le);
-    qcMaxCo2Spin->setValue(ecProject_->defaultSettings.spectraSettings.sa_max_co2);
-    qcMaxCh4Spin->setValue(ecProject_->defaultSettings.spectraSettings.sa_max_ch4);
-    qcMaxGas4Spin->setValue(ecProject_->defaultSettings.spectraSettings.sa_max_gas4);
 
     minSmplSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_smpl);
 
     setSpectralAssessmentFrequencyCellsEnabled(false);
 
-    spin11->setValue(ecProject_->defaultSettings.spectraSettings.sa_fmin_co2);
-    spin12->setValue(ecProject_->defaultSettings.spectraSettings.sa_fmin_h2o);
-    spin13->setValue(ecProject_->defaultSettings.spectraSettings.sa_fmin_ch4);
-    spin14->setValue(ecProject_->defaultSettings.spectraSettings.sa_fmin_gas4);
-    spin21->setValue(ecProject_->defaultSettings.spectraSettings.sa_fmax_co2);
-    spin22->setValue(ecProject_->defaultSettings.spectraSettings.sa_fmax_h2o);
-    spin23->setValue(ecProject_->defaultSettings.spectraSettings.sa_fmax_ch4);
-    spin24->setValue(ecProject_->defaultSettings.spectraSettings.sa_fmax_gas4);
+    // Every per-gas value back to the built-in default for its species, on
+    // its record.
+    resetGasSpectralToDefault();
 
     fullSpectraExistingRadio->setEnabled(false);
     fullSpectraExistingRadio->setChecked(ecProject_->defaultSettings.projectGeneral.full_sp_avail);
@@ -1536,43 +1293,17 @@ void AdvSpectralOptions::refresh()
     qcMinUnstableUstarSpin->setValue(ecProject_->spectraMinUnstableUstar());
     qcMinUnstableHSpin->setValue(ecProject_->spectraMinUnstableH());
     qcMinUnstableLESpin->setValue(ecProject_->spectraMinUnstableLE());
-    qcMinUnstableCo2Spin->setValue(ecProject_->spectraMinUnstableCo2());
-    qcMinUnstableCh4Spin->setValue(ecProject_->spectraMinUnstableCh4());
-    qcMinUnstableGas4Spin->setValue(ecProject_->spectraMinUnstableGas4());
     qcMinStableUstarSpin->setValue(ecProject_->spectraMinStableUstar());
     qcMinStableHSpin->setValue(ecProject_->spectraMinStableH());
     qcMinStableLESpin->setValue(ecProject_->spectraMinStableLE());
-    qcMinStableCo2Spin->setValue(ecProject_->spectraMinStableCo2());
-    qcMinStableCh4Spin->setValue(ecProject_->spectraMinStableCh4());
-    qcMinStableGas4Spin->setValue(ecProject_->spectraMinStableGas4());
     qcMaxUstarSpin->setValue(ecProject_->spectraMaxUstar());
     qcMaxHSpin->setValue(ecProject_->spectraMaxH());
     qcMaxLESpin->setValue(ecProject_->spectraMaxLE());
-    qcMaxCo2Spin->setValue(ecProject_->spectraMaxCo2());
-    qcMaxCh4Spin->setValue(ecProject_->spectraMaxCh4());
-    qcMaxGas4Spin->setValue(ecProject_->spectraMaxGas4());
 
-    spin11->setValue(ecProject_->spectraFminCo2());
-
-    spin12->setValue(ecProject_->spectraFminH2o());
-
-    spin13->setValue(ecProject_->spectraFminCh4());
-
-    spin14->setValue(ecProject_->spectraFminGas4());
-
-    spin21->setValue(ecProject_->spectraFmaxCo2());
-
-    spin22->setValue(ecProject_->spectraFmaxH2o());
-
-    spin23->setValue(ecProject_->spectraFmaxCh4());
-
-    spin24->setValue(ecProject_->spectraFmaxGas4());
+    // Rebuilt here rather than only on show: a project load can change the
+    // gas records under the rows, and their values come from them.
+    rebuildGasSpectralSpins();
     setSpectralAssessmentFrequencyCellsEnabled(toEnable);
-
-    spin31->setValue(ecProject_->spectraHfnCo2());
-    spin32->setValue(ecProject_->spectraHfnH2o());
-    spin33->setValue(ecProject_->spectraHfnCh4());
-    spin34->setValue(ecProject_->spectraHfnGas4());
 
     auto toEnableFratini = isFratini();
 
@@ -2202,11 +1933,15 @@ void AdvSpectralOptions::focusSpectralTableColumn(int column)
 
 void AdvSpectralOptions::setSpectralAssessmentFrequencyCellsEnabled(bool enabled)
 {
-    for (auto spin : { spin31, spin32, spin33, spin34,
-                       spin11, spin12, spin13, spin14,
-                       spin21, spin22, spin23, spin24 })
+    // Remembered so a rebuild can reapply it: the table's flags() reads the
+    // enabled state off the spin, so a fresh spin would otherwise become
+    // editable in a mode where the frequencies do not apply.
+    frequencyCellsEnabled_ = enabled;
+    for (const auto& row : gasSpectralRows_)
     {
-        spin->setEnabled(enabled);
+        if (row.noiseFrequency) { row.noiseFrequency->setEnabled(enabled); }
+        if (row.lowestFrequency) { row.lowestFrequency->setEnabled(enabled); }
+        if (row.highestFrequency) { row.highestFrequency->setEnabled(enabled); }
     }
     refreshSpectralQaQcTableState();
 }
@@ -2233,32 +1968,308 @@ bool AdvSpectralOptions::selectedColumnIsVariable(int column, const QString& var
     return variable && variable->variable() == variableName;
 }
 
-bool AdvSpectralOptions::selectedColumnIsGas4(int column) const
+/// The record set the current spins were built from.
+QString AdvSpectralOptions::gasSignature() const
 {
-    const auto variable = rawVariableAtColumn(column);
-    if (!variable)
+    QStringList parts;
+    for (const auto& gas : ecProject_->gasColumns())
     {
-        return false;
+        parts << gas.slug + QLatin1Char('|') + gas.instrumentId
+                 + QLatin1Char('|') + QString::number(gas.rawColumn);
     }
-
-    const QString variableName = variable->variable();
-    if (variableName == VariableDesc::getVARIABLE_VAR_STRING_5()
-        || variableName == VariableDesc::getVARIABLE_VAR_STRING_6()
-        || variableName == VariableDesc::getVARIABLE_VAR_STRING_7())
-    {
-        return false;
-    }
-    return VariableDesc::isGoodGas(*variable, VariableDesc::isCustomVariable(variableName));
+    return parts.join(QLatin1Char(';'));
 }
 
-QString AdvSpectralOptions::gas4FluxLabel() const
+/// Row label: the species, qualified by the analyser when there is one, so
+/// two CO2 records on different analysers are told apart.
+QString AdvSpectralOptions::gasRowLabel(int gasIndex) const
 {
-    const auto variable = rawVariableAtColumn(ecProject_->generalColGas4());
-    if (!variable || variable->variable().isEmpty())
+    const auto& gas = ecProject_->gasColumns().at(gasIndex);
+    auto text = gas.slug.toUpper();
+    if (text.isEmpty())
     {
-        return tr("Selected gas flux");
+        // A project migrated from the old format leaves the fourth slot's
+        // species blank until the metadata resolves it.
+        text = tr("Gas %1").arg(gasIndex + 1);
     }
-    return tr("%1 flux").arg(variable->variable());
+    if (MeasurementRecords::isRealInstrument(gas.instrumentId))
+    {
+        text += QStringLiteral(" (") + gas.instrumentId + QStringLiteral(")");
+    }
+    return text;
+}
+
+/// Built-in default for a gas that carries no value of its own, chosen by
+/// species rather than by position: a second CO2 record deserves the CO2
+/// default, not the fourth-gas one.
+double AdvSpectralOptions::defaultGasSpectral(const QString& slug,
+                                              SpectralParam param) const
+{
+    const auto& d = ecProject_->defaultSettings.spectraSettings;
+    const bool isCo2 = (slug == QLatin1String("co2"));
+    const bool isH2o = (slug == QLatin1String("h2o"));
+    const bool isCh4 = (slug == QLatin1String("ch4"));
+
+    switch (param)
+    {
+        case SpectralParam::HfnFmin:
+            if (isCo2) { return d.sa_hfn_co2_fmin; }
+            if (isH2o) { return d.sa_hfn_h2o_fmin; }
+            if (isCh4) { return d.sa_hfn_ch4_fmin; }
+            return d.sa_hfn_other_fmin;
+        case SpectralParam::Fmin:
+            if (isCo2) { return d.sa_fmin_co2; }
+            if (isH2o) { return d.sa_fmin_h2o; }
+            if (isCh4) { return d.sa_fmin_ch4; }
+            return d.sa_fmin_other;
+        case SpectralParam::Fmax:
+            if (isCo2) { return d.sa_fmax_co2; }
+            if (isH2o) { return d.sa_fmax_h2o; }
+            if (isCh4) { return d.sa_fmax_ch4; }
+            return d.sa_fmax_other;
+        case SpectralParam::MinUnstable:
+            if (isCo2) { return d.sa_min_un_co2; }
+            if (isCh4) { return d.sa_min_un_ch4; }
+            return d.sa_min_un_other;
+        case SpectralParam::MinStable:
+            if (isCo2) { return d.sa_min_st_co2; }
+            if (isCh4) { return d.sa_min_st_ch4; }
+            return d.sa_min_st_other;
+        case SpectralParam::Maximum:
+            if (isCo2) { return d.sa_max_co2; }
+            if (isCh4) { return d.sa_max_ch4; }
+            return d.sa_max_other;
+    }
+    return 0.0;
+}
+
+/// Value to show for one gas: the record's own if it has one, else the
+/// species default.
+///
+/// The flat keys are retired; an upgraded project has had them moved onto
+/// its records by EcProject::migrateLegacyGasSettings().
+double AdvSpectralOptions::gasSpectralFor(int gasIndex,
+                                          SpectralParam param) const
+{
+    const auto& gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size()) { return 0.0; }
+    const auto& proc = gases.at(gasIndex).proc;
+
+    switch (param)
+    {
+        case SpectralParam::HfnFmin:
+            if (proc.saHfnFmin >= 0.0) { return proc.saHfnFmin; } break;
+        case SpectralParam::Fmin:
+            if (proc.saFmin >= 0.0) { return proc.saFmin; } break;
+        case SpectralParam::Fmax:
+            if (proc.saFmax >= 0.0) { return proc.saFmax; } break;
+        case SpectralParam::MinUnstable:
+            if (proc.saMinUn >= 0.0) { return proc.saMinUn; } break;
+        case SpectralParam::MinStable:
+            if (proc.saMinSt >= 0.0) { return proc.saMinSt; } break;
+        case SpectralParam::Maximum:
+            if (proc.saMax >= 0.0) { return proc.saMax; } break;
+    }
+
+    return defaultGasSpectral(gases.at(gasIndex).slug, param);
+}
+
+/// Store one per-gas value on its record. The record is the only place it
+/// goes; the flat keys the first four slots used to mirror are retired.
+void AdvSpectralOptions::onGasSpectralChanged(int gasIndex,
+                                              SpectralParam param,
+                                              double value)
+{
+    if (!ecProject_) { return; }
+    auto gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size()) { return; }
+
+    switch (param)
+    {
+        case SpectralParam::HfnFmin: gases[gasIndex].proc.saHfnFmin = value; break;
+        case SpectralParam::Fmin: gases[gasIndex].proc.saFmin = value; break;
+        case SpectralParam::Fmax: gases[gasIndex].proc.saFmax = value; break;
+        case SpectralParam::MinUnstable: gases[gasIndex].proc.saMinUn = value; break;
+        case SpectralParam::MinStable: gases[gasIndex].proc.saMinSt = value; break;
+        case SpectralParam::Maximum: gases[gasIndex].proc.saMax = value; break;
+    }
+    ecProject_->setGasColumns(gases);
+
+}
+
+/// Restore Default Values, for the per-gas spectral settings. Only the
+/// records are written now that the flat keys are retired.
+void AdvSpectralOptions::resetGasSpectralToDefault()
+{
+    if (!ecProject_) { return; }
+
+    const auto& gases = ecProject_->gasColumns();
+    const SpectralParam params[] = {
+        SpectralParam::HfnFmin, SpectralParam::Fmin, SpectralParam::Fmax,
+        SpectralParam::MinUnstable, SpectralParam::MinStable,
+        SpectralParam::Maximum
+    };
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        const auto slug = gases.at(i).slug;
+        for (const auto param : params)
+        {
+            onGasSpectralChanged(i, param, defaultGasSpectral(slug, param));
+        }
+    }
+    rebuildGasSpectralSpins();
+}
+
+/// One spin box, configured for its setting and species.
+///
+/// The value is set before the connection is made, so building the row never
+/// writes back into the project.
+QDoubleSpinBox* AdvSpectralOptions::makeGasSpectralSpin(int gasIndex,
+                                                        SpectralParam param)
+{
+    const bool isFrequency = (param == SpectralParam::HfnFmin
+                              || param == SpectralParam::Fmin
+                              || param == SpectralParam::Fmax);
+
+    QDoubleSpinBox* spin = isFrequency ? new QDoubleSpinBox
+                                       : new AdaptivePrecisionDoubleSpinBox;
+    if (isFrequency)
+    {
+        spin->setRange(0.0, 50.0);
+        spin->setSingleStep(0.1);
+        spin->setDecimals(4);
+        spin->setSuffix(QStringLiteral(" [Hz]"));
+        if (param == SpectralParam::HfnFmin)
+        {
+            spin->setSpecialValueText(tr("Do not remove noise"));
+        }
+    }
+    else
+    {
+        spin->setRange(0.0, 5000.0);
+        // CO2 fluxes are an order of magnitude larger than the other gases',
+        // which is why its minima stepped coarser than theirs.
+        const auto slug = ecProject_->gasColumns().at(gasIndex).slug;
+        const bool isCo2 = (slug == QLatin1String("co2"));
+        if (param == SpectralParam::Maximum) { spin->setSingleStep(10.0); }
+        else { spin->setSingleStep(isCo2 ? 1.0 : 0.1); }
+        spin->setDecimals(6);
+        spin->setSuffix(tr(" [%1]").arg(Defs::UMOL_M2S_STRING));
+    }
+    spin->setAccelerated(true);
+
+    switch (param)
+    {
+        case SpectralParam::HfnFmin: spin->setToolTip(noiseFrequencyTip_); break;
+        case SpectralParam::Fmin: spin->setToolTip(lowestFrequencyTip_); break;
+        case SpectralParam::Fmax: spin->setToolTip(highestFrequencyTip_); break;
+        case SpectralParam::MinUnstable: spin->setToolTip(minUnstableTip_); break;
+        case SpectralParam::MinStable: spin->setToolTip(minStableTip_); break;
+        case SpectralParam::Maximum: spin->setToolTip(maxTip_); break;
+    }
+
+    WidgetUtils::setCompactSpinBoxWidth(spin, isFrequency ? 86 : 96);
+    spin->setParent(this);
+    spin->hide();
+    if (isFrequency) { spin->setEnabled(frequencyCellsEnabled_); }
+
+    spin->setValue(gasSpectralFor(gasIndex, param));
+
+    connect(spin, qOverload<double>(&QDoubleSpinBox::valueChanged),
+            spectralQaQcModel,
+            [model = spectralQaQcModel]()
+            { static_cast<SpectralQaQcTableModel*>(model)->refreshAll(); });
+    return spin;
+}
+
+/// One set of spin boxes per configured gas.
+///
+/// Records with no raw column are skipped: they are slots kept so the
+/// engine's record-to-slot mapping stays put, not measurements.
+void AdvSpectralOptions::rebuildGasSpectralSpins()
+{
+    if (!ecProject_ || !spectralQaQcModel) { return; }
+
+    // Cleared from the model first: it holds raw pointers into these rows,
+    // and would paint through them while the widgets are being destroyed.
+    static_cast<SpectralQaQcTableModel*>(spectralQaQcModel)
+        ->setRows(QVector<SpectralQaQcRow>{});
+
+    const auto dropSpin = [](QDoubleSpinBox* spin)
+    {
+        if (!spin) { return; }
+        spin->setParent(nullptr);
+        spin->deleteLater();
+    };
+    for (const auto& row : gasSpectralRows_)
+    {
+        dropSpin(row.noiseFrequency);
+        dropSpin(row.lowestFrequency);
+        dropSpin(row.highestFrequency);
+        dropSpin(row.minUnstable);
+        dropSpin(row.minStable);
+        dropSpin(row.maximum);
+    }
+    gasSpectralRows_.clear();
+
+    const auto& gases = ecProject_->gasColumns();
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        if (gases.at(i).rawColumn <= 0) { continue; }
+
+        GasSpectralRow row;
+        row.gasIndex = i;
+        row.noiseFrequency = makeGasSpectralSpin(i, SpectralParam::HfnFmin);
+        row.lowestFrequency = makeGasSpectralSpin(i, SpectralParam::Fmin);
+        row.highestFrequency = makeGasSpectralSpin(i, SpectralParam::Fmax);
+
+        // Water's thresholds are the latent-heat triple, one per project and
+        // not a gas flux, so an H2O record has no QA/QC spins of its own.
+        if (gases.at(i).slug != QLatin1String("h2o"))
+        {
+            row.minUnstable = makeGasSpectralSpin(i, SpectralParam::MinUnstable);
+            row.minStable = makeGasSpectralSpin(i, SpectralParam::MinStable);
+            row.maximum = makeGasSpectralSpin(i, SpectralParam::Maximum);
+        }
+
+        const int idx = i;
+        auto fmin = row.lowestFrequency;
+        auto fmax = row.highestFrequency;
+        connect(row.noiseFrequency, qOverload<double>(&QDoubleSpinBox::valueChanged),
+                this, [=](double d)
+                { onGasSpectralChanged(idx, SpectralParam::HfnFmin, d); });
+        connect(fmin, qOverload<double>(&QDoubleSpinBox::valueChanged),
+                this, [=](double d)
+                {
+                    onGasSpectralChanged(idx, SpectralParam::Fmin, d);
+                    // min/max constraint
+                    if (d >= fmax->value()) { fmax->setValue(d + 0.0001); }
+                });
+        connect(fmax, qOverload<double>(&QDoubleSpinBox::valueChanged),
+                this, [=](double d)
+                {
+                    onGasSpectralChanged(idx, SpectralParam::Fmax, d);
+                    // min/max constraint
+                    if (d <= fmin->value()) { fmin->setValue(d - 0.0001); }
+                });
+        if (row.minUnstable)
+        {
+            connect(row.minUnstable, qOverload<double>(&QDoubleSpinBox::valueChanged),
+                    this, [=](double d)
+                    { onGasSpectralChanged(idx, SpectralParam::MinUnstable, d); });
+            connect(row.minStable, qOverload<double>(&QDoubleSpinBox::valueChanged),
+                    this, [=](double d)
+                    { onGasSpectralChanged(idx, SpectralParam::MinStable, d); });
+            connect(row.maximum, qOverload<double>(&QDoubleSpinBox::valueChanged),
+                    this, [=](double d)
+                    { onGasSpectralChanged(idx, SpectralParam::Maximum, d); });
+        }
+
+        gasSpectralRows_.append(row);
+    }
+
+    gasSignature_ = gasSignature();
+    rebuildSpectralQaQcRows();
 }
 
 void AdvSpectralOptions::rebuildSpectralQaQcRows()
@@ -2268,31 +2279,32 @@ void AdvSpectralOptions::rebuildSpectralQaQcRows()
         return;
     }
 
+    // The gas records can change while another page is in front:
+    // setGasColumns emits ecProjectModified, which nothing here listens to.
+    if (gasSignature() != gasSignature_)
+    {
+        rebuildGasSpectralSpins();
+        return;                 // that call comes back through here
+    }
+
     QVector<SpectralQaQcRow> rows;
     rows.append({ tr("Friction velocity"), nullptr, qcMinUnstableUstarSpin, qcMinStableUstarSpin, qcMaxUstarSpin, nullptr, nullptr });
     rows.append({ tr("Sensible heat flux"), nullptr, qcMinUnstableHSpin, qcMinStableHSpin, qcMaxHSpin, nullptr, nullptr });
 
-    const bool hasH2o = selectedColumnIsVariable(ecProject_->generalColH2o(),
-                                                 VariableDesc::getVARIABLE_VAR_STRING_6());
+    // The latent-heat row exists whenever the project measures water, wherever
+    // that record sits in the list.
+    const bool hasH2o = !ecProject_->gasRecordsFor(QStringLiteral("h2o")).isEmpty();
     if (hasH2o)
     {
         rows.append({ tr("Latent heat flux"), nullptr, qcMinUnstableLESpin, qcMinStableLESpin, qcMaxLESpin, nullptr, nullptr });
     }
-    if (selectedColumnIsVariable(ecProject_->generalColCo2(), VariableDesc::getVARIABLE_VAR_STRING_5()))
+
+    for (const auto& row : gasSpectralRows_)
     {
-        rows.append({ tr("%1 flux").arg(VariableDesc::getVARIABLE_VAR_STRING_5()), spin31, qcMinUnstableCo2Spin, qcMinStableCo2Spin, qcMaxCo2Spin, spin11, spin21 });
-    }
-    if (hasH2o)
-    {
-        rows.append({ tr("%1 flux").arg(VariableDesc::getVARIABLE_VAR_STRING_6()), spin32, nullptr, nullptr, nullptr, spin12, spin22 });
-    }
-    if (selectedColumnIsVariable(ecProject_->generalColCh4(), VariableDesc::getVARIABLE_VAR_STRING_7()))
-    {
-        rows.append({ tr("%1 flux").arg(VariableDesc::getVARIABLE_VAR_STRING_7()), spin33, qcMinUnstableCh4Spin, qcMinStableCh4Spin, qcMaxCh4Spin, spin13, spin23 });
-    }
-    if (selectedColumnIsGas4(ecProject_->generalColGas4()))
-    {
-        rows.append({ gas4FluxLabel(), spin34, qcMinUnstableGas4Spin, qcMinStableGas4Spin, qcMaxGas4Spin, spin14, spin24 });
+        rows.append({ tr("%1 flux").arg(gasRowLabel(row.gasIndex)),
+                      row.noiseFrequency,
+                      row.minUnstable, row.minStable, row.maximum,
+                      row.lowestFrequency, row.highestFrequency });
     }
 
     static_cast<SpectralQaQcTableModel*>(spectralQaQcModel)->setRows(rows);
@@ -2302,114 +2314,6 @@ void AdvSpectralOptions::refreshSpectralQaQcTableState()
 {
     rebuildSpectralQaQcRows();
     refreshSpectralQaQcTableView(spectralQaQcModel, spectralQaQcTable);
-}
-
-void AdvSpectralOptions::updateFminCo2(double d)
-{
-    ecProject_->setSpectraFminCo2(d);
-
-    // min/max constraint
-    if (d >= spin21->value())
-    {
-        spin21->setValue(d + 0.0001);
-    }
-}
-
-void AdvSpectralOptions::updateFminH2o(double d)
-{
-    ecProject_->setSpectraFminH2o(d);
-
-    // min/max constraint
-    if (d >= spin22->value())
-    {
-        spin22->setValue(d + 0.0001);
-    }
-}
-
-void AdvSpectralOptions::updateFminCh4(double d)
-{
-    ecProject_->setSpectraFminCh4(d);
-
-    // min/max constraint
-    if (d >= spin23->value())
-    {
-        spin23->setValue(d + 0.0001);
-    }
-}
-
-void AdvSpectralOptions::updateFminGas4(double d)
-{
-    ecProject_->setSpectraFminGas4(d);
-
-    // min/max constraint
-    if (d >= spin24->value())
-    {
-        spin24->setValue(d + 0.0001);
-    }
-}
-
-void AdvSpectralOptions::updateFmaxCo2(double d)
-{
-    ecProject_->setSpectraFmaxCo2(d);
-
-    // min/max constraint
-    if (d <= spin11->value())
-    {
-        spin11->setValue(d - 0.0001);
-    }
-}
-
-void AdvSpectralOptions::updateFmaxH2o(double d)
-{
-    ecProject_->setSpectraFmaxH2o(d);
-
-    // min/max constraint
-    if (d <= spin12->value())
-    {
-        spin12->setValue(d - 0.0001);
-    }
-}
-
-void AdvSpectralOptions::updateFmaxCh4(double d)
-{
-    ecProject_->setSpectraFmaxCh4(d);
-
-    // min/max constraint
-    if (d <= spin13->value())
-    {
-        spin13->setValue(d - 0.0001);
-    }
-}
-
-void AdvSpectralOptions::updateFmaxGas4(double d)
-{
-    ecProject_->setSpectraFmaxGas4(d);
-
-    // min/max constraint
-    if (d <= spin14->value())
-    {
-        spin14->setValue(d - 0.0001);
-    }
-}
-
-void AdvSpectralOptions::updateHfnCo2(double d)
-{
-    ecProject_->setSpectraHfnCo2(d);
-}
-
-void AdvSpectralOptions::updateHfnH2o(double d)
-{
-    ecProject_->setSpectraHfnH2o(d);
-}
-
-void AdvSpectralOptions::updateHfnCh4(double d)
-{
-    ecProject_->setSpectraHfnCh4(d);
-}
-
-void AdvSpectralOptions::updateHfnGas4(double d)
-{
-    ecProject_->setSpectraHfnGas4(d);
 }
 
 // enforce (start date&time) <= (end date&time)

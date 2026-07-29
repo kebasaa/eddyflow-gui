@@ -25,6 +25,7 @@
 #ifndef ADVSPECTRALOPTIONS_H
 #define ADVSPECTRALOPTIONS_H
 
+#include <QVector>
 #include <QWidget>
 
 #include "configstate.h"
@@ -94,19 +95,6 @@ private slots:
     void updateHorst_1(bool b);
     void updateHorst_2(int n);
 
-    void updateFminCo2(double d);
-    void updateFminH2o(double d);
-    void updateFminCh4(double d);
-    void updateFminGas4(double d);
-    void updateFmaxCo2(double d);
-    void updateFmaxH2o(double d);
-    void updateFmaxCh4(double d);
-    void updateFmaxGas4(double d);
-    void updateHfnCo2(double d);
-    void updateHfnH2o(double d);
-    void updateHfnCh4(double d);
-    void updateHfnGas4(double d);
-
     void onStartDateLabelClicked();
     void onEndDateLabelClicked();
     void updateStartDate(const QDate& d);
@@ -132,6 +120,28 @@ private slots:
     void updateNBins(int n);
 
 private:
+    //> The six per-gas spin boxes of one QA/QC table row, generated per gas
+    //> record. They are value holders, not laid-out widgets: the table model
+    //> reads and writes them through the pointers in SpectralQaQcRow.
+    //>
+    //> An H2O record carries only the three frequency spins. Its minimum and
+    //> maximum thresholds are the latent-heat triple, which is one per project
+    //> rather than one per record and stays fixed - the same carve-out as
+    //> leMinFluxSpin in the time-lag dialog.
+    struct GasSpectralRow
+    {
+        int gasIndex = -1;                        //< index into gasColumns()
+        QDoubleSpinBox* noiseFrequency = nullptr; //< sa_hfn_fmin
+        QDoubleSpinBox* lowestFrequency = nullptr;//< sa_fmin
+        QDoubleSpinBox* highestFrequency = nullptr;//< sa_fmax
+        QDoubleSpinBox* minUnstable = nullptr;    //< sa_min_un
+        QDoubleSpinBox* minStable = nullptr;      //< sa_min_st
+        QDoubleSpinBox* maximum = nullptr;        //< sa_max
+    };
+
+    //> Which per-gas spectral setting a value belongs to.
+    enum class SpectralParam { HfnFmin, Fmin, Fmax, MinUnstable, MinStable, Maximum };
+
     bool isHorstIbromFratini();
     bool isIbrom();
     bool isFratini();
@@ -149,8 +159,15 @@ private:
     void refreshSpectralQaQcTableState();
     const VariableDesc* rawVariableAtColumn(int column) const;
     bool selectedColumnIsVariable(int column, const QString& variableName) const;
-    bool selectedColumnIsGas4(int column) const;
-    QString gas4FluxLabel() const;
+
+    void rebuildGasSpectralSpins();
+    QString gasSignature() const;
+    QString gasRowLabel(int gasIndex) const;
+    QDoubleSpinBox* makeGasSpectralSpin(int gasIndex, SpectralParam param);
+    double gasSpectralFor(int gasIndex, SpectralParam param) const;
+    double defaultGasSpectral(const QString& slug, SpectralParam param) const;
+    void onGasSpectralChanged(int gasIndex, SpectralParam param, double value);
+    void resetGasSpectralToDefault();
 
     QCheckBox* vmFlagsCheckBox;
     QCheckBox* lowQualityCheckBox;
@@ -194,33 +211,34 @@ private:
     QDoubleSpinBox* qcMinUnstableUstarSpin;
     QDoubleSpinBox* qcMinUnstableHSpin;
     QDoubleSpinBox* qcMinUnstableLESpin;
-    QDoubleSpinBox* qcMinUnstableCo2Spin;
-    QDoubleSpinBox* qcMinUnstableCh4Spin;
-    QDoubleSpinBox* qcMinUnstableGas4Spin;
     QDoubleSpinBox* qcMinStableUstarSpin;
     QDoubleSpinBox* qcMinStableHSpin;
     QDoubleSpinBox* qcMinStableLESpin;
-    QDoubleSpinBox* qcMinStableCo2Spin;
-    QDoubleSpinBox* qcMinStableCh4Spin;
-    QDoubleSpinBox* qcMinStableGas4Spin;
     QDoubleSpinBox* qcMaxUstarSpin;
     QDoubleSpinBox* qcMaxHSpin;
     QDoubleSpinBox* qcMaxLESpin;
-    QDoubleSpinBox* qcMaxCo2Spin;
-    QDoubleSpinBox* qcMaxCh4Spin;
-    QDoubleSpinBox* qcMaxGas4Spin;
-    QDoubleSpinBox* spin11;
-    QDoubleSpinBox* spin12;
-    QDoubleSpinBox* spin13;
-    QDoubleSpinBox* spin14;
-    QDoubleSpinBox* spin21;
-    QDoubleSpinBox* spin22;
-    QDoubleSpinBox* spin23;
-    QDoubleSpinBox* spin24;
-    QDoubleSpinBox* spin31;
-    QDoubleSpinBox* spin32;
-    QDoubleSpinBox* spin33;
-    QDoubleSpinBox* spin34;
+
+    //> One set of six spin boxes per configured gas, replacing the twelve
+    //> frequency spins and twelve QA/QC spins that used to be fixed at four
+    //> gases. A site may measure the same species on several analysers, each
+    //> with its own filtering and so its own transfer-function window.
+    QVector<GasSpectralRow> gasSpectralRows_;
+
+    //> Tooltips shared by the generated spins, kept next to the table headers
+    //> they belong to so the wording lives in one place.
+    QString noiseFrequencyTip_;
+    QString lowestFrequencyTip_;
+    QString highestFrequencyTip_;
+    QString minUnstableTip_;
+    QString minStableTip_;
+    QString maxTip_;
+
+    //> The record set the current spins were built from, and the enabled state
+    //> to reapply after a rebuild - the table's flags() reads it off the spin,
+    //> so a fresh spin must not silently become editable.
+    QString gasSignature_;
+    bool frequencyCellsEnabled_ = false;
+
     QRadioButton* fullSpectraExistingRadio;
     QRadioButton* fullSpectraNonExistingRadio;
     DirBrowseWidget* fullSpectraDirBrowse;

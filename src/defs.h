@@ -57,8 +57,12 @@ namespace Defs
     const auto APP_VERSION_STR = QStringLiteral("7.3.0");
     const auto APP_STAGE_STR = QStringLiteral(""); // -rc1
 
-    const auto PROJECT_FILE_VERSION = 0x040500;
-    const auto PROJECT_FILE_VERSION_STR = QStringLiteral("4.5.0");
+    //> 5.0.0 is the record format: gases, cell measurements and diagnostics
+    //> are described by indexed records rather than by one column per fixed
+    //> role. A 4.x file is migrated on load and saved back in this format;
+    //> nothing but the reader understands the old shape.
+    const auto PROJECT_FILE_VERSION = 0x050000;
+    const auto PROJECT_FILE_VERSION_STR = QStringLiteral("5.0.0");
 
     const auto METADATA_FILE_VERSION = 0x030201;
     const auto METADATA_FILE_VERSION_STR = QStringLiteral("3.2.2");
@@ -207,8 +211,6 @@ namespace Defs
     const int MAX_INSTRUMENTS = 8;
     const int MAX_GASES = 64;
     const int MAX_GASES_PER_INSTRUMENT = 8;
-
-    const auto GAS4_STRING  = QStringLiteral("4<sup>th</sup>");
 
     const auto READY      = QObject::tr("Ready");
     const auto ABOUT_DESC = QObject::tr("EddyFlow software suite.");

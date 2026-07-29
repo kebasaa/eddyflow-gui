@@ -112,33 +112,9 @@ namespace {
 
 enum class VariableTableRowKind
 {
-    GasCo2,
-    GasH2o,
-    GasCh4,
-    Gas4,
+    Gas,
     Cell,
     Ambient
-};
-
-enum class VariableTableRole
-{
-    Co2,
-    H2o,
-    Ch4,
-    Gas4,
-    IntTc,
-    IntT1,
-    IntT2,
-    IntP,
-    Diag7500,
-    Diag7200,
-    Diag7700,
-    AmbientT,
-    AmbientP,
-    Rh,
-    Rg,
-    Lwin,
-    Ppfd
 };
 
 struct VariableTableRow
@@ -148,6 +124,13 @@ struct VariableTableRow
     VariableTableRowKind kind = VariableTableRowKind::Cell;
     VariableTableRole role = VariableTableRole::Co2;
     QString tooltip;
+    //> Species this row is pinned to, empty when the row takes whatever the
+    //> site measured. The first three gas rows are pinned; the fourth is the
+    //> open slot, which is why its molecular weight and diffusivity are
+    //> editable and the others' are not.
+    QString species;
+    //> Index of the gas record this row drives, -1 for a non-gas row.
+    int recordIndex = -1;
 };
 
 struct VariableTableCandidate
@@ -157,31 +140,12 @@ struct VariableTableCandidate
     int rawColumn = -1;
     QString variableText;
     QString sourceText;
+    //> Species of this particular candidate, for a row that is not pinned.
+    //> Resolved once when the rows are built: the candidate text is the only
+    //> place it appears, and the row no longer owns a combo to re-read it
+    //> from.
+    QString candidateSpecies;
 };
-
-double builtInMolecularWeight(VariableTableRowKind kind)
-{
-    switch (kind)
-    {
-        case VariableTableRowKind::GasCo2: return 44.01;
-        case VariableTableRowKind::GasH2o: return 18.02;
-        case VariableTableRowKind::GasCh4: return 16.04;
-        case VariableTableRowKind::Gas4: return 44.01;
-        default: return 0.0;
-    }
-}
-
-double builtInDiffusivity(VariableTableRowKind kind)
-{
-    switch (kind)
-    {
-        case VariableTableRowKind::GasCo2: return 0.1381;
-        case VariableTableRowKind::GasH2o: return 0.2178;
-        case VariableTableRowKind::GasCh4: return 0.1952;
-        case VariableTableRowKind::Gas4: return 0.1436;
-        default: return 0.0;
-    }
-}
 
 QString variableCandidateName(const QString& text, VariableTableRowKind kind)
 {
@@ -193,10 +157,7 @@ QString variableCandidateName(const QString& text, VariableTableRowKind kind)
         variableText = variableText.left(fromIndex).trimmed();
     }
 
-    if (kind == VariableTableRowKind::GasCo2
-        || kind == VariableTableRowKind::GasH2o
-        || kind == VariableTableRowKind::GasCh4
-        || kind == VariableTableRowKind::Gas4)
+    if (kind == VariableTableRowKind::Gas)
     {
         return variableText.section(QLatin1Char(' '), 0, 0).trimmed();
     }
@@ -324,10 +285,7 @@ public:
                 return role == Qt::ToolTipRole ? row.row.tooltip : QVariant();
             case Variable:
                 if (role == Qt::ToolTipRole
-                    && (row.row.kind == VariableTableRowKind::GasCo2
-                        || row.row.kind == VariableTableRowKind::GasH2o
-                        || row.row.kind == VariableTableRowKind::GasCh4
-                        || row.row.kind == VariableTableRowKind::Gas4))
+                    && row.row.kind == VariableTableRowKind::Gas)
                 {
                     QString tooltip = row.row.tooltip;
                     tooltip += QStringLiteral("\n\n");
@@ -423,6 +381,18 @@ public:
                 return true;
             }
 
+            //> Cell temperatures, cell pressures and diagnostics are records
+            //> too. They used to be written only as col_int_t_1 and friends,
+            //> which are retired - without this the selection would be lost
+            //> on save.
+            const auto nonGasSlug = BasicSettingsPage::nonGasSlugForRole(
+                static_cast<int>(row.row.role));
+            if (!nonGasSlug.isEmpty() && page_)
+            {
+                if (checked) { page_->addNonGasRecord(nonGasSlug, row.rawColumn); }
+                else { page_->removeNonGasRecord(nonGasSlug, row.rawColumn); }
+            }
+
             auto& mutableRow = mutableRowAt(index.row());
             const int comboIndex = checked ? mutableRow.comboIndex : noneIndex(mutableRow);
             if (comboIndex < 0)
@@ -448,7 +418,7 @@ public:
             return true;
         }
 
-        if (row.row.kind == VariableTableRowKind::Gas4
+        if (speciesIsOpen(row)
             && index.column() == MolecularWeight
             && isActive(row)
             && gasMw_
@@ -459,7 +429,7 @@ public:
             return true;
         }
 
-        if (row.row.kind == VariableTableRowKind::Gas4
+        if (speciesIsOpen(row)
             && index.column() == Diffusivity
             && isActive(row)
             && gasDiff_
@@ -494,7 +464,7 @@ public:
         {
             itemFlags |= Qt::ItemIsEditable;
         }
-        if (row.row.kind == VariableTableRowKind::Gas4
+        if (speciesIsOpen(row)
             && isActive(row)
             && ((index.column() == MolecularWeight && gasMw_ && gasMw_->isEnabled())
                 || (index.column() == Diffusivity && gasDiff_ && gasDiff_->isEnabled())))
@@ -522,39 +492,43 @@ private:
         return visibleRows_[row];
     }
 
-    static bool isNoneCandidate(const QComboBox* combo, int index)
+    //> "None" and the 1000 sentinel are placeholders, not measurements.
+    static bool isNoneCandidate(const VariableCandidateItem& item)
     {
-        if (!combo || index < 0 || index >= combo->count())
-        {
-            return true;
-        }
-
-        const auto data = combo->itemData(index);
-        if (data.isValid())
-        {
-            bool ok = false;
-            const int value = data.toInt(&ok);
-            if (ok && (value == 0 || value == 1000))
-            {
-                return true;
-            }
-        }
-
-        const QString text = combo->itemText(index).trimmed();
-        return text.isEmpty() || text.compare(QObject::tr("None"), Qt::CaseInsensitive) == 0;
+        if (item.rawColumn == 0 || item.rawColumn == 1000) { return true; }
+        const QString text = item.text.trimmed();
+        return text.isEmpty()
+            || text.compare(QObject::tr("None"), Qt::CaseInsensitive) == 0;
     }
 
-    static int noneIndex(const VariableTableCandidate& row)
+    int noneIndex(const VariableTableCandidate& row) const
     {
-        if (!row.row.combo) { return -1; }
-        for (int i = 0; i < row.row.combo->count(); ++i)
+        const auto items = candidatesFor(row.row);
+        for (int i = 0; i < items.size(); ++i)
         {
-            if (isNoneCandidate(row.row.combo, i))
-            {
-                return i;
-            }
+            if (isNoneCandidate(items.at(i))) { return i; }
         }
         return -1;
+    }
+
+    //> The candidate list for a row. Ambient roles still keep theirs in a
+    //> combo, because col_air_t, col_air_p and the biomet columns are live
+    //> keys; every other role reads the page's list.
+    QVector<VariableCandidateItem> candidatesFor(const VariableTableRow& row) const
+    {
+        if (row.combo)
+        {
+            QVector<VariableCandidateItem> items;
+            items.reserve(row.combo->count());
+            for (int i = 0; i < row.combo->count(); ++i)
+            {
+                items.append({ row.combo->itemData(i).toInt(),
+                               row.combo->itemText(i) });
+            }
+            return items;
+        }
+        return page_ ? page_->candidatesForRole(static_cast<int>(row.role))
+                     : QVector<VariableCandidateItem>{};
     }
 
     //> Index into the project's gas record list for this row, or -1.
@@ -563,14 +537,7 @@ private:
     //> even when absent, so the mapping is positional and stable.
     static int gasRecordIndex(const VariableTableCandidate& row)
     {
-        switch (row.row.kind)
-        {
-            case VariableTableRowKind::GasCo2: return 0;
-            case VariableTableRowKind::GasH2o: return 1;
-            case VariableTableRowKind::GasCh4: return 2;
-            case VariableTableRowKind::Gas4:   return 3;
-            default: return -1;
-        }
+        return row.row.recordIndex;
     }
 
     //> Whether this row gets a moisture choice at all.
@@ -580,7 +547,7 @@ private:
     bool moistureAvailable(const VariableTableCandidate& row) const
     {
         if (!molecularColumns_) { return false; }
-        if (row.row.kind == VariableTableRowKind::GasH2o) { return false; }
+        if (gasSlug(row) == QLatin1String("h2o")) { return false; }
         if (gasRecordIndex(row) < 0) { return false; }
         if (!isActive(row)) { return false; }
         return !page_ || page_->hasMoistureCandidates();
@@ -596,21 +563,21 @@ private:
 
     //> Engine slug for a gas row, empty for anything that is not a gas.
     //>
-    //> The fourth slot's species is whatever the site measured, so it is read
-    //> from the candidate's own text rather than fixed here.
+    //> A pinned row answers with its own species; the open slot answers with
+    //> whatever the site measured, resolved when the rows were built.
     QString gasSlug(const VariableTableCandidate& row) const
     {
-        switch (row.row.kind)
-        {
-            case VariableTableRowKind::GasCo2: return QStringLiteral("co2");
-            case VariableTableRowKind::GasH2o: return QStringLiteral("h2o");
-            case VariableTableRowKind::GasCh4: return QStringLiteral("ch4");
-            case VariableTableRowKind::Gas4:
-                return GasMetadata::normaliseFormula(
-                    variableCandidateName(row.row.combo->itemText(row.comboIndex),
-                                          row.row.kind));
-            default: return QString();
-        }
+        if (row.row.kind != VariableTableRowKind::Gas) { return QString(); }
+        return row.row.species.isEmpty() ? row.candidateSpecies : row.row.species;
+    }
+
+    //> Whether this row takes its species from the data rather than being
+    //> pinned to one. Only such a row gets editable molecular weight and
+    //> diffusivity, and only it can raise a diffusivity-provenance warning.
+    static bool speciesIsOpen(const VariableTableCandidate& row)
+    {
+        return row.row.kind == VariableTableRowKind::Gas
+               && row.row.species.isEmpty();
     }
 
     //> Whether this candidate is selected.
@@ -625,38 +592,58 @@ private:
         {
             return page_->gasRecordExists(slug, row.rawColumn);
         }
+        //> Cell and diagnostic rows answer from their records for the same
+        //> reason gas rows do: the column they used to be written to is
+        //> retired, and a record can name the analyser as well as the column.
+        const auto nonGasSlug = BasicSettingsPage::nonGasSlugForRole(
+            static_cast<int>(row.row.role));
+        if (!nonGasSlug.isEmpty() && page_)
+        {
+            return page_->nonGasRecordExists(nonGasSlug, row.rawColumn);
+        }
         return isComboActive(row);
     }
 
-    static bool isComboActive(const VariableTableCandidate& row)
+    //> Only the ambient rows still answer from a combo; everything else is
+    //> record-driven and never reaches here.
+    bool isComboActive(const VariableTableCandidate& row) const
     {
-        return row.row.combo
-                && row.row.combo->currentIndex() >= 0
+        if (!row.row.combo) { return false; }
+        const auto items = candidatesFor(row.row);
+        return row.row.combo->currentIndex() >= 0
                 && row.row.combo->currentIndex() == row.comboIndex
-                && !isNoneCandidate(row.row.combo, row.comboIndex);
+                && row.comboIndex >= 0 && row.comboIndex < items.size()
+                && !isNoneCandidate(items.at(row.comboIndex));
     }
 
-    static int comboIndexForColumn(const VariableTableCandidate& row, int rawColumn)
+    int comboIndexForColumn(const VariableTableCandidate& row, int rawColumn) const
     {
-        if (!row.row.combo) { return -1; }
-        for (int i = 0; i < row.row.combo->count(); ++i)
+        const auto items = candidatesFor(row.row);
+        for (int i = 0; i < items.size(); ++i)
         {
-            if (row.row.combo->itemData(i).toInt() == rawColumn) { return i; }
+            if (items.at(i).rawColumn == rawColumn) { return i; }
         }
         return -1;
     }
 
     void applyComboIndex(VariableTableCandidate& row, int comboIndex)
     {
-        row.row.combo->setCurrentIndex(comboIndex);
+        //> A flux row has no combo: its selection lives in the record that
+        //> setData has already written.
+        if (row.row.combo) { row.row.combo->setCurrentIndex(comboIndex); }
         if (row.row.updateSlot)
         {
             QMetaObject::invokeMethod(page_, row.row.updateSlot, Qt::DirectConnection, Q_ARG(int, comboIndex));
         }
-        if (row.row.kind == VariableTableRowKind::Gas4)
+        //> Both of these are species questions, not slot questions: they fire
+        //> for whichever row takes its species from the data.
+        if (speciesIsOpen(row))
         {
-            QMetaObject::invokeMethod(page_, "showFourthGasDiffWarning", Qt::DirectConnection, Q_ARG(int, comboIndex));
-            QMetaObject::invokeMethod(page_, "updateFourthGasMinLimit", Qt::DirectConnection, Q_ARG(int, comboIndex));
+            const QString species = gasSlug(row);
+            QMetaObject::invokeMethod(page_, "showGasDiffusivityWarning",
+                                      Qt::DirectConnection, Q_ARG(QString, species));
+            QMetaObject::invokeMethod(page_, "applyGasAbsoluteLimitMin",
+                                      Qt::DirectConnection, Q_ARG(QString, species));
         }
     }
 
@@ -665,24 +652,22 @@ private:
         visibleRows_.clear();
         for (const auto& row : rows_)
         {
-            if (!row.combo)
+            const auto items = candidatesFor(row);
+            for (int i = 0; i < items.size(); ++i)
             {
-                continue;
-            }
-            for (int i = 0; i < row.combo->count(); ++i)
-            {
-                if (isNoneCandidate(row.combo, i))
-                {
-                    continue;
-                }
+                if (isNoneCandidate(items.at(i))) { continue; }
 
                 VariableTableCandidate candidate;
                 candidate.row = row;
                 candidate.comboIndex = i;
-                candidate.rawColumn = row.combo->itemData(i).toInt();
-                candidate.variableText = variableCandidateName(row.combo->itemText(i), row.kind)
-                                         + tr(" (col %1)").arg(candidate.rawColumn);
-                candidate.sourceText = variableCandidateSource(row.combo->itemText(i));
+                candidate.rawColumn = items.at(i).rawColumn;
+                const QString name = variableCandidateName(items.at(i).text, row.kind);
+                candidate.variableText = name + tr(" (col %1)").arg(candidate.rawColumn);
+                candidate.sourceText = variableCandidateSource(items.at(i).text);
+                if (row.kind == VariableTableRowKind::Gas && row.species.isEmpty())
+                {
+                    candidate.candidateSpecies = GasMetadata::normaliseFormula(name);
+                }
                 visibleRows_.append(candidate);
             }
         }
@@ -691,22 +676,22 @@ private:
     QVariant molecularText(const VariableTableCandidate& row, bool weight) const
     {
         if (!molecularColumns_) { return QVariant(); }
-        if (row.row.kind == VariableTableRowKind::Cell || row.row.kind == VariableTableRowKind::Ambient)
-        {
-            return QVariant();
-        }
+        if (row.row.kind != VariableTableRowKind::Gas) { return QVariant(); }
 
-        if (row.row.kind == VariableTableRowKind::Gas4)
+        //> An open slot shows what the user has in the spin boxes, which is
+        //> what will be written to the record. A pinned row shows the species
+        //> constant, which is not editable.
+        if (speciesIsOpen(row))
         {
             if (!isActive(row)) { return QVariant(); }
-            const double value = weight
-                    ? (gasMw_ ? gasMw_->value() : builtInMolecularWeight(row.row.kind))
-                    : (gasDiff_ ? gasDiff_->value() : builtInDiffusivity(row.row.kind));
-            return QString::number(value, 'f', weight ? 4 : 5);
+            if (weight && gasMw_)   { return QString::number(gasMw_->value(), 'f', 4); }
+            if (!weight && gasDiff_) { return QString::number(gasDiff_->value(), 'f', 5); }
         }
 
-        const double value = weight ? builtInMolecularWeight(row.row.kind) : builtInDiffusivity(row.row.kind);
-        return QString::number(value, 'f', weight ? 4 : 5);
+        const GasMetadata::GasEntry* gas = GasMetadata::findSpecies(gasSlug(row));
+        if (!gas) { return QVariant(); }
+        return QString::number(weight ? gas->molecularWeight : gas->diffusivity,
+                               'f', weight ? 4 : 5);
     }
 
     BasicSettingsPage* page_;
@@ -857,6 +842,20 @@ int legacyGasSlotFor(const QString& slug)
 /// Read from the metadata rather than parsed out of the table's display text:
 /// the label is translated and formatted for reading, while the id is what
 /// both the project file and the same-analyser rule match on.
+/// Species of the gas in the fourth record slot, as a slug.
+///
+/// Read from the record rather than from a combo's current text, which is
+/// what this used to be: the fourth-gas combo is gone with the rest, and the
+/// record is where the species has lived since Phase 5. GasMetadata::findGas
+/// normalises both sides, so a slug matches a display formula.
+QString BasicSettingsPage::fourthGasSpecies() const
+{
+    if (!ecProject_) { return QString(); }
+    const auto& gases = ecProject_->gasColumns();
+    if (gases.size() <= 3) { return QString(); }
+    return gases.at(3).slug;
+}
+
 QString BasicSettingsPage::canonicalInstrumentForColumn(int rawColumn) const
 {
     if (!dlProject_ || rawColumn <= 0) { return QString(); }
@@ -960,6 +959,88 @@ void BasicSettingsPage::addGasRecord(const QString& slug, int rawColumn)
         gases.append(rec);
     }
     ecProject_->setGasColumns(gases);
+}
+
+/// Slug for a non-gas row, or empty when the row is not one.
+///
+/// Cell temperatures and pressures and the instrument diagnostics are
+/// records too. They used to be written only as col_int_t_1 and friends,
+/// which could name one column each and said nothing about which analyser
+/// it came from - the same limitation the gas records were introduced to
+/// remove, and it applies just as much to a site with two closed-path
+/// analysers, each with its own cell.
+QString BasicSettingsPage::nonGasSlugForRole(int role)
+{
+    switch (static_cast<VariableTableRole>(role))
+    {
+        case VariableTableRole::IntTc: return QStringLiteral("cell_t");
+        case VariableTableRole::IntT1: return QStringLiteral("int_t_1");
+        case VariableTableRole::IntT2: return QStringLiteral("int_t_2");
+        case VariableTableRole::IntP: return QStringLiteral("int_p");
+        case VariableTableRole::Diag7500: return QStringLiteral("diag_75");
+        case VariableTableRole::Diag7200: return QStringLiteral("diag_72");
+        case VariableTableRole::Diag7700: return QStringLiteral("diag_77");
+        default: return QString();
+    }
+}
+
+/// Whether \a slug names a diagnostic rather than a cell measurement.
+static bool isDiagnosticSlug(const QString& slug)
+{
+    return slug.startsWith(QLatin1String("diag_"));
+}
+
+void BasicSettingsPage::addNonGasRecord(const QString& slug, int rawColumn)
+{
+    if (!ecProject_ || slug.isEmpty() || rawColumn <= 0) { return; }
+
+    auto records = isDiagnosticSlug(slug) ? ecProject_->diagColumns()
+                                          : ecProject_->cellColumns();
+    for (const auto& rec : records)
+    {
+        if (rec.slug == slug && rec.rawColumn == rawColumn) { return; }
+    }
+
+    MeasurementRecord rec;
+    rec.slug = slug;
+    rec.rawColumn = rawColumn;
+    rec.instrumentId = canonicalInstrumentForColumn(rawColumn);
+    records.append(rec);
+
+    if (isDiagnosticSlug(slug)) { ecProject_->setDiagColumns(records); }
+    else { ecProject_->setCellColumns(records); }
+}
+
+void BasicSettingsPage::removeNonGasRecord(const QString& slug, int rawColumn)
+{
+    if (!ecProject_ || slug.isEmpty()) { return; }
+
+    auto records = isDiagnosticSlug(slug) ? ecProject_->diagColumns()
+                                          : ecProject_->cellColumns();
+    for (int i = records.size() - 1; i >= 0; --i)
+    {
+        if (records.at(i).slug == slug && records.at(i).rawColumn == rawColumn)
+        {
+            records.removeAt(i);
+        }
+    }
+
+    if (isDiagnosticSlug(slug)) { ecProject_->setDiagColumns(records); }
+    else { ecProject_->setCellColumns(records); }
+}
+
+/// Whether a non-gas record for \a slug at \a rawColumn exists.
+bool BasicSettingsPage::nonGasRecordExists(const QString& slug,
+                                           int rawColumn) const
+{
+    if (!ecProject_ || slug.isEmpty()) { return false; }
+    const auto& records = isDiagnosticSlug(slug) ? ecProject_->diagColumns()
+                                                 : ecProject_->cellColumns();
+    for (const auto& rec : records)
+    {
+        if (rec.slug == slug && rec.rawColumn == rawColumn) { return true; }
+    }
+    return false;
 }
 
 void BasicSettingsPage::removeGasRecord(const QString& slug, int rawColumn)
@@ -1372,17 +1453,9 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     const QString fluxVariableTooltip = tr("Select the variables to be used for calculating fluxes, among those available.");
     const QString diagnosticVariableTooltip = tr("Select the variables to be used for diagnostics of this gas analyzer.");
 
-    co2RefCombo = new QComboBox;
-    co2RefCombo->setToolTip(fluxVariableTooltip);
 
-    h2oRefCombo = new QComboBox;
-    h2oRefCombo->setToolTip(fluxVariableTooltip);
 
-    ch4RefCombo = new QComboBox;
-    ch4RefCombo->setToolTip(fluxVariableTooltip);
 
-    fourthGasRefCombo = new QComboBox;
-    fourthGasRefCombo->setToolTip(fluxVariableTooltip);
 
     gasMwLabel = new ClickLabel(tr("Molecular weight :"), this);
     gasMw = new QDoubleSpinBox;
@@ -1420,17 +1493,9 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     gasExtension->setLayout(extensionLayout);
     gasExtension->hide();
 
-    intTcRefCombo = new QComboBox;
-    intTcRefCombo->setToolTip(fluxVariableTooltip);
 
-    intT1RefCombo = new QComboBox;
-    intT1RefCombo->setToolTip(fluxVariableTooltip);
 
-    intT2RefCombo = new QComboBox;
-    intT2RefCombo->setToolTip(fluxVariableTooltip);
 
-    intPRefCombo = new QComboBox;
-    intPRefCombo->setToolTip(fluxVariableTooltip);
 
     airTRefCombo = new QComboBox;
     airTRefCombo->setToolTip(fluxVariableTooltip);
@@ -1450,14 +1515,8 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     ppfdCombo = new QComboBox;
     ppfdCombo->setToolTip(fluxVariableTooltip);
 
-    diag7500Combo = new QComboBox;
-    diag7500Combo->setToolTip(diagnosticVariableTooltip);
 
-    diag7200Combo = new QComboBox;
-    diag7200Combo->setToolTip(diagnosticVariableTooltip);
 
-    diag7700Combo = new QComboBox;
-    diag7700Combo->setToolTip(diagnosticVariableTooltip);
 
     flag1Label = new ClickLabel(tr("Flag 1 :"), this);
     flag1Label->setObjectName(QStringLiteral("flag1Label"));
@@ -1667,25 +1726,37 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     varTitle_2->setProperty("groupLabel", true);
 
     const QVector<VariableTableRow> fluxRows = {
-        { co2RefCombo, "updateCo2RefCombo", VariableTableRowKind::GasCo2, VariableTableRole::Co2, fluxVariableTooltip },
-        { h2oRefCombo, "updateH2oRefCombo", VariableTableRowKind::GasH2o, VariableTableRole::H2o, fluxVariableTooltip },
-        { ch4RefCombo, "updateCh4RefCombo", VariableTableRowKind::GasCh4, VariableTableRole::Ch4, fluxVariableTooltip },
-        { fourthGasRefCombo, "updateFourthGasRefCombo", VariableTableRowKind::Gas4, VariableTableRole::Gas4, fluxVariableTooltip },
-        { intTcRefCombo, "updateIntTcRefCombo", VariableTableRowKind::Cell, VariableTableRole::IntTc, fluxVariableTooltip },
-        { intT1RefCombo, "updateIntT1RefCombo", VariableTableRowKind::Cell, VariableTableRole::IntT1, fluxVariableTooltip },
-        { intT2RefCombo, "updateIntT2RefCombo", VariableTableRowKind::Cell, VariableTableRole::IntT2, fluxVariableTooltip },
-        { intPRefCombo, "updateIntPRefCombo", VariableTableRowKind::Cell, VariableTableRole::IntP, fluxVariableTooltip },
-        { diag7500Combo, "updateDiag7500Combo", VariableTableRowKind::Cell, VariableTableRole::Diag7500, diagnosticVariableTooltip },
-        { diag7200Combo, "updateDiag7200Combo", VariableTableRowKind::Cell, VariableTableRole::Diag7200, diagnosticVariableTooltip },
-        { diag7700Combo, "updateDiag7700Combo", VariableTableRowKind::Cell, VariableTableRole::Diag7700, diagnosticVariableTooltip }
+        //> No update slot: every row in this table is driven by records now.
+        //> The slots that used to sit here wrote col_co2 .. col_diag_77,
+        //> which are retired - invoking them would set state nothing saves.
+        //> The combo remains only as the candidate list the model reads.
+        //> The first three rows are pinned to a species; the fourth takes
+        //> whatever the site measured. That is the only difference between
+        //> them - there is no "fourth gas" kind any more, and nothing here
+        //> assumes the open slot holds N2O.
+        { nullptr, nullptr, VariableTableRowKind::Gas, VariableTableRole::Co2, fluxVariableTooltip,
+          QStringLiteral("co2"), 0 },
+        { nullptr, nullptr, VariableTableRowKind::Gas, VariableTableRole::H2o, fluxVariableTooltip,
+          QStringLiteral("h2o"), 1 },
+        { nullptr, nullptr, VariableTableRowKind::Gas, VariableTableRole::Ch4, fluxVariableTooltip,
+          QStringLiteral("ch4"), 2 },
+        { nullptr, nullptr, VariableTableRowKind::Gas, VariableTableRole::Gas4, fluxVariableTooltip,
+          QString(), 3 },
+        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::IntTc, fluxVariableTooltip, QString(), -1 },
+        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::IntT1, fluxVariableTooltip, QString(), -1 },
+        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::IntT2, fluxVariableTooltip, QString(), -1 },
+        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::IntP, fluxVariableTooltip, QString(), -1 },
+        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::Diag7500, diagnosticVariableTooltip, QString(), -1 },
+        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::Diag7200, diagnosticVariableTooltip, QString(), -1 },
+        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::Diag7700, diagnosticVariableTooltip, QString(), -1 }
     };
     const QVector<VariableTableRow> ambientRows = {
-        { airTRefCombo, "updateAirTRefCombo", VariableTableRowKind::Ambient, VariableTableRole::AmbientT, fluxVariableTooltip },
-        { airPRefCombo, "updateAirPRefCombo", VariableTableRowKind::Ambient, VariableTableRole::AmbientP, fluxVariableTooltip },
-        { rhCombo, "updateRhCombo", VariableTableRowKind::Ambient, VariableTableRole::Rh, fluxVariableTooltip },
-        { rgCombo, "updateRgCombo", VariableTableRowKind::Ambient, VariableTableRole::Rg, fluxVariableTooltip },
-        { lwinCombo, "updateLwinCombo", VariableTableRowKind::Ambient, VariableTableRole::Lwin, fluxVariableTooltip },
-        { ppfdCombo, "updatePpfdCombo", VariableTableRowKind::Ambient, VariableTableRole::Ppfd, fluxVariableTooltip }
+        { airTRefCombo, "updateAirTRefCombo", VariableTableRowKind::Ambient, VariableTableRole::AmbientT, fluxVariableTooltip, QString(), -1 },
+        { airPRefCombo, "updateAirPRefCombo", VariableTableRowKind::Ambient, VariableTableRole::AmbientP, fluxVariableTooltip, QString(), -1 },
+        { rhCombo, "updateRhCombo", VariableTableRowKind::Ambient, VariableTableRole::Rh, fluxVariableTooltip, QString(), -1 },
+        { rgCombo, "updateRgCombo", VariableTableRowKind::Ambient, VariableTableRole::Rg, fluxVariableTooltip, QString(), -1 },
+        { lwinCombo, "updateLwinCombo", VariableTableRowKind::Ambient, VariableTableRole::Lwin, fluxVariableTooltip, QString(), -1 },
+        { ppfdCombo, "updatePpfdCombo", VariableTableRowKind::Ambient, VariableTableRole::Ppfd, fluxVariableTooltip, QString(), -1 }
     };
 
     fluxVariablesModel_ = new BasicVariableSelectionModel(this,
@@ -1713,10 +1784,7 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     ambientVariablesTable_->setMinimumHeight(165);
 
     const QList<QWidget*> hiddenVariableControls = {
-        co2RefCombo, h2oRefCombo, ch4RefCombo, fourthGasRefCombo,
-        intTcRefCombo, intT1RefCombo, intT2RefCombo, intPRefCombo,
         airTRefCombo, airPRefCombo, rhCombo, rgCombo, lwinCombo, ppfdCombo,
-        diag7500Combo, diag7200Combo, diag7700Combo,
         moreButton, gasExtension
     };
     for (auto widget : hiddenVariableControls)
@@ -1980,40 +2048,18 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     connect(anemFlagCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateAnemFlagCombo);
 
-    connect(co2RefCombo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateCo2RefCombo);
 
-    connect(h2oRefCombo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateH2oRefCombo);
 
-    connect(ch4RefCombo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateCh4RefCombo);
 
     connect(gasMw, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &BasicSettingsPage::updateGasMw);
     connect(gasDiff, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &BasicSettingsPage::updateGasDiff);
 
-    connect(fourthGasRefCombo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateFourthGasRefCombo);
-    connect(fourthGasRefCombo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::showFourthGasDiffWarning);
-    connect(fourthGasRefCombo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateFourthGasMinLimit);
-    connect(fourthGasRefCombo, &QComboBox::currentTextChanged,
-            this, &BasicSettingsPage::updateFourthGasSettings);
 
-    connect(intTcRefCombo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateIntTcRefCombo);
 
-    connect(intT1RefCombo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateIntT1RefCombo);
 
-    connect(intT2RefCombo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateIntT2RefCombo);
 
-    connect(intPRefCombo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateIntPRefCombo);
 
     connect(airTRefCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateAirTRefCombo);
@@ -2033,14 +2079,8 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     connect(ppfdCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updatePpfdCombo);
 
-    connect(diag7500Combo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateDiag7500Combo);
 
-    connect(diag7200Combo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateDiag7200Combo);
 
-    connect(diag7700Combo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateDiag7700Combo);
 
     connect(tsRefLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickTsRefLabel);
@@ -2770,31 +2810,27 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                     if (varName == VariableDesc::getVARIABLE_VAR_STRING_5()
                             && VariableDesc::isGoodGas(var, isCustomLabel))
                     {
-                        co2RefCombo->setEnabled(true);
-                        co2RefCombo->addItem(varString, k);
+                                                addCandidate(VariableTableRole::Co2, k, varString);
                     }
 
                     // H2O
                     else if (varName == VariableDesc::getVARIABLE_VAR_STRING_6()
                              && VariableDesc::isGoodGas(var, isCustomLabel))
                     {
-                        h2oRefCombo->setEnabled(true);
-                        h2oRefCombo->addItem(varString, k);
+                                                addCandidate(VariableTableRole::H2o, k, varString);
                     }
 
                     // CH4
                     else if (varName == VariableDesc::getVARIABLE_VAR_STRING_7()
                              && VariableDesc::isGoodGas(var, isCustomLabel))
                     {
-                        ch4RefCombo->setEnabled(true);
-                        ch4RefCombo->addItem(varString, k);
+                                                addCandidate(VariableTableRole::Ch4, k, varString);
                     }
 
                     // 4th gas o custom gas
                     else if (VariableDesc::isGoodGas(var, isCustomLabel))
                     {
-                        fourthGasRefCombo->setEnabled(true);
-                        fourthGasRefCombo->addItem(varString, k);
+                                                addCandidate(VariableTableRole::Gas4, k, varString);
 
                         gasMwLabel->setEnabled(true);
                         gasDiffLabel->setEnabled(true);
@@ -2802,41 +2838,40 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                         moreButton->setChecked(true);
                         updateGeometry();
 
-                        updateFourthGasSettings(fourthGasRefCombo->currentText());
-                        gas4WasN2o_ = fourthGasRefCombo->currentText().split(QLatin1Char(' ')).first()
-                                      == VariableDesc::getVARIABLE_VAR_STRING_8();
+                        updateFourthGasSettings(fourthGasSpecies());
+                        //> Seed the "last species" so that merely reloading a
+                        //> project does not overwrite a custom absolute-limit
+                        //> minimum with the species default.
+                        lastAbsLimitSpecies_ =
+                            fourthGasSpecies().split(QLatin1Char(' ')).first();
                     }
 
                     // cell temp in
                     else if (varName == VariableDesc::getVARIABLE_VAR_STRING_9()
                         && VariableDesc::isGoodTemperature(var))
                     {
-                        intT1RefCombo->setEnabled(true);
-                        intT1RefCombo->addItem(varString, k);
+                                                addCandidate(VariableTableRole::IntT1, k, varString);
                     }
 
                     // cell temp out
                     else if (varName == VariableDesc::getVARIABLE_VAR_STRING_10()
                         && VariableDesc::isGoodTemperature(var))
                     {
-                        intT2RefCombo->setEnabled(true);
-                        intT2RefCombo->addItem(varString, k);
+                                                addCandidate(VariableTableRole::IntT2, k, varString);
                     }
 
                     // cell press 1
                     else if (varName == VariableDesc::getVARIABLE_VAR_STRING_11()
                         && VariableDesc::isGoodPressure(var))
                     {
-                        intPRefCombo->setEnabled(true);
-                        intPRefCombo->addItem(varString, k);
+                                                addCandidate(VariableTableRole::IntP, k, varString);
                     }
 
                     // avg cell temp
                     else if (varName == VariableDesc::getVARIABLE_VAR_STRING_15()
                         && VariableDesc::isGoodTemperature(var))
                     {
-                        intTcRefCombo->setEnabled(true);
-                        intTcRefCombo->addItem(varString, k);
+                                                addCandidate(VariableTableRole::IntTc, k, varString);
                     } // if
                 } // if
             } // if
@@ -2876,22 +2911,19 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                 else if (varName == VariableDesc::getVARIABLE_VAR_STRING_25()
                     && instrType != QLatin1String("Other"))
                 {
-                    diag7500Combo->setEnabled(true);
-                    diag7500Combo->addItem(varString, k);
+                                        addCandidate(VariableTableRole::Diag7500, k, varString);
                 }
                 // 7200 diagnostics
                 else if (varName == VariableDesc::getVARIABLE_VAR_STRING_26()
                     && instrType != QLatin1String("Other"))
                 {
-                    diag7200Combo->setEnabled(true);
-                    diag7200Combo->addItem(varString, k);
+                                        addCandidate(VariableTableRole::Diag7200, k, varString);
                 }
                 // 7700 diagnostics
                 else if (varName == VariableDesc::getVARIABLE_VAR_STRING_27()
                     && instrType != tr("Other"))
                 {
-                    diag7700Combo->setEnabled(true);
-                    diag7700Combo->addItem(varString, k);
+                                        addCandidate(VariableTableRole::Diag7700, k, varString);
                 }
                 // Anem diagnostics
                 else if (varName == VariableDesc::getVARIABLE_VAR_STRING_30()
@@ -3040,17 +3072,6 @@ void BasicSettingsPage::addNoneStr_1()
     auto combo_list = QWidgetList()
             << anemFlagCombo
             << tsRefCombo
-            << co2RefCombo
-            << h2oRefCombo
-            << ch4RefCombo
-            << fourthGasRefCombo
-            << intTcRefCombo
-            << intT1RefCombo
-            << intT2RefCombo
-            << intPRefCombo
-            << diag7500Combo
-            << diag7200Combo
-            << diag7700Combo
             << flag1VarCombo
             << flag2VarCombo
             << flag3VarCombo
@@ -3156,23 +3177,12 @@ void BasicSettingsPage::clearVarsCombo()
     auto combo_list = QWidgetList()
                         << anemRefCombo
                         << anemFlagCombo
-                        << co2RefCombo
-                        << h2oRefCombo
-                        << ch4RefCombo
-                        << fourthGasRefCombo
-                        << intTcRefCombo
-                        << intT1RefCombo
-                        << intT2RefCombo
-                        << intPRefCombo
                         << airTRefCombo
                         << airPRefCombo
                         << rhCombo
                         << rgCombo
                         << lwinCombo
                         << ppfdCombo
-                        << diag7500Combo
-                        << diag7200Combo
-                        << diag7700Combo
                         << tsRefCombo;
     for (auto widget : combo_list)
     {
@@ -3180,6 +3190,10 @@ void BasicSettingsPage::clearVarsCombo()
         combo->clear();
         combo->setEnabled(false);
     }
+
+    //> The flux-table roles keep their candidates here rather than in a
+    //> combo, so they are cleared alongside.
+    clearCandidates();
 
     gasMw->setEnabled(false);
     gasDiff->setEnabled(false);
@@ -3301,9 +3315,16 @@ void BasicSettingsPage::clearFlagThresholdsAndPolicies()
     }
 }
 
-/// \fn void BasicSettingsPage::filterVariables()
-/// \brief Show only molar density gas variables if 7500/A/RS/DS, 7700
-/// For 7200/RS order will be: molar density, mixing ratio, mole fraction
+/// \fn /// Drop candidates an instrument cannot actually produce.
+///
+/// The rules are physics, not presentation: an open-path analyser measures a
+/// molar density and cannot report a mole fraction or a mixing ratio, and a
+/// cell temperature or pressure only exists on a closed-path instrument.
+/// Offering those combinations would let a user build a project the engine
+/// cannot compute.
+///
+/// Matching is on the candidate label, which carries the instrument model -
+/// the same text the combos used to be filtered by.
 void BasicSettingsPage::filterVariables()
 {
     const auto li6262Str = QStringLiteral("LI-6262");
@@ -3315,221 +3336,125 @@ void BasicSettingsPage::filterVariables()
     const auto li7500RSStr = QStringLiteral("LI-7500RS");
     const auto li7500DSStr = QStringLiteral("LI-7500DS");
     const auto li7700Str = QStringLiteral("LI-7700");
-//    const auto densityStr = QStringLiteral("density");
     const auto fractionStr = QStringLiteral("fraction");
     const auto ratioStr = QStringLiteral("ratio");
-    const auto noneStr = tr("None");
     const auto genericStr = tr("Generic");
     const auto openPathStr1 = QStringLiteral("open");
     const auto openPathStr2 = QStringLiteral("OP");
     const auto anemStr = QStringLiteral("Anemometer");
 
-    // filter vars (always possible)
-    for (int i = 0; i < co2RefCombo->count(); ++i)
+    const auto any = [](const QString& text, std::initializer_list<QString> needles)
     {
-        if (!co2RefCombo->itemText(i).contains(noneStr))
+        for (const auto& needle : needles)
         {
-            // open path
-            if (co2RefCombo->itemText(i).contains(li7500Str)
-                || co2RefCombo->itemText(i).contains(li7500AStr)
-                || co2RefCombo->itemText(i).contains(li7500RSStr)
-                || co2RefCombo->itemText(i).contains(li7500DSStr)
-                || co2RefCombo->itemText(i).contains(li7700Str)
-                || co2RefCombo->itemText(i).contains(openPathStr1)
-                || co2RefCombo->itemText(i).contains(openPathStr2))
-            {
-                // filter if not molar density
-                if (co2RefCombo->itemText(i).contains(fractionStr)
-                    || co2RefCombo->itemText(i).contains(ratioStr))
-                {
-                    co2RefCombo->removeItem(i);
-                }
-            }
+            if (text.contains(needle)) { return true; }
         }
-    }
+        return false;
+    };
+    //> The LI-7500 family and the LI-7700 are open path, as is anything
+    //> whose label says so.
+    const auto isOpenPath = [&](const QString& t)
+    {
+        return any(t, { li7500Str, li7500AStr, li7500RSStr, li7500DSStr,
+                        li7700Str, openPathStr1, openPathStr2 });
+    };
+    const auto isNotDensity = [&](const QString& t)
+    {
+        return any(t, { fractionStr, ratioStr });
+    };
 
-    // filter vars (always possible)
-    for (int i = 0; i < h2oRefCombo->count(); ++i)
-    {
-        if (!h2oRefCombo->itemText(i).contains(noneStr))
-        {
-            if (h2oRefCombo->itemText(i).contains(li7500Str)
-                || h2oRefCombo->itemText(i).contains(li7500AStr)
-                || h2oRefCombo->itemText(i).contains(li7500RSStr)
-                || h2oRefCombo->itemText(i).contains(li7500DSStr)
-                || h2oRefCombo->itemText(i).contains(li7700Str)
-                || h2oRefCombo->itemText(i).contains(openPathStr1)
-                || h2oRefCombo->itemText(i).contains(openPathStr2))
-            {
-                if (h2oRefCombo->itemText(i).contains(fractionStr)
-                    || h2oRefCombo->itemText(i).contains(ratioStr))
-                {
-                    h2oRefCombo->removeItem(i);
-                }
-            }
-        }
-    }
+    //> An open-path analyser reports a molar density; a mole fraction or
+    //> mixing ratio from one is not a measurement it can make.
+    pruneCandidates(VariableTableRole::Co2, [&](const QString& t)
+        { return isOpenPath(t) && isNotDensity(t); });
+    pruneCandidates(VariableTableRole::H2o, [&](const QString& t)
+        { return isOpenPath(t) && isNotDensity(t); });
 
-    // filter vars (always possible)
-    for (int i = 0; i < ch4RefCombo->count(); ++i)
+    //> CH4 is the LI-7700's gas; on anything else only a generic instrument
+    //> can supply it.
+    pruneCandidates(VariableTableRole::Ch4, [&](const QString& t)
     {
-        if (!ch4RefCombo->itemText(i).contains(noneStr))
+        if (any(t, { li7700Str, openPathStr1, openPathStr2 }))
         {
-            if (ch4RefCombo->itemText(i).contains(li7700Str)
-                || ch4RefCombo->itemText(i).contains(openPathStr1)
-                || ch4RefCombo->itemText(i).contains(openPathStr2))
-            {
-                if (ch4RefCombo->itemText(i).contains(fractionStr)
-                    || ch4RefCombo->itemText(i).contains(ratioStr))
-                {
-                    ch4RefCombo->removeItem(i);
-                }
-            }
-            else if (!ch4RefCombo->itemText(i).contains(genericStr))
-            {
-                ch4RefCombo->removeItem(i);
-            }
+            return isNotDensity(t);
         }
-    }
+        return !t.contains(genericStr);
+    });
 
-    // filter vars (always possible)
-    for (int i = 0; i < fourthGasRefCombo->count(); ++i)
+    //> The fourth slot is for a gas no LI-COR analyser measures.
+    pruneCandidates(VariableTableRole::Gas4, [&](const QString& t)
     {
-        if (!fourthGasRefCombo->itemText(i).contains(noneStr))
-        {
-            if (fourthGasRefCombo->itemText(i).contains(li6262Str)
-                || fourthGasRefCombo->itemText(i).contains(li7000Str)
-                || fourthGasRefCombo->itemText(i).contains(li7200Str)
-                || fourthGasRefCombo->itemText(i).contains(li7200RSStr)
-                || fourthGasRefCombo->itemText(i).contains(li7500Str)
-                || fourthGasRefCombo->itemText(i).contains(li7500AStr)
-                || fourthGasRefCombo->itemText(i).contains(li7500RSStr)
-                || fourthGasRefCombo->itemText(i).contains(li7500DSStr)
-                || fourthGasRefCombo->itemText(i).contains(li7700Str))
-            {
-                fourthGasRefCombo->removeItem(i);
-            }
-        }
-    }
+        return any(t, { li6262Str, li7000Str, li7200Str, li7200RSStr,
+                        li7500Str, li7500AStr, li7500RSStr, li7500DSStr,
+                        li7700Str });
+    });
 
-    // filter vars (always possible)
-    for (int i = 0; i < intT1RefCombo->count(); ++i)
+    //> Cell temperatures and pressures exist only on a closed-path
+    //> instrument, and not on the two oldest closed-path models.
+    pruneCandidates(VariableTableRole::IntT1, [&](const QString& t)
     {
-        if (!intT1RefCombo->itemText(i).contains(noneStr))
-        {
-            if (intT1RefCombo->itemText(i).contains(li6262Str)
-                || intT1RefCombo->itemText(i).contains(li7000Str)
-                || intT1RefCombo->itemText(i).contains(li7500Str)
-                || intT1RefCombo->itemText(i).contains(li7500AStr)
-                || intT1RefCombo->itemText(i).contains(li7500RSStr)
-                || intT1RefCombo->itemText(i).contains(li7500DSStr)
-                || intT1RefCombo->itemText(i).contains(li7700Str))
-            {
-                intT1RefCombo->removeItem(i);
-            }
-        }
-    }
+        return any(t, { li6262Str, li7000Str, li7500Str, li7500AStr,
+                        li7500RSStr, li7500DSStr, li7700Str });
+    });
+    pruneCandidates(VariableTableRole::IntT2, [&](const QString& t)
+    {
+        return any(t, { li6262Str, li7000Str, li7500Str, li7500AStr,
+                        li7500RSStr, li7500DSStr, li7700Str });
+    });
+    pruneCandidates(VariableTableRole::IntTc, [&](const QString& t)
+    {
+        return any(t, { li7500Str, li7500AStr, li7500RSStr, li7500DSStr,
+                        li7700Str });
+    });
+    pruneCandidates(VariableTableRole::IntP, [&](const QString& t)
+    {
+        return any(t, { li7500Str, li7500AStr, li7500RSStr, li7500DSStr,
+                        li7700Str });
+    });
 
-    // filter vars (always possible)
-    for (int i = 0; i < intT2RefCombo->count(); ++i)
+    //> A diagnostic belongs to the analyser that emits it - these keep only
+    //> their own, where the others discard theirs.
+    pruneCandidates(VariableTableRole::Diag7500, [&](const QString& t)
     {
-        if (!intT2RefCombo->itemText(i).contains(noneStr))
-        {
-            if (intT2RefCombo->itemText(i).contains(li6262Str)
-                || intT2RefCombo->itemText(i).contains(li7000Str)
-                || intT2RefCombo->itemText(i).contains(li7500Str)
-                || intT2RefCombo->itemText(i).contains(li7500AStr)
-                || intT2RefCombo->itemText(i).contains(li7500RSStr)
-                || intT2RefCombo->itemText(i).contains(li7500DSStr)
-                || intT2RefCombo->itemText(i).contains(li7700Str))
-            {
-                intT2RefCombo->removeItem(i);
-            }
-        }
-    }
+        return !any(t, { li7500Str, li7500AStr, li7500RSStr, li7500DSStr });
+    });
+    pruneCandidates(VariableTableRole::Diag7200, [&](const QString& t)
+    {
+        return !any(t, { li7200Str, li7200RSStr });
+    });
+    pruneCandidates(VariableTableRole::Diag7700, [&](const QString& t)
+    {
+        return !t.contains(li7700Str);
+    });
 
-    // filter vars (always possible)
-    for (int i = 0; i < intTcRefCombo->count(); ++i)
+    //> The anemometer diagnostic keeps a visible combo of its own.
+    //>
+    //> Iterated backwards, like pruneCandidates: removing while stepping
+    //> forwards skips the element after each removal, so two adjacent
+    //> filterable entries left the second one in place. That was true of
+    //> every one of these loops before they were converted.
+    const auto noneStr = tr("None");
+    for (int i = anemFlagCombo->count() - 1; i >= 0; --i)
     {
-        if (!intTcRefCombo->itemText(i).contains(noneStr))
-        {
-            if (intTcRefCombo->itemText(i).contains(li7500Str)
-                || intTcRefCombo->itemText(i).contains(li7500AStr)
-                || intTcRefCombo->itemText(i).contains(li7500RSStr)
-                || intTcRefCombo->itemText(i).contains(li7500DSStr)
-                || intTcRefCombo->itemText(i).contains(li7700Str))
-            {
-                intTcRefCombo->removeItem(i);
-            }
-        }
+        const auto text = anemFlagCombo->itemText(i);
+        if (text.contains(noneStr)) { continue; }
+        if (!text.contains(anemStr)) { anemFlagCombo->removeItem(i); }
     }
+}
 
-    // filter vars (always possible)
-    for (int i = 0; i < intPRefCombo->count(); ++i)
+/// Remove every candidate for  role whose label satisfies  drop.
+///
+/// "None" placeholders are never removed, and the list is walked backwards so
+/// that a removal cannot skip the entry after it.
+void BasicSettingsPage::pruneCandidates(
+    VariableTableRole role, const std::function<bool(const QString&)>& drop)
+{
+    auto& items = fluxCandidates_[static_cast<int>(role)];
+    const auto noneStr = tr("None");
+    for (int i = items.size() - 1; i >= 0; --i)
     {
-        if (!intPRefCombo->itemText(i).contains(noneStr))
-        {
-            if (intPRefCombo->itemText(i).contains(li7500Str)
-                || intPRefCombo->itemText(i).contains(li7500AStr)
-                || intPRefCombo->itemText(i).contains(li7500RSStr)
-                || intPRefCombo->itemText(i).contains(li7500DSStr)
-                || intPRefCombo->itemText(i).contains(li7700Str))
-            {
-                intPRefCombo->removeItem(i);
-            }
-        }
-    }
-
-    // filter vars (always possible)
-    for (int i = 0; i < diag7500Combo->count(); ++i)
-    {
-        if (!diag7500Combo->itemText(i).contains(noneStr))
-        {
-            if (!diag7500Combo->itemText(i).contains(li7500Str)
-                && !diag7500Combo->itemText(i).contains(li7500AStr)
-                && !diag7500Combo->itemText(i).contains(li7500RSStr)
-                && !diag7500Combo->itemText(i).contains(li7500DSStr))
-            {
-                diag7500Combo->removeItem(i);
-            }
-        }
-    }
-
-    // filter vars (always possible)
-    for (int i = 0; i < diag7200Combo->count(); ++i)
-    {
-        if (!diag7200Combo->itemText(i).contains(noneStr))
-        {
-            if (!diag7200Combo->itemText(i).contains(li7200Str)
-                && !diag7200Combo->itemText(i).contains(li7200RSStr))
-            {
-                diag7200Combo->removeItem(i);
-            }
-        }
-    }
-
-    // filter vars (always possible)
-    for (int i = 0; i < diag7700Combo->count(); ++i)
-    {
-        if (!diag7700Combo->itemText(i).contains(noneStr))
-        {
-            if (!diag7700Combo->itemText(i).contains(li7700Str))
-            {
-                diag7700Combo->removeItem(i);
-            }
-        }
-    }
-
-    // filter vars (always possible)
-    for (int i = 0; i < anemFlagCombo->count(); ++i)
-    {
-        if (!anemFlagCombo->itemText(i).contains(noneStr))
-        {
-            if (!anemFlagCombo->itemText(i).contains(anemStr))
-            {
-                anemFlagCombo->removeItem(i);
-            }
-        }
+        if (items.at(i).text.contains(noneStr)) { continue; }
+        if (drop(items.at(i).text)) { items.removeAt(i); }
     }
 }
 
@@ -3821,7 +3746,7 @@ void BasicSettingsPage::refresh()
     flag10PolicyCombo->setCurrentIndex(ecProject_->screenFlag10Upper());
 
     moreButton->setChecked(false);
-    updateFourthGasSettings(fourthGasRefCombo->currentText());
+    updateFourthGasSettings(fourthGasSpecies());
     gasMw->setValue(ecProject_->generalGasMw());
     gasDiff->setValue(ecProject_->generalGasDiff());
 
@@ -3957,29 +3882,70 @@ void BasicSettingsPage::updateAnemRefCombo(const QString& s)
     }
 }
 
+/// The anemometer diagnostic keeps a visible combo of its own, so unlike the
+/// other diagnostics it is not driven by the variable table. It still stores
+/// a record: col_diag_anem is retired, and writing only there would lose the
+/// selection on save.
+///
+/// Single-valued, because a combo can name one column - any previous
+/// diag_anem record is replaced rather than added to.
 void BasicSettingsPage::updateAnemFlagCombo(int i)
 {
-    ecProject_->setGeneralColDiagAnem(anemFlagCombo->itemData(i).toInt());
+    if (!ecProject_) { return; }
+    const int column = anemFlagCombo->itemData(i).toInt();
+
+    auto records = ecProject_->diagColumns();
+    for (int k = records.size() - 1; k >= 0; --k)
+    {
+        if (records.at(k).slug == QLatin1String("diag_anem"))
+        {
+            records.removeAt(k);
+        }
+    }
+    if (column > 0)
+    {
+        MeasurementRecord rec;
+        rec.slug = QStringLiteral("diag_anem");
+        rec.rawColumn = column;
+        rec.instrumentId = canonicalInstrumentForColumn(column);
+        records.append(rec);
+    }
+    ecProject_->setDiagColumns(records);
 }
 
-void BasicSettingsPage::updateCo2RefCombo(int i)
+/// Put the anemometer diagnostic combo back on whatever its record names.
+QVector<VariableCandidateItem> BasicSettingsPage::candidatesForRole(int role) const
 {
-    ecProject_->setGeneralColCo2(co2RefCombo->itemData(i).toInt());
+    return fluxCandidates_.value(role);
 }
 
-void BasicSettingsPage::updateH2oRefCombo(int i)
+void BasicSettingsPage::addCandidate(VariableTableRole role, int rawColumn,
+                                     const QString& text)
 {
-    ecProject_->setGeneralColH2o(h2oRefCombo->itemData(i).toInt());
+    fluxCandidates_[static_cast<int>(role)].append({ rawColumn, text });
 }
 
-void BasicSettingsPage::updateCh4RefCombo(int i)
+void BasicSettingsPage::clearCandidates()
 {
-    ecProject_->setGeneralColCh4(ch4RefCombo->itemData(i).toInt());
+    fluxCandidates_.clear();
 }
 
-void BasicSettingsPage::updateFourthGasRefCombo(int i)
+void BasicSettingsPage::restoreAnemFlagFromRecord()
 {
-    ecProject_->setGeneralColGas4(fourthGasRefCombo->itemData(i).toInt());
+    if (!ecProject_ || !anemFlagCombo) { return; }
+
+    int column = 0;
+    for (const auto& rec : ecProject_->diagColumns())
+    {
+        if (rec.slug == QLatin1String("diag_anem") && rec.rawColumn > 0)
+        {
+            column = rec.rawColumn;
+            break;
+        }
+    }
+
+    const int index = anemFlagCombo->findData(column);
+    anemFlagCombo->setCurrentIndex(index >= 0 ? index : 0);
 }
 
 void BasicSettingsPage::updateFourthGasSettings(const QString& s)
@@ -4016,29 +3982,27 @@ void BasicSettingsPage::updateFourthGasSettings(const QString& s)
     }
 }
 
-void BasicSettingsPage::updateFourthGasMinLimit(int /*index*/)
+void BasicSettingsPage::applyGasAbsoluteLimitMin(const QString& species)
 {
-    const QString s = fourthGasRefCombo->currentText();
-    if (s.isEmpty()) { return; }
-    const QString gasStr = s.split(QLatin1Char(' ')).first();
-    const bool isN2o = (gasStr == VariableDesc::getVARIABLE_VAR_STRING_8());
+    if (species.isEmpty()) { return; }
+    const QString gasStr = species.split(QLatin1Char(' ')).first();
 
-    // Only apply the default when the gas *type* changes (N2O ↔ other).
-    // If the user has manually set a custom value and re-selects the same
-    // gas type, the value is left unchanged.
-    if (isN2o != gas4WasN2o_)
-    {
-        ecProject_->setScreenParamAlGas4Min(isN2o ? 0.032 : 0.0);
-    }
-    gas4WasN2o_ = isN2o;
+    //> Only apply the default when the species actually changes. If the user
+    //> has set a custom value and then re-selects the same gas, the value is
+    //> left alone. This used to track a single bool for "is it N2O", which
+    //> could only ever distinguish two cases; the species itself is what the
+    //> floor belongs to.
+    if (gasStr == lastAbsLimitSpecies_) { return; }
+    lastAbsLimitSpecies_ = gasStr;
+    ecProject_->setScreenParamAlGas4Min(
+        GasMetadata::defaultAbsoluteLimitMin(gasStr));
 }
 
-void BasicSettingsPage::showFourthGasDiffWarning(int /*index*/)
+void BasicSettingsPage::showGasDiffusivityWarning(const QString& species)
 {
-    const QString s = fourthGasRefCombo->currentText();
-    if (s.isEmpty()) { return; }
+    if (species.isEmpty()) { return; }
 
-    const QString gasStr = s.split(QLatin1Char(' ')).first();
+    const QString gasStr = species.split(QLatin1Char(' ')).first();
     const GasMetadata::GasEntry* gas = GasMetadata::findGas(gasStr);
     if (!gas) { return; }
 
@@ -4070,26 +4034,6 @@ void BasicSettingsPage::showFourthGasDiffWarning(int /*index*/)
             return;
     }
     WidgetUtils::information(QApplication::activeWindow(), title, msg);
-}
-
-void BasicSettingsPage::updateIntTcRefCombo(int i)
-{
-    ecProject_->setGeneralColIntTc(intTcRefCombo->itemData(i).toInt());
-}
-
-void BasicSettingsPage::updateIntT1RefCombo(int i)
-{
-    ecProject_->setGeneralColIntT1(intT1RefCombo->itemData(i).toInt());
-}
-
-void BasicSettingsPage::updateIntT2RefCombo(int i)
-{
-    ecProject_->setGeneralColIntT2(intT2RefCombo->itemData(i).toInt());
-}
-
-void BasicSettingsPage::updateIntPRefCombo(int i)
-{
-    ecProject_->setGeneralColIntP(intPRefCombo->itemData(i).toInt());
 }
 
 void BasicSettingsPage::updateAirTRefCombo(int i)
@@ -4159,21 +4103,6 @@ void BasicSettingsPage::updateLwinCombo(int i)
 void BasicSettingsPage::updatePpfdCombo(int i)
 {
     ecProject_->setBiomParamColPpfd(ppfdCombo->itemData(i).toInt());
-}
-
-void BasicSettingsPage::updateDiag7500Combo(int i)
-{
-    ecProject_->setGeneralColDiag75(diag7500Combo->itemData(i).toInt());
-}
-
-void BasicSettingsPage::updateDiag7200Combo(int i)
-{
-    ecProject_->setGeneralColDiag72(diag7200Combo->itemData(i).toInt());
-}
-
-void BasicSettingsPage::updateDiag7700Combo(int i)
-{
-    ecProject_->setGeneralColDiag77(diag7700Combo->itemData(i).toInt());
 }
 
 void BasicSettingsPage::updateTsRefCombo(int i)
@@ -4567,114 +4496,15 @@ void BasicSettingsPage::reloadSelectedItems_1()
         ecProject_->setGeneralColTs(WidgetUtils::currentComboItemData(tsRefCombo).toInt());
     }
 //
-    currData = ecProject_->generalColCo2();
-    currItemIndex = co2RefCombo->findData(currData);
-
-    if (currItemIndex >= 0)
-    {
-        co2RefCombo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColCo2(currData);
-    }
-    else
-    {
-        // preselect something better
-        preselectDensityVariables(co2RefCombo);
-        ecProject_->setGeneralColCo2(WidgetUtils::currentComboItemData(co2RefCombo).toInt());
-    }
-//
-    currData = ecProject_->generalColH2o();
-    currItemIndex = h2oRefCombo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        h2oRefCombo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColH2o(currData);
-    }
-    else
-    {
-        preselectDensityVariables(h2oRefCombo);
-        ecProject_->setGeneralColH2o(WidgetUtils::currentComboItemData(h2oRefCombo).toInt());
-    }
-//
-    currData = ecProject_->generalColCh4();
-    currItemIndex = ch4RefCombo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        ch4RefCombo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColCh4(currData);
-    }
-    else
-    {
-        preselectDensityVariables(ch4RefCombo);
-        ecProject_->setGeneralColCh4(WidgetUtils::currentComboItemData(ch4RefCombo).toInt());
-    }
-//
-    currData = ecProject_->generalColGas4();
-    currItemIndex = fourthGasRefCombo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        fourthGasRefCombo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColGas4(currData);
-    }
-    else
-    {
-        preselectDensityVariables(fourthGasRefCombo);
-        ecProject_->setGeneralColGas4(WidgetUtils::currentComboItemData(fourthGasRefCombo).toInt());
-    }
-
-    gasMw->setValue(ecProject_->generalGasMw());
-    gasDiff->setValue(ecProject_->generalGasDiff());
-//
-    currData = ecProject_->generalColIntTc();
-    currItemIndex = intTcRefCombo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        intTcRefCombo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColIntTc(currData);
-    }
-    else
-    {
-        intTcRefCombo->setCurrentIndex(0);
-        ecProject_->setGeneralColIntTc(intTcRefCombo->itemData(0).toInt());
-    }
-//
-    currData = ecProject_->generalColIntT1();
-    currItemIndex = intT1RefCombo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        intT1RefCombo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColIntT1(currData);
-    }
-    else
-    {
-        intT1RefCombo->setCurrentIndex(0);
-        ecProject_->setGeneralColIntT1(intT1RefCombo->itemData(0).toInt());
-    }
-//
-    currData = ecProject_->generalColIntT2();
-    currItemIndex = intT2RefCombo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        intT2RefCombo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColIntT2(currData);
-    }
-    else
-    {
-        intT2RefCombo->setCurrentIndex(0);
-        ecProject_->setGeneralColIntT2(intT2RefCombo->itemData(0).toInt());
-    }
-//
-    currData = ecProject_->generalColIntP();
-    currItemIndex = intPRefCombo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        intPRefCombo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColIntP(currData);
-    }
-    else
-    {
-        intPRefCombo->setCurrentIndex(0);
-        ecProject_->setGeneralColIntP(intPRefCombo->itemData(0).toInt());
-    }
+    //> The stanzas that used to sit here read col_co2 .. col_diag_anem back
+    //> out of the project and wrote them into the hidden combos, which is
+    //> how those keys were kept alive. All of it is retired: the variable
+    //> table drives records directly, and reloadSelectedItems_1 no longer
+    //> has anything to reload for these roles.
+    //>
+    //> The anemometer diagnostic keeps its own visible combo, so it is
+    //> restored from its record rather than from col_diag_anem.
+    restoreAnemFlagFromRecord();
 //
     if (ecProject_->generalUseBiomet() == 0)
     {
@@ -4706,58 +4536,6 @@ void BasicSettingsPage::reloadSelectedItems_1()
             preselect7700Variables(airPRefCombo);
             updateAirPRefCombo(airPRefCombo->currentIndex());
         }
-    }
-//
-    currData = ecProject_->generalColDiag75();
-    currItemIndex = diag7500Combo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        diag7500Combo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColDiag75(currData);
-    }
-    else
-    {
-        diag7500Combo->setCurrentIndex(0);
-        ecProject_->setGeneralColDiag75(diag7500Combo->itemData(0).toInt());
-    }
-//
-    currData = ecProject_->generalColDiag72();
-    currItemIndex = diag7200Combo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        diag7200Combo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColDiag72(currData);
-    }
-    else
-    {
-        diag7200Combo->setCurrentIndex(0);
-        ecProject_->setGeneralColDiag72(diag7200Combo->itemData(0).toInt());
-    }
-//
-    currData = ecProject_->generalColDiag77();
-    currItemIndex = diag7700Combo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        diag7700Combo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColDiag77(currData);
-    }
-    else
-    {
-        diag7700Combo->setCurrentIndex(0);
-        ecProject_->setGeneralColDiag77(diag7700Combo->itemData(0).toInt());
-    }
-//
-    currData = ecProject_->generalColDiagAnem();
-    currItemIndex = anemFlagCombo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        anemFlagCombo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColDiagAnem(currData);
-    }
-    else
-    {
-        anemFlagCombo->setCurrentIndex(0);
-        ecProject_->setGeneralColDiagAnem(anemFlagCombo->itemData(0).toInt());
     }
     //
     currData = ecProject_->screenFlag1Col();
@@ -4922,7 +4700,162 @@ void BasicSettingsPage::reloadSelectedItems_1()
     flag10ThresholdSpin->setValue(ecProject_->screenFlag10Threshold());
     flag10PolicyCombo->setCurrentIndex(ecProject_->screenFlag10Upper());
 
+    //> Seed before resolving: a project that has never had records gets its
+    //> auto-selection here, and one that was migrated gets its species and
+    //> instrument filled in there. Neither touches the other's work.
+    seedGasRecordsFromMetadata();
+    resolveMigratedGasRecords();
+
     refreshVariableTables();
+}
+
+/// Auto-select plausible measurements the first time a metadata file is read.
+///
+/// This is what preselectDensityVariables() used to do, moved onto the
+/// records. The old version wrote its choice into col_co2 and friends while
+/// the variable table's checkboxes read the records - so **the preselection
+/// was invisible**: a freshly parsed metadata file preselected CO2 and H2O
+/// into state the user could not see and had not asked for. Seeding records
+/// preserves the behaviour and finally shows it.
+///
+/// Only runs on an empty record list, so it can never overwrite a user's
+/// selection or a migrated project's.
+void BasicSettingsPage::seedGasRecordsFromMetadata()
+{
+    if (!ecProject_ || !dlProject_) { return; }
+    if (!ecProject_->gasColumns().isEmpty()) { return; }
+
+    const auto* variables = dlProject_->variables();
+    if (!variables || variables->isEmpty()) { return; }
+
+    //> A mixing ratio is preferred over a mole fraction, and either over a
+    //> density - the same order the combo-text match ("ratio", then
+    //> "density") produced, stated against the measure type rather than
+    //> against a translated label.
+    const auto rank = [](const VariableDesc& var)
+    {
+        const auto type = var.measureType();
+        if (type == VariableDesc::getVARIABLE_MEASURE_TYPE_STRING_2()) { return 0; }
+        if (type == VariableDesc::getVARIABLE_MEASURE_TYPE_STRING_1()) { return 1; }
+        if (type == VariableDesc::getVARIABLE_MEASURE_TYPE_STRING_0()) { return 2; }
+        return 3;
+    };
+
+    //> The best candidate for one species, as a 1-based raw column.
+    const auto bestColumn = [&](const QString& speciesName, bool anyGas)
+    {
+        int column = -1;
+        int best = 100;
+        for (int i = 0; i < variables->size(); ++i)
+        {
+            const auto& var = variables->at(i);
+            const auto name = var.variable();
+            const bool custom = VariableDesc::isCustomVariable(name);
+            if (!VariableDesc::isGoodGas(var, custom)) { continue; }
+            if (anyGas)
+            {
+                //> The fourth slot took whatever gas was left over - any
+                //> good gas that is not one of the first three.
+                if (name == VariableDesc::getVARIABLE_VAR_STRING_5()
+                    || name == VariableDesc::getVARIABLE_VAR_STRING_6()
+                    || name == VariableDesc::getVARIABLE_VAR_STRING_7())
+                {
+                    continue;
+                }
+            }
+            else if (name != speciesName)
+            {
+                continue;
+            }
+            if (rank(var) < best) { best = rank(var); column = i + 1; }
+        }
+        return column;
+    };
+
+    QVector<GasRecord> gases;
+    const struct { QString name; bool anyGas; QString slug; } roles[] = {
+        { VariableDesc::getVARIABLE_VAR_STRING_5(), false, QStringLiteral("co2") },
+        { VariableDesc::getVARIABLE_VAR_STRING_6(), false, QStringLiteral("h2o") },
+        { VariableDesc::getVARIABLE_VAR_STRING_7(), false, QStringLiteral("ch4") },
+        { QString(),                                true,  QString() },
+    };
+    bool anyFound = false;
+    for (const auto& role : roles)
+    {
+        //> All four slots are appended whether or not the site has that gas:
+        //> the engine maps record i to slot firstGas+i-1, so dropping an
+        //> absent one would shift every later gas onto the wrong slot.
+        GasRecord rec;
+        rec.rawColumn = bestColumn(role.name, role.anyGas);
+        if (rec.rawColumn > 0)
+        {
+            anyFound = true;
+            const auto& var = variables->at(rec.rawColumn - 1);
+            rec.slug = role.anyGas
+                ? GasMetadata::normaliseFormula(var.variable())
+                : role.slug;
+            rec.instrumentId = canonicalInstrumentForColumn(rec.rawColumn);
+        }
+        gases.append(rec);
+    }
+
+    if (!anyFound) { return; }
+    ecProject_->setGasColumns(gases);
+}
+
+/// Fill in what the project file alone could not say about a migrated project.
+///
+/// A pre-record file names a raw column number and nothing else, so
+/// migrateLegacyColumnsToRecords leaves every species and instrument blank -
+/// most damagingly for the fourth slot, whose species was never written down
+/// anywhere but the metadata. This runs after every parseMetadataProject()
+/// and every project load, which is the only point where both files are in
+/// hand, and must run before the upgraded project is saved.
+void BasicSettingsPage::resolveMigratedGasRecords()
+{
+    if (!ecProject_ || !dlProject_) { return; }
+
+    const auto* variables = dlProject_->variables();
+    if (!variables) { return; }
+
+    auto gases = ecProject_->gasColumns();
+    bool changed = false;
+
+    for (auto& gas : gases)
+    {
+        if (gas.rawColumn <= 0) { continue; }
+        if (!gas.slug.isEmpty() && !gas.instrumentId.isEmpty()) { continue; }
+
+        const int index = gas.rawColumn - 1;
+        if (index < 0 || index >= variables->size()) { continue; }
+        const auto& variable = variables->at(index);
+
+        if (gas.slug.isEmpty())
+        {
+            // The engine matches on the ASCII slug, so it has to come through
+            // normaliseFormula: several species carry Unicode subscripts in
+            // their display strings.
+            const auto slug =
+                GasMetadata::normaliseFormula(variable.variable());
+            if (!slug.isEmpty())
+            {
+                gas.slug = slug;
+                changed = true;
+            }
+        }
+        if (gas.instrumentId.isEmpty())
+        {
+            const auto id =
+                dlProject_->canonicalInstrumentId(variable.instrument());
+            if (!id.isEmpty())
+            {
+                gas.instrumentId = id;
+                changed = true;
+            }
+        }
+    }
+
+    if (changed) { ecProject_->setGasColumns(gases); }
 }
 
 void BasicSettingsPage::reloadSelectedItems_2()
@@ -5726,10 +5659,16 @@ void BasicSettingsPage::clearDataSelection()
 
 int BasicSettingsPage::handleVariableReset()
 {
+    //> "Has the user configured anything yet?" - asked of the gas list rather
+    //> than of CO2 alone, so a site that measures only CH4 is not treated as
+    //> a blank project whose variables can be reset without asking.
+    const bool hasGas = !ecProject_->gasColumns().isEmpty()
+                        || ecProject_->generalColCo2() != -1;
+
     // if not new project
     if (!ecProject_->screenDataPath().isEmpty()
         && !ecProject_->generalColMasterSonic().isEmpty()
-        && ecProject_->generalColCo2() != -1)
+        && hasGas)
     {
         return acceptVariableReset();
     }

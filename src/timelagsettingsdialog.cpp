@@ -444,9 +444,8 @@ void TimeLagSettingsDialog::radioClicked(int radioButton)
 
 /// One time-lag search window per configured gas.
 ///
-/// The first four records also mirror the flat timelagOpt*Lag keys, so an
-/// older version reads the same windows and a project written by one keeps
-/// its values. Gases past the fourth live only in the record.
+/// Every gas keeps its window on its own record. The flat timelagOpt*Lag
+/// keys the first four used to mirror are retired.
 void TimeLagSettingsDialog::rebuildGasRows()
 {
     if (!propertiesLayout_ || !ecProject_) { return; }
@@ -570,13 +569,6 @@ void TimeLagSettingsDialog::onMinFluxChanged(int gasIndex, double value)
     gases[gasIndex].proc.toMinFlux = value;
     ecProject_->setGasColumns(gases);
 
-    switch (gasIndex)
-    {
-        case 0: ecProject_->setTimelagOptCo2MinFlux(value); break;
-        case 2: ecProject_->setTimelagOptCh4MinFlux(value); break;
-        case 3: ecProject_->setTimelagOptGas4MinFlux(value); break;
-        default: break;   // slot 1 is H2O, which has no gas-flux threshold
-    }
 }
 
 double TimeLagSettingsDialog::minFluxFor(int gasIndex) const
@@ -587,13 +579,7 @@ double TimeLagSettingsDialog::minFluxFor(int gasIndex) const
     {
         return gases.at(gasIndex).proc.toMinFlux;
     }
-    switch (gasIndex)
-    {
-        case 0: return ecProject_->timelagOptCo2MinFlux();
-        case 2: return ecProject_->timelagOptCh4MinFlux();
-        case 3: return ecProject_->timelagOptGas4MinFlux();
-        default: return 0.0;
-    }
+    return 0.0;
 }
 
 QDoubleSpinBox* TimeLagSettingsDialog::createTlSpin(bool isMin)
@@ -634,18 +620,6 @@ void TimeLagSettingsDialog::onTlChanged(int gasIndex, bool isMin, double value)
     else       { gases[gasIndex].proc.toMaxLag = value; }
     ecProject_->setGasColumns(gases);
 
-    switch (gasIndex)
-    {
-        case 0: if (isMin) { ecProject_->setTimelagOptCo2MinLag(value); }
-                else       { ecProject_->setTimelagOptCo2MaxLag(value); } break;
-        case 1: if (isMin) { ecProject_->setTimelagOptH2oMinLag(value); }
-                else       { ecProject_->setTimelagOptH2oMaxLag(value); } break;
-        case 2: if (isMin) { ecProject_->setTimelagOptCh4MinLag(value); }
-                else       { ecProject_->setTimelagOptCh4MaxLag(value); } break;
-        case 3: if (isMin) { ecProject_->setTimelagOptGas4MinLag(value); }
-                else       { ecProject_->setTimelagOptGas4MaxLag(value); } break;
-        default: break;
-    }
 }
 
 double TimeLagSettingsDialog::tlMinFor(int gasIndex) const
@@ -657,14 +631,7 @@ double TimeLagSettingsDialog::tlMinFor(int gasIndex) const
     {
         return gases.at(gasIndex).proc.toMinLag;
     }
-    switch (gasIndex)
-    {
-        case 0: return ecProject_->timelagOptCo2MinLag();
-        case 1: return ecProject_->timelagOptH2oMinLag();
-        case 2: return ecProject_->timelagOptCh4MinLag();
-        case 3: return ecProject_->timelagOptGas4MinLag();
-        default: return -1000.1;
-    }
+    return -1000.1;
 }
 
 double TimeLagSettingsDialog::tlMaxFor(int gasIndex) const
@@ -676,14 +643,7 @@ double TimeLagSettingsDialog::tlMaxFor(int gasIndex) const
     {
         return gases.at(gasIndex).proc.toMaxLag;
     }
-    switch (gasIndex)
-    {
-        case 0: return ecProject_->timelagOptCo2MaxLag();
-        case 1: return ecProject_->timelagOptH2oMaxLag();
-        case 2: return ecProject_->timelagOptCh4MaxLag();
-        case 3: return ecProject_->timelagOptGas4MaxLag();
-        default: return -1000.1;
-    }
+    return -1000.1;
 }
 
 void TimeLagSettingsDialog::onStartDateLabelClicked()

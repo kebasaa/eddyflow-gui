@@ -46,6 +46,42 @@ const auto helpPage = QStringLiteral("https://keba_saa.github.io/eddyflow-docume
 
 namespace {
 
+/// Whether the project measures the gas that owns \a slot, where slot is a
+/// 0-based position in the gas record list.
+///
+/// The template these tests compare against is positional - rows 33-44 are
+/// the third gas's block and 47-58 the fourth's - so the question really is
+/// about the slot, not the species. Records answer it directly; the legacy
+/// column is the fallback for a project written before records existed.
+bool gasSlotConfigured(const EcProject* project, int slot)
+{
+    if (!project) { return false; }
+    const auto& gases = project->gasColumns();
+    if (slot < gases.size()) { return gases.at(slot).rawColumn > 0; }
+
+    switch (slot)
+    {
+        case 2: return project->generalColCh4() > 0;
+        case 3: return project->generalColGas4() > 0;
+        default: return false;
+    }
+}
+
+/// Display name of the gas in \a slot, for the skip messages. A record knows
+/// its species; without one there is nothing to name.
+QString gasSlotName(const EcProject* project, int slot)
+{
+    if (project)
+    {
+        const auto& gases = project->gasColumns();
+        if (slot < gases.size() && !gases.at(slot).slug.isEmpty())
+        {
+            return gases.at(slot).slug.toUpper();
+        }
+    }
+    return AncillaryFileTest::tr("Other gas");
+}
+
 QString joinedLine(const QStringList& line)
 {
     return line.join(QLatin1Char(' ')).simplified();
@@ -425,9 +461,10 @@ bool AncillaryFileTest::testSpectraF(const LineList& templateList, const LineLis
                                   + formatPassFail(last_test()));
 
     // test CH4 TFP labels, rows 33-44
-    if (ecProject_ && ecProject_->generalColCh4() <= 0)
+    if (!gasSlotConfigured(ecProject_, 2))
     {
-        testResults_->append(tr("<u>CH<sub>4</sub></u>: not configured in this project — <b>skipped</b>"));
+        testResults_->append(tr("<u>%1</u>: not configured in this project — <b>skipped</b>")
+                             .arg(gasSlotName(ecProject_, 2)));
     }
     else
     {
@@ -449,9 +486,10 @@ bool AncillaryFileTest::testSpectraF(const LineList& templateList, const LineLis
                                   + formatPassFail(last_test()));
 
     // test other gas TFP labels, rows 47-58
-    if (ecProject_ && ecProject_->generalColGas4() <= 0)
+    if (!gasSlotConfigured(ecProject_, 3))
     {
-        testResults_->append(tr("<u>Other gas (N₂O)</u>: not configured in this project — <b>skipped</b>"));
+        testResults_->append(tr("<u>%1</u>: not configured in this project — <b>skipped</b>")
+                             .arg(gasSlotName(ecProject_, 3)));
     }
     else
     {
@@ -619,9 +657,10 @@ bool AncillaryFileTest::testSpectraS(const LineList &actualList)
     testResults_->append(c3_label + formatPassFail(last_test()));
 
     // test d.2 and d.3 — skip if CH4 not configured
-    if (ecProject_ && ecProject_->generalColCh4() <= 0)
+    if (!gasSlotConfigured(ecProject_, 2))
     {
-        testResults_->append(tr("<u>CH<sub>4</sub></u>: not configured in this project — <b>skipped</b>"));
+        testResults_->append(tr("<u>%1</u>: not configured in this project — <b>skipped</b>")
+                             .arg(gasSlotName(ecProject_, 2)));
     }
     else
     {

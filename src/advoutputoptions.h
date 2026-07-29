@@ -25,13 +25,16 @@
 #ifndef ADVOUTPUTOPTIONS_H
 #define ADVOUTPUTOPTIONS_H
 
+#include <QVector>
 #include <QWidget>
+#include <QWidgetList>
 
 #include <vector>
 
 class QButtonGroup;
 class QCheckBox;
 class QComboBox;
+class QGridLayout;
 class QGroupBox;
 class QLabel;
 class QPushButton;
@@ -94,10 +97,6 @@ private slots:
     void updateOutputRawV(bool b);
     void updateOutputRawW(bool b);
     void updateOutputRawTs(bool b);
-    void updateOutputRawCo2(bool b);
-    void updateOutputRawH2o(bool b);
-    void updateOutputRawCh4(bool b);
-    void updateOutputRawGas4(bool b);
     void updateOutputRawTair(bool b);
     void updateOutputRawPair(bool b);
     void checkStAll(bool b);
@@ -123,10 +122,33 @@ private slots:
 private:
     bool areAllCheckedVars();
     void setVarsAvailable(bool ok);
-    bool isCo2OutputAvailable() const;
-    bool isH2oOutputAvailable() const;
-    bool isCh4OutputAvailable() const;
-    bool isGas4OutputAvailable() const;
+    //> Whether the gas record at \a gasIndex names a column, and so has any
+    //> output to offer. Replaces the four fixed isCo2/H2o/Ch4/Gas4 predicates.
+    bool isOutputAvailable(int gasIndex) const;
+    bool allGasRawChecked() const;
+
+    //> One row per configured gas in each of the three output groups. They
+    //> live in their own sub-layouts, so a fifth gas grows the group rather
+    //> than pushing the rest of the page down.
+    struct GasOutputRow
+    {
+        int gasIndex = -1;              //< index into EcProject::gasColumns()
+        RichTextCheckBox* spectra = nullptr;
+        RichTextCheckBox* cospectra = nullptr;
+        RichTextCheckBox* raw = nullptr;
+    };
+
+    void rebuildGasRows();
+    void showEvent(QShowEvent* event) override;
+    QString gasSignature() const;
+    QString gasRowLabel(int gasIndex) const;
+    void onGasSpectraToggled(int gasIndex, bool checked);
+    void onGasCospectraToggled(int gasIndex, bool checked);
+    void onGasRawToggled(int gasIndex, bool checked);
+    bool gasSpectraFor(int gasIndex) const;
+    bool gasCospectraFor(int gasIndex) const;
+    bool gasRawFor(int gasIndex) const;
+    QWidgetList gasOutputCheckBoxes() const;
     bool areTimeSeriesChecked();
     void updateVarsAvailable();
     void restoreOutputs();
@@ -178,19 +200,17 @@ private:
     RichTextCheckBox* outFullSpectraCheckBoxV;
     RichTextCheckBox* outFullSpectraCheckBoxW;
     RichTextCheckBox* outFullSpectraCheckBoxTs;
-    RichTextCheckBox* outFullSpectraCheckBoxCo2;
-    RichTextCheckBox* outFullSpectraCheckBoxH2o;
-    RichTextCheckBox* outFullSpectraCheckBoxCh4;
-    RichTextCheckBox* outFullSpectralCheckBoxGas4;
 
     RichTextCheckBox* outFullCospectraCheckBoxU;
     RichTextCheckBox* outFullCospectraCheckBoxV;
     RichTextCheckBox* outFullCospectraCheckBoxTs;
+    //> Sub-layouts owning the generated rows of each group.
+    QGridLayout* spectraGrid_ = nullptr;
+    QGridLayout* cospectraGrid_ = nullptr;
+    QGridLayout* rawVarsGrid_ = nullptr;
+    QVector<GasOutputRow> gasRows_;
+    QString gasSignature_;
     QLabel* outFullCospectraTsRequiredIcon;
-    RichTextCheckBox* outFullCospectraCheckBoxCo2;
-    RichTextCheckBox* outFullCospectraCheckBoxH2o;
-    RichTextCheckBox* outFullCospectraCheckBoxCh4;
-    RichTextCheckBox* outFullCospectralCheckBoxGas4;
 
     QCheckBox* outFullCospectraAll;
     QGroupBox* fluxnetGroupBox;
@@ -232,10 +252,6 @@ private:
     RichTextCheckBox* outRawVCheckBox;
     RichTextCheckBox* outRawWCheckBox;
     RichTextCheckBox* outRawTsCheckBox;
-    RichTextCheckBox* outRawCo2CheckBox;
-    RichTextCheckBox* outRawH2oCheckBox;
-    RichTextCheckBox* outRawCh4CheckBox;
-    RichTextCheckBox* outRawGas4CheckBox;
     RichTextCheckBox* outRawTairCheckBox;
     RichTextCheckBox* outRawPairCheckBox;
     QCheckBox* outVarsAllCheckBox;

@@ -125,6 +125,36 @@ const GasEntry* findGas(const QString& formula)
     return nullptr;
 }
 
+const GasEntry* findSpecies(const QString& formula)
+{
+    //> The three historical gases, with the values the variable table used to
+    //> carry as literals against a fixed row kind. Kept out of the registry
+    //> above so they stay out of the open slot's dropdown, where they would
+    //> duplicate the dedicated rows.
+    static const QVector<GasEntry> historic = {
+        { QStringLiteral("CO") + Defs::SUBTWO, 44.01, 0.1381, DiffusivityStatus::Reviewed },
+        { QLatin1Char('H') + Defs::SUBTWO + QLatin1Char('O'), 18.02, 0.2178, DiffusivityStatus::Reviewed },
+        { QStringLiteral("CH") + Defs::SUBFOUR, 16.04, 0.1952, DiffusivityStatus::Reviewed },
+    };
+
+    const QString key = normaliseFormula(formula.split(QLatin1Char(' ')).first());
+    for (const GasEntry& entry : historic)
+    {
+        if (normaliseFormula(entry.displayFormula) == key)
+        {
+            return &entry;
+        }
+    }
+    return findGas(formula);
+}
+
+double defaultAbsoluteLimitMin(const QString& formula)
+{
+    const QString key = normaliseFormula(formula.split(QLatin1Char(' ')).first());
+    if (key == QLatin1String("n2o")) { return 0.032; }
+    return 0.0;
+}
+
 QStringList selectableGasVariableList()
 {
     QStringList result;

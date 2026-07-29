@@ -1185,8 +1185,12 @@ void AdvProcessingOptions::updateCecMeth_1(bool b)
 
 void AdvProcessingOptions::updateCecAvailability()
 {
-    const bool hasCo2 = ecProject_->generalColCo2() != -1;
-    const bool hasH2o = ecProject_->generalColH2o() != -1;
+    //> Asked of the records rather than the two legacy columns, so a site
+    //> that measures CO2 on a second analyser still counts.
+    const bool hasCo2 = !ecProject_->gasRecordsFor(QStringLiteral("co2")).isEmpty()
+                        || ecProject_->generalColCo2() != -1;
+    const bool hasH2o = !ecProject_->gasRecordsFor(QStringLiteral("h2o")).isEmpty()
+                        || ecProject_->generalColH2o() != -1;
     const bool hasAny = hasCo2 || hasH2o;
 
     cecCheckBox->setEnabled(hasAny);
