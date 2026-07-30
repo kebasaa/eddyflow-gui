@@ -2011,6 +2011,16 @@ bool EcProject::saveEcProject(const QString &filename)
     project_ini.endGroup();
 
     // random error section
+    //
+    // Also clear the legacy RawProcess copies, or QSettings keeps them for ever
+    // beside the live ones and a later reader cannot tell which is current.
+    project_ini.beginGroup(EcIni::INIGROUP_RAND_ERROR_LEGACY);
+        project_ini.remove(EcIni::INI_RAND_ERROR_0);
+        project_ini.remove(EcIni::INI_RAND_ERROR_1);
+        project_ini.remove(EcIni::INI_RAND_ERROR_2);
+        project_ini.remove(EcIni::INI_RAND_ERROR_3);
+    project_ini.endGroup();
+
     project_ini.beginGroup(EcIni::INIGROUP_RAND_ERROR);
         project_ini.setValue(EcIni::INI_RAND_ERROR_0,
                              ec_project_state_.randomError.ru_method);
@@ -3490,7 +3500,13 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
     project_ini.endGroup();
 
     // random error section
-    project_ini.beginGroup(EcIni::INIGROUP_RAND_ERROR);
+    //
+    // Read from the legacy RawProcess group first, then let [Project] override.
+    // A file written before the move carries them only in the legacy group; one
+    // written since carries them only in [Project]. Reading both in this order
+    // means either kind opens with the user's settings intact, and the next
+    // save writes them to the place the engine actually reads.
+    project_ini.beginGroup(EcIni::INIGROUP_RAND_ERROR_LEGACY);
         ec_project_state_.randomError.ru_method
                 = project_ini.value(EcIni::INI_RAND_ERROR_0,
                                     defaultEcProjectState.randomError.ru_method).toInt();
@@ -3500,6 +3516,18 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.randomError.its_tlag_max
                 = project_ini.value(EcIni::INI_RAND_ERROR_2,
                                     defaultEcProjectState.randomError.its_tlag_max).toDouble();
+    project_ini.endGroup();
+
+    project_ini.beginGroup(EcIni::INIGROUP_RAND_ERROR);
+        ec_project_state_.randomError.ru_method
+                = project_ini.value(EcIni::INI_RAND_ERROR_0,
+                                    ec_project_state_.randomError.ru_method).toInt();
+        ec_project_state_.randomError.its_method
+                = project_ini.value(EcIni::INI_RAND_ERROR_1,
+                                    ec_project_state_.randomError.its_method).toInt();
+        ec_project_state_.randomError.its_tlag_max
+                = project_ini.value(EcIni::INI_RAND_ERROR_2,
+                                    ec_project_state_.randomError.its_tlag_max).toDouble();
 
         // NOTE: temporarly disabled
 //        ec_project_state_.randomError.its_sec_factor

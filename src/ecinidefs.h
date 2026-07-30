@@ -435,7 +435,14 @@ namespace EcIni
     const auto INI_PWB_TIMELAG_17   = QStringLiteral("pwb_max_ar_order");
     const auto INI_PWB_TIMELAG_18   = QStringLiteral("pwb_detect_on_raw");
 
-    const auto INIGROUP_RAND_ERROR = QStringLiteral("RawProcess_RandomUncertainty_Settings");
+    //> Random-uncertainty settings live in [Project], not in a RawProcess
+    //> group. The engine declares them in EPPrjNTags and parses that table only
+    //> from sections whose name starts with "Project" - and it has to, because
+    //> both RP and FCC need ru_meth and FCC never sweeps RawProcess at all.
+    //> Written here for years under INIGROUP_RAND_ERROR_LEGACY, where nothing
+    //> looked for them, so random uncertainty never actually ran.
+    const auto INIGROUP_RAND_ERROR = INIGROUP_PROJECT;
+    const auto INIGROUP_RAND_ERROR_LEGACY = QStringLiteral("RawProcess_RandomUncertainty_Settings");
     const auto INI_RAND_ERROR_0    = QStringLiteral("ru_meth");
     const auto INI_RAND_ERROR_1    = QStringLiteral("ru_its_meth");
     const auto INI_RAND_ERROR_2    = QStringLiteral("ru_tlag_max");
