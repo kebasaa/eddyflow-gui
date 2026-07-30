@@ -210,7 +210,11 @@ namespace Defs
     //> analysers, not eight.
     const int MAX_INSTRUMENTS = 8;
     const int MAX_GASES = 64;
-    const int MAX_GASES_PER_INSTRUMENT = 8;
+    //> Not an engine limit. The engine declares MaxGasesPerInstrument but never
+    //> reads it - no array is sized by it and no loop bounded by it - so this
+    //> only ever gated the interface. One analyser may carry the project's full
+    //> complement; MAX_GASES is the real ceiling.
+    const int MAX_GASES_PER_INSTRUMENT = MAX_GASES;
 
     const auto READY      = QObject::tr("Ready");
     const auto ABOUT_DESC = QObject::tr("EddyFlow software suite.");
