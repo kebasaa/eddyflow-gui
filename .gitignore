@@ -5,3 +5,9 @@
 # Python bytecode from the static checks in tests/
 __pycache__/
 *.pyc
+
+# gfortran's fallback output. A WRITE to a unit that was never successfully
+# OPENed lands in fort.<unit> in the working directory, so a failed run leaves
+# stray output here that looks like a source change. The unit number is picked
+# from the clock at startup, so the names vary from run to run.
+fort.*
