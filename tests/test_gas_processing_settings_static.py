@@ -688,13 +688,19 @@ class RecordsCarryTheGasPhysics(unittest.TestCase):
             "nint(error), so its assignments are wiped straight afterwards")
         self.assertTrue(bridge >= 0)
 
-    def test_the_fourth_gas_label_and_unit_survive_the_retired_tag(self):
-        """Both are consulted before ApplyGasRecords has filled E2Col."""
+    def test_the_gas_label_and_unit_survive_the_retired_tag(self):
+        """Both are consulted before ApplyGasRecords has filled E2Col.
+
+        Named for a slot rather than for the fourth gas: the full output
+        carries a column family per configured gas, so every slot needs a
+        label and a unit, not just the historical fourth.
+        """
         src = self._engine("src", "src_common", "define_all_var_set.f90")
-        for fn in ("function FourthGasLabel", "function FourthGasUnitIn"):
+        for fn in ("function GasOutputLabel(gas_slot)",
+                   "function GasUnitIn(gas_slot)"):
             self.assertIn(fn, src, "%s is gone; the output headers fall back "
-                                   "to an empty E2Col and the fourth gas is "
-                                   "named NONE" % fn)
+                                   "to an empty E2Col and the gas is named "
+                                   "NONE" % fn)
         for path in (("src", "src_rp", "init_fluxnet_file_rp.f90"),
                      ("src", "src_rp", "init_outfiles_rp.f90")):
             header = self._engine(*path)
@@ -703,15 +709,18 @@ class RecordsCarryTheGasPhysics(unittest.TestCase):
                 "%s still reads E2Col at header time, which is before any "
                 "data file has been read" % path[-1])
 
-    def test_fcc_resolves_the_fourth_gas_column_from_the_record(self):
+    def test_fcc_resolves_every_gas_column_from_the_record(self):
         """col_gas4 is retired; FCC used it to choose nmol vs umol output."""
         src = self._engine("src", "src_fcc", "read_ini_fcc.f90")
         block = src[src.index("subroutine InitializeGas4FullOutputUnitsFcc"):]
         self.assertIn(
-            "EddyFlowProj%gas(rec4)%col", block,
-            "FCC still takes the fourth gas's column from the retired "
-            "col_gas4 tag, so the full output silently reverts to a umol "
-            "basis for a project that used nmol")
+            "gas_col = EddyFlowProj%gas(rec)%col", block,
+            "FCC still takes a gas's column from the retired col_gas4 tag, "
+            "so the full output silently reverts to a umol basis for a "
+            "project that used nmol")
+        self.assertNotIn(
+            "EddyFlowProj%col(gas4)", block,
+            "FCC still falls back to the retired col_gas4 slot")
 
 
 class NoFourthGasConcept(unittest.TestCase):
@@ -880,11 +889,11 @@ class OutputColumnsAreNamedForTheirSpecies(unittest.TestCase):
         slot four.
         """
         src = self._engine("src", "src_common", "define_all_var_set.f90")
-        body = src[src.index("function FourthGasLabel"):]
-        body = body[: body.index("end function FourthGasLabel")]
+        body = src[src.index("function GasOutputLabel"):]
+        body = body[: body.index("end function GasOutputLabel")]
         rec = body.index("EddyFlowProj%gas(rec4)%col")
-        e2 = body.index("E2Col(gas4)%label")
+        e2 = body.index("E2Col(gas_slot)%label")
         self.assertLess(
             rec, e2,
-            "FourthGasLabel consults E2Col before the record again; the "
+            "GasOutputLabel consults E2Col before the record again; the "
             "record is the authority on which species occupies the slot")
