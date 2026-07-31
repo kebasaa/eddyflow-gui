@@ -418,24 +418,21 @@ public:
             return true;
         }
 
-        if (speciesIsOpen(row)
-            && index.column() == MolecularWeight
-            && isActive(row)
-            && gasMw_
-            && gasMw_->isEnabled())
+        //> Straight onto the record, for any active gas. Both used to set one
+        //> of two shared spin boxes, whose value went to the project-wide
+        //> gas_mw / gas_diff - keys the writer deletes - so the edit was lost
+        //> on save and the engine used its own default instead.
+        if (isActive(row) && page_
+            && (index.column() == MolecularWeight || index.column() == Diffusivity))
         {
-            gasMw_->setValue(value.toDouble());
-            emit dataChanged(index, index, { Qt::DisplayRole, Qt::EditRole });
-            return true;
-        }
-
-        if (speciesIsOpen(row)
-            && index.column() == Diffusivity
-            && isActive(row)
-            && gasDiff_
-            && gasDiff_->isEnabled())
-        {
-            gasDiff_->setValue(value.toDouble());
+            if (index.column() == MolecularWeight)
+            {
+                page_->setGasMolecularWeight(gasRecordIndex(row), value.toDouble());
+            }
+            else
+            {
+                page_->setGasDiffusivity(gasRecordIndex(row), value.toDouble());
+            }
             emit dataChanged(index, index, { Qt::DisplayRole, Qt::EditRole });
             return true;
         }
@@ -464,10 +461,11 @@ public:
         {
             itemFlags |= Qt::ItemIsEditable;
         }
-        if (speciesIsOpen(row)
-            && isActive(row)
-            && ((index.column() == MolecularWeight && gasMw_ && gasMw_->isEnabled())
-                || (index.column() == Diffusivity && gasDiff_ && gasDiff_->isEnabled())))
+        //> Editable on any active gas, not only the open slot: a species the
+        //> tables carry no diffusivity for needs its own value whichever row
+        //> it sits in, and two such gases need two different ones.
+        if (isActive(row)
+            && (index.column() == MolecularWeight || index.column() == Diffusivity))
         {
             itemFlags |= Qt::ItemIsEditable;
         }
@@ -678,20 +676,26 @@ private:
         if (!molecularColumns_) { return QVariant(); }
         if (row.row.kind != VariableTableRowKind::Gas) { return QVariant(); }
 
-        //> An open slot shows what the user has in the spin boxes, which is
-        //> what will be written to the record. A pinned row shows the species
-        //> constant, which is not editable.
-        if (speciesIsOpen(row))
+        //> An active gas shows its record's value, which is what the file
+        //> carries and what the engine reads. It used to show the two shared
+        //> spin boxes for the open slot and a species constant otherwise -
+        //> so a second non-standard gas could not have its own constants at
+        //> all, and what the spin boxes held was discarded on save.
+        if (isActive(row) && page_)
         {
-            if (!isActive(row)) { return QVariant(); }
-            if (weight && gasMw_)   { return QString::number(gasMw_->value(), 'f', 4); }
-            if (!weight && gasDiff_) { return QString::number(gasDiff_->value(), 'f', 5); }
+            const int idx = gasRecordIndex(row);
+            const qreal v = weight ? page_->gasMolecularWeight(idx)
+                                   : page_->gasDiffusivity(idx);
+            if (v > 0.0) { return QString::number(v, 'f', weight ? 4 : 5); }
         }
 
+        //> An inactive row has no record yet, so it previews the species
+        //> constant it would be given.
         const GasMetadata::GasEntry* gas = GasMetadata::findSpecies(gasSlug(row));
         if (!gas) { return QVariant(); }
-        return QString::number(weight ? gas->molecularWeight : gas->diffusivity,
-                               'f', weight ? 4 : 5);
+        const qreal v = weight ? gas->molecularWeight : gas->diffusivity;
+        if (v <= 0.0) { return QVariant(); }
+        return QString::number(v, 'f', weight ? 4 : 5);
     }
 
     BasicSettingsPage* page_;
@@ -1132,6 +1136,69 @@ void BasicSettingsPage::setMoistureRefForGas(int gasRecordIndex, int moistureRef
     if (gasRecordIndex < 0 || gasRecordIndex >= gases.size()) { return; }
     if (gases.at(gasRecordIndex).moistureRef == moistureRef) { return; }
     gases[gasRecordIndex].moistureRef = moistureRef;
+    ecProject_->setGasColumns(gases);
+}
+
+/// Molecular weight of a gas record, or its species default.
+///
+/// The record is the authority; the species table supplies the value the
+/// record does not carry. Only an override reaches the file, so a project
+/// whose gas is later given better constants picks them up.
+qreal BasicSettingsPage::gasMolecularWeight(int gasRecordIndex) const
+{
+    if (!ecProject_) { return -1.0; }
+    const auto& gases = ecProject_->gasColumns();
+    if (gasRecordIndex < 0 || gasRecordIndex >= gases.size()) { return -1.0; }
+    if (gases.at(gasRecordIndex).mw > 0.0) { return gases.at(gasRecordIndex).mw; }
+    const auto* gas = GasMetadata::findSpecies(gases.at(gasRecordIndex).slug);
+    return gas ? gas->molecularWeight : -1.0;
+}
+
+qreal BasicSettingsPage::gasDiffusivity(int gasRecordIndex) const
+{
+    if (!ecProject_) { return -1.0; }
+    const auto& gases = ecProject_->gasColumns();
+    if (gasRecordIndex < 0 || gasRecordIndex >= gases.size()) { return -1.0; }
+    if (gases.at(gasRecordIndex).diff > 0.0) { return gases.at(gasRecordIndex).diff; }
+    const auto* gas = GasMetadata::findSpecies(gases.at(gasRecordIndex).slug);
+    return gas ? gas->diffusivity : -1.0;
+}
+
+/// Store a molecular weight on the record, or clear it back to the default.
+///
+/// This used to be setGeneralColGasMw, which writes the project-wide gas_mw -
+/// a key writeMeasurementRecords deletes before saving, so every value the
+/// user typed was discarded and the engine fell back to its own default. For
+/// any species but CO2, H2O, CH4 and N2O that default was nitrous oxide's.
+///
+/// A value matching the species default is stored as "no override", so the
+/// file stays free of redundant keys and fuzzyCompare does not see a change
+/// where the user made none.
+void BasicSettingsPage::setGasMolecularWeight(int gasRecordIndex, qreal value)
+{
+    if (!ecProject_) { return; }
+    auto gases = ecProject_->gasColumns();
+    if (gasRecordIndex < 0 || gasRecordIndex >= gases.size()) { return; }
+
+    const auto* gas = GasMetadata::findSpecies(gases.at(gasRecordIndex).slug);
+    const qreal stored =
+        (gas && qFuzzyCompare(value, gas->molecularWeight)) ? -1.0 : value;
+    if (qFuzzyCompare(gases.at(gasRecordIndex).mw, stored)) { return; }
+    gases[gasRecordIndex].mw = stored;
+    ecProject_->setGasColumns(gases);
+}
+
+void BasicSettingsPage::setGasDiffusivity(int gasRecordIndex, qreal value)
+{
+    if (!ecProject_) { return; }
+    auto gases = ecProject_->gasColumns();
+    if (gasRecordIndex < 0 || gasRecordIndex >= gases.size()) { return; }
+
+    const auto* gas = GasMetadata::findSpecies(gases.at(gasRecordIndex).slug);
+    const qreal stored =
+        (gas && qFuzzyCompare(value, gas->diffusivity)) ? -1.0 : value;
+    if (qFuzzyCompare(gases.at(gasRecordIndex).diff, stored)) { return; }
+    gases[gasRecordIndex].diff = stored;
     ecProject_->setGasColumns(gases);
 }
 
@@ -3747,8 +3814,17 @@ void BasicSettingsPage::refresh()
 
     moreButton->setChecked(false);
     updateFourthGasSettings(fourthGasSpecies());
-    gasMw->setValue(ecProject_->generalGasMw());
-    gasDiff->setValue(ecProject_->generalGasDiff());
+    //> From the record, which is what the file carries. These used to read
+    //> generalGasMw / generalGasDiff - the project-wide keys the writer
+    //> deletes - so the spin boxes came back empty after every save and the
+    //> round trip was broken at both ends.
+    {
+        const int open = openGasRecordIndex();
+        const qreal mw = gasMolecularWeight(open);
+        const qreal diff = gasDiffusivity(open);
+        if (mw > 0.0) { gasMw->setValue(mw); }
+        if (diff > 0.0) { gasDiff->setValue(diff); }
+    }
 
     windFilterApplyCheckbox->setChecked(ecProject_->windFilterApply());
     updateWindFilterModel();
@@ -5120,14 +5196,38 @@ void BasicSettingsPage::onClickFlagLabel()
     flagCombo->showPopup();
 }
 
+/// The two spin boxes describe the open gas slot, and now write its record.
+///
+/// They used to call setGeneralColGasMw / setGeneralColGasDiff, which set the
+/// project-wide gas_mw and gas_diff. writeMeasurementRecords deletes both keys
+/// before saving, so nothing the user typed here survived - and the engine
+/// then fell back to its own default, which for any species outside CO2, H2O,
+/// CH4 and N2O is nitrous oxide's 44.01 g/mol.
+///
+/// The table's Molecular weight and Molecular diffusivity cells write the same
+/// records, so the two controls agree by construction.
 void BasicSettingsPage::updateGasMw(double value)
 {
-    ecProject_->setGeneralColGasMw(value);
+    setGasMolecularWeight(openGasRecordIndex(), value);
 }
 
 void BasicSettingsPage::updateGasDiff(double value)
 {
-    ecProject_->setGeneralColGasDiff(value);
+    setGasDiffusivity(openGasRecordIndex(), value);
+}
+
+/// Record index of the gas in the open slot, or -1 when there is none.
+///
+/// The open slot is the fourth table row - the one not pinned to CO2, H2O or
+/// CH4 - and the two spin boxes have always described it.
+int BasicSettingsPage::openGasRecordIndex() const
+{
+    if (!ecProject_) { return -1; }
+    const auto& gases = ecProject_->gasColumns();
+    const int slot = kLegacyGasSlots - 1;
+    if (slot < 0 || slot >= gases.size()) { return -1; }
+    if (gases.at(slot).rawColumn <= 0) { return -1; }
+    return slot;
 }
 
 // enforce (start date&time) <= (end date&time)
@@ -5744,8 +5844,11 @@ void BasicSettingsPage::clearSelectedItems()
     ecProject_->setBiomParamColLwin(-1);
     ecProject_->setBiomParamColPpfd(-1);
 
-    ecProject_->setGeneralColGasMw(-1.0);
-    ecProject_->setGeneralColGasDiff(-1.0);
+    //> The project-wide gas_mw / gas_diff are retired: writeMeasurementRecords
+    //> deletes both keys, so resetting them here did nothing. Molecular weight
+    //> and diffusivity now live on the gas records, and clearing those is part
+    //> of clearing the records themselves - which this routine still does not
+    //> do for any record kind.
     ecProject_->setGeneralColTs(-1);
     ecProject_->setGeneralColDiag72(-1);
     ecProject_->setGeneralColDiag75(-1);

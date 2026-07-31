@@ -140,6 +140,11 @@ public:
     QVector<QPair<int, QString>> moistureChoices() const;
     int moistureRefForGas(int gasRecordIndex) const;
     void setMoistureRefForGas(int gasRecordIndex, int moistureRef);
+    qreal gasMolecularWeight(int gasRecordIndex) const;
+    qreal gasDiffusivity(int gasRecordIndex) const;
+    void setGasMolecularWeight(int gasRecordIndex, qreal value);
+    void setGasDiffusivity(int gasRecordIndex, qreal value);
+    int openGasRecordIndex() const;
 
     enum EmbeddedFileFlag
     {
