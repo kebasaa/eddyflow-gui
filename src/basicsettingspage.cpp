@@ -641,7 +641,9 @@ private:
             QMetaObject::invokeMethod(page_, "showGasDiffusivityWarning",
                                       Qt::DirectConnection, Q_ARG(QString, species));
             QMetaObject::invokeMethod(page_, "applyGasAbsoluteLimitMin",
-                                      Qt::DirectConnection, Q_ARG(QString, species));
+                                      Qt::DirectConnection,
+                                      Q_ARG(int, gasRecordIndex(row)),
+                                      Q_ARG(QString, species));
         }
     }
 
@@ -846,18 +848,25 @@ int legacyGasSlotFor(const QString& slug)
 /// Read from the metadata rather than parsed out of the table's display text:
 /// the label is translated and formatted for reading, while the id is what
 /// both the project file and the same-analyser rule match on.
-/// Species of the gas in the fourth record slot, as a slug.
+/// Species of the gas in the open slot, as a slug.
 ///
 /// Read from the record rather than from a combo's current text, which is
 /// what this used to be: the fourth-gas combo is gone with the rest, and the
 /// record is where the species has lived since Phase 5. GasMetadata::findGas
 /// normalises both sides, so a slug matches a display formula.
-QString BasicSettingsPage::fourthGasSpecies() const
+///
+/// Named for the slot's role rather than its position, but still that
+/// position: migration pins CO2, H2O and CH4 to records 0..2, so the fourth is
+/// the open one. Deliberately does *not* gate on the record having a column -
+/// a gas can be named before its column is chosen, and the species is what the
+/// absolute-limit floor and the diffusivity warning key on.
+QString BasicSettingsPage::openGasSpecies() const
 {
     if (!ecProject_) { return QString(); }
     const auto& gases = ecProject_->gasColumns();
-    if (gases.size() <= 3) { return QString(); }
-    return gases.at(3).slug;
+    const int slot = kLegacyGasSlots - 1;
+    if (slot < 0 || slot >= gases.size()) { return QString(); }
+    return gases.at(slot).slug;
 }
 
 QString BasicSettingsPage::canonicalInstrumentForColumn(int rawColumn) const
@@ -2905,12 +2914,14 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                         moreButton->setChecked(true);
                         updateGeometry();
 
-                        updateFourthGasSettings(fourthGasSpecies());
+                        updateFourthGasSettings(openGasSpecies());
                         //> Seed the "last species" so that merely reloading a
                         //> project does not overwrite a custom absolute-limit
-                        //> minimum with the species default.
-                        lastAbsLimitSpecies_ =
-                            fourthGasSpecies().split(QLatin1Char(' ')).first();
+                        //> minimum with the species default. Against the record
+                        //> the species came from, since the seed is per record.
+                        lastAbsLimitSpecies_.insert(
+                            openGasRecordIndex(),
+                            openGasSpecies().split(QLatin1Char(' ')).first());
                     }
 
                     // cell temp in
@@ -3813,7 +3824,7 @@ void BasicSettingsPage::refresh()
     flag10PolicyCombo->setCurrentIndex(ecProject_->screenFlag10Upper());
 
     moreButton->setChecked(false);
-    updateFourthGasSettings(fourthGasSpecies());
+    updateFourthGasSettings(openGasSpecies());
     //> From the record, which is what the file carries. These used to read
     //> generalGasMw / generalGasDiff - the project-wide keys the writer
     //> deletes - so the spin boxes came back empty after every save and the
@@ -4058,8 +4069,10 @@ void BasicSettingsPage::updateFourthGasSettings(const QString& s)
     }
 }
 
-void BasicSettingsPage::applyGasAbsoluteLimitMin(const QString& species)
+void BasicSettingsPage::applyGasAbsoluteLimitMin(int gasIndex,
+                                                 const QString& species)
 {
+    if (!ecProject_) { return; }
     if (species.isEmpty()) { return; }
     const QString gasStr = species.split(QLatin1Char(' ')).first();
 
@@ -4068,10 +4081,21 @@ void BasicSettingsPage::applyGasAbsoluteLimitMin(const QString& species)
     //> left alone. This used to track a single bool for "is it N2O", which
     //> could only ever distinguish two cases; the species itself is what the
     //> floor belongs to.
-    if (gasStr == lastAbsLimitSpecies_) { return; }
-    lastAbsLimitSpecies_ = gasStr;
-    ecProject_->setScreenParamAlGas4Min(
-        GasMetadata::defaultAbsoluteLimitMin(gasStr));
+    //>
+    //> Kept per record, not as one string: with more than one open-species row
+    //> a single "last species" cannot tell which record changed, so the second
+    //> row to be edited would be treated as a repeat and skipped.
+    if (lastAbsLimitSpecies_.value(gasIndex) == gasStr) { return; }
+    lastAbsLimitSpecies_.insert(gasIndex, gasStr);
+
+    //> Onto the record. This used to write setScreenParamAlGas4Min() - the
+    //> retired fourth-slot flat key, which the engine reads only as a legacy
+    //> fallback and then overrides from gas_N_al_min. The floor was derived
+    //> from the species correctly and then discarded.
+    auto gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size()) { return; }
+    gases[gasIndex].proc.alMin = GasMetadata::defaultAbsoluteLimitMin(gasStr);
+    ecProject_->setGasColumns(gases);
 }
 
 void BasicSettingsPage::showGasDiffusivityWarning(const QString& species)

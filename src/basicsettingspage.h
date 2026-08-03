@@ -126,8 +126,8 @@ public:
     //> the same species more than once - two H2O columns, say, one per
     //> analyser, which is what the Moisture column needs to be useful.
     QString canonicalInstrumentForColumn(int rawColumn) const;
-    //> Species of the fourth record slot, read from the record.
-    QString fourthGasSpecies() const;
+    //> Species of the open (non-pinned) record slot, read from the record.
+    QString openGasSpecies() const;
     bool gasRecordExists(const QString& slug, int rawColumn) const;
     //> Why a gas cannot be added, or an empty string if it can.
     QString gasLimitBlockReason(int rawColumn) const;
@@ -323,9 +323,11 @@ private:
     QTableView* ambientVariablesTable_;
 
     QString lastEmbeddedMdFileRead_;
-    //> Species the absolute-limit floor was last applied for, so a
-    //> user's custom value survives re-selecting the same gas.
-    QString lastAbsLimitSpecies_;
+    //> Species the absolute-limit floor was last applied for, per gas record,
+    //> so a user's custom value survives re-selecting the same gas. Keyed by
+    //> record because one string cannot say *which* record changed, and a
+    //> project may carry more than one row whose species comes from the data.
+    QHash<int, QString> lastAbsLimitSpecies_;
 
     SmartFluxBar* smartfluxBar_;
 
@@ -460,7 +462,7 @@ private slots:
     void updateFourthGasSettings(const QString& s);
     //> Species questions, not slot questions: they apply to whichever gas
     //> row takes its species from the data, and say nothing about N2O.
-    void applyGasAbsoluteLimitMin(const QString& species);
+    void applyGasAbsoluteLimitMin(int gasIndex, const QString& species);
     void showGasDiffusivityWarning(const QString& species);
     void updateAirTRefCombo(int i);
     void updateAirPRefCombo(int);

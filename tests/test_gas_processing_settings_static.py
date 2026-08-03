@@ -175,6 +175,52 @@ class StatisticalPageRows(unittest.TestCase):
                     "%s still falls back to %s" % (path.name, getter))
 
 
+class BasicPageWritesTheAbsoluteLimitFloorToTheRecord(unittest.TestCase):
+    """Choosing a species on the Basic Settings page seeds that gas's
+    absolute-limit minimum from GasMetadata.
+
+    It derived the floor by species and then wrote it to
+    setScreenParamAlGas4Min() - the retired fourth-slot flat key. The engine
+    reads al_gas4_min only as a legacy fallback and overrides it from
+    gas_N_al_min immediately after (read_ini_rp.f90), so the value was computed
+    correctly and discarded. The Statistical Analysis page has written this to
+    the record since the settings were made per-gas; this is the same setting
+    reached from the other page, and the two must agree.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.src = _read(GUI_ROOT / "src" / "basicsettingspage.cpp")
+        #: Comments stripped: the retired setter is named in a comment
+        #: explaining why it is retired, which is worth keeping.
+        cls.code = "\n".join(
+            ln for ln in cls.src.splitlines()
+            if not ln.lstrip().startswith("//"))
+
+    def test_the_retired_flat_key_is_not_written(self):
+        self.assertNotIn("setScreenParamAlGas4Min", self.code,
+                         "the floor must land on the gas record, not on the "
+                         "flat key the engine discards")
+
+    def test_the_floor_lands_on_the_record(self):
+        body = self.src[self.src.index(
+            "void BasicSettingsPage::applyGasAbsoluteLimitMin"):]
+        body = body[: body.index("\n}")]
+        self.assertIn("proc.alMin", body)
+        self.assertIn("setGasColumns", body,
+                      "a mutated copy of the record list has to be put back")
+        self.assertIn("defaultAbsoluteLimitMin", body)
+
+    def test_the_seed_is_kept_per_record(self):
+        """One string cannot say which record changed, so with more than one
+        row whose species comes from the data the second edit reads as a
+        repeat and is skipped."""
+        hdr = _read(GUI_ROOT / "src" / "basicsettingspage.h")
+        self.assertIn("QHash<int, QString> lastAbsLimitSpecies_", hdr)
+        self.assertIn("applyGasAbsoluteLimitMin(int gasIndex", hdr,
+                      "the slot must be told which record it is acting on")
+
+
 class LegacySettingsMigration(unittest.TestCase):
     """Every per-gas setting must survive the upgrade from a 4.x project.
 
