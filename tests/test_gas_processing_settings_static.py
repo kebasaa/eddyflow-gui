@@ -943,3 +943,40 @@ class OutputColumnsAreNamedForTheirSpecies(unittest.TestCase):
             rec, e2,
             "GasOutputLabel consults E2Col before the record again; the "
             "record is the authority on which species occupies the slot")
+
+
+class SpectralAssessmentValidatorIsPositionAware(unittest.TestCase):
+    """The assessment file carries one 14-row transfer-function block per
+    non-water gas, so every row after the blocks shifts by 14 per gas.
+
+    The validator spelled out three block positions - rows 19-30, 33-44 and
+    47-58 - and every later section by absolute row number. Those are the CO2,
+    CH4 and fourth-gas blocks only on a project laid out in that order, and
+    water is skipped, so the block sequence is not the record sequence.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.src = _read(GUI_ROOT / "src" / "ancillaryfiletest.cpp")
+
+    def test_the_block_positions_are_computed(self):
+        self.assertIn("tfpGasSlots", self.src)
+        self.assertIn("kSpectraGasBlockRows", self.src)
+        for literal in ("i = 32; i < 44", "i = 46; i < 58",
+                        "templateList, actualList, 44, 46",
+                        "templateList, actualList, 58, 62"):
+            self.assertNotIn(literal, self.src,
+                             "%s is an absolute row position" % literal)
+
+    def test_water_is_excluded_from_the_blocks(self):
+        """Its cutoffs are the RH-class table above them, which is why the
+        engine writes one block per configured gas *but water*."""
+        body = self.src[self.src.index("QVector<int> tfpGasSlots"):]
+        body = body[: body.index("\n}")]
+        self.assertIn('slug == QLatin1String("h2o")', body)
+
+    def test_a_gas_count_mismatch_explains_itself(self):
+        """A longer file is not a wrong file, and a bare row count says
+        nothing about why it differs."""
+        self.assertIn("kSpectraFixedRows", self.src)
+        self.assertIn("describes %1 gases", self.src)

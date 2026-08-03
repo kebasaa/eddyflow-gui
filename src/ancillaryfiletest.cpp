@@ -34,6 +34,7 @@
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QVBoxLayout>
+#include <QVector>
 
 #include <algorithm>
 
@@ -65,6 +66,38 @@ bool gasSlotConfigured(const EcProject* project, int slot)
         case 3: return project->generalColGas4() > 0;
         default: return false;
     }
+}
+
+/// Rows a single gas's transfer-function block occupies: twelve month labels
+/// and the two header rows that follow it.
+constexpr int kSpectraGasBlockRows = 14;
+/// Rows the file carries regardless of how many gases it describes: the
+/// header and RH-class table above the blocks, and the exponential-fit and
+/// high-pass sections below them.
+constexpr int kSpectraFixedRows = 29;
+
+/// Record indices of the gases that get a transfer-function block, in the
+/// order the engine writes them.
+///
+/// Water is not among them: its cutoffs are the nine RH classes tabulated
+/// above the blocks, which is why the engine writes "one block per configured
+/// gas but water". So the block sequence is not the record sequence, and the
+/// third block is the fourth record only on a project laid out CO2, H2O, CH4,
+/// other - which is what the three hard-coded positions this replaces assumed.
+QVector<int> tfpGasSlots(const EcProject* project)
+{
+    //> Not named `slots`: Qt #defines that away for the moc's `public slots:`
+    //> syntax, so the declaration would expand to `QVector<int> ;`.
+    QVector<int> blockSlots;
+    if (!project) { return blockSlots; }
+
+    const auto& gases = project->gasColumns();
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        if (gases.at(i).slug == QLatin1String("h2o")) { continue; }
+        blockSlots.append(i);
+    }
+    return blockSlots;
 }
 
 /// Display name of the gas in \a slot, for the skip messages. A record knows
@@ -416,7 +449,26 @@ bool AncillaryFileTest::testSpectraF(const LineList& templateList, const LineLis
                   + QString::number(actualList.size())
                   + QStringLiteral("]: ")
                   + formatPassFail(rowCountTest));
-    if (!rowCountTest) { return false; }
+    if (!rowCountTest)
+    {
+        //> The commonest cause, and the one a bare row count does not
+        //> explain: the file carries fourteen rows per non-water gas, and the
+        //> shipped template describes three of them. A project with more
+        //> gases produces a longer file that is not wrong, only longer.
+        const auto blocks = tfpGasSlots(ecProject_).size();
+        const auto templateBlocks =
+            (templateList.size() - kSpectraFixedRows) / kSpectraGasBlockRows;
+        if (blocks != templateBlocks)
+        {
+            testResults_->append(
+                tr("The sample file describes %1 gases and this project has "
+                   "%2. Each gas adds %3 rows, so the counts differ by design "
+                   "— compare against a sample from a project with the same "
+                   "gases.")
+                    .arg(templateBlocks).arg(blocks).arg(kSpectraGasBlockRows));
+        }
+        return false;
+    }
 
     // other tests
     QList<bool> test;
@@ -443,80 +495,76 @@ bool AncillaryFileTest::testSpectraF(const LineList& templateList, const LineLis
     testResults_->append(QLatin1String("Header rows 17-18: ")
                                   + formatPassFail(last_test()));
 
-    // test CO2 TFP labels, rows 19-30
-    for (auto i = 18; i < 30; ++i)
+    //> One transfer-function block per non-water gas: twelve label rows, then
+    //> two header rows, repeating. The first begins at row 19.
+    //>
+    //> Walked with a cursor rather than at three spelled-out positions. Those
+    //> positions - 19-30, 33-44, 47-58 - are only the CO2, CH4 and fourth-gas
+    //> blocks on a project laid out in that order, and every row after them
+    //> shifts by fourteen for each additional gas.
+    const auto tfpSlots = tfpGasSlots(ecProject_);
+    auto row = 18;
+    for (auto k = 0; k < tfpSlots.size(); ++k)
     {
-        test << (StringUtils::subStringList(templateList.value(i), 0, 2)
-                == StringUtils::subStringList(actualList.value(i), 0, 2));
+        const auto slot = tfpSlots.at(k);
+        if (row + 12 > templateList.size()) { break; }
 
-        testResults_->append(QLatin1String("<u>CO<sub>2</sub></u> TFP label, row ")
-                                      + QString::number(i + 1)
+        if (!gasSlotConfigured(ecProject_, slot))
+        {
+            testResults_->append(tr("<u>%1</u>: not configured in this project — <b>skipped</b>")
+                                 .arg(gasSlotName(ecProject_, slot)));
+        }
+        else
+        {
+            for (auto i = row; i < row + 12; ++i)
+            {
+                test << (StringUtils::subStringList(templateList.value(i), 0, 2)
+                        == StringUtils::subStringList(actualList.value(i), 0, 2));
+
+                testResults_->append(QLatin1String("<u>")
+                                              + gasSlotName(ecProject_, slot)
+                                              + QLatin1String("</u> TFP label, row ")
+                                              + QString::number(i + 1)
+                                              + QStringLiteral(": ")
+                                              + formatPassFail(last_test()));
+            }
+        }
+        row += 12;
+
+        //> The two header rows that separate this block from the next.
+        test << ContainerHelper::rangeEqual(templateList, actualList, row, row + 2);
+        testResults_->append(QLatin1String("Header rows ")
+                                      + QString::number(row + 1)
+                                      + QLatin1String("-")
+                                      + QString::number(row + 2)
                                       + QStringLiteral(": ")
                                       + formatPassFail(last_test()));
+        row += 2;
     }
 
-    // test header row 31-32
-    test << ContainerHelper::rangeEqual(templateList, actualList, 30, 32);
-    testResults_->append(QLatin1String("Header rows 31-32: ")
+    //> The fixed tail: the RH/fc exponential fit block and the high-pass
+    //> parameters. Offsets from the cursor, so they follow however many gas
+    //> blocks came before.
+    test << ContainerHelper::rangeEqual(templateList, actualList, row, row + 2);
+    testResults_->append(QLatin1String("Header, rows ")
+                                  + QString::number(row + 1)
+                                  + QLatin1String("-")
+                                  + QString::number(row + 2)
+                                  + QStringLiteral(": ")
                                   + formatPassFail(last_test()));
+    row += 2;
 
-    // test CH4 TFP labels, rows 33-44
-    if (!gasSlotConfigured(ecProject_, 2))
-    {
-        testResults_->append(tr("<u>%1</u>: not configured in this project — <b>skipped</b>")
-                             .arg(gasSlotName(ecProject_, 2)));
-    }
-    else
-    {
-        for (auto i = 32; i < 44; ++i)
-        {
-            test << (StringUtils::subStringList(templateList.value(i), 0, 2)
-                    == StringUtils::subStringList(actualList.value(i), 0, 2));
-
-            testResults_->append(QLatin1String("<u>CH<sub>4</sub></u> TFP label, row ")
-                                          + QString::number(i + 1)
-                                          + QStringLiteral(": ")
-                                          + formatPassFail(last_test()));
-        }
-    }
-
-    // test header row 45-46
-    test << ContainerHelper::rangeEqual(templateList, actualList, 44, 46);
-    testResults_->append(QLatin1String("Header rows 45-46: ")
+    test << ContainerHelper::rangeEqual(templateList, actualList, row + 1, row + 7);
+    testResults_->append(QLatin1String("Header, rows ")
+                                  + QString::number(row + 2)
+                                  + QLatin1String("-")
+                                  + QString::number(row + 7)
+                                  + QStringLiteral(": ")
                                   + formatPassFail(last_test()));
+    row += 7;
 
-    // test other gas TFP labels, rows 47-58
-    if (!gasSlotConfigured(ecProject_, 3))
-    {
-        testResults_->append(tr("<u>%1</u>: not configured in this project — <b>skipped</b>")
-                             .arg(gasSlotName(ecProject_, 3)));
-    }
-    else
-    {
-        for (auto i = 46; i < 58; ++i)
-        {
-            test << (StringUtils::subStringList(templateList.value(i), 0, 2)
-                    == StringUtils::subStringList(actualList.value(i), 0, 2));
-
-            testResults_->append(QLatin1String("<u>Other gas</u> TFP label, row ")
-                                          + QString::number(i + 1)
-                                          + QStringLiteral(": ")
-                                          + formatPassFail(last_test()));
-        }
-    }
-
-    // test header, rows 59-62
-    test << ContainerHelper::rangeEqual(templateList, actualList, 58, 62);
-    testResults_->append(QLatin1String("Header, rows 59-62: ")
-                                  + formatPassFail(last_test()));
-
-    // test header, rows 64-69
-    test << ContainerHelper::rangeEqual(templateList, actualList, 63, 69);
-    testResults_->append(QLatin1String("Header, rows 64-69: ")
-                                  + formatPassFail(last_test()));
-
-    // test high pass parameters labels, rows 70-71
-    for (auto i = 69; i < 71; ++i)
+    // test high pass parameters labels
+    for (auto i = row; i < row + 2 && i < templateList.size(); ++i)
     {
         test << (StringUtils::subStringList(templateList.value(i), 0, 2)
                 == StringUtils::subStringList(actualList.value(i), 0, 2));
@@ -548,30 +596,42 @@ bool AncillaryFileTest::testSpectraS(const LineList &actualList)
         fcH2o << StringUtils::subStringList(actualList.value(i), 7, 8).value(0).toDouble();
         numerosity << StringUtils::subStringList(actualList.value(i), 8, 9).value(0).toDouble();
     }
+    //> Block k of the transfer-function table, twelve rows starting at 19.
+    //> Positions computed rather than spelled out: every row after the blocks
+    //> shifts by kSpectraGasBlockRows for each gas the project adds, so the
+    //> fit and model parameters below are offsets from the end of the blocks
+    //> and not the absolute rows 63, 70 and 71.
+    const auto tfpSlots = tfpGasSlots(ecProject_);
+    const auto blockRow = [](int k) { return 18 + kSpectraGasBlockRows * k; };
+
     QVector<double> FnCo2;
     QVector<double> fcCo2;
-    for (auto i = 18; i < 30; ++i)
+    for (auto i = blockRow(0); i < blockRow(0) + 12; ++i)
     {
         FnCo2 << StringUtils::subStringList(actualList.value(i), 2, 3).value(0).toDouble();
         fcCo2 << StringUtils::subStringList(actualList.value(i), 3, 4).value(0).toDouble();
     }
     QVector<double> FnCh4;
     QVector<double> fcCh4;
-    for (auto i = 32; i < 44; ++i)
+    for (auto i = blockRow(1); i < blockRow(1) + 12; ++i)
     {
         FnCh4 << StringUtils::subStringList(actualList.value(i), 2, 3).value(0).toDouble();
         fcCh4 << StringUtils::subStringList(actualList.value(i), 3, 4).value(0).toDouble();
     }
+
+    //> The tail: two header rows after the last block, then the RH/fc
+    //> exponential fit, then the high-pass parameters seven rows on.
+    const auto tailRow = blockRow(tfpSlots.isEmpty() ? 3 : tfpSlots.size()) + 2;
     QVector<double> fitParameters;
     for (auto i = 0; i < 3; ++i)
     {
-        fitParameters << actualList.value(62).value(i).toDouble();
+        fitParameters << actualList.value(tailRow).value(i).toDouble();
     }
     QVector<double> modelParameters;
-    modelParameters << actualList.value(69).value(2).toDouble();
-    modelParameters << actualList.value(69).value(3).toDouble();
-    modelParameters << actualList.value(70).value(2).toDouble();
-    modelParameters << actualList.value(70).value(3).toDouble();
+    modelParameters << actualList.value(tailRow + 7).value(2).toDouble();
+    modelParameters << actualList.value(tailRow + 7).value(3).toDouble();
+    modelParameters << actualList.value(tailRow + 8).value(2).toDouble();
+    modelParameters << actualList.value(tailRow + 8).value(3).toDouble();
 
     // test criteria
     QList<bool> test;
