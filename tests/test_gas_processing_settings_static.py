@@ -253,12 +253,18 @@ class LegacySettingsMigration(unittest.TestCase):
             % missing)
 
     def test_h2o_is_excluded_from_the_three_that_are_not_per_gas(self):
-        """Slot 1's minimum flux and QA/QC thresholds are latent-heat ones.
+        """The water record's minimum flux and QA/QC thresholds are
+        latent-heat ones.
 
         Migrating them onto the H2O record would move a latent-heat threshold
         onto a gas, which is the carve-out every converted page preserves.
+
+        Excluded by species, not by index. `i == 1` is water only because
+        migration lays the legacy slots down in that order - on a project that
+        named only CO2 and CH4, index 1 is CH4 and it was CH4's minimum flux
+        that got dropped.
         """
-        self.assertIn("if (i == 1) { continue; }", self.body)
+        self.assertIn('gases.at(i).slug == QLatin1String("h2o")', self.body)
         for field in ("toMinFlux", "saMinUn", "saMinSt", "saMax"):
             self.assertIn("proc.%s" % field, self.body)
 
@@ -980,3 +986,58 @@ class SpectralAssessmentValidatorIsPositionAware(unittest.TestCase):
         nothing about why it differs."""
         self.assertIn("kSpectraFixedRows", self.src)
         self.assertIn("describes %1 gases", self.src)
+
+
+class CapacityConstantsMatchTheEngine(unittest.TestCase):
+    """MAX_GASES gates the interface; MaxNumGases sizes the engine's arrays.
+
+    If the interface's ceiling is the higher of the two, a project can be
+    built that the engine silently truncates - extra gas records are simply
+    not read, and the fluxes for them are absent rather than wrong, which is
+    harder to notice.
+    """
+
+    def test_the_gas_ceiling_is_the_engine_s(self):
+        engine_typedef = ENGINE_ROOT / "src" / "src_common" / "m_typedef.f90"
+        if not engine_typedef.is_file():
+            self.skipTest("engine checkout not found at %s" % ENGINE_ROOT)
+
+        engine = _read(engine_typedef)
+        m = re.search(r"integer, parameter :: MaxNumGases = (\d+)", engine)
+        self.assertIsNotNone(m, "MaxNumGases not found in m_typedef.f90")
+
+        gui = _read(GUI_ROOT / "src" / "defs.h")
+        g = re.search(r"const int MAX_GASES = (\d+);", gui)
+        self.assertIsNotNone(g, "MAX_GASES not found in defs.h")
+
+        self.assertEqual(
+            g.group(1), m.group(1),
+            "defs.h MAX_GASES is %s but the engine's MaxNumGases is %s"
+            % (g.group(1), m.group(1)))
+
+
+class LegacyMigrationCoversWhatTheProjectHas(unittest.TestCase):
+    """A pre-record project's thresholds have to survive the upgrade.
+
+    migrateLegacyGasSettings demanded four gas records and returned
+    otherwise, so a project whose legacy file named two or three gas columns
+    kept none of its thresholds - they were read, held in the flat state, and
+    dropped on the first save.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        src = _read(EC_PROJECT)
+        start = src.index("void EcProject::migrateLegacyGasSettings")
+        cls.body = src[start: src.index("\n}", start)]
+
+    def test_it_does_not_demand_four_records(self):
+        self.assertNotIn("gases.size() < 4) { return; }", self.body)
+        self.assertIn("std::min<int>(gases.size(), 4)", self.body)
+
+    def test_water_is_skipped_by_species(self):
+        """The three latent-heat settings are not per-gas. Skipping index 1
+        instead assumes water sits there - true after migration, but not for a
+        project that has only CO2 and CH4, where index 1 is CH4."""
+        self.assertNotIn("if (i == 1) { continue; }", self.body)
+        self.assertIn('gases.at(i).slug == QLatin1String("h2o")', self.body)

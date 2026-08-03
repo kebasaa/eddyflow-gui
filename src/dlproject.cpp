@@ -109,6 +109,11 @@ const QString DlProject::VARIABLE_VAR_STRING_1 = QStringLiteral("v");
 const QString DlProject::VARIABLE_VAR_STRING_2 = QStringLiteral("w");
 const QString DlProject::VARIABLE_VAR_STRING_3 = QStringLiteral("ts");
 const QString DlProject::VARIABLE_VAR_STRING_4 = QStringLiteral("sos");
+//> These four are not gas *slots*. They are the variable names the .metadata
+//> file format defines, which is an external format the engine parses by
+//> name - so they stay, and stay spelled exactly like this, however many gas
+//> records a project carries. A fifth gas names its own species in the
+//> metadata's variable field; nothing here caps the count.
 const QString DlProject::VARIABLE_VAR_STRING_5 = QStringLiteral("co2");
 const QString DlProject::VARIABLE_VAR_STRING_6 = QStringLiteral("h2o");
 const QString DlProject::VARIABLE_VAR_STRING_7 = QStringLiteral("ch4");

@@ -3625,7 +3625,16 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
 void EcProject::migrateLegacyGasSettings()
 {
     auto& gases = ec_project_state_.projectGeneral.gasColumns;
-    if (gases.size() < 4) { return; }
+    if (gases.isEmpty()) { return; }
+
+    //> However many of the four legacy slots the project actually has.
+    //>
+    //> This demanded all four and returned otherwise, so a project with two
+    //> or three gas records - which migrateLegacyColumnsToRecords produces
+    //> whenever the legacy file named fewer than four columns - kept none of
+    //> its thresholds. They were read from the file, held in the flat state,
+    //> and then silently dropped on the first save.
+    const int n = std::min<int>(gases.size(), 4);
 
     const auto& sp = ec_project_state_.screenParam;
     const auto& sa = ec_project_state_.spectraSettings;
@@ -3670,7 +3679,7 @@ void EcProject::migrateLegacyGasSettings()
     const int outRaw[4]  = { os.out_raw_co2, os.out_raw_h2o,
                              os.out_raw_ch4, os.out_raw_gas4 };
 
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < n; ++i)
     {
         auto& proc = gases[i].proc;
         put(proc.srLim, srLim[i]);
@@ -3694,15 +3703,19 @@ void EcProject::migrateLegacyGasSettings()
     //> H2O is the exception in three places, and getting it wrong would move
     //> a latent-heat threshold onto a gas. Its minimum-flux counterpart is
     //> le_min_flux and its spectral QA/QC thresholds are the LE triple -
-    //> neither is a per-gas quantity, so slot 1 takes none of them.
+    //> neither is a per-gas quantity, so the water record takes none of them.
     const qreal toMinFlux[4] = { to.co2_min_flux, -1.0, to.ch4_min_flux, to.gas4_min_flux };
     const qreal saMinUn[4]   = { sa.sa_min_un_co2, -1.0, sa.sa_min_un_ch4, sa.sa_min_un_other };
     const qreal saMinSt[4]   = { sa.sa_min_st_co2, -1.0, sa.sa_min_st_ch4, sa.sa_min_st_other };
     const qreal saMax[4]     = { sa.sa_max_co2, -1.0, sa.sa_max_ch4, sa.sa_max_other };
 
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < n; ++i)
     {
-        if (i == 1) { continue; }
+        //> By species, not by position. The legacy layout puts water in
+        //> record two, and migration keeps it there - but a project that has
+        //> only CO2 and CH4 has no water at index 1, and skipping that index
+        //> would have dropped CH4's minimum flux instead.
+        if (gases.at(i).slug == QLatin1String("h2o")) { continue; }
         auto& proc = gases[i].proc;
         put(proc.toMinFlux, toMinFlux[i]);
         put(proc.saMinUn, saMinUn[i]);

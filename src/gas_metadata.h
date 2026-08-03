@@ -26,6 +26,12 @@ struct GasEntry {
     double molecularWeight;
     double diffusivity;
     DiffusivityStatus status;
+    //> Plausibility floor for the absolute-limits test, in the species' own
+    //> reporting units. Zero for almost every gas, which is why it carries a
+    //> default and only the exceptions state it - but it belongs beside the
+    //> molecular weight and the diffusivity rather than in an `if` that named
+    //> one species.
+    double absoluteLimitMin = 0.0;
 };
 
 QString normaliseFormula(const QString& s);

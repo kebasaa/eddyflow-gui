@@ -21,7 +21,9 @@ const QVector<GasEntry>& gasEntries()
 {
     static const QVector<GasEntry> registry = {
         // Reviewed/default diffusivity: auto-fill, no warning.
-        { QLatin1Char('N') + Defs::SUBTWO + QLatin1Char('O'), 44.01, 0.1436, DiffusivityStatus::Reviewed },
+        //> N2O's floor is the one non-zero entry: ambient nitrous oxide does
+        //> not fall to zero, so a reading that low is an instrument fault.
+        { QLatin1Char('N') + Defs::SUBTWO + QLatin1Char('O'), 44.01, 0.1436, DiffusivityStatus::Reviewed, 0.032 },
         { QStringLiteral("CO"), 28.0101, 0.1807, DiffusivityStatus::Reviewed },
         { QStringLiteral("SO") + Defs::SUBTWO, 64.066, 0.1089, DiffusivityStatus::Reviewed },
         { QStringLiteral("NH") + Defs::SUBTHREE, 17.0305, 0.1978, DiffusivityStatus::Reviewed },
@@ -150,9 +152,13 @@ const GasEntry* findSpecies(const QString& formula)
 
 double defaultAbsoluteLimitMin(const QString& formula)
 {
-    const QString key = normaliseFormula(formula.split(QLatin1Char(' ')).first());
-    if (key == QLatin1String("n2o")) { return 0.032; }
-    return 0.0;
+    //> From the registry, where the rest of a species' constants live. This
+    //> was an `if (key == "n2o")`, so adding a floor for another gas meant
+    //> editing a function rather than the row that describes it - and the
+    //> function was the only place a species constant did not live beside
+    //> its molecular weight.
+    const GasEntry* gas = findSpecies(formula);
+    return gas ? gas->absoluteLimitMin : 0.0;
 }
 
 QStringList selectableGasVariableList()
