@@ -42,6 +42,13 @@ namespace FileUtils
     bool projectFileForcedCopy(const QString& fileName,
                                const QString& destDir);
 
+    /// Copy \a fileName alongside itself with \a suffix appended.
+    ///
+    /// Distinct from projectFileForcedCopy, which copies into a *directory*
+    /// under a fixed name and is the SmartFlux path. A backup has to leave
+    /// the original where it is.
+    bool backupFile(const QString& fileName, const QString& suffix);
+
     void createDir(const QString& dirName, const
                    QString& absoluteDirDest = QString());
 

@@ -2095,6 +2095,12 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
     auto parent = static_cast<MainWindow*>(this->parent());
     if (parent == nullptr) { return false; }
 
+    //> Cleared per load. It was set once and never reset, so opening a
+    //> modern project after a legacy one in the same session still read as
+    //> upgraded - harmless while the only consequence was a dialog, and a
+    //> spurious backup-and-save now that it drives one.
+    wasUpgradedOnLoad_ = false;
+
     bool isVersionCompatible = true;
     QVariant v; // container for conversions
 
@@ -3667,7 +3673,10 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
     setModified(false);
     emit ecProjectChanged();
 
-    if (!isVersionCompatible)
+    //> Guarded, because the parameter defaults to nullptr. That was latent
+    //> while every caller happened to pass a pointer; it stopped being latent
+    //> when the silent upgrade made this the signal a save depends on.
+    if (!isVersionCompatible && modified != nullptr)
         *modified = true;
 
     //> An upgraded project must be saved back, or the next run still reads
@@ -3677,7 +3686,7 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         //> Only possible here: the per-gas settings live in five sections
         //> that are read long after the records are built.
         migrateLegacyGasSettings();
-        *modified = true;
+        if (modified != nullptr) { *modified = true; }
     }
 
     return true;

@@ -212,6 +212,9 @@ private:
 
     // save application state
     bool openFile(const QString& filename);
+    /// Resolve, back up and save a project the loader migrated. See the
+    /// definition: the emit-before-save ordering is load-bearing.
+    void upgradeProjectInPlace(const QString& filename);
     void newFile();
     void loadFile(const QString& fileName);
     bool saveFile(const QString& fileName);

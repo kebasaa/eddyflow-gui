@@ -557,14 +557,9 @@ bool MainWindow::openFile(const QString& filename)
                         addRecent(currentProjectFile());
                         saveAction->setEnabled(false);
 
-                        if (modified)
+                        if (ecProject_->wasUpgradedOnLoad())
                         {
-                            // load was successful
-                            WidgetUtils::warning(this,
-                                tr("Load Project"),
-                                tr("The project was successfully imported "
-                                   "and updated."),
-                                tr("Save the project to complete the update."));
+                            upgradeProjectInPlace(filename);
                         }
                         return true;
                     }
@@ -606,6 +601,51 @@ bool MainWindow::openFile(const QString& filename)
     }
     // empty file name
     return false;
+}
+
+/// Finish upgrading a project the loader migrated, without asking.
+///
+/// loadEcProject builds gas, cell and diagnostic records out of a pre-5.0.0
+/// project's flat columns, but only in memory. This used to stop there and
+/// tell the user to save, which left the upgrade half-done in two ways: an
+/// unsaved project, and - because resolveMigratedGasRecords runs at the end of
+/// BasicSettingsPage::updateMetadataRead - records whose species and analyser
+/// were only ever filled in if the user happened to visit that page first.
+///
+/// The ordering below is the whole point, so it is stated rather than implied.
+/// updateMetadataReadRequest is connected with the default AutoConnection,
+/// sender and receiver in the same thread, so `emit` is a direct synchronous
+/// call: the metadata is parsed and the records resolved before it returns,
+/// and therefore before anything is written. Make that connection queued and
+/// this silently starts saving projects with blank species.
+///
+/// A backup comes first. An upgrade the user did not ask for and cannot see
+/// must be one they can undo; if the backup cannot be written, nothing is
+/// saved and the old dialog is shown instead.
+void MainWindow::upgradeProjectInPlace(const QString& filename)
+{
+    emit updateMetadataReadRequest();
+
+    if (!FileUtils::backupFile(filename, QStringLiteral(".bak")))
+    {
+        WidgetUtils::warning(this,
+            tr("Load Project"),
+            tr("The project was imported and updated."),
+            tr("A backup could not be written, so the update was not saved. "
+               "Save the project to complete it."));
+        return;
+    }
+
+    //> Not fileSaveSilently: setCurrentProjectFile returns early for a
+    //> modified project and leaves modifiedFlag_ alone, and fileSaveSilently
+    //> short-circuits on it, so the save would be skipped. fileSave(quiet)
+    //> goes straight to the writer. Its own failure dialog is kept - a save
+    //> that did not happen must not be silent.
+    const bool quiet = true;
+    if (fileSave(quiet))
+    {
+        ecProject_->clearUpgradedOnLoad();
+    }
 }
 
 void MainWindow::fileRecent()

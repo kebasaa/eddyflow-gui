@@ -72,6 +72,15 @@ bool FileUtils::projectFileForcedCopy(const QString& fileName,
     return res;
 }
 
+bool FileUtils::backupFile(const QString& fileName, const QString& suffix)
+{
+    if (!QFile::exists(fileName)) { return false; }
+
+    const QString backup = fileName + suffix;
+    if (QFile::exists(backup) && !QFile::remove(backup)) { return false; }
+    return QFile::copy(fileName, backup);
+}
+
 // creates dirName, which can be absolute or relative if absoluteDirDest is provided
 void FileUtils::createDir(const QString& dirName, const QString& absoluteDirDest)
 {
