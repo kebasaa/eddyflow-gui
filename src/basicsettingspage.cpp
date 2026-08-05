@@ -289,8 +289,7 @@ public:
                 {
                     QString tooltip = row.row.tooltip;
                     tooltip += QStringLiteral("\n\n");
-                    tooltip += tr("Only one measurement per gas can be selected in this version. "
-                                  "Multiple gas measurements will be supported in a future project format.");
+                    tooltip += tr("A gas may be measured more than once. Each column becomes its own record, and its columns are numbered - h2o_1, h2o_2 - so the two never share a name.");
                     return tooltip;
                 }
                 if (role == Qt::ToolTipRole)
@@ -863,10 +862,9 @@ int legacyGasSlotFor(const QString& slug)
 QString BasicSettingsPage::openGasSpecies() const
 {
     if (!ecProject_) { return QString(); }
-    const auto& gases = ecProject_->gasColumns();
-    const int slot = kLegacyGasSlots - 1;
-    if (slot < 0 || slot >= gases.size()) { return QString(); }
-    return gases.at(slot).slug;
+    const int slot = openGasRecordIndex();
+    if (slot < 0) { return QString(); }
+    return ecProject_->gasColumns().at(slot).slug;
 }
 
 QString BasicSettingsPage::canonicalInstrumentForColumn(int rawColumn) const
@@ -3448,16 +3446,23 @@ void BasicSettingsPage::filterVariables()
     pruneCandidates(VariableTableRole::H2o, [&](const QString& t)
         { return isOpenPath(t) && isNotDensity(t); });
 
-    //> CH4 is the LI-7700's gas; on anything else only a generic instrument
-    //> can supply it.
+    //> CH4 follows the same rule as CO2 and H2O: an open-path analyser
+    //> reports a molar density, so a mole fraction or mixing ratio from one
+    //> is not a measurement it can make. Everything else is allowed.
+    //>
+    //> This used to keep CH4 only from the LI-7700, an open path, or an
+    //> instrument whose label said "Generic". The engine has never agreed:
+    //> MetadataFileValidation accepts CH4 from the MIRO MGA series, the
+    //> Aerodyne TILDAS and the Campbell EC155 and TGA200A, and this interface
+    //> offers all of them as instruments. Their display strings contain none
+    //> of those three words, so every CH4 column from a QCL or OA-ICOS
+    //> analyser was dropped from the row - and could not be rescued through
+    //> the open row either, which is reached only after CH4 has already
+    //> claimed the column. A site could not build here a project the engine
+    //> processes perfectly well, and this project's own regression fixtures
+    //> are such a site.
     pruneCandidates(VariableTableRole::Ch4, [&](const QString& t)
-    {
-        if (any(t, { li7700Str, openPathStr1, openPathStr2 }))
-        {
-            return isNotDensity(t);
-        }
-        return !t.contains(genericStr);
-    });
+        { return isOpenPath(t) && isNotDensity(t); });
 
     //> The fourth slot is for a gas no LI-COR analyser measures.
     pruneCandidates(VariableTableRole::Gas4, [&](const QString& t)
@@ -4136,6 +4141,52 @@ void BasicSettingsPage::showGasDiffusivityWarning(const QString& species)
     WidgetUtils::information(QApplication::activeWindow(), title, msg);
 }
 
+/// Say, once, when a project measures gases but has no humidity at all.
+///
+/// The engine raises the same thing as warning 104, and will keep doing so for
+/// anyone running it from the command line. This exists because the console
+/// output is read after a run, and this is knowable before one starts.
+///
+/// The two conditions cannot be identical, and that is deliberate rather than
+/// an oversight. The engine tests whether biomet RH is *in range for a given
+/// averaging period*, which only the data can answer. All that is visible here
+/// is whether an RH column has been selected at all. So a project that selects
+/// one whose data turns out to be missing is a case only the engine can
+/// report - which is why its warning stays regardless.
+void BasicSettingsPage::showNoHumidityWarning()
+{
+    if (ecProject_->gasColumns().isEmpty()) { return; }
+
+    for (const auto& gas : ecProject_->gasColumns())
+    {
+        if (gas.slug.compare(QLatin1String("h2o"), Qt::CaseInsensitive) == 0)
+        {
+            return;
+        }
+    }
+    //> A biomet relative humidity column is enough: the engine computes the
+    //> moist-air correction from it, so this is not the case being warned about.
+    if (ecProject_->biomParamColRh() > 0) { return; }
+
+    if (noHumidityWarned_) { return; }
+    noHumidityWarned_ = true;
+
+    WidgetUtils::information(
+        QApplication::activeWindow(),
+        tr("No Humidity Measurement"),
+        tr("<p>This project measures gases but has no humidity: no gas record "
+           "is water, and no biomet relative humidity column is selected. "
+           "Two things follow, and neither is visible in the output.</p>"
+           "<p>Air density and heat capacity are computed for <b>dry air</b>, "
+           "so density is overestimated and every density-based correction "
+           "carries that bias.</p>"
+           "<p>And the humidity correction to sensible heat flux cannot be "
+           "applied, so the reported H is the uncorrected <b>buoyancy "
+           "flux</b>, not a true sensible heat flux. Over a wet surface the "
+           "two differ by several percent.</p>"
+           "<p>A biomet relative humidity sensor is enough to remove both.</p>"));
+}
+
 void BasicSettingsPage::updateAirTRefCombo(int i)
 {
     auto colNum = airTRefCombo->itemData(i).toInt();
@@ -4807,6 +4858,10 @@ void BasicSettingsPage::reloadSelectedItems_1()
     resolveMigratedGasRecords();
 
     refreshVariableTables();
+
+    //> After the records are settled, so the check sees the project
+    //> as it will be processed rather than mid-selection.
+    showNoHumidityWarning();
 }
 
 /// Auto-select plausible measurements the first time a metadata file is read.
@@ -5244,14 +5299,35 @@ void BasicSettingsPage::updateGasDiff(double value)
 ///
 /// The open slot is the fourth table row - the one not pinned to CO2, H2O or
 /// CH4 - and the two spin boxes have always described it.
+/// The record the open-species controls edit.
+///
+/// This returned record three unconditionally - the fourth legacy slot - so
+/// on a project with, say, COS at record three, NH3 at four and a second N2O
+/// at five, the molecular-weight and diffusivity spin boxes edited COS while
+/// appearing to describe whichever gas the user was looking at. It finds the
+/// first open species now.
+///
+/// It still names only the FIRST, which is the honest limit of a single pair
+/// of spin boxes standing in for a list. The per-row Molecular Weight and
+/// Diffusivity cells address gasRecordIndex(row) correctly and are the path
+/// to use for the others; these controls are a convenience for the common
+/// single-open-gas case.
 int BasicSettingsPage::openGasRecordIndex() const
 {
     if (!ecProject_) { return -1; }
     const auto& gases = ecProject_->gasColumns();
-    const int slot = kLegacyGasSlots - 1;
-    if (slot < 0 || slot >= gases.size()) { return -1; }
-    if (gases.at(slot).rawColumn <= 0) { return -1; }
-    return slot;
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        if (gases.at(i).rawColumn <= 0) { continue; }
+        const QString slug = gases.at(i).slug.toLower();
+        if (slug == QLatin1String("co2") || slug == QLatin1String("h2o")
+            || slug == QLatin1String("ch4"))
+        {
+            continue;
+        }
+        return i;
+    }
+    return -1;
 }
 
 // enforce (start date&time) <= (end date&time)

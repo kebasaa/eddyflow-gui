@@ -328,6 +328,9 @@ private:
     //> record because one string cannot say *which* record changed, and a
     //> project may carry more than one row whose species comes from the data.
     QHash<int, QString> lastAbsLimitSpecies_;
+    /// Shown once per session, not once per keystroke: the check
+    /// below runs whenever the gas selection changes.
+    bool noHumidityWarned_ = false;
 
     SmartFluxBar* smartfluxBar_;
 
@@ -464,6 +467,9 @@ private slots:
     //> row takes its species from the data, and say nothing about N2O.
     void applyGasAbsoluteLimitMin(int gasIndex, const QString& species);
     void showGasDiffusivityWarning(const QString& species);
+    /// Mirrors the engine's warning 104. See the definition: the
+    /// GUI and engine conditions differ deliberately.
+    void showNoHumidityWarning();
     void updateAirTRefCombo(int i);
     void updateAirPRefCombo(int);
     void updateRhCombo(int);
