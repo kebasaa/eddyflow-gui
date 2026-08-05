@@ -32,7 +32,12 @@ RECORD_HDR = GUI_ROOT / "src" / "measurement_record.h"
 #: The settings the Statistical Analysis page owns, as record suffixes.
 SUFFIXES = ("sr_lim", "al_min", "al_max", "ds_hf", "ds_sf", "tl_def")
 #: The Spectral Corrections page, written in a FluxCorrection* section.
-SA_SUFFIXES = ("fmin", "fmax", "hfn_fmin", "min_st", "min_un", "max")
+#:
+#: `months` is the odd one out - a group list like `1-6,7-12` rather than a
+#: number, and the only FCC per-gas TEXT tag. It replaced three flat tables of
+#: twelve start/stop pairs each, labelled for CO2, CH4 and the fourth gas,
+#: which is why every gas past the fourth used to inherit CO2's grouping.
+SA_SUFFIXES = ("fmin", "fmax", "hfn_fmin", "min_st", "min_un", "max", "months")
 #: The Output Files page, written in a RawProcess* section.
 OUT_SUFFIXES = ("full_sp", "full_cosp_w", "raw")
 
@@ -899,16 +904,24 @@ class OutputColumnsAreNamedForTheirSpecies(unittest.TestCase):
         return _read(path)
 
     def _record_branch(self):
-        """Executable lines of the record branch of SelectFluxnetGasSlots.
+        """Executable lines of SelectFluxnetGasSlots.
 
-        Comments are stripped because the code explains the history in prose,
-        and the `else` branch is excluded: it names gases by fixed slot for a
-        project carrying no records, which the engine now refuses outright.
+        Comments are stripped because the code explains the history in prose.
+
+        This used to cut the routine at its `else`, which named gases by fixed
+        slot for a project carrying no records. That branch is gone - the
+        engine refuses such a project outright - so the whole routine is the
+        record branch now, and slicing at a string that is no longer there
+        raised rather than skipped. A helper that throws is worse than one
+        that over-matches: both tests below stopped testing anything.
         """
         src = self._engine("src", "src_rp", "init_fluxnet_file_rp.f90")
         block = src[src.index("subroutine SelectFluxnetGasSlots"):]
         block = block[: block.index("end subroutine SelectFluxnetGasSlots")]
-        block = block[: block.index("\n    else\n")]
+        self.assertNotIn(
+            "\n    else\n", block,
+            "SelectFluxnetGasSlots has grown an else branch again; if it "
+            "names gases by slot, exclude it here as this once did")
         return "\n".join(l for l in block.splitlines()
                          if not l.strip().startswith("!"))
 

@@ -40,7 +40,7 @@ struct MeasurementRecord
     bool isValid() const { return !slug.isEmpty() && rawColumn > 0; }
 };
 
-/// The 19 per-gas processing settings that used to exist once per fixed slot.
+/// The 20 per-gas processing settings that used to exist once per fixed slot.
 struct GasProcessingSettings
 {
     qreal srLim = -1.0;
@@ -60,6 +60,17 @@ struct GasProcessingSettings
     qreal saMinSt = -1.0;
     qreal saMinUn = -1.0;
     qreal saMax = -1.0;
+    //> The months this gas pools before a transfer function is fitted, as a
+    //> group list: `1-12` is one group over the calendar, `1-6,7-12` is two,
+    //> and a group's ordinal in the list is its class index.
+    //>
+    //> **Empty means the record carries no decision**, the same convention as
+    //> the -1 above and for the same reason: the engine applies a per-gas
+    //> override whenever the tag is present, and its own default is one group
+    //> spanning the calendar. This replaces three flat tables - sa_co2_g*,
+    //> sa_ch4_g* and sa_gas4_g*, twelve start/stop pairs each - which is why
+    //> every gas past the fourth used to inherit CO2's grouping.
+    QString saMonths;
     //> Output selections. **-1 means the record carries no decision**, which
     //> is not the same as 0: the engine applies a per-gas override whenever
     //> the tag is present, so an undecided flag must be left out of the file

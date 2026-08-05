@@ -1555,13 +1555,11 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_52, ec_project_state_.spectraSettings.flux_run_mode);
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_53, ec_project_state_.spectraSettings.automatic_spectra_config);
 
-        // NOTE: temporary placeholders for SA Groups. Not used right now
-        project_ini.setValue(QStringLiteral("sa_co2_g1_start"), 1);
-        project_ini.setValue(QStringLiteral("sa_co2_g1_stop"), 12);
-        project_ini.setValue(QStringLiteral("sa_ch4_g1_start"), 1);
-        project_ini.setValue(QStringLiteral("sa_ch4_g1_stop"), 12);
-        project_ini.setValue(QStringLiteral("sa_gas4_g1_start"), 1);
-        project_ini.setValue(QStringLiteral("sa_gas4_g1_stop"), 12);
+        //> The three SA-group tables that used to be written here as
+        //> placeholders - sa_co2_g1_start/stop and the ch4 and gas4 pairs,
+        //> always 1 and 12 - are retired. A gas states its own months as
+        //> gas_<i>_sa_months below, which reaches every gas rather than the
+        //> three the tables were labelled for.
 
         //> Per-gas spectral settings, for the gases the flat keys above
         //> cannot reach. These are FCC SNTags and ReadIniFCC only sweeps
@@ -1575,6 +1573,16 @@ bool EcProject::saveEcProject(const QString &filename)
             const auto staleGas = project_ini.childKeys().filter(
                 QRegularExpression(QStringLiteral("^gas_\\d+_sa_")));
             for (const auto& key : staleGas) { project_ini.remove(key); }
+
+            //> The three retired SA-group tables, 72 keys, swept for the same
+            //> reason the retired [Project] keys are: QSettings keeps what it
+            //> is not asked to overwrite, so an upgraded project would carry
+            //> sa_co2_g1_start beside gas_1_sa_months for ever - and the
+            //> engine has blanked those tags, so they would describe nothing.
+            const auto staleGroups = project_ini.childKeys().filter(
+                QRegularExpression(
+                    QStringLiteral("^sa_(co2|ch4|gas4)_g\\d+_(start|stop)$")));
+            for (const auto& key : staleGroups) { project_ini.remove(key); }
 
             const auto& gases = ec_project_state_.projectGeneral.gasColumns;
             for (int i = 0; i < gases.size(); ++i)
@@ -1610,6 +1618,14 @@ bool EcProject::saveEcProject(const QString &filename)
                 {
                     project_ini.setValue(p + QStringLiteral("max"),
                                          QString::number(proc.saMax, 'f', 6));
+                }
+                //> Written verbatim: the engine parses the group list itself,
+                //> and an empty string is a record that states nothing rather
+                //> than one that states "no months".
+                if (!proc.saMonths.isEmpty())
+                {
+                    project_ini.setValue(p + QStringLiteral("months"),
+                                         proc.saMonths);
                 }
             }
         }
@@ -2592,6 +2608,66 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
             readInto(QStringLiteral("min_st"), proc.saMinSt);
             readInto(QStringLiteral("min_un"), proc.saMinUn);
             readInto(QStringLiteral("max"), proc.saMax);
+
+            //> The month grouping is a string, so it is read as one rather
+            //> than through readInto. Absent leaves it empty, which is the
+            //> record stating nothing.
+            proc.saMonths
+                = project_ini.value(p + QStringLiteral("months")).toString();
+        }
+
+        //> An upgraded project's month grouping, folded out of the three flat
+        //> tables into the records that held those slots.
+        //>
+        //> This is the only place it can happen: the tables are twelve
+        //> start/stop pairs each and live in this section, so unlike the other
+        //> nineteen settings there is no flat state member to migrate from
+        //> later - the interface never read them into one.
+        //>
+        //> A single group spanning the whole calendar is NOT migrated. That is
+        //> what the interface wrote unconditionally as a placeholder, for
+        //> every project it ever saved, so it records no decision - and it is
+        //> the engine's own default for a record that says nothing. Writing it
+        //> out would turn a placeholder into a declaration.
+        if (wasUpgradedOnLoad_)
+        {
+            const auto legacyGrouping = [&](const QString& slot) -> QString
+            {
+                QStringList groups;
+                for (int k = 1; k <= 12; ++k)
+                {
+                    const auto stem = QStringLiteral("sa_%1_g%2_").arg(slot).arg(k);
+                    const auto start
+                        = project_ini.value(stem + QStringLiteral("start")).toInt();
+                    const auto stop
+                        = project_ini.value(stem + QStringLiteral("stop")).toInt();
+                    if (start < 1 || stop < start || stop > 12) { continue; }
+                    groups << QStringLiteral("%1-%2").arg(start).arg(stop);
+                }
+                if (groups.size() == 1
+                    && groups.first() == QLatin1String("1-12"))
+                {
+                    return QString();
+                }
+                return groups.join(QLatin1Char(','));
+            };
+
+            //> Records 0, 2 and 3 are the slots the three tables were labelled
+            //> for. Record 1 is water, which is classed by relative humidity
+            //> and never had a table.
+            //> Not `slots`: Qt defines that as a macro for moc, and a local
+            //> named for it does not survive preprocessing.
+            const QString tableFor[4] = { QStringLiteral("co2"), QString(),
+                                          QStringLiteral("ch4"),
+                                          QStringLiteral("gas4") };
+            auto& gases = ec_project_state_.projectGeneral.gasColumns;
+            for (int i = 0; i < std::min<int>(gases.size(), 4); ++i)
+            {
+                if (tableFor[i].isEmpty()) { continue; }
+                if (gases.at(i).slug == QLatin1String("h2o")) { continue; }
+                if (!gases.at(i).proc.saMonths.isEmpty()) { continue; }
+                gases[i].proc.saMonths = legacyGrouping(tableFor[i]);
+            }
         }
     project_ini.endGroup();
 
