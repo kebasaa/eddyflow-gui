@@ -34,6 +34,7 @@
 #include <QSettings>
 #include <QTemporaryFile>
 
+#include "dlproject.h"
 #include "ecinidefs.h"
 #include "fileutils.h"
 #include "mainwindow.h"
@@ -2224,6 +2225,33 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.projectGeneral.master_sonic
                 = project_ini.value(EcIni::INI_PROJECT_17,
                                     defaultEcProjectState.projectGeneral.master_sonic).toString();
+
+        //> The one model key the project file carries of its own, and the only
+        //> one that never went through the metadata converters that normalise
+        //> the rest. Left alone, a retired name matches nothing in the master
+        //> anemometer list and the selection silently falls back to None - the
+        //> project opens, and the sonic it named is gone.
+        //>
+        //> The value is the model key plus a 1-based index, so only the key
+        //> part is rewritten; the index is what pairs it with an instrument.
+        {
+            const auto sonic = ec_project_state_.projectGeneral.master_sonic;
+            static const QRegularExpression indexSuffix(QStringLiteral("_\\d*$"));
+            const auto match = indexSuffix.match(sonic);
+            if (match.hasMatch())
+            {
+                const auto key = sonic.left(match.capturedStart());
+                const auto canonical = DlProject::canonicalModelKey(key);
+                if (canonical != key)
+                {
+                    ec_project_state_.projectGeneral.master_sonic
+                            = canonical + match.captured();
+                    // Rewritten in memory only: the file still names the sonic
+                    // the old way until it is saved.
+                    isVersionCompatible = false;
+                }
+            }
+        }
         ec_project_state_.projectGeneral.col_co2
                 = project_ini.value(EcIni::INI_PROJECT_18,
                                     defaultEcProjectState.projectGeneral.col_co2).toInt();
@@ -3912,30 +3940,24 @@ bool EcProject::eddyProNativeFormat(const QString &filename)
 
 bool EcProject::importEddyProProject(const QString &filename, bool updateMode, bool *modified)
 {
-    // Pre-process: upgrade old EddyPro Campbell model keys to EddyFlow csi_* keys.
+    //> Pre-process: rename the project keys EddyPro labelled for N2O. The
+    //> fourth gas slot takes whatever species the site measured, so the keys
+    //> are named for the slot rather than for one gas.
+    //>
+    //> Instrument model keys are deliberately *not* rewritten here. They do
+    //> not exist in this file - they live in the .metadata, under
+    //> instr_<n>_model - so a pattern for them can never match. This table
+    //> used to carry fifteen such rows that had never once fired. The model
+    //> keys are handled where they are actually read: canonicalModelKey() on
+    //> the metadata path, master_sonic in loadEcProject, and the engine's own
+    //> reader for the copy embedded in a GHG archive.
     QFile srcFile(filename);
     if (!srcFile.open(QIODevice::ReadOnly | QIODevice::Text))
         return false;
     QString content = QTextStream(&srcFile).readAll();
     srcFile.close();
 
-    static const QVector<QPair<QRegularExpression, QString>> kModelRewrites = {
-        { QRegularExpression(QStringLiteral("(^|\\n)model=csat3(\\r?\\n)")),                    QStringLiteral("\\1model=csi_csat3\\2") },
-        { QRegularExpression(QStringLiteral("(^|\\n)model=csat3a(\\r?\\n)")),                   QStringLiteral("\\1model=csi_csat3a\\2") },
-        { QRegularExpression(QStringLiteral("(^|\\n)model=csat3b(\\r?\\n)")),                   QStringLiteral("\\1model=csi_csat3b\\2") },
-        { QRegularExpression(QStringLiteral("(^|\\n)model=irgason(\\r?\\n)")),                  QStringLiteral("\\1model=csi_irgason_sonic\\2") },
-        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_irgason(\\r?\\n)")),         QStringLiteral("\\1model=csi_irgason_sonic\\2") },
-        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_irgason_sonic(\\r?\\n)")),   QStringLiteral("\\1model=csi_irgason_sonic\\2") },
-        { QRegularExpression(QStringLiteral("(^|\\n)model=ec150(\\r?\\n)")),                    QStringLiteral("\\1model=csi_ec150\\2") },
-        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_csat3(\\r?\\n)")),           QStringLiteral("\\1model=csi_csat3\\2") },
-        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_csat3a(\\r?\\n)")),          QStringLiteral("\\1model=csi_csat3a\\2") },
-        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_csat3b(\\r?\\n)")),          QStringLiteral("\\1model=csi_csat3b\\2") },
-        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_csat3c(\\r?\\n)")),          QStringLiteral("\\1model=csi_csat3c\\2") },
-        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_ec150(\\r?\\n)")),           QStringLiteral("\\1model=csi_ec150\\2") },
-        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_ec155(\\r?\\n)")),           QStringLiteral("\\1model=csi_ec155\\2") },
-        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_irgason_irga(\\r?\\n)")),    QStringLiteral("\\1model=csi_irgason_irga\\2") },
-        { QRegularExpression(QStringLiteral("(^|\\n)model=campbell_tga200a(\\r?\\n)")),         QStringLiteral("\\1model=csi_tga200a\\2") },
-        // Migrate EddyPro n2o-labelled project keys to gas4
+    static const QVector<QPair<QRegularExpression, QString>> kProjectKeyRewrites = {
         { QRegularExpression(QStringLiteral("(^|\\n)col_n2o=")),              QStringLiteral("\\1col_gas4=") },
         { QRegularExpression(QStringLiteral("(^|\\n)out_full_sp_n2o=")),      QStringLiteral("\\1out_full_sp_gas4=") },
         { QRegularExpression(QStringLiteral("(^|\\n)out_full_cosp_w_n2o=")),  QStringLiteral("\\1out_full_cosp_w_gas4=") },
@@ -3948,7 +3970,7 @@ bool EcProject::importEddyProProject(const QString &filename, bool updateMode, b
     };
 
     bool anyReplaced = false;
-    for (const auto& [re, replacement] : kModelRewrites)
+    for (const auto& [re, replacement] : kProjectKeyRewrites)
     {
         QString updated = content;
         updated.replace(re, replacement);

@@ -1216,19 +1216,7 @@ QString AdvStatisticalOptions::gasSignature() const
 /// two CO2 records on different analysers are told apart.
 QString AdvStatisticalOptions::gasRowLabel(int gasIndex) const
 {
-    const auto& gas = ecProject_->gasColumns().at(gasIndex);
-    auto text = gas.slug.toUpper();
-    if (text.isEmpty())
-    {
-        // A project migrated from the old format leaves the fourth slot's
-        // species blank until the metadata resolves it.
-        text = tr("Gas %1").arg(gasIndex + 1);
-    }
-    if (MeasurementRecords::isRealInstrument(gas.instrumentId))
-    {
-        text += QStringLiteral(" (") + gas.instrumentId + QStringLiteral(")");
-    }
-    return text;
+    return MeasurementRecords::gasLabel(ecProject_->gasColumns(), gasIndex);
 }
 
 /// Range and unit of an absolute-limit spin box, by species. CO2 is reported
@@ -1416,10 +1404,11 @@ void AdvStatisticalOptions::rebuildGasRows()
     int dsRow = 4;
     int tlRow = 2;
 
-    for (int i = 0; i < gases.size(); ++i)
+    // Alphabetical, so all four tables read the way the gases are named rather
+    // than the way they were added. The index stays the record index - that is
+    // what every spin writes back through.
+    for (const int i : MeasurementRecords::gasDisplayOrder(gases))
     {
-        if (gases.at(i).rawColumn <= 0) { continue; }
-
         const int idx = i;
         const auto name = gasRowLabel(i);
         const auto slug = gases.at(i).slug;

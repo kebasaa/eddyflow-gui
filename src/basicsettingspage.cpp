@@ -795,6 +795,21 @@ public:
         QStyledItemDelegate::paint(painter, option, index);
     }
 
+    //> Wide enough for the label and the arrow drawn over it. Without this the
+    //> column sizes to the text alone and elides the instrument, which is the
+    //> part that tells one analyser's water from another's.
+    QSize sizeHint(const QStyleOptionViewItem& option,
+                   const QModelIndex& index) const override
+    {
+        const QSize base = QStyledItemDelegate::sizeHint(option, index);
+        if (index.column() == BasicVariableSelectionModel::Moisture
+            && (index.flags() & Qt::ItemIsEditable))
+        {
+            return TableDelegateUtils::comboCellSizeHint(option, base);
+        }
+        return base;
+    }
+
 private:
     BasicSettingsPage* page_ = nullptr;
 };
@@ -814,6 +829,9 @@ void configureBasicVariablesTable(QTableView* table)
     table->horizontalHeader()->setSectionResizeMode(BasicVariableSelectionModel::Selection, QHeaderView::Stretch);
     if (table->model() && table->model()->columnCount() > BasicVariableSelectionModel::MolecularWeight)
     {
+        // Guarded with the molecular columns: the ambient table stops at
+        // Selection, so these sections do not exist there.
+        table->horizontalHeader()->setSectionResizeMode(BasicVariableSelectionModel::Moisture, QHeaderView::ResizeToContents);
         table->horizontalHeader()->setSectionResizeMode(BasicVariableSelectionModel::MolecularWeight, QHeaderView::ResizeToContents);
         table->horizontalHeader()->setSectionResizeMode(BasicVariableSelectionModel::Diffusivity, QHeaderView::ResizeToContents);
     }

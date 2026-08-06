@@ -129,6 +129,22 @@ int resolveMoistureRef(const QVector<GasRecord>& gases, int gasIndex);
 void validateReferences(QVector<GasRecord>& gases,
                         const QVector<MeasurementRecord>& cells);
 
+/// Row label: the species, qualified by the analyser when there is one, so
+/// two CO2 records on different analysers are told apart.
+QString gasLabel(const QVector<GasRecord>& gases, int index);
+
+/// The configured records, in the order they should be shown: alphabetical
+/// by gasLabel().
+///
+/// Returns record indices, not positions - record order is the engine's slot
+/// mapping and the key of every gas_<N>_* setting, so it is sorted for reading
+/// only and never in the list itself. Whatever a caller builds from this has
+/// to keep carrying the index, or a widget ends up writing to another gas.
+///
+/// Records with no raw column are left out: they are slots kept so the
+/// mapping stays put, not measurements.
+QVector<int> gasDisplayOrder(const QVector<GasRecord>& gases);
+
 } // namespace MeasurementRecords
 
 #endif // MEASUREMENT_RECORD_H

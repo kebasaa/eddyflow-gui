@@ -15,6 +15,10 @@
 
 #include "measurement_record.h"
 
+#include <QCoreApplication>
+
+#include <algorithm>
+
 namespace {
 
 const QString kH2o = QStringLiteral("h2o");
@@ -78,6 +82,47 @@ void validateReferences(QVector<GasRecord>& gases,
 
         if (gas.cellRef > cells.size() || gas.cellRef < 0) { gas.cellRef = 0; }
     }
+}
+
+QString gasLabel(const QVector<GasRecord>& gases, int index)
+{
+    if (index < 0 || index >= gases.size()) { return QString(); }
+
+    const auto& gas = gases.at(index);
+    auto text = gas.slug.toUpper();
+    if (text.isEmpty())
+    {
+        // A project migrated from the old format leaves the fourth slot's
+        // species blank until the metadata resolves it.
+        text = QCoreApplication::translate("MeasurementRecords", "Gas %1")
+                   .arg(index + 1);
+    }
+    if (isRealInstrument(gas.instrumentId))
+    {
+        text += QStringLiteral(" (") + gas.instrumentId + QStringLiteral(")");
+    }
+    return text;
+}
+
+QVector<int> gasDisplayOrder(const QVector<GasRecord>& gases)
+{
+    QVector<int> order;
+    order.reserve(gases.size());
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        if (gases.at(i).rawColumn > 0) { order.append(i); }
+    }
+
+    // Stable, so two records that label the same - the same species on the
+    // same analyser, measured twice - keep record order between them.
+    std::stable_sort(order.begin(), order.end(),
+                     [&gases](int left, int right)
+                     {
+                         return QString::compare(gasLabel(gases, left),
+                                                 gasLabel(gases, right),
+                                                 Qt::CaseInsensitive) < 0;
+                     });
+    return order;
 }
 
 } // namespace MeasurementRecords

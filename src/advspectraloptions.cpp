@@ -1984,19 +1984,7 @@ QString AdvSpectralOptions::gasSignature() const
 /// two CO2 records on different analysers are told apart.
 QString AdvSpectralOptions::gasRowLabel(int gasIndex) const
 {
-    const auto& gas = ecProject_->gasColumns().at(gasIndex);
-    auto text = gas.slug.toUpper();
-    if (text.isEmpty())
-    {
-        // A project migrated from the old format leaves the fourth slot's
-        // species blank until the metadata resolves it.
-        text = tr("Gas %1").arg(gasIndex + 1);
-    }
-    if (MeasurementRecords::isRealInstrument(gas.instrumentId))
-    {
-        text += QStringLiteral(" (") + gas.instrumentId + QStringLiteral(")");
-    }
-    return text;
+    return MeasurementRecords::gasLabel(ecProject_->gasColumns(), gasIndex);
 }
 
 /// Built-in default for a gas that carries no value of its own, chosen by
@@ -2212,11 +2200,12 @@ void AdvSpectralOptions::rebuildGasSpectralSpins()
     }
     gasSpectralRows_.clear();
 
+    // Alphabetical, so the table reads the way the gases are named rather than
+    // the way they were added. The index stays the record index throughout -
+    // that is what every spin writes back through.
     const auto& gases = ecProject_->gasColumns();
-    for (int i = 0; i < gases.size(); ++i)
+    for (const int i : MeasurementRecords::gasDisplayOrder(gases))
     {
-        if (gases.at(i).rawColumn <= 0) { continue; }
-
         GasSpectralRow row;
         row.gasIndex = i;
         row.noiseFrequency = makeGasSpectralSpin(i, SpectralParam::HfnFmin);
@@ -2289,7 +2278,6 @@ void AdvSpectralOptions::rebuildSpectralQaQcRows()
 
     QVector<SpectralQaQcRow> rows;
     rows.append({ tr("Friction velocity"), nullptr, qcMinUnstableUstarSpin, qcMinStableUstarSpin, qcMaxUstarSpin, nullptr, nullptr });
-    rows.append({ tr("Sensible heat flux"), nullptr, qcMinUnstableHSpin, qcMinStableHSpin, qcMaxHSpin, nullptr, nullptr });
 
     // The latent-heat row exists whenever the project measures water, wherever
     // that record sits in the list.
@@ -2298,6 +2286,8 @@ void AdvSpectralOptions::rebuildSpectralQaQcRows()
     {
         rows.append({ tr("Latent heat flux"), nullptr, qcMinUnstableLESpin, qcMinStableLESpin, qcMaxLESpin, nullptr, nullptr });
     }
+
+    rows.append({ tr("Sensible heat flux"), nullptr, qcMinUnstableHSpin, qcMinStableHSpin, qcMaxHSpin, nullptr, nullptr });
 
     for (const auto& row : gasSpectralRows_)
     {

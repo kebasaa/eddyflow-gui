@@ -204,6 +204,12 @@ public:
     QString canonicalInstrumentId(const QString& instrument)
         { return toIniVariableInstrument(instrument); }
 
+    //> Current key for an instrument model, whatever spelling the file uses.
+    //> Static and public because the project file carries one model key of its
+    //> own - master_sonic - which is read straight out of the ini and never
+    //> passed through the metadata converters that normalise the rest.
+    static QString canonicalModelKey(const QString& model);
+
 signals:
     // send that a new project has been created
     void projectNew();

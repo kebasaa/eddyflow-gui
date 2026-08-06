@@ -1772,19 +1772,7 @@ QString AdvOutputOptions::gasSignature() const
 /// two CO2 records on different analysers are told apart.
 QString AdvOutputOptions::gasRowLabel(int gasIndex) const
 {
-    const auto& gas = ecProject_->gasColumns().at(gasIndex);
-    auto text = gas.slug.toUpper();
-    if (text.isEmpty())
-    {
-        // A project migrated from the old format leaves the fourth slot's
-        // species blank until the metadata resolves it.
-        text = tr("Gas %1").arg(gasIndex + 1);
-    }
-    if (MeasurementRecords::isRealInstrument(gas.instrumentId))
-    {
-        text += QStringLiteral(" (") + gas.instrumentId + QStringLiteral(")");
-    }
-    return text;
+    return MeasurementRecords::gasLabel(ecProject_->gasColumns(), gasIndex);
 }
 
 bool AdvOutputOptions::gasSpectraFor(int gasIndex) const
@@ -1905,10 +1893,11 @@ void AdvOutputOptions::rebuildGasRows()
 
     int spectraRow = 5;      // after qBox_6 and the four fixed boxes
     int cospectraRow = 4;    // after qBox_7 and the three fixed entries
-    for (int i = 0; i < gases.size(); ++i)
+    // Alphabetical, so all three groups read the way the gases are named
+    // rather than the way they were added. The index stays the record index -
+    // that is what the three toggles write back through.
+    for (const int i : MeasurementRecords::gasDisplayOrder(gases))
     {
-        if (gases.at(i).rawColumn <= 0) { continue; }
-
         const int idx = i;
         const auto name = gasRowLabel(i);
 

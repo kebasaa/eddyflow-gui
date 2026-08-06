@@ -26,6 +26,7 @@
 #include "dlproject.h"
 
 #include <QDebug>
+#include <QHash>
 #include <QRegularExpression>
 #include <QSettings>
 
@@ -37,11 +38,34 @@
 
 namespace {
 
+/// Current key for a Campbell model, whatever the file spells it.
+///
+/// The names moved twice: EddyPro's bare `csat3` and `csat3b` became
+/// `campbell_*`, and those became `csi_*`. Only Campbell moved - every Gill,
+/// Metek, Young and LI-COR key is what EddyPro wrote - which is why a legacy
+/// project comes up correctly everywhere except on a Campbell site, where the
+/// model resolves to nothing and the instrument silently disappears.
 QString normalizedCampbellModelKey(const QString& key)
 {
     if (key == QStringLiteral("campbell_irgason"))
     {
         return QStringLiteral("csi_irgason_sonic");
+    }
+
+    //> The unprefixed spellings. `csat3` and `csat3b` are EddyPro's; `csat3a`
+    //> and `ec150` existed unprefixed only between 2026-06-22 and 06-26. There
+    //> is deliberately no bare `csat3c`, `ec155` or `tga200a`: those arrived
+    //> already carrying a prefix, so no file can spell them this way.
+    static const QHash<QString, QString> kBareModelKeys = {
+        { QStringLiteral("csat3"),  QStringLiteral("csi_csat3")  },
+        { QStringLiteral("csat3a"), QStringLiteral("csi_csat3a") },
+        { QStringLiteral("csat3b"), QStringLiteral("csi_csat3b") },
+        { QStringLiteral("ec150"),  QStringLiteral("csi_ec150")  },
+    };
+    const auto bare = kBareModelKeys.constFind(key);
+    if (bare != kBareModelKeys.constEnd())
+    {
+        return bare.value();
     }
 
     QString normalized = key;
@@ -479,6 +503,11 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
 
     bool isVersionCompatible = true;
     bool alreadyChecked = false;
+    //> Whether any instrument named itself with a retired model key. The file
+    //> reads correctly either way - canonicalModelKey resolves it - but the
+    //> file itself still carries the old name, so the project is marked
+    //> modified and the next save writes the current one.
+    bool legacyInstrumentSlugs = false;
 
     // open file
     QFile datafile(filename);
@@ -582,6 +611,10 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
             {
                 AnemDesc anem;
                 QString anemModel = project_ini.value(prefix + DlIni::INI_ANEM_2).toString().remove(QRegularExpression(QStringLiteral("_\\d*$")));
+                if (anemModel != canonicalModelKey(anemModel))
+                {
+                    legacyInstrumentSlugs = true;
+                }
 
                 anem.setManufacturer(fromIniAnemManufacturer(project_ini.value(prefix + DlIni::INI_ANEM_1, QString()).toString()));
                 anem.setModel(fromIniAnemModel(anemModel));
@@ -628,6 +661,10 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
             {
                 IrgaDesc irga;
                 QString irgaModel = project_ini.value(prefix + DlIni::INI_IRGA_1).toString().remove(QRegularExpression(QStringLiteral("_\\d*$")));
+                if (irgaModel != canonicalModelKey(irgaModel))
+                {
+                    legacyInstrumentSlugs = true;
+                }
 
                 irga.setManufacturer(fromIniIrgaManufacturer(project_ini.value(prefix + DlIni::INI_IRGA_0, QString()).toString()));
                 irga.setModel(fromIniIrgaModel(irgaModel));
@@ -944,8 +981,17 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
 
     hasGoodWindComponentsAndTemperature();
 
+    //> A retired model key means the file on disk still says the old name, so
+    //> it is dirty from the moment it is read - including on the first read,
+    //> which is the only one the metadata editor ever does. Guarded on
+    //> checkVersion to leave the copy extracted from a GHG archive alone: it
+    //> is scratch, it is wiped on the next open, and it can never be written
+    //> back, so marking it would leave a dirty flag nothing can clear.
+    if (legacyInstrumentSlugs && checkVersion) { isVersionCompatible = false; }
+
     // just loaded projects are not modified
-    if (!isVersionCompatible && checkVersion && !firstReading)
+    if ((!isVersionCompatible && checkVersion && !firstReading)
+        || (legacyInstrumentSlugs && checkVersion))
     {
         setModified(true);
     }
@@ -956,7 +1002,8 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
 
     emit projectChanged();
 
-    if (!isVersionCompatible)
+    // The default argument is a null pointer, so this cannot dereference blind.
+    if (!isVersionCompatible && modified != nullptr)
     {
         *modified = true;
     }
@@ -1903,6 +1950,11 @@ QString DlProject::fromIniAnemManufacturer(const QString& s)
     {
         return QString();
     }
+}
+
+QString DlProject::canonicalModelKey(const QString& model)
+{
+    return normalizedCampbellModelKey(model);
 }
 
 const QString DlProject::fromIniAnemModel(const QString& s)

@@ -28,6 +28,7 @@ SPEC_HDR = GUI_ROOT / "src" / "advspectraloptions.h"
 OUT_PAGE = GUI_ROOT / "src" / "advoutputoptions.cpp"
 OUT_HDR = GUI_ROOT / "src" / "advoutputoptions.h"
 RECORD_HDR = GUI_ROOT / "src" / "measurement_record.h"
+RECORD_SRC = GUI_ROOT / "src" / "measurement_record.cpp"
 
 #: The settings the Statistical Analysis page owns, as record suffixes.
 SUFFIXES = ("sr_lim", "al_min", "al_max", "ds_hf", "ds_sf", "tl_def")
@@ -135,9 +136,11 @@ class StatisticalPageRows(unittest.TestCase):
     def test_rows_are_built_from_the_gas_records(self):
         self.assertIn("rebuildGasRows", self.src)
         self.assertIn("ecProject_->gasColumns()", self.src)
-        # A record with no column is a slot kept for the engine's
-        # record-to-slot mapping, not a measurement.
-        self.assertIn("rawColumn <= 0) { continue; }", self.src)
+        # The rows are ordered for reading rather than by record position, so
+        # the skip that used to sit in the loop lives in the shared helper
+        # now - see GasDisplayOrder below for the guard itself.
+        self.assertIn("MeasurementRecords::gasDisplayOrder(gases)", self.src)
+
 
     def test_the_record_is_the_only_source(self):
         """The flat mirrors are retired: no writing, no reading, no fallback.
@@ -178,6 +181,40 @@ class StatisticalPageRows(unittest.TestCase):
                 self.assertNotIn(
                     getter, src,
                     "%s still falls back to %s" % (path.name, getter))
+
+
+class GasDisplayOrder(unittest.TestCase):
+    """The shared helper the three Advanced pages order their gases with.
+
+    Record order is the engine's slot mapping and the key of every gas_<N>_*
+    setting, so the pages sort a permutation of record *indices* and carry each
+    index through as the widget's gasIndex. A helper that returned positions
+    instead would silently point every widget at another gas.
+    """
+
+    def setUp(self):
+        self.src = _read(RECORD_SRC)
+        self.body = self.src[self.src.index("QVector<int> gasDisplayOrder("):]
+        self.body = self.body[: self.body.index("\n}")]
+
+    def test_records_with_no_column_are_left_out(self):
+        # A record with no column is a slot kept for the engine's
+        # record-to-slot mapping, not a measurement.
+        self.assertIn("rawColumn > 0", self.body)
+
+    def test_it_returns_record_indices(self):
+        self.assertIn("order.append(i)", self.body)
+
+    def test_the_sort_is_stable(self):
+        # Two records that label the same keep record order between them.
+        self.assertIn("std::stable_sort", self.body)
+        self.assertIn("gasLabel(gases,", self.body)
+
+    def test_every_page_that_shows_gases_uses_it(self):
+        for path in (STAT_PAGE, SPEC_PAGE, OUT_PAGE):
+            self.assertIn(
+                "MeasurementRecords::gasDisplayOrder(gases)", _read(path),
+                "%s builds its gas rows in record order" % path.name)
 
 
 class BasicPageWritesTheAbsoluteLimitFloorToTheRecord(unittest.TestCase):

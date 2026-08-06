@@ -11,3 +11,4 @@ __pycache__/
 # stray output here that looks like a source change. The unit number is picked
 # from the clock at startup, so the names vary from run to run.
 fort.*
+/smartflux_example
