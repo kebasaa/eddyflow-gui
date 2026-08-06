@@ -188,6 +188,11 @@ void AdvancedSettingsPage::updateSmartfluxBar()
     advancedSettingContainer->processingOptions()->getTimeLagSettingsDialog()
             ->setSmartfluxUI();
 
+    //> The page's own options, not only its two child dialogs. Conditional
+    //> Eddy Covariance and the pre-whitening time lag live here, and both are
+    //> features a module cannot run.
+    advancedSettingContainer->processingOptions()->setSmartfluxUI();
+
     advancedSettingContainer->spectralOptions()->setSmartfluxUI();
     advancedSettingContainer->outputOptions()->setSmartfluxUI();
 }

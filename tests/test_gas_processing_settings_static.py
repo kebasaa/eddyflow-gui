@@ -915,14 +915,21 @@ class OtherGasDefaultsAreNotNamedForASlot(unittest.TestCase):
                 "upgraded project would silently fall back to defaults" % key)
 
     def test_the_eddypro_importer_still_rewrites_to_the_ini_spelling(self):
-        """The importer maps `*_n2o=` onto the on-disk key, not the field."""
+        """The importer maps `*_n2o` onto the on-disk key, not the field.
+
+        The pairs used to be spelled inline in the importer. They are one
+        shared list now, because the SmartFlux exporter reads the same list
+        backwards and the two directions must not drift; the rewrite this
+        pins is unchanged.
+        """
         src = _read(GUI_ROOT / "src" / "ecproject.cpp")
-        for key in ("sr_lim_gas4=", "al_gas4_min=", "ds_hf_gas4=",
-                    "col_gas4=", "out_full_sp_gas4="):
+        for key in ("sr_lim_gas4", "al_gas4_min", "ds_hf_gas4",
+                    "col_gas4", "out_full_sp_gas4"):
             self.assertIn(
-                key, src,
+                'QStringLiteral("%s")' % key, src,
                 "the .eddypro importer no longer rewrites onto %s; an "
                 "imported project would lose that setting entirely" % key)
+        self.assertIn("fourthGasKeyRenames()", src)
 
 
 class OutputColumnsAreNamedForTheirSpecies(unittest.TestCase):

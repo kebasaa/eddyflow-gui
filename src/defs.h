@@ -67,6 +67,17 @@ namespace Defs
     const auto METADATA_FILE_VERSION = 0x030201;
     const auto METADATA_FILE_VERSION_STR = QStringLiteral("3.2.2");
 
+    //> What a SmartFlux package declares itself to be.
+    //>
+    //> A SmartFlux module runs LI-COR's embedded EddyPro, not this engine, so
+    //> the project inside the package is written in that program's format and
+    //> says so - the shape is taken from a package EddyPro 7.0.9 produced
+    //> itself, kept in smartflux_example/ as the reference. Bump these when a
+    //> newer module expects a different pair; nothing else in the interface
+    //> reads them.
+    const auto SMARTFLUX_SW_VERSION_STR = QStringLiteral("7.0.9");
+    const auto SMARTFLUX_INI_VERSION_STR = QStringLiteral("4.5.0");
+
 
     const auto CURRENT_COPYRIGHT_YEAR = QStringLiteral(__DATE__).right(4);
     const auto LOG_FILE_MAX_SIZE = 1048576;
@@ -273,10 +284,17 @@ namespace Defs
     const auto GHG_MD_INI_TAG = QStringLiteral(";GHG_METADATA");
     const auto APP_MD_INI_TAG = QStringLiteral(";%1_METADATA").arg(APP_NAME_UCASE);
     const auto APP_PD_INI_TAG = QStringLiteral(";%1_PROCESSING").arg(APP_NAME_UCASE);
+    //> Not derived from APP_NAME: this is the other program's tag, both when
+    //> sniffing a file to import and when writing one for a SmartFlux module.
+    const auto EDDYPRO_PD_INI_TAG = QStringLiteral(";EDDYPRO_PROCESSING");
 
     // file names
     const auto DEFAULT_METADATA_FILENAME = QStringLiteral("%1.%2").arg(APP_NAME_LCASE, METADATA_FILE_EXT);
     const auto DEFAULT_PROCESSING_FILENAME = QStringLiteral("processing.%1").arg(PROJECT_FILE_EXT);
+    //> Deliberately not derived from PROJECT_FILE_EXT, unlike the line above:
+    //> the name inside a SmartFlux package is the one EddyPro writes, and it
+    //> did not follow this program's rename.
+    const auto SMARTFLUX_PROCESSING_FILENAME = QStringLiteral("processing.eddypro");
     const auto DEFAULT_PROJECT_FILENAME = QObject::tr("project-untitled.%1").arg(PROJECT_FILE_EXT);
     const auto DEFAULT_BIOMET_SUFFIX = QStringLiteral("-biomet");
     const auto DEFAULT_SMARTFLUX_SUFFIX = QStringLiteral("-smartflux");

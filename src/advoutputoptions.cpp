@@ -856,13 +856,18 @@ void AdvOutputOptions::setSmartfluxUI()
 {
     bool on = configState_->project.smartfluxMode;
 
+    //> The five run-mode controls are deliberately absent from this list.
+    //> Their enabled state belongs to updateSpectralAssessmentCreationAvailability
+    //> and updatePreprocessingAssessmentAvailability, which derive it from the
+    //> project every time they run - and the default radio has to stay enabled
+    //> while the other four go dead, which a blanket disable cannot express.
+    //>
+    //> It also keeps them clear of the restore below, which reads back by
+    //> position from a vector that is never cleared: on the second on/off
+    //> cycle it hands out the first cycle's values, and for these five that
+    //> would overwrite what the availability functions had just decided.
     QWidgetList enableableWidgets;
-    enableableWidgets << spectralAssessmentCreationRadioButton
-                      << productionRunRadioButton
-                      << defaultRunRadioButton
-                      << timelagAssessmentOnlyCheckBox
-                      << planarFitAssessmentOnlyCheckBox
-                      << outFullCheckBox
+    enableableWidgets << outFullCheckBox
                       << fullOutformatLabel
                       << fixedVarsOutputRadio
                       << variableVarsOutputRadio
@@ -1042,6 +1047,10 @@ void AdvOutputOptions::setSmartfluxUI()
         ecProject_->blockSignals(false);
     }
 
+    //> Re-derives the five run-mode controls, in both directions: entering the
+    //> mode forces the default and greys the rest, leaving it hands them back
+    //> to whatever the project's own settings imply.
+    updateSpectralAssessmentCreationAvailability();
     updateGasOutputAvailability();
     setRequiredSpectralOutputState(currentSpectralMethodIndex());
 }
@@ -1461,6 +1470,28 @@ void AdvOutputOptions::clearRunModeRadios()
 
 void AdvOutputOptions::updateSpectralAssessmentCreationAvailability()
 {
+    //> A SmartFlux module runs the flux computation and nothing else, so none
+    //> of the assessment-file modes applies. The default is left enabled: it
+    //> is the only member of the group that can be chosen, and a radio that is
+    //> checked but greyed reads as somebody else's decision when it is in fact
+    //> the only correct one.
+    //>
+    //> Set unconditionally rather than as a fallback from one of the other two
+    //> radios. A project last saved with one of the assessment-only boxes
+    //> ticked went through clearRunModeRadios(), which leaves all three
+    //> unchecked - and that state would otherwise survive into SmartFlux mode
+    //> as a page showing no run mode at all.
+    if (configState_->project.smartfluxMode)
+    {
+        spectralAssessmentCreationRadioButton->setEnabled(false);
+        productionRunRadioButton->setEnabled(false);
+        defaultRunRadioButton->setEnabled(true);
+        ecProject_->setSpectraFluxRunMode(0);
+        defaultRunRadioButton->setChecked(true);
+        updatePreprocessingAssessmentAvailability();
+        return;
+    }
+
     auto enabled = canCreateSpectralAssessment();
     spectralAssessmentCreationRadioButton->setEnabled(enabled);
     if (!enabled && spectralAssessmentCreationRadioButton->isChecked())
@@ -1486,8 +1517,14 @@ void AdvOutputOptions::updateSpectralAssessmentCreationAvailability()
 
 void AdvOutputOptions::updatePreprocessingAssessmentAvailability()
 {
+    //> SmartFlux counts with the assessment run modes: both boxes ask for an
+    //> assessment-file run, which a module does not do. Handled here rather
+    //> than only in setSmartfluxUI because this is what refresh() and every
+    //> time-lag and rotation-method slot call - a disable applied once on
+    //> entering the mode is undone by the first of those to fire.
     const auto spectralAssessmentMode = isSpectralAssessmentCreationMode()
-                                        || isProductionRunMode();
+                                        || isProductionRunMode()
+                                        || configState_->project.smartfluxMode;
 
     auto timelagEnabled = canCreateTimelagAssessmentOnly();
     if (spectralAssessmentMode)

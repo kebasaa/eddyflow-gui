@@ -43,6 +43,42 @@
 
 namespace {
 
+//> The keys EddyPro labels for nitrous oxide, and what this program calls
+//> them. The fourth slot takes whatever species the site measured, so the
+//> keys are named for the slot rather than for one gas.
+//>
+//> Only these nine. Every other fourth-slot key - sa_*_gas4, out_raw_gas4,
+//> to_gas4_* - is already spelled gas4 on both sides; a package written by
+//> EddyPro 7.0.9 is the authority for which is which. One list, read forwards
+//> on import and backwards on export, so the two directions cannot drift.
+const QVector<QPair<QString, QString>>& fourthGasKeyRenames()
+{
+    static const QVector<QPair<QString, QString>> renames = {
+        { QStringLiteral("col_n2o"),             QStringLiteral("col_gas4") },
+        { QStringLiteral("out_full_sp_n2o"),     QStringLiteral("out_full_sp_gas4") },
+        { QStringLiteral("out_full_cosp_w_n2o"), QStringLiteral("out_full_cosp_w_gas4") },
+        { QStringLiteral("sr_lim_n2o"),          QStringLiteral("sr_lim_gas4") },
+        { QStringLiteral("ds_hf_n2o"),           QStringLiteral("ds_hf_gas4") },
+        { QStringLiteral("ds_sf_n2o"),           QStringLiteral("ds_sf_gas4") },
+        { QStringLiteral("al_n2o_min"),          QStringLiteral("al_gas4_min") },
+        { QStringLiteral("al_n2o_max"),          QStringLiteral("al_gas4_max") },
+        { QStringLiteral("tl_def_n2o"),          QStringLiteral("tl_def_gas4") },
+    };
+    return renames;
+}
+
+//> How many gas slots EddyPro provides for. The four record positions this
+//> program pins to CO2, H2O, CH4 and the open slot are exactly these, which is
+//> what makes the export a slot-for-slot mapping rather than a search.
+const int kEddyProGasSlots = 4;
+
+//> Remove every key in the current group matching \a pattern.
+void removeMatchingKeys(QSettings& ini, const QString& pattern)
+{
+    const auto doomed = ini.childKeys().filter(QRegularExpression(pattern));
+    for (const auto& key : doomed) { ini.remove(key); }
+}
+
 QString formatSpectraQcMinimum(double value)
 {
     const double roundedToFour = std::round(value * 10000.0) / 10000.0;
@@ -3957,23 +3993,13 @@ bool EcProject::importEddyProProject(const QString &filename, bool updateMode, b
     QString content = QTextStream(&srcFile).readAll();
     srcFile.close();
 
-    static const QVector<QPair<QRegularExpression, QString>> kProjectKeyRewrites = {
-        { QRegularExpression(QStringLiteral("(^|\\n)col_n2o=")),              QStringLiteral("\\1col_gas4=") },
-        { QRegularExpression(QStringLiteral("(^|\\n)out_full_sp_n2o=")),      QStringLiteral("\\1out_full_sp_gas4=") },
-        { QRegularExpression(QStringLiteral("(^|\\n)out_full_cosp_w_n2o=")),  QStringLiteral("\\1out_full_cosp_w_gas4=") },
-        { QRegularExpression(QStringLiteral("(^|\\n)sr_lim_n2o=")),           QStringLiteral("\\1sr_lim_gas4=") },
-        { QRegularExpression(QStringLiteral("(^|\\n)ds_hf_n2o=")),            QStringLiteral("\\1ds_hf_gas4=") },
-        { QRegularExpression(QStringLiteral("(^|\\n)ds_sf_n2o=")),            QStringLiteral("\\1ds_sf_gas4=") },
-        { QRegularExpression(QStringLiteral("(^|\\n)al_n2o_min=")),           QStringLiteral("\\1al_gas4_min=") },
-        { QRegularExpression(QStringLiteral("(^|\\n)al_n2o_max=")),           QStringLiteral("\\1al_gas4_max=") },
-        { QRegularExpression(QStringLiteral("(^|\\n)tl_def_n2o=")),           QStringLiteral("\\1tl_def_gas4=") },
-    };
-
     bool anyReplaced = false;
-    for (const auto& [re, replacement] : kProjectKeyRewrites)
+    for (const auto& [eddyProKey, ownKey] : fourthGasKeyRenames())
     {
+        const QRegularExpression re(
+            QStringLiteral("(^|\\n)%1=").arg(eddyProKey));
         QString updated = content;
-        updated.replace(re, replacement);
+        updated.replace(re, QStringLiteral("\\1%1=").arg(ownKey));
         if (updated != content) { content = updated; anyReplaced = true; }
     }
 
@@ -3987,6 +4013,391 @@ bool EcProject::importEddyProProject(const QString &filename, bool updateMode, b
     QTextStream(&tmpFile) << content;
     tmpFile.flush();
     return loadEcProject(tmpFile.fileName(), updateMode, modified);
+}
+
+/// Turn a freshly copied native project into an EddyPro one, in place.
+///
+/// Three jobs: rebuild the flat per-slot keys the record format replaced, drop
+/// the keys this fork added, and rename the fourth slot where EddyPro spells it
+/// for nitrous oxide. What stays is as important as what goes -
+/// fluxnet_standardize_biomet, fluxnet_err_label, wdf_apply and the ru_* trio
+/// in [Project] all look like this fork's work and are not: EddyPro 7.0.9
+/// writes every one of them, as the reference package shows.
+void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
+{
+    const auto& g = ec_project_state_.projectGeneral;
+    const auto& gases = g.gasColumns;
+    const int n = std::min<int>(gases.size(), kEddyProGasSlots);
+
+    //> A record carrying no decision falls back to the same species default
+    //> the interface displays for it, so the package reproduces what the user
+    //> was shown rather than whatever EddyPro would assume for a missing key.
+    const auto pick = [](qreal own, qreal fallback)
+    { return own >= 0.0 ? own : fallback; };
+    const auto pickLag = [](qreal own, qreal fallback)
+    { return (own > -9000.0 && own != -1.0) ? own : fallback; };
+    const auto pickFlag = [](int own, int fallback)
+    { return own >= 0 ? own : fallback; };
+
+    const auto& dsp = defaultSettings.screenParam;
+    const auto& dsa = defaultSettings.spectraSettings;
+    const auto& dto = defaultSettings.timelagOpt;
+    const auto& dos = defaultSettings.screenSetting;
+
+    const bool isWater[4] = {
+        n > 0 && gases.at(0).slug == QLatin1String("h2o"),
+        n > 1 && gases.at(1).slug == QLatin1String("h2o"),
+        n > 2 && gases.at(2).slug == QLatin1String("h2o"),
+        n > 3 && gases.at(3).slug == QLatin1String("h2o") };
+
+    // ---- [Project] -------------------------------------------------------
+    ini.beginGroup(EcIni::INIGROUP_PROJECT);
+        removeMatchingKeys(ini, QStringLiteral("^cec_"));
+        removeMatchingKeys(ini, QStringLiteral("^(gas|cell|diag)_(num$|\\d+_)"));
+
+        const char* colKey[4] = { "col_co2", "col_h2o", "col_ch4", "col_n2o" };
+        for (int i = 0; i < kEddyProGasSlots; ++i)
+        {
+            const int col = i < gases.size() && gases.at(i).rawColumn > 0
+                    ? gases.at(i).rawColumn : 0;
+            ini.setValue(QLatin1String(colKey[i]), col);
+        }
+
+        //> Cell and diagnostic columns are found by slug, not by position:
+        //> their record lists are ordered by when the user selected them.
+        const auto columnForSlug = [](const QVector<MeasurementRecord>& recs,
+                                      const char* slug)
+        {
+            for (const auto& rec : recs)
+            {
+                if (rec.slug == QLatin1String(slug) && rec.rawColumn > 0)
+                {
+                    return rec.rawColumn;
+                }
+            }
+            return 0;
+        };
+        ini.setValue(QStringLiteral("col_int_t_1"), columnForSlug(g.cellColumns, "int_t_1"));
+        ini.setValue(QStringLiteral("col_int_t_2"), columnForSlug(g.cellColumns, "int_t_2"));
+        ini.setValue(QStringLiteral("col_int_p"),   columnForSlug(g.cellColumns, "int_p"));
+        ini.setValue(QStringLiteral("col_cell_t"),  columnForSlug(g.cellColumns, "cell_t"));
+        ini.setValue(QStringLiteral("col_diag_75"), columnForSlug(g.diagColumns, "diag_75"));
+        ini.setValue(QStringLiteral("col_diag_72"), columnForSlug(g.diagColumns, "diag_72"));
+        ini.setValue(QStringLiteral("col_diag_77"), columnForSlug(g.diagColumns, "diag_77"));
+        ini.setValue(QStringLiteral("col_diag_anem"), columnForSlug(g.diagColumns, "diag_anem"));
+
+        //> EddyPro carries one molecular weight and diffusivity, for the open
+        //> slot; -1 is its "use the built-in constant" sentinel, which is what
+        //> the reference package contains.
+        const qreal openMw = gases.size() > 3 ? gases.at(3).mw : -1.0;
+        const qreal openDiff = gases.size() > 3 ? gases.at(3).diff : -1.0;
+        ini.setValue(QStringLiteral("gas_mw"),
+                     QString::number(openMw >= 0.0 ? openMw : -1.0, 'f', 4));
+        ini.setValue(QStringLiteral("gas_diff"),
+                     QString::number(openDiff >= 0.0 ? openDiff : -1.0, 'f', 5));
+
+        //> The file says it was written by the program that can read it. A
+        //> module checking either of these against its own build must not be
+        //> handed a version pair no EddyPro ever produced.
+        ini.setValue(EcIni::INI_PROJECT_4, Defs::SMARTFLUX_SW_VERSION_STR);
+        ini.setValue(EcIni::INI_PROJECT_5, Defs::SMARTFLUX_INI_VERSION_STR);
+    ini.endGroup();
+
+    // ---- [RawProcess_ParameterSettings] ----------------------------------
+    const char* paramSlot[4] = { "co2", "h2o", "ch4", "n2o" };
+    ini.beginGroup(EcIni::INIGROUP_SCREEN_PARAM);
+        removeMatchingKeys(ini, QStringLiteral("^gas_\\d+_"));
+        for (int i = 0; i < n; ++i)
+        {
+            const auto& p = gases.at(i).proc;
+            const auto s = QLatin1String(paramSlot[i]);
+            const qreal dSr[4]    = { dsp.sr_lim_co2, dsp.sr_lim_h2o, dsp.sr_lim_ch4, dsp.sr_lim_other };
+            const qreal dAlMin[4] = { dsp.al_co2_min, dsp.al_h2o_min, dsp.al_ch4_min, dsp.al_other_min };
+            const qreal dAlMax[4] = { dsp.al_co2_max, dsp.al_h2o_max, dsp.al_ch4_max, dsp.al_other_max };
+            const qreal dHf[4]    = { dsp.ds_hf_co2, dsp.ds_hf_h2o, dsp.ds_hf_ch4, dsp.ds_hf_other };
+            const qreal dSf[4]    = { dsp.ds_sf_co2, dsp.ds_sf_h2o, dsp.ds_sf_ch4, dsp.ds_sf_other };
+            const qreal dTl[4]    = { dsp.tl_def_co2, dsp.tl_def_h2o, dsp.tl_def_ch4, dsp.tl_def_other };
+
+            ini.setValue(QStringLiteral("sr_lim_%1").arg(s),
+                         QString::number(pick(p.srLim, dSr[i]), 'f', 1));
+            ini.setValue(QStringLiteral("al_%1_min").arg(s),
+                         QString::number(pick(p.alMin, dAlMin[i]), 'f', 3));
+            ini.setValue(QStringLiteral("al_%1_max").arg(s),
+                         QString::number(pick(p.alMax, dAlMax[i]), 'f', 3));
+            ini.setValue(QStringLiteral("ds_hf_%1").arg(s),
+                         QString::number(pick(p.dsHf, dHf[i]), 'f', 2));
+            ini.setValue(QStringLiteral("ds_sf_%1").arg(s),
+                         QString::number(pick(p.dsSf, dSf[i]), 'f', 2));
+            ini.setValue(QStringLiteral("tl_def_%1").arg(s),
+                         QString::number(pick(p.tlDef, dTl[i]), 'f', 1));
+        }
+    ini.endGroup();
+
+    // ---- [FluxCorrection_SpectralAnalysis_General] -----------------------
+    const char* specSlot[4] = { "co2", "h2o", "ch4", "gas4" };
+    ini.beginGroup(EcIni::INIGROUP_SPEC_SETTINGS);
+        removeMatchingKeys(ini, QStringLiteral("^gas_\\d+_sa_"));
+        ini.remove(EcIni::INI_SPEC_SETTINGS_52);   // flux_run_mode
+        ini.remove(EcIni::INI_SPEC_SETTINGS_53);   // automatic_spectra_config
+        for (int i = 0; i < n; ++i)
+        {
+            const auto& p = gases.at(i).proc;
+            const auto s = QLatin1String(specSlot[i]);
+            const qreal dFmin[4] = { dsa.sa_fmin_co2, dsa.sa_fmin_h2o, dsa.sa_fmin_ch4, dsa.sa_fmin_other };
+            const qreal dFmax[4] = { dsa.sa_fmax_co2, dsa.sa_fmax_h2o, dsa.sa_fmax_ch4, dsa.sa_fmax_other };
+            const qreal dHfn[4]  = { dsa.sa_hfn_co2_fmin, dsa.sa_hfn_h2o_fmin,
+                                     dsa.sa_hfn_ch4_fmin, dsa.sa_hfn_other_fmin };
+
+            ini.setValue(QStringLiteral("sa_fmin_%1").arg(s),
+                         QString::number(pick(p.saFmin, dFmin[i]), 'f', 4));
+            ini.setValue(QStringLiteral("sa_fmax_%1").arg(s),
+                         QString::number(pick(p.saFmax, dFmax[i]), 'f', 4));
+            ini.setValue(QStringLiteral("sa_hfn_%1_fmin").arg(s),
+                         QString::number(pick(p.saHfnFmin, dHfn[i]), 'f', 4));
+
+            //> Water takes none of the QA/QC triple. Those are the latent-heat
+            //> thresholds - sa_min_st_le and its pair - and belong to the
+            //> project, not to a gas. Skipped by slug rather than by position,
+            //> the way the migration that put them on records does it, because
+            //> a project without water has some other gas at index one.
+            if (isWater[i]) { continue; }
+            const qreal dMinSt[4] = { dsa.sa_min_st_co2, -1.0, dsa.sa_min_st_ch4, dsa.sa_min_st_other };
+            const qreal dMinUn[4] = { dsa.sa_min_un_co2, -1.0, dsa.sa_min_un_ch4, dsa.sa_min_un_other };
+            const qreal dMax[4]   = { dsa.sa_max_co2,    -1.0, dsa.sa_max_ch4,    dsa.sa_max_other };
+            ini.setValue(QStringLiteral("sa_min_st_%1").arg(s),
+                         QString::number(pick(p.saMinSt, dMinSt[i]), 'f', 4));
+            ini.setValue(QStringLiteral("sa_min_un_%1").arg(s),
+                         QString::number(pick(p.saMinUn, dMinUn[i]), 'f', 4));
+            ini.setValue(QStringLiteral("sa_max_%1").arg(s),
+                         QString::number(pick(p.saMax, dMax[i]), 'f', 4));
+        }
+
+        //> Month grouping, back out into the twelve start/stop pairs per slot
+        //> it was folded up from. An empty grouping records no decision, and
+        //> the placeholder for that is one group spanning the calendar - which
+        //> is what the reference package carries for all three slots.
+        removeMatchingKeys(ini,
+            QStringLiteral("^sa_(co2|ch4|gas4)_g\\d+_(start|stop)$"));
+        for (int i = 0; i < n; ++i)
+        {
+            if (isWater[i]) { continue; }
+            const auto s = QLatin1String(specSlot[i]);
+            auto groups = gases.at(i).proc.saMonths.split(QLatin1Char(','),
+                                                          Qt::SkipEmptyParts);
+            if (groups.isEmpty()) { groups << QStringLiteral("1-12"); }
+            for (int k = 0; k < groups.size() && k < 12; ++k)
+            {
+                const auto bounds = groups.at(k).split(QLatin1Char('-'));
+                if (bounds.size() != 2) { continue; }
+                const auto stem = QStringLiteral("sa_%1_g%2_").arg(s).arg(k + 1);
+                ini.setValue(stem + QStringLiteral("start"), bounds.at(0).toInt());
+                ini.setValue(stem + QStringLiteral("stop"), bounds.at(1).toInt());
+            }
+        }
+    ini.endGroup();
+
+    // ---- [RawProcess_Settings] -------------------------------------------
+    const char* outSpSlot[4] = { "co2", "h2o", "ch4", "n2o" };
+    const char* outRawSlot[4] = { "co2", "h2o", "ch4", "gas4" };
+    ini.beginGroup(EcIni::INIGROUP_SCREEN_SETTINGS);
+        removeMatchingKeys(ini, QStringLiteral("^gas_\\d+_out_"));
+        for (int i = 0; i < n; ++i)
+        {
+            const auto& p = gases.at(i).proc;
+            const int dSp[4]   = { dos.out_full_sp_co2, dos.out_full_sp_h2o,
+                                   dos.out_full_sp_ch4, dos.out_full_sp_gas4 };
+            const int dCosp[4] = { dos.out_full_cosp_co2, dos.out_full_cosp_h2o,
+                                   dos.out_full_cosp_ch4, dos.out_full_cosp_gas4 };
+            const int dRaw[4]  = { dos.out_raw_co2, dos.out_raw_h2o,
+                                   dos.out_raw_ch4, dos.out_raw_gas4 };
+            ini.setValue(QStringLiteral("out_full_sp_%1").arg(QLatin1String(outSpSlot[i])),
+                         pickFlag(p.outFullSp, dSp[i]));
+            ini.setValue(QStringLiteral("out_full_cosp_w_%1").arg(QLatin1String(outSpSlot[i])),
+                         pickFlag(p.outFullCospW, dCosp[i]));
+            ini.setValue(QStringLiteral("out_raw_%1").arg(QLatin1String(outRawSlot[i])),
+                         pickFlag(p.outRaw, dRaw[i]));
+        }
+    ini.endGroup();
+
+    // ---- [RawProcess_TiltCorrection_Settings] ----------------------------
+    ini.beginGroup(EcIni::INIGROUP_SCREEN_TILT);
+        ini.remove(EcIni::INI_SCREEN_TILT_14);     // rot_pf_assessment_only
+    ini.endGroup();
+
+    // ---- [RawProcess_TimelagOptimization_Settings] -----------------------
+    const char* toSlot[4] = { "co2", "h2o", "ch4", "gas4" };
+    ini.beginGroup(EcIni::INIGROUP_TIMELAG_OPT);
+        removeMatchingKeys(ini, QStringLiteral("^gas_\\d+_to_"));
+        ini.remove(EcIni::INI_TIMELAG_OPT_21);     // tlag_assessment_only
+        for (int i = 0; i < n; ++i)
+        {
+            const auto& p = gases.at(i).proc;
+            const auto s = QLatin1String(toSlot[i]);
+            const qreal dMin[4] = { dto.co2_min_lag, dto.h2o_min_lag, dto.ch4_min_lag, dto.gas4_min_lag };
+            const qreal dMax[4] = { dto.co2_max_lag, dto.h2o_max_lag, dto.ch4_max_lag, dto.gas4_max_lag };
+            ini.setValue(QStringLiteral("to_%1_min_lag").arg(s),
+                         QString::number(pickLag(p.toMinLag, dMin[i]), 'f', 1));
+            ini.setValue(QStringLiteral("to_%1_max_lag").arg(s),
+                         QString::number(pickLag(p.toMaxLag, dMax[i]), 'f', 1));
+
+            //> Water's counterpart is to_le_min_flux, a project-wide key that
+            //> is already in the file - the same exception the QA/QC triple
+            //> takes above, and skipped by slug for the same reason.
+            if (isWater[i]) { continue; }
+            const qreal dFlux[4] = { dto.co2_min_flux, -1.0, dto.ch4_min_flux, dto.gas4_min_flux };
+            ini.setValue(QStringLiteral("to_%1_min_flux").arg(s),
+                         QString::number(pick(p.toMinFlux, dFlux[i]), 'f', 3));
+        }
+    ini.endGroup();
+
+    // ---- the whole pre-whitening group -----------------------------------
+    ini.remove(EcIni::INIGROUP_PWB_TIMELAG);
+
+    //> Random error, written where EddyPro keeps it and nowhere else.
+    //>
+    //> These three carry EddyPro's own names and it reads them from [Project],
+    //> which is where this program writes them too - so ordinarily there is
+    //> nothing to do. The group below is where they lived for years, and a
+    //> project file that has not been saved since still has them there. The
+    //> export must not inherit that: it takes the values from the project
+    //> rather than from whatever layout the file it was handed happens to
+    //> have, so the result is the same whatever the input's history.
+    ini.beginGroup(EcIni::INIGROUP_RAND_ERROR);
+        ini.setValue(EcIni::INI_RAND_ERROR_0,
+                     ec_project_state_.randomError.ru_method);
+        ini.setValue(EcIni::INI_RAND_ERROR_1,
+                     ec_project_state_.randomError.its_method);
+        ini.setValue(EcIni::INI_RAND_ERROR_2,
+                     ec_project_state_.randomError.its_tlag_max);
+    ini.endGroup();
+    ini.remove(EcIni::INIGROUP_RAND_ERROR_LEGACY);
+
+    //> Drop this program's spelling of the nine fourth-slot keys wherever it
+    //> survives. Nothing writes them any more, but QSettings keeps whatever it
+    //> is not asked to overwrite, so a project carried forward from before the
+    //> records can still hold sr_lim_gas4 beside the sr_lim_n2o just written -
+    //> and the reader that finds both is not this program's.
+    //>
+    //> Read backwards from the same list the import reads forwards; removing a
+    //> key that is not there costs nothing, so each group is simply offered
+    //> all nine rather than being told which of them it could hold.
+    for (const auto& group : { EcIni::INIGROUP_PROJECT,
+                               EcIni::INIGROUP_SCREEN_PARAM,
+                               EcIni::INIGROUP_SCREEN_SETTINGS })
+    {
+        ini.beginGroup(group);
+        for (const auto& [eddyProKey, ownKey] : fourthGasKeyRenames())
+        {
+            Q_UNUSED(eddyProKey)
+            ini.remove(ownKey);
+        }
+        ini.endGroup();
+    }
+}
+
+/// Why this project cannot be written as an EddyPro one, or empty when it can.
+QString EcProject::smartfluxBlockReason() const
+{
+    const auto& g = ec_project_state_.projectGeneral;
+
+    int configured = 0;
+    for (int i = 0; i < g.gasColumns.size(); ++i)
+    {
+        if (g.gasColumns.at(i).rawColumn <= 0) { continue; }
+        ++configured;
+        if (i >= kEddyProGasSlots)
+        {
+            return tr("This project measures a gas beyond the four EddyPro "
+                      "provides for, so a SmartFlux package could not describe "
+                      "it. Deselect the extra gases in Basic Settings.");
+        }
+    }
+    if (configured > kEddyProGasSlots)
+    {
+        return tr("This project measures %1 gases and EddyPro provides for "
+                  "four. Deselect the extra gases in Basic Settings.")
+                .arg(configured);
+    }
+
+    //> One cell block, not one record: EddyPro has a single set of cell slots,
+    //> so two analysers each reporting their own cell temperature cannot both
+    //> be described.
+    const auto instrumentsOf = [](const QVector<MeasurementRecord>& recs)
+    {
+        QStringList found;
+        for (const auto& rec : recs)
+        {
+            if (rec.rawColumn <= 0) { continue; }
+            if (!MeasurementRecords::isRealInstrument(rec.instrumentId)) { continue; }
+            if (!found.contains(rec.instrumentId)) { found << rec.instrumentId; }
+        }
+        return found;
+    };
+    if (instrumentsOf(g.cellColumns).size() > 1)
+    {
+        return tr("This project reads cell measurements from more than one "
+                  "analyser, and EddyPro has one set of cell slots. A SmartFlux "
+                  "package can describe only one of them.");
+    }
+    if (instrumentsOf(g.diagColumns).size() > 2)
+    {
+        return tr("This project reads diagnostics from more than two "
+                  "instruments, which a SmartFlux package cannot describe.");
+    }
+
+    //> Both are this fork's own, and the Processing page makes them
+    //> unreachable in SmartFlux mode - but a project saved with them set and
+    //> packaged without visiting that page would otherwise slip through.
+    if (ec_project_state_.screenSetting.tlag_meth == 5)
+    {
+        return tr("The pre-whitening block-bootstrap time lag method is not "
+                  "available on a SmartFlux module. Choose another method in "
+                  "Advanced Settings > Processing Options.");
+    }
+    if (ec_project_state_.projectGeneral.cec_meth != 0)
+    {
+        return tr("Conditional Eddy Covariance is not available on a SmartFlux "
+                  "module. Switch it off in Advanced Settings > Processing "
+                  "Options.");
+    }
+
+    return QString();
+}
+
+bool EcProject::exportEddyProProject(const QString& sourceFile,
+                                     const QString& targetFile) const
+{
+    //> The tag is a line, not a key, so it cannot be rewritten through
+    //> QSettings. Dropped here and put back at the end, which also means the
+    //> settings object never sees a stray comment line.
+    QFile srcFile(sourceFile);
+    if (!srcFile.open(QIODevice::ReadOnly | QIODevice::Text)) { return false; }
+    QString content = QTextStream(&srcFile).readAll();
+    srcFile.close();
+
+    if (content.startsWith(QLatin1Char(';')))
+    {
+        const int firstBreak = content.indexOf(QLatin1Char('\n'));
+        content = firstBreak < 0 ? QString() : content.mid(firstBreak + 1);
+    }
+
+    if (QFile::exists(targetFile) && !QFile::remove(targetFile)) { return false; }
+    {
+        QFile out(targetFile);
+        if (!out.open(QIODevice::WriteOnly | QIODevice::Text)) { return false; }
+        QTextStream(&out) << content;
+    }
+
+    {
+        QSettings ini(targetFile, QSettings::IniFormat);
+        writeEddyProCompatibleKeys(ini);
+        ini.sync();
+        if (ini.status() != QSettings::NoError) { return false; }
+    }
+
+    QString tag(Defs::EDDYPRO_PD_INI_TAG);
+    tag += QLatin1String("\n");
+    return FileUtils::prependToFile(tag, targetFile);
 }
 
 void EcProject::setModified(bool mod)

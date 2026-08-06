@@ -82,6 +82,11 @@ public:
     PlanarFitSettingsDialog* getPlanarFitSettingsDialog() { return pfDialog_; }
     TimeLagSettingsDialog* getTimeLagSettingsDialog() { return tlDialog_; }
 
+    //> Neutralise the options a SmartFlux module cannot run - Conditional Eddy
+    //> Covariance and the pre-whitening block-bootstrap time lag, both of
+    //> which are this program's own.
+    void setSmartfluxUI();
+
 public slots:
     void reset();
 

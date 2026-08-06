@@ -165,10 +165,14 @@ class TheDeadRewriteRowsStayGone(unittest.TestCase):
             "them here cannot fire, which is how fifteen of them survived")
 
     def test_the_working_rows_are_kept(self):
-        # These really are top-level [Project] keys, and they have no trailing
-        # newline anchor, so they match.
-        for key in ("col_n2o=", "sr_lim_n2o=", "tl_def_n2o="):
-            self.assertIn(key, self.body)
+        # These really are top-level [Project] keys, and the patterns built
+        # from them have no trailing newline anchor, so they match. The pairs
+        # moved into a shared list when the SmartFlux exporter started reading
+        # the same list backwards; the rewrite itself is unchanged.
+        self.assertIn("fourthGasKeyRenames()", self.body)
+        renames = _read(EC_PROJECT)
+        for key in ("col_n2o", "sr_lim_n2o", "tl_def_n2o"):
+            self.assertIn('QStringLiteral("%s")' % key, renames)
 
 
 @unittest.skipUnless(ENGINE_TYPEDEF.exists(),

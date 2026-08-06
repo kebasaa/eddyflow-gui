@@ -81,6 +81,24 @@ public:
     // import an EddyPro project and migrate to EddyFlow format
     bool importEddyProProject(const QString &filename, bool updateMode, bool *modified);
 
+    //> Write \a sourceFile out again as an EddyPro project, for a SmartFlux
+    //> package. The mirror of importEddyProProject, and the only place this
+    //> program writes the other format: a SmartFlux module runs LI-COR's
+    //> embedded EddyPro, which knows neither the measurement records nor the
+    //> features this fork added.
+    //>
+    //> Deliberately a transform on a copy rather than a branch in
+    //> saveEcProject: the native format must not change shape depending on
+    //> what the file is going to be used for.
+    bool exportEddyProProject(const QString &sourceFile,
+                              const QString &targetFile) const;
+
+    //> Why this project cannot be expressed as an EddyPro one, or empty when
+    //> it can. Asked before a SmartFlux package is built, because the export
+    //> is lossy in ways the user has to decide about rather than discover on
+    //> the device.
+    QString smartfluxBlockReason() const;
+
     // field comparison for previous data assessment
     bool fuzzyCompare(const EcProject& previousProject);
 
@@ -981,6 +999,11 @@ private:
     //> when the file predates records, which is the signal to migrate.
     void writeMeasurementRecords(QSettings& project_ini);
     bool readMeasurementRecords(QSettings& project_ini);
+    //> The body of exportEddyProProject: rebuild the flat per-slot keys the
+    //> record format replaced, drop the keys this fork added, and spell the
+    //> fourth slot the way EddyPro does.
+    void writeEddyProCompatibleKeys(QSettings& ini) const;
+
     void migrateLegacyColumnsToRecords();
     //> Carries the 19 per-gas processing settings onto the records. Separate
     //> from the column migration because those settings live in five sections

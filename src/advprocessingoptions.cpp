@@ -46,6 +46,7 @@
 #include "cecsettingsdialog.h"
 #include "clicklabel.h"
 #include "configstate.h"
+#include "customcombomodel.h"
 #include "customresetlineedit.h"
 #include "dlproject.h"
 #include "ecproject.h"
@@ -213,6 +214,10 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
 
     timeLagMethodLabel = new ClickLabel(tr("Time lag detection method :"));
     timeLagMethodCombo = new QComboBox;
+    //> Set before the items, because it replaces the model the combo builds
+    //> its own. It is what makes a "disabled" marker on an item actually
+    //> unselectable, which SmartFlux mode needs for the pre-whitening entry.
+    timeLagMethodCombo->setModel(new CustomComboModel(timeLagMethodCombo));
     timeLagMethodCombo->addItem(tr("Constant"));
     timeLagMethodCombo->addItem(tr("Covariance maximization with default"));
     timeLagMethodCombo->addItem(tr("Covariance maximization"));
@@ -1185,6 +1190,22 @@ void AdvProcessingOptions::updateCecMeth_1(bool b)
 
 void AdvProcessingOptions::updateCecAvailability()
 {
+    //> Conditional Eddy Covariance is this program's own; a SmartFlux module
+    //> runs LI-COR's EddyPro and has never heard of it. Handled here rather
+    //> than only in setSmartfluxUI so that the two callers that re-derive
+    //> availability - refresh() and updateCecMeth_1() - cannot switch it back
+    //> on while the mode is active.
+    if (configState_->project.smartfluxMode)
+    {
+        QSignalBlocker blocker(cecCheckBox);
+        cecCheckBox->setChecked(false);
+        cecCheckBox->setEnabled(false);
+        cecLabel->setEnabled(false);
+        cecMethodCombo->setEnabled(false);
+        cecSettingsButton->setEnabled(false);
+        return;
+    }
+
     //> Asked of the records rather than the two legacy columns, so a site
     //> that measures CO2 on a second analyser still counts.
     const bool hasCo2 = !ecProject_->gasRecordsFor(QStringLiteral("co2")).isEmpty()
@@ -1215,6 +1236,52 @@ void AdvProcessingOptions::updateCecAvailability()
         cecMethodCombo->setCurrentIndex(forcedIndex);
         if (cecCheckBox->isChecked())
             ecProject_->setGeneralCecMeth(forcedIndex + 1);
+    }
+}
+
+/// Neutralise the two options a SmartFlux module cannot run.
+///
+/// Conditional Eddy Covariance and the pre-whitening block-bootstrap time lag
+/// are both this program's own, and the package is an EddyPro project - so a
+/// user who configured either would get a module that silently did something
+/// else. The page had no SmartFlux handling at all before; only its two child
+/// dialogs were reached.
+void AdvProcessingOptions::setSmartfluxUI()
+{
+    const bool on = configState_->project.smartfluxMode;
+
+    auto oldmod = false;
+    if (!on)
+    {
+        oldmod = ecProject_->modified();
+        ecProject_->blockSignals(true);
+    }
+
+    //> Deliberately no saved-enabled stack. The pages that keep one push onto
+    //> a vector they never clear and restore by position, so from the second
+    //> toggle they hand back the first cycle's values; updateCecAvailability
+    //> derives the right state from the records every time, so there is
+    //> nothing worth remembering.
+    if (on) { ecProject_->setGeneralCecMeth(0); }
+    updateCecAvailability();
+
+    timeLagMethodCombo->setItemData(4,
+        on ? QStringLiteral("disabled") : QStringLiteral("enabled"),
+        Qt::UserRole);
+
+    //> An unselectable item is not enough on its own: the project may already
+    //> have been saved with the method set, in which case the combo is sitting
+    //> on it and nothing would move it off.
+    if (on && timeLagMethodCombo->currentIndex() == 4)
+    {
+        timeLagMethodCombo->setCurrentIndex(1);
+        updateTlagMeth_2(1);
+    }
+
+    if (!on)
+    {
+        ecProject_->setModified(oldmod);
+        ecProject_->blockSignals(false);
     }
 }
 

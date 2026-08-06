@@ -150,6 +150,20 @@ void SmartFluxBar::closeRequest()
 
 void SmartFluxBar::createPackage()
 {
+    //> Asked before anything is written. The package is an EddyPro project and
+    //> that format cannot describe everything this one can, so a project that
+    //> overflows it has to be a refusal here rather than a run on the module
+    //> that quietly measures fewer gases than the interface shows.
+    const auto blocked = ecProject_->smartfluxBlockReason();
+    if (!blocked.isEmpty())
+    {
+        WidgetUtils::warning(this,
+                             tr("Create SmartFlux Package"),
+                             tr("This project cannot be packaged."),
+                             blocked);
+        return;
+    }
+
     // set run_fcc value
     ecProject_->setGeneralRunFcc(ecProject_->isEngineStep2Needed());
 
@@ -204,34 +218,23 @@ void SmartFluxBar::createPackage()
     // create dir smf/ini
     FileUtils::createDir(Defs::INI_FILE_DIR, smfDir);
 
-    // copy current project from ini to smf/ini
-    if (!FileUtils::projectFileForcedCopy(ecProject_->generalFileName(),
-                                          smfIniDir))
+    //> Written out as an EddyPro project rather than copied. A module runs
+    //> LI-COR's embedded EddyPro, which knows neither the measurement records
+    //> nor the features this fork added, so a verbatim copy of the native file
+    //> gives it a project with no gas columns in it at all.
+    if (!ecProject_->exportEddyProProject(
+            ecProject_->generalFileName(),
+            smfIniDir + QLatin1Char('/') + Defs::SMARTFLUX_PROCESSING_FILENAME))
     {
-        qDebug() << "Unable to copy project file in smf/ini folder";
+        qDebug() << "Unable to write the EddyPro project in smf/ini folder";
     }
 
-    // copy metadata files in smf/ini
-    QStringList mdFilters;
-    mdFilters << QStringLiteral("*.") + Defs::METADATA_FILE_EXT;
-    QDir mdDir(smfDir);
-    mdDir.setNameFilters(mdFilters);
-    mdDir.setFilter(QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot);
-
-    QStringList mdFileList = mdDir.entryList();
-
-    if (!mdFileList.isEmpty())
-    {
-        for (const auto &str : mdFileList)
-        {
-            FileUtils::chmod_644(smfDir + QLatin1Char('/') + str);
-            if (!QFile::copy(smfDir + QLatin1Char('/') + str,
-                             smfIniDir + QLatin1Char('/') + str))
-            {
-                qDebug() << "Unable to copy metadata file in smf/ini folder";
-            }
-        }
-    }
+    //> No metadata file. A module reads the metadata embedded in the GHG files
+    //> it writes itself, which is why a package EddyPro builds carries only
+    //> ini/processing.eddypro - see smartflux_example/ for the reference. The
+    //> extracted copies that used to be added here were the ones this program
+    //> unpacked for its own variable list, and shipping them was harmless only
+    //> because nothing on the module read them.
 
     // psrtial cleaning (just files, not also subdirs)
     FileUtils::cleanDir(smfDir);
