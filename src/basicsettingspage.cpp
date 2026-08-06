@@ -129,8 +129,6 @@ struct VariableTableRow
     //> open slot, which is why its molecular weight and diffusivity are
     //> editable and the others' are not.
     QString species;
-    //> Index of the gas record this row drives, -1 for a non-gas row.
-    int recordIndex = -1;
 };
 
 struct VariableTableCandidate
@@ -530,11 +528,16 @@ private:
 
     //> Index into the project's gas record list for this row, or -1.
     //>
-    //> Migration lays the four legacy slots down in this order and keeps them
-    //> even when absent, so the mapping is positional and stable.
-    static int gasRecordIndex(const VariableTableCandidate& row)
+    //> Looked up by what the row measures, not by where the row sits. The four
+    //> species rows used to carry a fixed index each, which worked only while
+    //> the record list reserved a position for every one of them - including
+    //> the gases the site does not have. It no longer does, so a row that
+    //> named its index would edit whichever gas had moved into it.
+    int gasRecordIndex(const VariableTableCandidate& row) const
     {
-        return row.row.recordIndex;
+        const auto slug = gasSlug(row);
+        if (slug.isEmpty() || !page_) { return -1; }
+        return page_->gasRecordIndexFor(slug, row.rawColumn);
     }
 
     //> Whether this row gets a moisture choice at all.
@@ -845,17 +848,13 @@ void configureBasicVariablesTable(QTableView* table)
 namespace {
 const QString kH2oSlug = QStringLiteral("h2o");
 
-//> The four record positions that mirror the engine's fixed gas slots.
-const int kLegacyGasSlots = 4;
-
-//> Record position a species historically occupied, or -1 for anything else.
-int legacyGasSlotFor(const QString& slug)
-{
-    if (slug == QLatin1String("co2")) { return 0; }
-    if (slug == QLatin1String("h2o")) { return 1; }
-    if (slug == QLatin1String("ch4")) { return 2; }
-    return -1;
-}
+//> There is deliberately no table of reserved record positions here any more.
+//> CO2, H2O and CH4 used to own the first three, so that a record's index was
+//> the engine's gas slot - which meant carrying an empty record for every gas
+//> the site did not measure. Records name their own species, so a position
+//> means nothing and the list holds only what is measured. EddyPro's fixed
+//> four-slot layout still exists, but it is rebuilt where it is needed, in
+//> EcProject::writeEddyProCompatibleKeys().
 } // namespace
 
 /// Whether the project has any H2O to offer.
@@ -970,23 +969,18 @@ void BasicSettingsPage::addGasRecord(const QString& slug, int rawColumn)
     if (gasRecordExists(slug, rawColumn)) { return; }
     if (!gasLimitBlockReason(rawColumn).isEmpty()) { return; }
 
+    //> Appended, whatever the species. CO2, H2O and CH4 used to be filled into
+    //> reserved positions so that record order stayed the engine's slot order,
+    //> and a gas the site did not measure held its place with an empty record.
+    //> Nothing reads a species from a position any more - the record says what
+    //> it is - so there is no slot to reserve and no reason to keep a record
+    //> for a gas that is not there.
     auto gases = ecProject_->gasColumns();
-    const int legacySlot = legacyGasSlotFor(slug);
-    if (legacySlot >= 0 && legacySlot < gases.size()
-        && gases.at(legacySlot).rawColumn <= 0)
-    {
-        gases[legacySlot].slug = slug;
-        gases[legacySlot].rawColumn = rawColumn;
-        gases[legacySlot].instrumentId = canonicalInstrumentForColumn(rawColumn);
-    }
-    else
-    {
-        GasRecord rec;
-        rec.slug = slug;
-        rec.rawColumn = rawColumn;
-        rec.instrumentId = canonicalInstrumentForColumn(rawColumn);
-        gases.append(rec);
-    }
+    GasRecord rec;
+    rec.slug = slug;
+    rec.rawColumn = rawColumn;
+    rec.instrumentId = canonicalInstrumentForColumn(rawColumn);
+    gases.append(rec);
     ecProject_->setGasColumns(gases);
 }
 
@@ -1044,18 +1038,57 @@ void BasicSettingsPage::removeNonGasRecord(const QString& slug, int rawColumn)
 {
     if (!ecProject_ || slug.isEmpty()) { return; }
 
-    auto records = isDiagnosticSlug(slug) ? ecProject_->diagColumns()
-                                          : ecProject_->cellColumns();
+    const bool isDiag = isDiagnosticSlug(slug);
+    auto records = isDiag ? ecProject_->diagColumns() : ecProject_->cellColumns();
+    auto gases = ecProject_->gasColumns();
+    bool gasesChanged = false;
+
     for (int i = records.size() - 1; i >= 0; --i)
     {
-        if (records.at(i).slug == slug && records.at(i).rawColumn == rawColumn)
+        if (records.at(i).slug != slug || records.at(i).rawColumn != rawColumn)
         {
-            records.removeAt(i);
+            continue;
+        }
+        records.removeAt(i);
+
+        //> The same shift the gas records take: cellRef is a 1-based index
+        //> into the cell list, so removing one moves every later cell block
+        //> under the gases that named it. Only the cell list is referenced -
+        //> nothing points at a diagnostic - but the loop is written once and
+        //> guarded rather than duplicated.
+        if (isDiag) { continue; }
+        for (auto& gas : gases)
+        {
+            if (gas.cellRef == i + 1) { gas.cellRef = 0; }
+            else if (gas.cellRef > i + 1) { --gas.cellRef; }
+            else { continue; }
+            gasesChanged = true;
         }
     }
 
-    if (isDiagnosticSlug(slug)) { ecProject_->setDiagColumns(records); }
+    if (isDiag) { ecProject_->setDiagColumns(records); }
     else { ecProject_->setCellColumns(records); }
+    if (gasesChanged) { ecProject_->setGasColumns(gases); }
+}
+
+/// Position of the record for \a slug at \a rawColumn, or -1.
+///
+/// The variable table's rows resolve their record through this. A row knows
+/// what it measures and which column it came from, which together name exactly
+/// one record - the same pair gasRecordExists() matches on.
+int BasicSettingsPage::gasRecordIndexFor(const QString& slug,
+                                         int rawColumn) const
+{
+    if (!ecProject_ || slug.isEmpty()) { return -1; }
+    const auto& gases = ecProject_->gasColumns();
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        if (gases.at(i).slug == slug && gases.at(i).rawColumn == rawColumn)
+        {
+            return i;
+        }
+    }
+    return -1;
 }
 
 /// Whether a non-gas record for \a slug at \a rawColumn exists.
@@ -1082,16 +1115,20 @@ void BasicSettingsPage::removeGasRecord(const QString& slug, int rawColumn)
         {
             continue;
         }
-        if (i < kLegacyGasSlots)
+        //> Erased, whichever position it held. CO2, H2O and CH4 used to be
+        //> emptied in place instead, so that the records after them kept their
+        //> index - which is also how a project ended up naming a gas it does
+        //> not measure and shipping a column of error codes for it.
+        gases.remove(i);
+
+        //> Everything that pointed past the hole moves down with it. These are
+        //> 1-based indices into this same list, and validateReferences() below
+        //> only clears the ones that now point nowhere - it cannot tell that a
+        //> still-valid index means a different gas than it did a moment ago.
+        for (auto& gas : gases)
         {
-            // Clear in place: the four historical positions are addressed by
-            // index, so removing one would shift the rest.
-            gases[i].rawColumn = -1;
-            gases[i].instrumentId.clear();
-        }
-        else
-        {
-            gases.remove(i);
+            if (gas.moistureRef == i + 1) { gas.moistureRef = 0; }
+            else if (gas.moistureRef > i + 1) { --gas.moistureRef; }
         }
         break;
     }
@@ -1827,28 +1864,28 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
         //> them - there is no "fourth gas" kind any more, and nothing here
         //> assumes the open slot holds N2O.
         { nullptr, nullptr, VariableTableRowKind::Gas, VariableTableRole::Co2, fluxVariableTooltip,
-          QStringLiteral("co2"), 0 },
+          QStringLiteral("co2") },
         { nullptr, nullptr, VariableTableRowKind::Gas, VariableTableRole::H2o, fluxVariableTooltip,
-          QStringLiteral("h2o"), 1 },
+          QStringLiteral("h2o") },
         { nullptr, nullptr, VariableTableRowKind::Gas, VariableTableRole::Ch4, fluxVariableTooltip,
-          QStringLiteral("ch4"), 2 },
+          QStringLiteral("ch4") },
         { nullptr, nullptr, VariableTableRowKind::Gas, VariableTableRole::Gas4, fluxVariableTooltip,
-          QString(), 3 },
-        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::IntTc, fluxVariableTooltip, QString(), -1 },
-        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::IntT1, fluxVariableTooltip, QString(), -1 },
-        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::IntT2, fluxVariableTooltip, QString(), -1 },
-        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::IntP, fluxVariableTooltip, QString(), -1 },
-        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::Diag7500, diagnosticVariableTooltip, QString(), -1 },
-        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::Diag7200, diagnosticVariableTooltip, QString(), -1 },
-        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::Diag7700, diagnosticVariableTooltip, QString(), -1 }
+          QString() },
+        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::IntTc, fluxVariableTooltip, QString() },
+        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::IntT1, fluxVariableTooltip, QString() },
+        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::IntT2, fluxVariableTooltip, QString() },
+        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::IntP, fluxVariableTooltip, QString() },
+        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::Diag7500, diagnosticVariableTooltip, QString() },
+        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::Diag7200, diagnosticVariableTooltip, QString() },
+        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::Diag7700, diagnosticVariableTooltip, QString() }
     };
     const QVector<VariableTableRow> ambientRows = {
-        { airTRefCombo, "updateAirTRefCombo", VariableTableRowKind::Ambient, VariableTableRole::AmbientT, fluxVariableTooltip, QString(), -1 },
-        { airPRefCombo, "updateAirPRefCombo", VariableTableRowKind::Ambient, VariableTableRole::AmbientP, fluxVariableTooltip, QString(), -1 },
-        { rhCombo, "updateRhCombo", VariableTableRowKind::Ambient, VariableTableRole::Rh, fluxVariableTooltip, QString(), -1 },
-        { rgCombo, "updateRgCombo", VariableTableRowKind::Ambient, VariableTableRole::Rg, fluxVariableTooltip, QString(), -1 },
-        { lwinCombo, "updateLwinCombo", VariableTableRowKind::Ambient, VariableTableRole::Lwin, fluxVariableTooltip, QString(), -1 },
-        { ppfdCombo, "updatePpfdCombo", VariableTableRowKind::Ambient, VariableTableRole::Ppfd, fluxVariableTooltip, QString(), -1 }
+        { airTRefCombo, "updateAirTRefCombo", VariableTableRowKind::Ambient, VariableTableRole::AmbientT, fluxVariableTooltip, QString() },
+        { airPRefCombo, "updateAirPRefCombo", VariableTableRowKind::Ambient, VariableTableRole::AmbientP, fluxVariableTooltip, QString() },
+        { rhCombo, "updateRhCombo", VariableTableRowKind::Ambient, VariableTableRole::Rh, fluxVariableTooltip, QString() },
+        { rgCombo, "updateRgCombo", VariableTableRowKind::Ambient, VariableTableRole::Rg, fluxVariableTooltip, QString() },
+        { lwinCombo, "updateLwinCombo", VariableTableRowKind::Ambient, VariableTableRole::Lwin, fluxVariableTooltip, QString() },
+        { ppfdCombo, "updatePpfdCombo", VariableTableRowKind::Ambient, VariableTableRole::Ppfd, fluxVariableTooltip, QString() }
     };
 
     fluxVariablesModel_ = new BasicVariableSelectionModel(this,
@@ -4955,20 +4992,21 @@ void BasicSettingsPage::seedGasRecordsFromMetadata()
     bool anyFound = false;
     for (const auto& role : roles)
     {
-        //> All four slots are appended whether or not the site has that gas:
-        //> the engine maps record i to slot firstGas+i-1, so dropping an
-        //> absent one would shift every later gas onto the wrong slot.
+        //> Only the gases the site actually has. All four used to be appended
+        //> whatever the metadata said, so that record i stayed the engine's
+        //> slot firstGas+i-1 - and an absent one still reached every output as
+        //> a column of error codes. Records name their own species now, so a
+        //> gas that is not measured simply has no record.
         GasRecord rec;
         rec.rawColumn = bestColumn(role.name, role.anyGas);
-        if (rec.rawColumn > 0)
-        {
-            anyFound = true;
-            const auto& var = variables->at(rec.rawColumn - 1);
-            rec.slug = role.anyGas
-                ? GasMetadata::normaliseFormula(var.variable())
-                : role.slug;
-            rec.instrumentId = canonicalInstrumentForColumn(rec.rawColumn);
-        }
+        if (rec.rawColumn <= 0) { continue; }
+
+        anyFound = true;
+        const auto& var = variables->at(rec.rawColumn - 1);
+        rec.slug = role.anyGas
+            ? GasMetadata::normaliseFormula(var.variable())
+            : role.slug;
+        rec.instrumentId = canonicalInstrumentForColumn(rec.rawColumn);
         gases.append(rec);
     }
 

@@ -129,6 +129,7 @@ public:
     //> Species of the open (non-pinned) record slot, read from the record.
     QString openGasSpecies() const;
     bool gasRecordExists(const QString& slug, int rawColumn) const;
+    int gasRecordIndexFor(const QString& slug, int rawColumn) const;
     //> Why a gas cannot be added, or an empty string if it can.
     QString gasLimitBlockReason(int rawColumn) const;
     void addGasRecord(const QString& slug, int rawColumn);

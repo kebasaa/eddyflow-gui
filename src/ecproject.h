@@ -1004,6 +1004,11 @@ private:
     //> fourth slot the way EddyPro does.
     void writeEddyProCompatibleKeys(QSettings& ini) const;
 
+    //> Drop the gas records that name no column, renumbering the moisture
+    //> references that pointed past one. Runs once, after every per-gas
+    //> section has been read.
+    void compactGasRecords();
+
     void migrateLegacyColumnsToRecords();
     //> Carries the 19 per-gas processing settings onto the records. Separate
     //> from the column migration because those settings live in five sections

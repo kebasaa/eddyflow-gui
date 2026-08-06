@@ -103,12 +103,15 @@ class MeasurementRecordContract(unittest.TestCase):
             "stale keys must be cleared before the new ones are written",
         )
 
-    def test_migration_preserves_slot_order(self):
-        """All four legacy gas slots become records, present or not.
+    def test_migration_keeps_only_the_gases_the_file_named(self):
+        """A legacy slot with no column becomes no record at all.
 
-        The engine puts record i in slot firstGas+i-1. Dropping an absent gas
-        during migration would shift every later gas into the wrong slot and
-        silently move its per-gas settings onto a different species.
+        All four used to be appended whether the site had them or not, so that
+        record i stayed the engine's slot firstGas+i-1. Nothing reads a species
+        from a position now - the record carries its own `var` - and the empty
+        record was never free: the engine reserves a slot for every record it
+        counts, so a named-but-absent gas reached every output as a column of
+        error codes and took the species label with it.
         """
         body = _read(EC_PROJECT)
         start = body.index("void EcProject::migrateLegacyColumnsToRecords")
@@ -117,7 +120,84 @@ class MeasurementRecordContract(unittest.TestCase):
         for slug in ("co2", "h2o", "ch4"):
             self.assertIn('addGas(QStringLiteral("%s")' % slug, mig)
         self.assertIn("addGas(QString(), g.col_gas4)", mig)
-        self.assertNotIn("if (col <= 0) { return; }", mig.split("addPlain")[0])
+        self.assertIn("if (col <= 0) { return; }", mig.split("addPlain")[0],
+                      "migration must skip a slot the legacy file left empty")
+
+    def test_the_flat_thresholds_are_matched_by_species(self):
+        """migrateLegacyGasSettings can no longer read them off a position.
+
+        The flat keys are labelled co2/h2o/ch4/other and used to be applied to
+        records 0..3 directly. With the padding gone, a project without CO2 has
+        water at position zero - and a positional read would hand it CO2's
+        spike limit and absolute limits.
+        """
+        body = _read(EC_PROJECT)
+        start = body.index("void EcProject::migrateLegacyGasSettings")
+        mig = body[start:]
+        mig = mig[: mig.index("\n}\n")]
+        self.assertIn("legacySlotOf", mig)
+        self.assertNotIn("const int n = std::min<int>(gases.size(), 4);", mig,
+                         "the four-position walk is what this replaces")
+
+    def test_records_without_a_column_are_dropped_on_load(self):
+        """And the moisture references that pointed past one move with them.
+
+        Compaction has to happen after every per-gas section has been read,
+        because those sections are keyed by the position the record held in the
+        file - doing it any earlier would read gas_4_al_min onto record three.
+        And before ecProjectChanged(), so no page ever sees a placeholder.
+        """
+        src = _read(EC_PROJECT)
+        self.assertIn("void EcProject::compactGasRecords()", src)
+
+        body = src[src.index("void EcProject::compactGasRecords()"):]
+        body = body[: body.index("\n}\n")]
+        self.assertIn("rawColumn <= 0", body)
+        self.assertIn("moistureRef", body,
+                      "a 1-based index into this list has to be renumbered")
+
+        load = src[src.index("bool EcProject::loadEcProject("):]
+        load = load[: load.index("\n}\n")]
+        self.assertLess(load.index("compactGasRecords()"),
+                        load.index("emit ecProjectChanged()"),
+                        "compaction must precede the signal the pages act on")
+
+    def test_removing_a_gas_renumbers_what_pointed_past_it(self):
+        """validateReferences only clears; it cannot renumber.
+
+        It has no way to tell that a still-in-range index now names a different
+        gas, so the shift has to happen where the record is erased. This was
+        already wrong for records past the fourth - the only ones that used to
+        be erased - and dropping the pinning makes every record erasable.
+        """
+        src = _read(GUI_ROOT / "src" / "basicsettingspage.cpp")
+        body = src[src.index("void BasicSettingsPage::removeGasRecord("):]
+        body = body[: body.index("\n}\n")]
+        self.assertIn("gases.remove(i)", body)
+        self.assertNotIn("kLegacyGasSlots", body,
+                         "no position is reserved any more")
+        self.assertIn("--gas.moistureRef", body)
+
+        cells = src[src.index("void BasicSettingsPage::removeNonGasRecord("):]
+        cells = cells[: cells.index("\n}\n")]
+        self.assertIn("--gas.cellRef", cells,
+                      "cellRef indexes the cell list and shifts the same way")
+
+    def test_the_variable_table_finds_its_record_by_species(self):
+        """Not by a fixed row index.
+
+        The four species rows each carried one, which worked only while the
+        record list reserved a position for every one of them. A row that named
+        its index would now edit whichever gas had moved into it - and that
+        index drives the Moisture, Molecular weight and Diffusivity cells.
+        """
+        src = _read(GUI_ROOT / "src" / "basicsettingspage.cpp")
+        self.assertIn("int BasicSettingsPage::gasRecordIndexFor(", src)
+        self.assertNotIn("int recordIndex = -1;", src,
+                         "the per-row fixed index is what this replaces")
+        body = src[src.index("int gasRecordIndex(const VariableTableCandidate&"):]
+        body = body[: body.index("\n    }")]
+        self.assertIn("gasRecordIndexFor(", body)
 
     def test_auto_reference_is_zero(self):
         """0 must mean auto, in both the type and the resolver.

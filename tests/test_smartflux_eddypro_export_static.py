@@ -26,6 +26,7 @@ that this program writes the key unconditionally and the reference lacks it.
 
 import re
 import unittest
+import zipfile
 from pathlib import Path
 
 GUI_ROOT = Path(__file__).resolve().parent.parent
@@ -37,7 +38,12 @@ PROCESSING_HDR = GUI_ROOT / "src" / "advprocessingoptions.h"
 ADVANCED_PAGE = GUI_ROOT / "src" / "advancedsettingspage.cpp"
 OUTPUT_PAGE = GUI_ROOT / "src" / "advoutputoptions.cpp"
 DEFS = GUI_ROOT / "src" / "defs.h"
-REFERENCE = GUI_ROOT / "smartflux_example" / "Yatir-metek-smartflux.eddypro"
+#: The package EddyPro 7.0.9 produced. Read from inside the archive rather than
+#: from a copy beside it: the zip is the artefact a module is given, so its
+#: ini/processing.eddypro is the only spelling of the reference that cannot
+#: drift from what was actually shipped.
+REFERENCE_PACKAGE = GUI_ROOT / "smartflux_example" / "test.smartflux"
+REFERENCE_MEMBER = "ini/processing.eddypro"
 
 #: Slot suffixes, per group. The fourth slot is the one that differs.
 PARAM_SLOTS = ("co2", "h2o", "ch4", "n2o")
@@ -55,10 +61,15 @@ def _read(path):
     return path.read_text(encoding="utf-8", errors="replace")
 
 
+def _reference_text():
+    with zipfile.ZipFile(REFERENCE_PACKAGE) as archive:
+        return archive.read(REFERENCE_MEMBER).decode("utf-8", "replace")
+
+
 def _reference_keys():
     """Every key in the reference package, by name (group ignored)."""
     keys = set()
-    for line in _read(REFERENCE).splitlines():
+    for line in _reference_text().splitlines():
         line = line.strip()
         if not line or line.startswith((";", "[")) or "=" not in line:
             continue
@@ -168,6 +179,30 @@ class TheSourceMatchesThatSpecification(unittest.TestCase):
             "three places skip water: the QA/QC triple, the month grouping "
             "(classed by relative humidity, so it never had a table) and the "
             "minimum flux")
+
+    def test_the_four_eddypro_slots_are_re_pinned_by_species(self):
+        """col_co2 holds CO2, col_h2o H2O, col_ch4 CH4, col_n2o everything else.
+
+        EddyPro's layout is four fixed slots; this program's record list is
+        only the gases the site measures, in selection order. The two used to
+        coincide because the list padded the absent species, which is why this
+        code could walk it positionally. It no longer does - a compacted list
+        would file COS under `ch4` and hand the module a methane flux - so the
+        pinning is rebuilt here, and only here.
+        """
+        self.assertIn('const char* pinned[3] = { "co2", "h2o", "ch4" };',
+                      self.body)
+        self.assertIn("slotOf", self.body)
+        self.assertNotIn("gases.at(i).proc", self.body,
+                         "the loops must go through the slot table, not the "
+                         "record position")
+
+    def test_an_unfilled_slot_still_writes_defaults(self):
+        # The reference package carries every slot's keys even for gases the
+        # project does not have, so an empty slot needs sentinel settings
+        # rather than being skipped.
+        self.assertIn("kUnfilledSlot", self.body)
+        self.assertIn("procFor(", self.body)
 
     def test_undecided_records_fall_back_to_the_shown_default(self):
         # EddyPro would otherwise assume something for a missing key, and the

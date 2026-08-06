@@ -394,14 +394,15 @@ class PreselectionSeedsRecords(unittest.TestCase):
                        "setGeneralColCh4", "setGeneralColGas4"):
             self.assertNotIn(setter, self.body)
 
-    def test_all_four_historical_slots_are_appended(self):
-        """The engine maps record i to slot firstGas+i-1.
+    def test_only_the_gases_the_site_measures_are_seeded(self):
+        """A role the metadata has no column for produces no record.
 
-        Dropping an absent gas would shift every later one onto the wrong
-        slot and silently move its settings to a different species.
+        All four were appended regardless, so that record i stayed the engine's
+        slot firstGas+i-1. Records name their own species now, and the empty
+        one cost a column of error codes in every output file.
         """
         self.assertIn("gases.append(rec)", self.body)
-        self.assertNotIn("if (rec.rawColumn <= 0) { continue; }", self.body)
+        self.assertIn("if (rec.rawColumn <= 0) { continue; }", self.body)
 
     def test_measure_type_preference_is_explicit(self):
         """Ranked on the measure type, not on a translated combo label."""
@@ -1089,8 +1090,17 @@ class LegacyMigrationCoversWhatTheProjectHas(unittest.TestCase):
         cls.body = src[start: src.index("\n}", start)]
 
     def test_it_does_not_demand_four_records(self):
+        """Nor address them by position.
+
+        It used to walk min(size, 4) and read the co2/h2o/ch4/other arrays off
+        those indices, which was only ever right while migration padded the
+        list. Every record is a real gas now, so the slot a flat key belongs to
+        is a question about the species.
+        """
         self.assertNotIn("gases.size() < 4) { return; }", self.body)
-        self.assertIn("std::min<int>(gases.size(), 4)", self.body)
+        self.assertNotIn("std::min<int>(gases.size(), 4)", self.body)
+        self.assertIn("legacySlotOf", self.body)
+        self.assertIn("for (int i = 0; i < gases.size(); ++i)", self.body)
 
     def test_water_is_skipped_by_species(self):
         """The three latent-heat settings are not per-gas. Skipping index 1

@@ -58,14 +58,26 @@ bool gasSlotConfigured(const EcProject* project, int slot)
 {
     if (!project) { return false; }
     const auto& gases = project->gasColumns();
-    if (slot < gases.size()) { return gases.at(slot).rawColumn > 0; }
+    //> Every slot handed here comes from tfpGasSlots, which builds them from
+    //> the record list, so an out-of-range one is a caller bug rather than an
+    //> older project. The legacy col_ch4 / col_gas4 fallback that used to sit
+    //> here answered by slot number - it read slot two as methane, which was
+    //> true only while the record list reserved a position for every species.
+    return slot >= 0 && slot < gases.size() && gases.at(slot).rawColumn > 0;
+}
 
-    switch (slot)
+/// Whether the project measures \a slug at all.
+///
+/// For the tests that are about one species rather than one block position -
+/// the methane cutoff checks name CH4 in their own labels.
+bool gasSpeciesConfigured(const EcProject* project, const QString& slug)
+{
+    if (!project) { return false; }
+    for (const auto& gas : project->gasColumns())
     {
-        case 2: return project->generalColCh4() > 0;
-        case 3: return project->generalColGas4() > 0;
-        default: return false;
+        if (gas.slug == slug && gas.rawColumn > 0) { return true; }
     }
+    return false;
 }
 
 /// Rows a single gas's transfer-function block occupies: twelve month labels
@@ -717,10 +729,14 @@ bool AncillaryFileTest::testSpectraS(const LineList &actualList)
     testResults_->append(c3_label + formatPassFail(last_test()));
 
     // test d.2 and d.3 — skip if CH4 not configured
-    if (!gasSlotConfigured(ecProject_, 2))
+    //
+    // Asked by species. This used to ask for record two, which was methane
+    // only while every project reserved that position for it whether or not
+    // the site measured any.
+    if (!gasSpeciesConfigured(ecProject_, QStringLiteral("ch4")))
     {
         testResults_->append(tr("<u>%1</u>: not configured in this project — <b>skipped</b>")
-                             .arg(gasSlotName(ecProject_, 2)));
+                             .arg(QStringLiteral("CH4")));
     }
     else
     {

@@ -1273,13 +1273,16 @@ void EcProject::migrateLegacyColumnsToRecords()
 
     const auto addGas = [&](const QString& slug, int col)
     {
-        // Slot order is preserved even for gases the project does not have:
-        // the engine assigns record i to slot firstGas+i-1, so dropping an
-        // absent gas here would shift every gas after it into the wrong slot
-        // and silently change which settings apply to which gas.
+        // Only gases the legacy file actually named. The four slots used to be
+        // appended whether or not the project had them, so that record i stayed
+        // the engine's slot firstGas+i-1 - but nothing reads species from a
+        // position any more, on either side, and an absent gas cost a column of
+        // error codes in every output. migrateLegacyGasSettings() finds the
+        // flat thresholds by species now rather than by index.
+        if (col <= 0) { return; }
         GasRecord rec;
         rec.slug = slug;
-        rec.rawColumn = col > 0 ? col : -1;
+        rec.rawColumn = col;
         g.gasColumns.append(rec);
     };
     addGas(QStringLiteral("co2"), g.col_co2);
@@ -2735,21 +2738,31 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
                 return groups.join(QLatin1Char(','));
             };
 
-            //> Records 0, 2 and 3 are the slots the three tables were labelled
-            //> for. Record 1 is water, which is classed by relative humidity
-            //> and never had a table.
-            //> Not `slots`: Qt defines that as a macro for moc, and a local
-            //> named for it does not survive preprocessing.
-            const QString tableFor[4] = { QStringLiteral("co2"), QString(),
-                                          QStringLiteral("ch4"),
-                                          QStringLiteral("gas4") };
-            auto& gases = ec_project_state_.projectGeneral.gasColumns;
-            for (int i = 0; i < std::min<int>(gases.size(), 4); ++i)
+            //> The three tables were labelled co2, ch4 and gas4; water is
+            //> classed by relative humidity and never had one. Matched by
+            //> species rather than by position, because migration no longer
+            //> pads the absent gases and index two is CH4 only on a site that
+            //> measures all three.
+            const auto tableFor = [](const QString& slug) -> QString
             {
-                if (tableFor[i].isEmpty()) { continue; }
-                if (gases.at(i).slug == QLatin1String("h2o")) { continue; }
+                if (slug == QLatin1String("co2")) { return QStringLiteral("co2"); }
+                if (slug == QLatin1String("ch4")) { return QStringLiteral("ch4"); }
+                if (slug == QLatin1String("h2o")) { return QString(); }
+                return QStringLiteral("gas4");
+            };
+
+            //> One table per label, so a second CO2 analyser takes nothing:
+            //> the legacy keys can express one grouping per slot.
+            QStringList claimed;
+            auto& gases = ec_project_state_.projectGeneral.gasColumns;
+            for (int i = 0; i < gases.size(); ++i)
+            {
+                const auto table = tableFor(gases.at(i).slug);
+                if (table.isEmpty()) { continue; }
+                if (claimed.contains(table)) { continue; }
+                claimed << table;
                 if (!gases.at(i).proc.saMonths.isEmpty()) { continue; }
-                gases[i].proc.saMonths = legacyGrouping(tableFor[i]);
+                gases[i].proc.saMonths = legacyGrouping(table);
             }
         }
     project_ini.endGroup();
@@ -3746,6 +3759,12 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
 
     datafile.close();
 
+    //> Drop the gases the project names without measuring, now that every
+    //> per-gas section has been read - they are keyed by the position the
+    //> record had in the file, so this cannot happen any earlier. Before the
+    //> signal below, so no page ever sees a placeholder.
+    compactGasRecords();
+
     // just loaded projects are not modified
     setModified(false);
     emit ecProjectChanged();
@@ -3769,6 +3788,50 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
     return true;
 }
 
+/// Drop every gas record that names no column, and renumber what pointed past
+/// one.
+///
+/// A record without a column is not a measurement. It used to be kept so that
+/// the first four positions stayed pinned to CO2, H2O, CH4 and the open slot,
+/// but nothing depends on that any more: the engine derives every
+/// species-dependent decision from the record's own `var`, and this interface
+/// resolves its table rows the same way. What the placeholder still cost was
+/// real - the engine reserves a slot for every record it counts, so an absent
+/// gas reached the output as a column of error codes and took the species
+/// label with it, renaming a genuine second CH4 to `ch4_2`.
+void EcProject::compactGasRecords()
+{
+    auto& gases = ec_project_state_.projectGeneral.gasColumns;
+
+    //> Old 1-based position to new, or 0 for a record that goes. Built before
+    //> anything is removed, because moistureRef is a 1-based index into this
+    //> same list and would otherwise point one gas too far for every record
+    //> after the hole - the failure that is invisible until a flux is
+    //> corrected against the wrong water.
+    QVector<int> remap(gases.size() + 1, 0);
+    QVector<GasRecord> kept;
+    kept.reserve(gases.size());
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        if (gases.at(i).rawColumn <= 0) { continue; }
+        kept.append(gases.at(i));
+        remap[i + 1] = kept.size();
+    }
+
+    if (kept.size() == gases.size()) { return; }
+
+    for (auto& gas : kept)
+    {
+        //> A reference to a record that just went away becomes automatic
+        //> rather than some other gas: auto re-resolves on every read, so it
+        //> repairs itself instead of silently naming an unrelated species.
+        gas.moistureRef = gas.moistureRef > 0 && gas.moistureRef < remap.size()
+                ? remap.at(gas.moistureRef) : 0;
+    }
+
+    gases = kept;
+}
+
 /// Carry the legacy per-gas processing settings onto the records.
 ///
 /// migrateLegacyColumnsToRecords() runs while the [Project] group is being
@@ -3789,14 +3852,27 @@ void EcProject::migrateLegacyGasSettings()
     auto& gases = ec_project_state_.projectGeneral.gasColumns;
     if (gases.isEmpty()) { return; }
 
-    //> However many of the four legacy slots the project actually has.
+    //> Which legacy slot a record came from, by species rather than by
+    //> position.
     //>
-    //> This demanded all four and returned otherwise, so a project with two
-    //> or three gas records - which migrateLegacyColumnsToRecords produces
-    //> whenever the legacy file named fewer than four columns - kept none of
-    //> its thresholds. They were read from the file, held in the flat state,
-    //> and then silently dropped on the first save.
-    const int n = std::min<int>(gases.size(), 4);
+    //> The flat keys are labelled co2/h2o/ch4/other, and this used to read
+    //> them straight off record 0..3 because migration pinned those four
+    //> positions. Records are compacted now, so a project without CO2 has
+    //> water at position zero - and reading positionally would hand it CO2's
+    //> thresholds. A blank slug is the open slot, whose species the metadata
+    //> has not resolved yet.
+    const auto legacySlotOf = [](const QString& slug)
+    {
+        if (slug == QLatin1String("co2")) { return 0; }
+        if (slug == QLatin1String("h2o")) { return 1; }
+        if (slug == QLatin1String("ch4")) { return 2; }
+        return 3;
+    };
+
+    //> Only the first record of each species takes the flat value: the keys
+    //> can express one threshold per slot, so a site with two CO2 analysers
+    //> has nothing legacy to say about the second.
+    bool taken[4] = { false, false, false, false };
 
     const auto& sp = ec_project_state_.screenParam;
     const auto& sa = ec_project_state_.spectraSettings;
@@ -3841,25 +3917,29 @@ void EcProject::migrateLegacyGasSettings()
     const int outRaw[4]  = { os.out_raw_co2, os.out_raw_h2o,
                              os.out_raw_ch4, os.out_raw_gas4 };
 
-    for (int i = 0; i < n; ++i)
+    for (int i = 0; i < gases.size(); ++i)
     {
+        const int slot = legacySlotOf(gases.at(i).slug);
+        if (taken[slot]) { continue; }
+        taken[slot] = true;
+
         auto& proc = gases[i].proc;
-        put(proc.srLim, srLim[i]);
-        put(proc.alMin, alMin[i]);
-        put(proc.alMax, alMax[i]);
-        put(proc.dsHf, dsHf[i]);
-        put(proc.dsSf, dsSf[i]);
-        put(proc.tlDef, tlDef[i]);
-        put(proc.saFmin, saFmin[i]);
-        put(proc.saFmax, saFmax[i]);
-        put(proc.saHfnFmin, saHfn[i]);
-        put(proc.toMinLag, toMinLag[i]);
-        put(proc.toMaxLag, toMaxLag[i]);
-        put(proc.pwbMinLag, pwMinLag[i]);
-        put(proc.pwbMaxLag, pwMaxLag[i]);
-        putFlag(proc.outFullSp, outSp[i]);
-        putFlag(proc.outFullCospW, outCosp[i]);
-        putFlag(proc.outRaw, outRaw[i]);
+        put(proc.srLim, srLim[slot]);
+        put(proc.alMin, alMin[slot]);
+        put(proc.alMax, alMax[slot]);
+        put(proc.dsHf, dsHf[slot]);
+        put(proc.dsSf, dsSf[slot]);
+        put(proc.tlDef, tlDef[slot]);
+        put(proc.saFmin, saFmin[slot]);
+        put(proc.saFmax, saFmax[slot]);
+        put(proc.saHfnFmin, saHfn[slot]);
+        put(proc.toMinLag, toMinLag[slot]);
+        put(proc.toMaxLag, toMaxLag[slot]);
+        put(proc.pwbMinLag, pwMinLag[slot]);
+        put(proc.pwbMaxLag, pwMaxLag[slot]);
+        putFlag(proc.outFullSp, outSp[slot]);
+        putFlag(proc.outFullCospW, outCosp[slot]);
+        putFlag(proc.outRaw, outRaw[slot]);
     }
 
     //> H2O is the exception in three places, and getting it wrong would move
@@ -3871,18 +3951,22 @@ void EcProject::migrateLegacyGasSettings()
     const qreal saMinSt[4]   = { sa.sa_min_st_co2, -1.0, sa.sa_min_st_ch4, sa.sa_min_st_other };
     const qreal saMax[4]     = { sa.sa_max_co2, -1.0, sa.sa_max_ch4, sa.sa_max_other };
 
-    for (int i = 0; i < n; ++i)
+    bool tripleTaken[4] = { false, false, false, false };
+    for (int i = 0; i < gases.size(); ++i)
     {
-        //> By species, not by position. The legacy layout puts water in
-        //> record two, and migration keeps it there - but a project that has
-        //> only CO2 and CH4 has no water at index 1, and skipping that index
-        //> would have dropped CH4's minimum flux instead.
+        //> By species, not by position - the same rule as the loop above and
+        //> for the same reason: with records compacted, index one is water
+        //> only on a site that happens to measure it second.
         if (gases.at(i).slug == QLatin1String("h2o")) { continue; }
+        const int slot = legacySlotOf(gases.at(i).slug);
+        if (tripleTaken[slot]) { continue; }
+        tripleTaken[slot] = true;
+
         auto& proc = gases[i].proc;
-        put(proc.toMinFlux, toMinFlux[i]);
-        put(proc.saMinUn, saMinUn[i]);
-        put(proc.saMinSt, saMinSt[i]);
-        put(proc.saMax, saMax[i]);
+        put(proc.toMinFlux, toMinFlux[slot]);
+        put(proc.saMinUn, saMinUn[slot]);
+        put(proc.saMinSt, saMinSt[slot]);
+        put(proc.saMax, saMax[slot]);
     }
 }
 
@@ -4040,7 +4124,39 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
 {
     const auto& g = ec_project_state_.projectGeneral;
     const auto& gases = g.gasColumns;
-    const int n = std::min<int>(gases.size(), kEddyProGasSlots);
+
+    //> EddyPro's four pinned slots, rebuilt from this project's records.
+    //>
+    //> The two lists mean different things. This program's holds only the
+    //> gases the site measures, in the order they were selected. EddyPro's is
+    //> a fixed layout of four: CO2, H2O, CH4, and a fourth slot for whatever
+    //> else the site measured, which its keys spell `n2o` in some sections and
+    //> `gas4` in others. A site without methane leaves the third empty and its
+    //> COS - or N2O, or anything else - goes in the fourth.
+    //>
+    //> The pinning is re-established here and nowhere else. It used to be the
+    //> record list's own shape, which is why this code could once walk it
+    //> positionally; that padding is gone, and walking the compacted list
+    //> would file COS under `ch4` and hand the engine a methane flux.
+    //>
+    //> Only one gas per slot: EddyPro's keys cannot express a second CO2
+    //> analyser, and smartfluxBlockReason() refuses such a project before this
+    //> runs, so first match is the whole rule.
+    int slotOf[kEddyProGasSlots] = { -1, -1, -1, -1 };
+    {
+        const char* pinned[3] = { "co2", "h2o", "ch4" };
+        for (int i = 0; i < gases.size(); ++i)
+        {
+            const auto& slug = gases.at(i).slug;
+            int slot = 3;
+            for (int s = 0; s < 3; ++s)
+            {
+                if (slug == QLatin1String(pinned[s])) { slot = s; break; }
+            }
+            if (slotOf[slot] < 0) { slotOf[slot] = i; }
+        }
+    }
+    const int n = kEddyProGasSlots;
 
     //> A record carrying no decision falls back to the same species default
     //> the interface displays for it, so the package reproduces what the user
@@ -4052,16 +4168,30 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
     const auto pickFlag = [](int own, int fallback)
     { return own >= 0 ? own : fallback; };
 
+    //> Settings for a slot no record fills. Every field is the "no decision"
+    //> sentinel, so each pick() below falls through to the species default -
+    //> which is what the reference package holds for a slot the project does
+    //> not use, rather than the key being absent.
+    static const GasProcessingSettings kUnfilledSlot;
+    const auto procFor = [&](int slot) -> const GasProcessingSettings&
+    {
+        return slotOf[slot] >= 0 ? gases.at(slotOf[slot]).proc : kUnfilledSlot;
+    };
+
     const auto& dsp = defaultSettings.screenParam;
     const auto& dsa = defaultSettings.spectraSettings;
     const auto& dto = defaultSettings.timelagOpt;
     const auto& dos = defaultSettings.screenSetting;
 
-    const bool isWater[4] = {
-        n > 0 && gases.at(0).slug == QLatin1String("h2o"),
-        n > 1 && gases.at(1).slug == QLatin1String("h2o"),
-        n > 2 && gases.at(2).slug == QLatin1String("h2o"),
-        n > 3 && gases.at(3).slug == QLatin1String("h2o") };
+    //> Slot one is water by construction now, since slotRecord finds it by
+    //> species. Kept as a table so the exclusions below read the same way they
+    //> did, and so an empty slot answers false rather than indexing nothing.
+    bool isWater[kEddyProGasSlots];
+    for (int s = 0; s < kEddyProGasSlots; ++s)
+    {
+        isWater[s] = slotOf[s] >= 0
+                && gases.at(slotOf[s]).slug == QLatin1String("h2o");
+    }
 
     // ---- [Project] -------------------------------------------------------
     ini.beginGroup(EcIni::INIGROUP_PROJECT);
@@ -4071,8 +4201,7 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
         const char* colKey[4] = { "col_co2", "col_h2o", "col_ch4", "col_n2o" };
         for (int i = 0; i < kEddyProGasSlots; ++i)
         {
-            const int col = i < gases.size() && gases.at(i).rawColumn > 0
-                    ? gases.at(i).rawColumn : 0;
+            const int col = slotOf[i] >= 0 ? gases.at(slotOf[i]).rawColumn : 0;
             ini.setValue(QLatin1String(colKey[i]), col);
         }
 
@@ -4102,8 +4231,8 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
         //> EddyPro carries one molecular weight and diffusivity, for the open
         //> slot; -1 is its "use the built-in constant" sentinel, which is what
         //> the reference package contains.
-        const qreal openMw = gases.size() > 3 ? gases.at(3).mw : -1.0;
-        const qreal openDiff = gases.size() > 3 ? gases.at(3).diff : -1.0;
+        const qreal openMw = slotOf[3] >= 0 ? gases.at(slotOf[3]).mw : -1.0;
+        const qreal openDiff = slotOf[3] >= 0 ? gases.at(slotOf[3]).diff : -1.0;
         ini.setValue(QStringLiteral("gas_mw"),
                      QString::number(openMw >= 0.0 ? openMw : -1.0, 'f', 4));
         ini.setValue(QStringLiteral("gas_diff"),
@@ -4122,7 +4251,7 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
         removeMatchingKeys(ini, QStringLiteral("^gas_\\d+_"));
         for (int i = 0; i < n; ++i)
         {
-            const auto& p = gases.at(i).proc;
+            const auto& p = procFor(i);
             const auto s = QLatin1String(paramSlot[i]);
             const qreal dSr[4]    = { dsp.sr_lim_co2, dsp.sr_lim_h2o, dsp.sr_lim_ch4, dsp.sr_lim_other };
             const qreal dAlMin[4] = { dsp.al_co2_min, dsp.al_h2o_min, dsp.al_ch4_min, dsp.al_other_min };
@@ -4154,7 +4283,7 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
         ini.remove(EcIni::INI_SPEC_SETTINGS_53);   // automatic_spectra_config
         for (int i = 0; i < n; ++i)
         {
-            const auto& p = gases.at(i).proc;
+            const auto& p = procFor(i);
             const auto s = QLatin1String(specSlot[i]);
             const qreal dFmin[4] = { dsa.sa_fmin_co2, dsa.sa_fmin_h2o, dsa.sa_fmin_ch4, dsa.sa_fmin_other };
             const qreal dFmax[4] = { dsa.sa_fmax_co2, dsa.sa_fmax_h2o, dsa.sa_fmax_ch4, dsa.sa_fmax_other };
@@ -4195,7 +4324,7 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
         {
             if (isWater[i]) { continue; }
             const auto s = QLatin1String(specSlot[i]);
-            auto groups = gases.at(i).proc.saMonths.split(QLatin1Char(','),
+            auto groups = procFor(i).saMonths.split(QLatin1Char(','),
                                                           Qt::SkipEmptyParts);
             if (groups.isEmpty()) { groups << QStringLiteral("1-12"); }
             for (int k = 0; k < groups.size() && k < 12; ++k)
@@ -4216,7 +4345,7 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
         removeMatchingKeys(ini, QStringLiteral("^gas_\\d+_out_"));
         for (int i = 0; i < n; ++i)
         {
-            const auto& p = gases.at(i).proc;
+            const auto& p = procFor(i);
             const int dSp[4]   = { dos.out_full_sp_co2, dos.out_full_sp_h2o,
                                    dos.out_full_sp_ch4, dos.out_full_sp_gas4 };
             const int dCosp[4] = { dos.out_full_cosp_co2, dos.out_full_cosp_h2o,
@@ -4244,7 +4373,7 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
         ini.remove(EcIni::INI_TIMELAG_OPT_21);     // tlag_assessment_only
         for (int i = 0; i < n; ++i)
         {
-            const auto& p = gases.at(i).proc;
+            const auto& p = procFor(i);
             const auto s = QLatin1String(toSlot[i]);
             const qreal dMin[4] = { dto.co2_min_lag, dto.h2o_min_lag, dto.ch4_min_lag, dto.gas4_min_lag };
             const qreal dMax[4] = { dto.co2_max_lag, dto.h2o_max_lag, dto.ch4_max_lag, dto.gas4_max_lag };
