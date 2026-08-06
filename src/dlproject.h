@@ -204,6 +204,13 @@ public:
     QString canonicalInstrumentId(const QString& instrument)
         { return toIniVariableInstrument(instrument); }
 
+    //> Ini token for a variable's measurement unit, e.g. "ppb" for the label
+    //> the table shows as "nmol/mol (ppb)". Exposed because the absolute-limit
+    //> boxes are scaled from it, and matching on the label would confuse
+    //> "mmol/mol (ppt)" with "pmol/mol (ppt)".
+    QString canonicalMeasureUnit(const QString& unit)
+        { return toIniVariableMeasureUnit(unit); }
+
     //> Current key for an instrument model, whatever spelling the file uses.
     //> Static and public because the project file carries one model key of its
     //> own - master_sonic - which is read straight out of the ini and never

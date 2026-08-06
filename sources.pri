@@ -1,6 +1,7 @@
 # source code files
 
 HEADERS += \
+    src/absolute_limit_units.h \
     src/globalsettings.h \
     src/widget_utils.h \
     src/aboutdialog.h \
@@ -111,6 +112,7 @@ HEADERS += \
     src/logging.h
 
 SOURCES +=  \
+    src/absolute_limit_units.cpp \
     src/measurement_record.cpp \
     src/globalsettings.cpp \
     src/widget_utils.cpp \

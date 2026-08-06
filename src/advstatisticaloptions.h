@@ -29,6 +29,8 @@
 #include <QVector>
 #include <QWidget>
 
+#include "absolute_limit_units.h"
+
 ////////////////////////////////////////////////////////////////////////////////
 /// \file src/advstatisticaloptions.h
 /// \brief
@@ -57,6 +59,7 @@ class QTabBar;
 class QToolBox;
 
 class ClickLabel;
+class DlProject;
 class EcProject;
 
 /// \class AdvStatisticalOptions
@@ -66,7 +69,12 @@ class AdvStatisticalOptions : public QWidget
     Q_OBJECT
 
 public:
-    explicit AdvStatisticalOptions(QWidget* parent, EcProject* project);
+    //> Takes the raw file description as well as the project: the absolute
+    //> limits are shown in the unit the column declares, which only the
+    //> metadata knows.
+    explicit AdvStatisticalOptions(QWidget* parent,
+                                   DlProject* dlProject,
+                                   EcProject* project);
     ~AdvStatisticalOptions();
 
 public slots:
@@ -246,7 +254,8 @@ private:
     void rebuildGasRows();
     QString gasSignature() const;
     QString gasRowLabel(int gasIndex) const;
-    void configureAbsLimSpin(QDoubleSpinBox* spin, const QString& slug) const;
+    void configureAbsLimSpin(QDoubleSpinBox* spin, int gasIndex) const;
+    AbsoluteLimitUnits::Scale absLimScale(int gasIndex) const;
     double gasParamFor(int gasIndex, GasParam param) const;
     double defaultGasParam(const QString& slug, GasParam param) const;
     void onGasParamChanged(int gasIndex, GasParam param, double value);
@@ -433,6 +442,7 @@ private:
     //> destroyed under them every time the page is shown.
     QString gasSignature_;
 
+    DlProject* dlProject_;
     EcProject* ecProject_;
 };
 

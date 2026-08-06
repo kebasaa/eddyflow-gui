@@ -44,14 +44,18 @@
 #include <QUrl>
 
 #include "clicklabel.h"
+#include "dlproject.h"
 #include "ecproject.h"
 #include "measurement_record.h"
+#include "variable_desc.h"
 #include "splitter.h"
 #include "widget_utils.h"
 
 AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
+                                             DlProject *dlProject,
                                              EcProject *ecProject) :
     QWidget(parent),
+    dlProject_(dlProject),
     ecProject_(ecProject)
 {
     selectAllCheckBox = new QCheckBox(tr("&Select all tests"));
@@ -1204,10 +1208,17 @@ void dropWidget(QWidget* w)
 QString AdvStatisticalOptions::gasSignature() const
 {
     QStringList parts;
-    for (const auto& gas : ecProject_->gasColumns())
+    const auto& gases = ecProject_->gasColumns();
+    for (int i = 0; i < gases.size(); ++i)
     {
+        const auto& gas = gases.at(i);
+        //> The unit belongs in the signature as well as the column: the
+        //> absolute-limit boxes are scaled from it, so editing a column's unit
+        //> in the metadata editor has to rebuild the rows or they keep a scale
+        //> that no longer matches what the label says.
         parts << gas.slug + QLatin1Char('|') + gas.instrumentId
-                 + QLatin1Char('|') + QString::number(gas.rawColumn);
+                 + QLatin1Char('|') + QString::number(gas.rawColumn)
+                 + QLatin1Char('|') + absLimScale(i).display;
     }
     return parts.join(QLatin1Char(';'));
 }
@@ -1223,28 +1234,41 @@ QString AdvStatisticalOptions::gasRowLabel(int gasIndex) const
 /// as a mole fraction in umol/mol over a much higher range, H2O in mmol/mol;
 /// every other gas takes the range the fourth-gas slot used to have.
 void AdvStatisticalOptions::configureAbsLimSpin(QDoubleSpinBox* spin,
-                                                const QString& slug) const
+                                                int gasIndex) const
 {
-    spin->setDecimals(3);
-    spin->setAccelerated(true);
+    const auto& gases = ecProject_->gasColumns();
+    const QString slug = gasIndex >= 0 && gasIndex < gases.size()
+            ? gases.at(gasIndex).slug : QString();
+    const auto scale = absLimScale(gasIndex);
+
+    //> The range is the stored-unit one scaled into whatever the column
+    //> reports, so a gas reported in ppb gets a ppb range rather than a
+    //> umol/mol range it can only reach the bottom of.
+    double lower = 0.0;
+    double upper = 1000.0;
+    double step = 10.0;
     if (slug == QLatin1String("co2"))
     {
-        spin->setRange(100.0, 10000.0);
-        spin->setSingleStep(50.0);
-        spin->setSuffix(tr("  [%1]", "").arg(Defs::UMOL_MOL_STRING));
+        lower = 100.0;
+        upper = 10000.0;
+        step = 50.0;
     }
-    else if (slug == QLatin1String("h2o"))
+
+    //> Three decimals of the stored unit was the old resolution, and it is the
+    //> floor here: a ppb column keeps three decimals *of ppb*, a thousand
+    //> times finer, which is what makes an ambient COS limit expressible at
+    //> all. Capped because a spin box with fifteen decimals is unreadable.
+    int decimals = 3;
+    for (double f = scale.factor; f > 1.5 && decimals < 9; f /= 10.0)
     {
-        spin->setRange(0.0, 1000.0);
-        spin->setSingleStep(10.0);
-        spin->setSuffix(tr("  [%1]", "").arg(Defs::MMOL_MOL_STRING));
+        ++decimals;
     }
-    else
-    {
-        spin->setRange(0.0, 1000.0);
-        spin->setSingleStep(10.0);
-        spin->setSuffix(tr("  [%1]", "").arg(Defs::UMOL_MOL_STRING));
-    }
+
+    spin->setDecimals(decimals);
+    spin->setAccelerated(true);
+    spin->setRange(lower * scale.factor, upper * scale.factor);
+    spin->setSingleStep(step * scale.factor);
+    spin->setSuffix(tr("  [%1]", "").arg(scale.display));
 }
 
 /// Built-in default for a gas that carries no value of its own, chosen by
@@ -1301,22 +1325,66 @@ double AdvStatisticalOptions::defaultGasParam(const QString& slug,
 /// per gas slot; EcProject::migrateLegacyGasSettings() moves them onto the
 /// records as the project is upgraded, so by the time this runs the record
 /// is the only place the value can be.
+/// How the absolute limits for \a gasIndex are shown.
+///
+/// The record names a raw column and the raw file description states that
+/// column's unit, so the two meet here. A record whose column the description
+/// does not cover - not read yet, or edited away - falls back to the stored
+/// unit, which is what the box always showed.
+AbsoluteLimitUnits::Scale
+AdvStatisticalOptions::absLimScale(int gasIndex) const
+{
+    const auto& gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size())
+    {
+        return AbsoluteLimitUnits::forColumn(QString(), false);
+    }
+
+    const auto& gas = gases.at(gasIndex);
+    const bool isWater = gas.slug == QLatin1String("h2o");
+
+    QString unitToken;
+    if (dlProject_ && gas.rawColumn > 0)
+    {
+        const auto variables = dlProject_->variables();
+        const int index = gas.rawColumn - 1;
+        if (variables && index >= 0 && index < variables->size())
+        {
+            unitToken = dlProject_->canonicalMeasureUnit(
+                variables->at(index).inputUnit());
+        }
+    }
+    return AbsoluteLimitUnits::forColumn(unitToken, isWater);
+}
+
 double AdvStatisticalOptions::gasParamFor(int gasIndex, GasParam param) const
 {
     const auto& gases = ecProject_->gasColumns();
     if (gasIndex < 0 || gasIndex >= gases.size()) { return 0.0; }
     const auto& proc = gases.at(gasIndex).proc;
 
+    //> Stored in umol/mol (mmol/mol for water) whatever the column says, so
+    //> the two limits - and only those two - are scaled on the way out.
+    const auto scale = absLimScale(gasIndex);
+
     switch (param)
     {
         case GasParam::SrLim: if (proc.srLim >= 0.0) { return proc.srLim; } break;
-        case GasParam::AlMin: if (proc.alMin >= 0.0) { return proc.alMin; } break;
-        case GasParam::AlMax: if (proc.alMax >= 0.0) { return proc.alMax; } break;
+        case GasParam::AlMin: if (proc.alMin >= 0.0) { return proc.alMin * scale.factor; } break;
+        case GasParam::AlMax: if (proc.alMax >= 0.0) { return proc.alMax * scale.factor; } break;
         case GasParam::DsHf:  if (proc.dsHf  >= 0.0) { return proc.dsHf;  } break;
         case GasParam::DsSf:  if (proc.dsSf  >= 0.0) { return proc.dsSf;  } break;
         case GasParam::TlDef: if (proc.tlDef >= 0.0) { return proc.tlDef; } break;
     }
-    return defaultGasParam(gases.at(gasIndex).slug, param);
+
+    const auto fallback = defaultGasParam(gases.at(gasIndex).slug, param);
+    if (param == GasParam::AlMin || param == GasParam::AlMax)
+    {
+        //> The species defaults are stored-unit values too, so they take the
+        //> same scaling as a value the record already holds.
+        return fallback * scale.factor;
+    }
+    return fallback;
 }
 
 /// Store one per-gas value on its record.
@@ -1331,11 +1399,16 @@ void AdvStatisticalOptions::onGasParamChanged(int gasIndex, GasParam param,
     auto gases = ecProject_->gasColumns();
     if (gasIndex < 0 || gasIndex >= gases.size()) { return; }
 
+    //> Back to the stored unit. The reciprocal of what gasParamFor applies, so
+    //> a value read out and written back unchanged stays where it was - which
+    //> is what keeps opening and saving an existing project a no-op.
+    const auto scale = absLimScale(gasIndex);
+
     switch (param)
     {
         case GasParam::SrLim: gases[gasIndex].proc.srLim = value; break;
-        case GasParam::AlMin: gases[gasIndex].proc.alMin = value; break;
-        case GasParam::AlMax: gases[gasIndex].proc.alMax = value; break;
+        case GasParam::AlMin: gases[gasIndex].proc.alMin = value / scale.factor; break;
+        case GasParam::AlMax: gases[gasIndex].proc.alMax = value / scale.factor; break;
         case GasParam::DsHf:  gases[gasIndex].proc.dsHf  = value; break;
         case GasParam::DsSf:  gases[gasIndex].proc.dsSf  = value; break;
         case GasParam::TlDef: gases[gasIndex].proc.tlDef = value; break;
@@ -1448,8 +1521,8 @@ void AdvStatisticalOptions::rebuildGasRows()
             row.label = new ClickLabel(tr("%1 : ").arg(name));
             row.first = new QDoubleSpinBox;
             row.second = new QDoubleSpinBox;
-            configureAbsLimSpin(row.first, slug);
-            configureAbsLimSpin(row.second, slug);
+            configureAbsLimSpin(row.first, i);
+            configureAbsLimSpin(row.second, i);
             row.first->setToolTip(absLimMinTip_);
             row.second->setToolTip(absLimMaxTip_);
             row.first->setValue(gasParamFor(i, GasParam::AlMin));

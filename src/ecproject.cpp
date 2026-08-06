@@ -1344,6 +1344,12 @@ void EcProject::writeMeasurementRecords(QSettings& project_ini)
         return;
     }
 
+    //> Every record is written, because by this point every record is a real
+    //> measurement: the list is compacted when it is read and no longer grows
+    //> holes, so there is nothing here to filter. Filtering *here* would be
+    //> the wrong place anyway - the five per-gas key blocks are written from
+    //> their own loops over the same list, and a skip in one of them would
+    //> shift gas_<N>_col away from gas_<N>_sr_lim.
     project_ini.setValue(QStringLiteral("gas_num"), g.gasColumns.size());
     for (int i = 0; i < g.gasColumns.size(); ++i)
     {
@@ -1904,15 +1910,22 @@ bool EcProject::saveEcProject(const QString &filename)
                     project_ini.setValue(p + QStringLiteral("sr_lim"),
                                          QString::number(proc.srLim, 'f', 1));
                 }
+                //> Six decimals, not three. These are umol/mol (mmol/mol for
+                //> water) whatever unit the column reports, so a gas measured
+                //> in ppb has an ambient-scale limit down at 1e-4 and three
+                //> decimals rounded it to zero - which the engine reads as
+                //> "no limit stated" and, for a minimum, as rejecting nothing
+                //> or everything. The engine parses these with a
+                //> list-directed read, so the extra digits cost nothing.
                 if (proc.alMin >= 0.0)
                 {
                     project_ini.setValue(p + QStringLiteral("al_min"),
-                                         QString::number(proc.alMin, 'f', 3));
+                                         QString::number(proc.alMin, 'f', 6));
                 }
                 if (proc.alMax >= 0.0)
                 {
                     project_ini.setValue(p + QStringLiteral("al_max"),
-                                         QString::number(proc.alMax, 'f', 3));
+                                         QString::number(proc.alMax, 'f', 6));
                 }
                 if (proc.dsHf >= 0.0)
                 {
