@@ -58,6 +58,7 @@
 #include <QVector>
 #include <QIcon>
 #include <QPixmap>
+#include <QPointer>
 #include <QSize>
 #include <QToolButton>
 #include <QHeaderView>
@@ -160,6 +161,19 @@ QString variableCandidateName(const QString& text, VariableTableRowKind kind)
         return variableText.section(QLatin1Char(' '), 0, 0).trimmed();
     }
     return variableText.trimmed();
+}
+
+/// Whether a candidate is a placeholder rather than a measured column.
+///
+/// "None" and the 1000 sentinel. At file scope because the page asks it too:
+/// the moisture dropdown offers candidates as well as records, and a
+/// placeholder must not become a selectable H2O.
+bool isNoneCandidateColumn(const VariableCandidateItem& item)
+{
+    if (item.rawColumn == 0 || item.rawColumn == 1000) { return true; }
+    const QString text = item.text.trimmed();
+    return text.isEmpty()
+        || text.compare(QObject::tr("None"), Qt::CaseInsensitive) == 0;
 }
 
 QString variableCandidateSource(const QString& text)
@@ -272,6 +286,22 @@ public:
         {
             return isActive(row) ? Qt::Checked : Qt::Unchecked;
         }
+        //> Before the role filter below, which drops everything but display,
+        //> edit and tooltip.
+        //>
+        //> On the Variable column, never on Moisture: paintComboCell fills
+        //> that cell and draws a combo box from DisplayRole alone, so a
+        //> decoration there is discarded and the mark would be dead code that
+        //> reads as working. Variable falls through to the default painter,
+        //> which honours it - and it is the gas the mark is about.
+        if (role == Qt::DecorationRole)
+        {
+            if (index.column() == Variable && !crossAnalyserWater(row).isEmpty())
+            {
+                return crossAnalyserIcon();
+            }
+            return QVariant();
+        }
         if (role != Qt::DisplayRole && role != Qt::EditRole && role != Qt::ToolTipRole)
         {
             return QVariant();
@@ -288,6 +318,18 @@ public:
                     QString tooltip = row.row.tooltip;
                     tooltip += QStringLiteral("\n\n");
                     tooltip += tr("A gas may be measured more than once. Each column becomes its own record, and its columns are numbered - h2o_1, h2o_2 - so the two never share a name.");
+                    //> What the triangle beside this row means, in the one
+                    //> place a user is likely to look for it.
+                    const auto waterInstrument = crossAnalyserWater(row);
+                    if (!waterInstrument.isEmpty())
+                    {
+                        tooltip += QStringLiteral("\n\n");
+                        tooltip += tr("This gas is corrected with the H2O measured by %1, "
+                                      "a different analyser. The water vapour flux term and "
+                                      "the mixing ratio conversion both use that analyser's "
+                                      "cell, so both are approximations.")
+                                       .arg(waterInstrument);
+                    }
                     return tooltip;
                 }
                 if (role == Qt::ToolTipRole)
@@ -410,8 +452,45 @@ public:
 
         if (index.column() == Moisture && moistureAvailable(row) && page_)
         {
-            page_->setMoistureRefForGas(gasRecordIndex(row), value.toInt());
-            emit dataChanged(index, index, { Qt::DisplayRole, Qt::EditRole });
+            //> The value is a raw column, not a record index: the dropdown
+            //> offers H2O columns the project has not activated, and those
+            //> have no index until they are.
+            const int gasIdx = gasRecordIndex(row);
+            const bool recordsChanged =
+                page_->setMoistureColumnForGas(gasIdx, value.toInt());
+            if (!recordsChanged)
+            {
+                emit dataChanged(index, index, { Qt::DisplayRole, Qt::EditRole });
+            }
+
+            //> Everything after the edit waits for the next turn of the event
+            //> loop, because this runs inside the delegate's setModelData -
+            //> which QAbstractItemView calls from commitData(), with the combo
+            //> editor still open and still in the view's editor map.
+            //>
+            //> Resetting there makes the view release its editors from within
+            //> the call that is committing one. The data was right immediately
+            //> either way - isActive() reads the records live - but the
+            //> pending relayout was dropped, so a column switched on by this
+            //> selection only appeared ticked at the next external repaint,
+            //> such as minimising the window and coming back. The Active
+            //> column gets away with the same reset because a click on the
+            //> check indicator has no editor open.
+            //>
+            //> One queued call, not two, so the order is fixed: the table
+            //> redraws first, and the dialog then appears over a table that
+            //> already tells the truth. Raised from inside commitData it would
+            //> spin a nested event loop in that same place.
+            //>
+            //> gasIdx survives the reset: addGasRecord appends, so no existing
+            //> record moves.
+            QPointer<BasicVariableSelectionModel> model(this);
+            QPointer<BasicSettingsPage> page(page_);
+            QTimer::singleShot(0, this, [model, page, gasIdx, recordsChanged]()
+            {
+                if (model && recordsChanged) { model->refresh(); }
+                if (page) { page->warnOnCrossAnalyserMoisture(gasIdx); }
+            });
             return true;
         }
 
@@ -490,10 +569,7 @@ private:
     //> "None" and the 1000 sentinel are placeholders, not measurements.
     static bool isNoneCandidate(const VariableCandidateItem& item)
     {
-        if (item.rawColumn == 0 || item.rawColumn == 1000) { return true; }
-        const QString text = item.text.trimmed();
-        return text.isEmpty()
-            || text.compare(QObject::tr("None"), Qt::CaseInsensitive) == 0;
+        return isNoneCandidateColumn(item);
     }
 
     int noneIndex(const VariableTableCandidate& row) const
@@ -551,6 +627,38 @@ private:
         if (gasRecordIndex(row) < 0) { return false; }
         if (!isActive(row)) { return false; }
         return !page_ || page_->hasMoistureCandidates();
+    }
+
+    //> Analyser of the hygrometer correcting this row's gas, when it is not
+    //> the one measuring it. Empty for every other row, which is what decides
+    //> whether the row is marked.
+    QString crossAnalyserWater(const VariableTableCandidate& row) const
+    {
+        if (!page_ || !isActive(row)) { return QString(); }
+        const int idx = gasRecordIndex(row);
+        if (idx < 0) { return QString(); }
+        return page_->crossAnalyserWaterInstrument(idx);
+    }
+
+    //> The mark itself, built once.
+    //>
+    //> data() is called for every visible cell on every repaint, so scaling a
+    //> pixmap in it would do that work continuously. Twelve pixels and the
+    //> mac device-pixel-ratio branch follow AdvOutputOptions::setRequiredIcon,
+    //> which is the existing inline warning in this interface.
+    static QIcon crossAnalyserIcon()
+    {
+        static QIcon icon = []
+        {
+            QPixmap pixmap(QStringLiteral(":/icons/msg-warning"));
+#if defined(Q_OS_MACOS)
+            pixmap.setDevicePixelRatio(2.0);
+#endif
+            return QIcon(pixmap.scaled(QSize(12, 12),
+                                       Qt::KeepAspectRatio,
+                                       Qt::SmoothTransformation));
+        }();
+        return icon;
     }
 
     //> Label of the H2O currently correcting this gas.
@@ -733,11 +841,42 @@ public:
             auto editor = new QComboBox(parent);
             for (const auto& choice : page_->moistureChoices())
             {
-                // The 1-based record index travels as the item's data; the
-                // engine matches on that index, never on the label.
+                //> The raw column travels as the item's data, never the label.
+                //> Not the record index: the list offers H2O columns the
+                //> project has not activated, and those have no record to
+                //> index until the selection creates one.
                 editor->addItem(choice.second, choice.first);
             }
             TableDelegateUtils::prepareComboEditor(editor, parent);
+            //> Commit as soon as the user picks, rather than whenever the view
+            //> next decides editing has ended.
+            //>
+            //> A QComboBox editor with no such connection commits on focus-out
+            //> alone. Choosing from the popup closed the popup and updated the
+            //> combo, and nothing reached the model - so the H2O column this
+            //> selection switches on stayed unticked until the user clicked
+            //> away or, as reported, minimised the window and came back. The
+            //> value did save, eventually, which is what made it look like a
+            //> repaint problem rather than a commit that had not happened.
+            //>
+            //> The three sibling delegates - variable, irga and anem - all
+            //> connect activated to the same commitData/closeEditor pair. This
+            //> is that pattern; a lambda rather than a slot because this class
+            //> is declared in the .cpp with no Q_OBJECT.
+            //>
+            //> Cast away the constness createEditor is declared with, because
+            //> the two signals are non-const members. The siblings avoid it
+            //> only by naming a slot, which needs the moc this class does not
+            //> have; the emit happens later, from the event loop, when nothing
+            //> is treating the delegate as const.
+            auto* self = const_cast<BasicVariableSelectionDelegate*>(this);
+            connect(editor, QOverload<int>::of(&QComboBox::activated), self,
+                    [self, editor](int)
+                    {
+                        emit self->commitData(editor);
+                        emit self->closeEditor(editor,
+                                               QAbstractItemDelegate::NoHint);
+                    });
             TableDelegateUtils::showPopupQueued(editor);
             return editor;
         }
@@ -980,6 +1119,19 @@ void BasicSettingsPage::addGasRecord(const QString& slug, int rawColumn)
     rec.slug = slug;
     rec.rawColumn = rawColumn;
     rec.instrumentId = canonicalInstrumentForColumn(rawColumn);
+    //> Seeded with this species' processing settings rather than left at the
+    //> -1 sentinel. An unset setting is written as no key at all, and the
+    //> engine reads an absent al_min/al_max as "not configured" and declines
+    //> the absolute-limits test - silently, with a 9 in a packed flag string
+    //> as the only trace. The spike limit, the discontinuity limits and both
+    //> time-lag windows go the same way.
+    //>
+    //> migrateLegacyGasSettings fills these once, on a legacy upgrade, so
+    //> until now only the records that survived that upgrade had any. Moving
+    //> a gas to a different column creates a *new* record, which is how a
+    //> project ended up carrying a full settings block for one gas and none
+    //> for the others.
+    rec.proc = ecProject_->defaultGasProcessing(slug);
     gases.append(rec);
     ecProject_->setGasColumns(gases);
 }
@@ -1146,27 +1298,68 @@ bool BasicSettingsPage::hasMoistureCandidates() const
     {
         if (rec.slug == kH2oSlug && rec.rawColumn > 0) { return true; }
     }
+    //> A column the raw file description names counts, whether or not it has
+    //> been switched on. Asking only about records hid the moisture combo
+    //> entirely on a project whose H2O columns are all inactive - which is
+    //> exactly the project where the choice matters, since the gas is being
+    //> corrected with another analyser's water for want of it.
+    for (const auto& item : candidatesForRole(static_cast<int>(VariableTableRole::H2o)))
+    {
+        if (item.rawColumn > 0 && !isNoneCandidateColumn(item)) { return true; }
+    }
     return false;
 }
 
-/// The H2O records a gas may be corrected with, as (1-based index, label).
+/// The H2O measurements a gas may be corrected with, as (raw column, label).
+///
+/// Keyed on the raw column, not on the 1-based record index it used to carry.
+/// The list holds columns that have no record yet, and an index into the record
+/// list cannot name one of those - there is nothing to point at until it is
+/// activated. The column names both kinds, and `moistureRef` goes on storing an
+/// index internally.
+///
+/// Every H2O the raw file description knows about, not only the ones checked in
+/// the variable table. A site whose gas sits on an analyser with its own
+/// hygrometer should be able to say so without first hunting down that row; the
+/// selection switches the column on.
 QVector<QPair<int, QString>> BasicSettingsPage::moistureChoices() const
 {
     QVector<QPair<int, QString>> out;
     if (!ecProject_) { return out; }
-    const auto& gases = ecProject_->gasColumns();
-    for (int i = 0; i < gases.size(); ++i)
+
+    const auto labelFor = [this](int rawColumn, bool active)
     {
-        if (gases.at(i).slug != kH2oSlug || gases.at(i).rawColumn <= 0)
+        auto label = tr("H%1O (col %2)").arg(QChar(0x2082)).arg(rawColumn);
+        //> Both kinds take the analyser from the metadata, so an active and an
+        //> inactive entry for the same instrument read alike.
+        const auto instrument = canonicalInstrumentForColumn(rawColumn);
+        if (MeasurementRecords::isRealInstrument(instrument))
         {
-            continue;
+            label += QStringLiteral(" — ") + instrument;
         }
-        auto label = tr("H%1O (col %2)").arg(QChar(0x2082)).arg(gases.at(i).rawColumn);
-        if (MeasurementRecords::isRealInstrument(gases.at(i).instrumentId))
-        {
-            label += QStringLiteral(" — ") + gases.at(i).instrumentId;
-        }
-        out.append(qMakePair(i + 1, label));
+        //> Choosing this one also switches the column on. Said here, because a
+        //> selection that quietly adds a measured gas to the project is the
+        //> kind of side effect a user should see coming.
+        if (!active) { label += QStringLiteral(" ") + tr("(not yet selected)"); }
+        return label;
+    };
+
+    QVector<int> seen;
+    const auto& gases = ecProject_->gasColumns();
+    for (const auto& rec : gases)
+    {
+        if (rec.slug != kH2oSlug || rec.rawColumn <= 0) { continue; }
+        if (seen.contains(rec.rawColumn)) { continue; }
+        seen.append(rec.rawColumn);
+        out.append(qMakePair(rec.rawColumn, labelFor(rec.rawColumn, true)));
+    }
+
+    for (const auto& item : candidatesForRole(static_cast<int>(VariableTableRole::H2o)))
+    {
+        if (item.rawColumn <= 0 || isNoneCandidateColumn(item)) { continue; }
+        if (seen.contains(item.rawColumn)) { continue; }
+        seen.append(item.rawColumn);
+        out.append(qMakePair(item.rawColumn, labelFor(item.rawColumn, false)));
     }
     return out;
 }
@@ -1182,23 +1375,169 @@ int BasicSettingsPage::moistureRefForGas(int gasRecordIndex) const
 
 QString BasicSettingsPage::moistureLabelForGas(int gasRecordIndex) const
 {
+    if (!ecProject_) { return QString(); }
     const int ref = moistureRefForGas(gasRecordIndex);
-    if (ref <= 0) { return QString(); }
+    const auto& gases = ecProject_->gasColumns();
+    if (ref <= 0 || ref > gases.size()) { return QString(); }
+
+    //> Matched on the record's raw column, which is what the choices are keyed
+    //> on now. This compared the reference index against choice.first while
+    //> that was also an index; keeping it that way once the key changed would
+    //> have matched a column number against a record position and shown the
+    //> wrong water - or none, which the delegate reads as "no preselection".
+    const int rawColumn = gases.at(ref - 1).rawColumn;
     for (const auto& choice : moistureChoices())
     {
-        if (choice.first == ref) { return choice.second; }
+        if (choice.first == rawColumn) { return choice.second; }
     }
     return QString();
 }
 
-void BasicSettingsPage::setMoistureRefForGas(int gasRecordIndex, int moistureRef)
+/// Correct \a gasRecordIndex with the H2O measured at \a rawColumn, switching
+/// that column on if it is not a record yet.
+///
+/// Returns whether the record list changed, which the caller needs: activating
+/// a column alters a *different* row of the variable table, and a cell-scoped
+/// dataChanged would leave that row's checkbox stale.
+///
+/// The dropdown offers every H2O the raw file description names, so a user can
+/// pair a gas with the hygrometer on its own analyser without first finding
+/// that row and checking it. Choosing an inactive one is taken as asking for it.
+bool BasicSettingsPage::setMoistureColumnForGas(int gasRecordIndex, int rawColumn)
 {
-    if (!ecProject_) { return; }
+    if (!ecProject_ || rawColumn <= 0) { return false; }
+    {
+        const auto& gases = ecProject_->gasColumns();
+        if (gasRecordIndex < 0 || gasRecordIndex >= gases.size()) { return false; }
+    }
+
+    bool recordsChanged = false;
+    int waterIndex = gasRecordIndexFor(kH2oSlug, rawColumn);
+    if (waterIndex < 0)
+    {
+        //> Asked before adding, not after. addGasRecord declines silently when
+        //> an instrument is at its limit, which would leave the dropdown
+        //> showing a choice that did nothing at all.
+        const auto blocked = gasLimitBlockReason(rawColumn);
+        if (!blocked.isEmpty())
+        {
+            //> Queued, like every other dialog this selection can raise: the
+            //> caller is the delegate's setModelData, and a modal dialog there
+            //> spins a nested event loop inside QAbstractItemView::commitData
+            //> while the combo editor is still open.
+            QPointer<BasicSettingsPage> self(this);
+            QTimer::singleShot(0, this, [self, blocked]()
+            {
+                if (!self) { return; }
+                WidgetUtils::warning(QApplication::activeWindow(),
+                                     tr("Cannot Add This Water Vapour Measurement"),
+                                     blocked);
+            });
+            return false;
+        }
+        //> Through addGasRecord, which seeds the new record's per-gas
+        //> processing settings from its species. A GasRecord built here would
+        //> arrive with every setting at the -1 sentinel, and the writer emits
+        //> no key for those - which the engine reads as "not configured" and
+        //> answers by declining the test. That is the defect that cost CO2 and
+        //> H2O their absolute limits, and it must not come back through a
+        //> second door.
+        addGasRecord(kH2oSlug, rawColumn);
+        waterIndex = gasRecordIndexFor(kH2oSlug, rawColumn);
+        if (waterIndex < 0) { return false; }
+        recordsChanged = true;
+    }
+
+    //> Appended, so no existing 1-based reference moves. Re-read after the add.
     auto gases = ecProject_->gasColumns();
-    if (gasRecordIndex < 0 || gasRecordIndex >= gases.size()) { return; }
-    if (gases.at(gasRecordIndex).moistureRef == moistureRef) { return; }
-    gases[gasRecordIndex].moistureRef = moistureRef;
-    ecProject_->setGasColumns(gases);
+    if (gasRecordIndex < 0 || gasRecordIndex >= gases.size()) { return recordsChanged; }
+    if (gases.at(gasRecordIndex).moistureRef != waterIndex + 1)
+    {
+        gases[gasRecordIndex].moistureRef = waterIndex + 1;
+        ecProject_->setGasColumns(gases);
+    }
+    //> The cross-analyser dialog is the caller's to raise, after it has
+    //> redrawn the table. Raised here it would open from inside the delegate's
+    //> setModelData, over a table still showing the state before the choice.
+    return recordsChanged;
+}
+
+/// The analyser of the hygrometer correcting \a gasRecordIndex, when that is
+/// not the analyser measuring the gas. Empty when the two agree.
+///
+/// A legitimate configuration - it is what a site with one hygrometer and two
+/// analysers has - and a compromise. The engine honours it: the water vapour
+/// flux term is taken at that hygrometer's own time lag, and the dilution to a
+/// mixing ratio uses the humidity in its cell. Both were silently declined
+/// until recently, while the mean WPL terms used the borrowed water anyway, so
+/// a gas came out corrected by a water the rest of the code held it did not
+/// share.
+///
+/// One predicate, because three things ask it: the dialog raised when the user
+/// chooses such a pairing, the warning triangle marking one that already
+/// exists, and that triangle's tooltip. Three copies of the test would be three
+/// chances for the table to disagree with the message.
+QString BasicSettingsPage::crossAnalyserWaterInstrument(int gasRecordIndex) const
+{
+    if (!ecProject_) { return QString(); }
+    const auto& gases = ecProject_->gasColumns();
+    if (gasRecordIndex < 0 || gasRecordIndex >= gases.size()) { return QString(); }
+
+    const auto& gas = gases.at(gasRecordIndex);
+    //> Water is not corrected with itself.
+    if (gas.slug == kH2oSlug) { return QString(); }
+
+    //> Resolved, not the stored reference: 0 means "auto", and what matters is
+    //> the hygrometer the engine will actually use. Mirrors ResolveGasRef.
+    const int ref = MeasurementRecords::resolveMoistureRef(gases, gasRecordIndex);
+    if (ref <= 0 || ref > gases.size()) { return QString(); }
+    const auto& water = gases.at(ref - 1);
+
+    //> `other` and `none` are not identities - many unrelated variables carry
+    //> them - so a pairing involving one says nothing about analysers.
+    if (!MeasurementRecords::isRealInstrument(gas.instrumentId)
+        || !MeasurementRecords::isRealInstrument(water.instrumentId)
+        || gas.instrumentId == water.instrumentId)
+    {
+        return QString();
+    }
+    return water.instrumentId;
+}
+
+/// Tell the user their choice of hygrometer crosses analysers.
+///
+/// Raised from setMoistureColumnForGas alone, so it answers an explicit
+/// selection. It used to run from the resolution step as well, which meant
+/// opening an already-configured project raised a dialog about a decision
+/// nobody had just made. A pairing that is merely *already* the case is marked
+/// by the triangle in the variable table instead.
+///
+/// The text describes the choice and no more. It used to state that the gas's
+/// own analyser carried no H2O column - true of the inherited case, and not of
+/// a user picking another analyser's water while their own has one.
+void BasicSettingsPage::warnOnCrossAnalyserMoisture(int gasRecordIndex)
+{
+    const QString waterInstrument = crossAnalyserWaterInstrument(gasRecordIndex);
+    if (waterInstrument.isEmpty()) { return; }
+
+    const auto& gases = ecProject_->gasColumns();
+    const auto& gas = gases.at(gasRecordIndex);
+
+    QString species = gas.slug.toUpper();
+    if (species.isEmpty()) { species = tr("This gas"); }
+
+    WidgetUtils::information(
+        QApplication::activeWindow(),
+        tr("Water Vapour From a Different Analyser"),
+        tr("<b>%1</b> is measured by <b>%2</b>, but the H<sub>2</sub>O you "
+           "selected is measured by <b>%3</b>."
+           "<p>EddyFlow will use that hygrometer's own time lag for the water "
+           "vapour flux term, and the humidity in its cell to convert "
+           "<b>%1</b> to a mixing ratio. Both describe the air inside a "
+           "different analyser, so both are approximations.</p>"
+           "<p>If <b>%2</b> also measures H<sub>2</sub>O, selecting that "
+           "column instead will give a more accurate correction.</p>")
+            .arg(species, gas.instrumentId, waterInstrument));
 }
 
 /// Molecular weight of a gas record, or its species default.
@@ -4152,9 +4491,18 @@ void BasicSettingsPage::applyGasAbsoluteLimitMin(int gasIndex,
     //> retired fourth-slot flat key, which the engine reads only as a legacy
     //> fallback and then overrides from gas_N_al_min. The floor was derived
     //> from the species correctly and then discarded.
+    //>
+    //> The whole block, not the floor alone. Every threshold in it belongs to
+    //> a species, so once the species changes the rest are the previous gas's
+    //> and describe nothing about this one. Setting only alMin left a record
+    //> stating N2O's floor beside CO2's ceiling, discontinuity limits and
+    //> time-lag window - a mixture that was never any gas's.
+    //>
+    //> defaultGasProcessing carries the species floor itself, so it is not
+    //> applied separately here.
     auto gases = ecProject_->gasColumns();
     if (gasIndex < 0 || gasIndex >= gases.size()) { return; }
-    gases[gasIndex].proc.alMin = GasMetadata::defaultAbsoluteLimitMin(gasStr);
+    gases[gasIndex].proc = ecProject_->defaultGasProcessing(gasStr);
     ecProject_->setGasColumns(gases);
 }
 
@@ -4911,6 +5259,14 @@ void BasicSettingsPage::reloadSelectedItems_1()
     //> instrument filled in there. Neither touches the other's work.
     seedGasRecordsFromMetadata();
     resolveMigratedGasRecords();
+    //> Third of the same kind, and here for the reason the other two are:
+    //> updateMetadataRead is invoked through a synchronous request before
+    //> anything is written - see MainWindow::upgradeProjectInPlace - so a
+    //> record resolved here is resolved whether or not the user opens this
+    //> page. That guarantee is the point. The comment there records what
+    //> happened the last time something in this family ran only when the user
+    //> happened to visit Basic Settings first.
+    syncNonGasRecordInstruments();
 
     refreshVariableTables();
 
@@ -5209,6 +5565,52 @@ void BasicSettingsPage::refreshVariableTables()
     {
         model->refresh();
     }
+}
+
+/// Re-read the analyser of every cell and diagnostic record from the metadata.
+///
+/// `addNonGasRecord` resolves the instrument once, when the record is created,
+/// and the answer was then never revisited. A cell column selected before its
+/// metadata row named an instrument kept the empty answer for the life of the
+/// project, and the engine reads an empty `cell_N_instr` as "belongs to no
+/// analyser in particular".
+///
+/// That is not a cosmetic gap. Cell records are matched to gases by analyser,
+/// so an untagged cell temperature is shared by every gas while a tagged cell
+/// pressure reaches only its own - and a gas left without one falls back to
+/// *ambient* pressure. On a site with two analysers that silently computed one
+/// of them against the other's cell, or against the open air.
+///
+/// A record whose instrument the user set by hand is left alone: `other` and
+/// `none` are deliberate answers, not missing ones.
+void BasicSettingsPage::syncNonGasRecordInstruments()
+{
+    if (!ecProject_ || !dlProject_) { return; }
+
+    const auto sync = [this](QVector<MeasurementRecord>& records)
+    {
+        bool changed = false;
+        for (auto& rec : records)
+        {
+            if (rec.rawColumn <= 0) { continue; }
+            const auto resolved = canonicalInstrumentForColumn(rec.rawColumn);
+            //> Empty means "cannot tell" - no metadata loaded, or the column
+            //> is past its end - which is the one case a stored answer is
+            //> worth more than a fresh one. Everything else is mirrored,
+            //> including `none` and `other`: the raw file description is the
+            //> authority here, and there is no competing answer to protect.
+            if (resolved.isEmpty() || resolved == rec.instrumentId) { continue; }
+            rec.instrumentId = resolved;
+            changed = true;
+        }
+        return changed;
+    };
+
+    auto cells = ecProject_->cellColumns();
+    if (sync(cells)) { ecProject_->setCellColumns(cells); }
+
+    auto diags = ecProject_->diagColumns();
+    if (sync(diags)) { ecProject_->setDiagColumns(diags); }
 }
 
 void BasicSettingsPage::onIdLabelClicked()

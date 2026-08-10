@@ -1016,6 +1016,27 @@ private:
     //> file is in.
     void migrateLegacyGasSettings();
 
+public:
+    //> The per-gas processing settings a record of \a slug starts life with.
+    //>
+    //> One source for the species-to-threshold mapping, shared by the legacy
+    //> migration and by every record created afterwards. A record whose
+    //> settings stay at the -1 sentinel is written with *no* keys at all, and
+    //> the engine reads an absent al_min/al_max as "not configured" and then
+    //> declines the absolute-limits test - silently, with only a 9 in a packed
+    //> flag string to show for it. The spike limit, the discontinuity limits
+    //> and both time-lag windows go the same way.
+    //>
+    //> That is how a project ends up half-configured: migrateLegacyGasSettings
+    //> runs once, on upgrade, so a gas *added* afterwards - or moved to another
+    //> column, which creates a new record - had nothing to fill it in.
+    //>
+    //> The flat values these come from always exist. They are read with
+    //> defaultEcProjectState as the fallback, so they hold the application's
+    //> defaults even for a project file carrying no legacy key.
+    GasProcessingSettings defaultGasProcessing(const QString& slug) const;
+
+private:
     bool modified_;
     bool wasUpgradedOnLoad_ = false;
     EcProjectState ec_project_state_;

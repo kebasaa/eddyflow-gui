@@ -139,8 +139,30 @@ public:
     bool hasMoistureCandidates() const;
     QString moistureLabelForGas(int gasRecordIndex) const;
     QVector<QPair<int, QString>> moistureChoices() const;
+    //> The analyser of the hygrometer correcting this gas, when it is not the
+    //> analyser measuring the gas; empty when the two agree. Asked by the
+    //> table's warning triangle and its tooltip as well as by the dialog, so
+    //> the mark and the message cannot disagree.
+    QString crossAnalyserWaterInstrument(int gasRecordIndex) const;
     int moistureRefForGas(int gasRecordIndex) const;
-    void setMoistureRefForGas(int gasRecordIndex, int moistureRef);
+    //> Correct this gas with the H2O measured at \a rawColumn, switching that
+    //> column on when it is not a record yet. Keyed on the column because the
+    //> dropdown offers columns the raw file description names but the project
+    //> has not activated, and a record index cannot name one of those.
+    //>
+    //> Answers whether the record list changed: activating a column alters a
+    //> different row of the variable table, so the caller has to reset rather
+    //> than repaint one cell.
+    bool setMoistureColumnForGas(int gasRecordIndex, int rawColumn);
+    //> Raised on an explicit choice of hygrometer that crosses analysers. A
+    //> pairing that is merely already the case is marked by the triangle in
+    //> the variable table, not announced in a dialog on project open.
+    //>
+    //> Called by the table model, one turn of the event loop after the choice:
+    //> the selection arrives inside the delegate's setModelData, and a modal
+    //> dialog raised there runs a nested event loop while the combo editor is
+    //> still open - and over a table not yet redrawn.
+    void warnOnCrossAnalyserMoisture(int gasRecordIndex);
     qreal gasMolecularWeight(int gasRecordIndex) const;
     qreal gasDiffusivity(int gasRecordIndex) const;
     void setGasMolecularWeight(int gasRecordIndex, qreal value);
@@ -358,6 +380,13 @@ private:
     void reloadSelectedItems_1();
     void reloadSelectedItems_2();
     void refreshVariableTables();
+    //> Re-read the analyser of every cell and diagnostic record from the
+    //> metadata. It was resolved once, when the record was created, and never
+    //> revisited - so a column selected before its metadata row named an
+    //> instrument kept the empty answer. An untagged cell record is shared by
+    //> every gas while a tagged one reaches only its own, so that gap decides
+    //> which analyser's cell conditions a gas is computed against.
+    void syncNonGasRecordInstruments();
 
     //> Fill the species and instrument a migrated project could not carry:
     //> a pre-record file names a raw column and nothing else.

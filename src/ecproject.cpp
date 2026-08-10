@@ -37,6 +37,7 @@
 #include "dlproject.h"
 #include "ecinidefs.h"
 #include "fileutils.h"
+#include "gas_metadata.h"
 #include "mainwindow.h"
 #include "stringutils.h"
 #include "widget_utils.h"
@@ -3847,38 +3848,118 @@ void EcProject::compactGasRecords()
 ///
 /// Records 0..3 are the historical CO2/H2O/CH4/4th-gas slots, which is what
 /// makes the mapping possible at all.
-void EcProject::migrateLegacyGasSettings()
+
+//> Which legacy slot a species' thresholds are labelled with.
+//>
+//> The flat keys are co2/h2o/ch4/other, and they used to be read straight off
+//> record 0..3 because migration pinned those four positions. Records are
+//> compacted now, so a project without CO2 has water at position zero - and
+//> reading positionally would hand it CO2's thresholds. A blank slug is the
+//> open slot, whose species the metadata has not resolved yet.
+static int legacySlotOfSpecies(const QString& slug)
 {
-    auto& gases = ec_project_state_.projectGeneral.gasColumns;
-    if (gases.isEmpty()) { return; }
+    if (slug == QLatin1String("co2")) { return 0; }
+    if (slug == QLatin1String("h2o")) { return 1; }
+    if (slug == QLatin1String("ch4")) { return 2; }
+    return 3;
+}
 
-    //> Which legacy slot a record came from, by species rather than by
-    //> position.
-    //>
-    //> The flat keys are labelled co2/h2o/ch4/other, and this used to read
-    //> them straight off record 0..3 because migration pinned those four
-    //> positions. Records are compacted now, so a project without CO2 has
-    //> water at position zero - and reading positionally would hand it CO2's
-    //> thresholds. A blank slug is the open slot, whose species the metadata
-    //> has not resolved yet.
-    const auto legacySlotOf = [](const QString& slug)
-    {
-        if (slug == QLatin1String("co2")) { return 0; }
-        if (slug == QLatin1String("h2o")) { return 1; }
-        if (slug == QLatin1String("ch4")) { return 2; }
-        return 3;
-    };
+GasProcessingSettings EcProject::defaultGasProcessing(const QString& rawSlug) const
+{
+    GasProcessingSettings proc;
 
-    //> Only the first record of each species takes the flat value: the keys
-    //> can express one threshold per slot, so a site with two CO2 analysers
-    //> has nothing legacy to say about the second.
-    bool taken[4] = { false, false, false, false };
+    //> Records hold a lowercase slug, but the open slot's dropdown hands over
+    //> a display formula - `N2O`, `COS`. Both have to reach the same species,
+    //> or a gas selected by name gets the open slot's thresholds while the
+    //> same gas selected by column gets its own.
+    const QString slug = rawSlug.toLower();
 
     const auto& sp = ec_project_state_.screenParam;
     const auto& sa = ec_project_state_.spectraSettings;
     const auto& to = ec_project_state_.timelagOpt;
     const auto& pw = ec_project_state_.pwbTimelag;
     const auto& os = ec_project_state_.screenSetting;
+
+    const int slot = legacySlotOfSpecies(slug);
+
+    const qreal srLim[4]  = { sp.sr_lim_co2, sp.sr_lim_h2o, sp.sr_lim_ch4, sp.sr_lim_other };
+    const qreal alMin[4]  = { sp.al_co2_min, sp.al_h2o_min, sp.al_ch4_min, sp.al_other_min };
+    const qreal alMax[4]  = { sp.al_co2_max, sp.al_h2o_max, sp.al_ch4_max, sp.al_other_max };
+    const qreal dsHf[4]   = { sp.ds_hf_co2, sp.ds_hf_h2o, sp.ds_hf_ch4, sp.ds_hf_other };
+    const qreal dsSf[4]   = { sp.ds_sf_co2, sp.ds_sf_h2o, sp.ds_sf_ch4, sp.ds_sf_other };
+    const qreal tlDef[4]  = { sp.tl_def_co2, sp.tl_def_h2o, sp.tl_def_ch4, sp.tl_def_other };
+
+    //> The noise frequency is spelled sa_hfn_<gas>_fmin.
+    const qreal saFmin[4] = { sa.sa_fmin_co2, sa.sa_fmin_h2o, sa.sa_fmin_ch4, sa.sa_fmin_other };
+    const qreal saFmax[4] = { sa.sa_fmax_co2, sa.sa_fmax_h2o, sa.sa_fmax_ch4, sa.sa_fmax_other };
+    const qreal saHfn[4]  = { sa.sa_hfn_co2_fmin, sa.sa_hfn_h2o_fmin,
+                              sa.sa_hfn_ch4_fmin, sa.sa_hfn_other_fmin };
+
+    const qreal toMinLag[4] = { to.co2_min_lag, to.h2o_min_lag, to.ch4_min_lag, to.gas4_min_lag };
+    const qreal toMaxLag[4] = { to.co2_max_lag, to.h2o_max_lag, to.ch4_max_lag, to.gas4_max_lag };
+    const qreal pwMinLag[4] = { pw.co2_min_lag, pw.h2o_min_lag, pw.ch4_min_lag, pw.gas4_min_lag };
+    const qreal pwMaxLag[4] = { pw.co2_max_lag, pw.h2o_max_lag, pw.ch4_max_lag, pw.gas4_max_lag };
+
+    const int outSp[4]   = { os.out_full_sp_co2, os.out_full_sp_h2o,
+                             os.out_full_sp_ch4, os.out_full_sp_gas4 };
+    const int outCosp[4] = { os.out_full_cosp_co2, os.out_full_cosp_h2o,
+                             os.out_full_cosp_ch4, os.out_full_cosp_gas4 };
+    const int outRaw[4]  = { os.out_raw_co2, os.out_raw_h2o,
+                             os.out_raw_ch4, os.out_raw_gas4 };
+
+    proc.srLim     = srLim[slot];
+    proc.alMin     = alMin[slot];
+    proc.alMax     = alMax[slot];
+    proc.dsHf      = dsHf[slot];
+    proc.dsSf      = dsSf[slot];
+    proc.tlDef     = tlDef[slot];
+    proc.saFmin    = saFmin[slot];
+    proc.saFmax    = saFmax[slot];
+    proc.saHfnFmin = saHfn[slot];
+    proc.toMinLag  = toMinLag[slot];
+    proc.toMaxLag  = toMaxLag[slot];
+    proc.pwbMinLag = pwMinLag[slot];
+    proc.pwbMaxLag = pwMaxLag[slot];
+    proc.outFullSp    = outSp[slot];
+    proc.outFullCospW = outCosp[slot];
+    proc.outRaw       = outRaw[slot];
+
+    //> The species' own plausibility floor wins over the slot's. Only N2O has
+    //> a published value; every other species answers 0, which is the same
+    //> "no floor" the open slot already used.
+    const qreal floor = GasMetadata::defaultAbsoluteLimitMin(slug);
+    if (floor > 0.0) { proc.alMin = floor; }
+
+    //> H2O is the exception in four places, and getting it wrong would move a
+    //> latent-heat threshold onto a gas. Its minimum-flux counterpart is
+    //> le_min_flux and its spectral QA/QC thresholds are the LE triple -
+    //> none is a per-gas quantity, so the water record takes none of them and
+    //> they stay at the sentinel, which the writer omits.
+    if (slug != QLatin1String("h2o"))
+    {
+        const qreal toMinFlux[4] = { to.co2_min_flux, -1.0, to.ch4_min_flux, to.gas4_min_flux };
+        const qreal saMinUn[4]   = { sa.sa_min_un_co2, -1.0, sa.sa_min_un_ch4, sa.sa_min_un_other };
+        const qreal saMinSt[4]   = { sa.sa_min_st_co2, -1.0, sa.sa_min_st_ch4, sa.sa_min_st_other };
+        const qreal saMax[4]     = { sa.sa_max_co2, -1.0, sa.sa_max_ch4, sa.sa_max_other };
+
+        proc.toMinFlux = toMinFlux[slot];
+        proc.saMinUn   = saMinUn[slot];
+        proc.saMinSt   = saMinSt[slot];
+        proc.saMax     = saMax[slot];
+    }
+
+    return proc;
+}
+
+void EcProject::migrateLegacyGasSettings()
+{
+    auto& gases = ec_project_state_.projectGeneral.gasColumns;
+    if (gases.isEmpty()) { return; }
+
+    //> Only the first record of each species takes the flat value: the keys
+    //> can express one threshold per slot, so a site with two CO2 analysers
+    //> has nothing legacy to say about the second.
+    bool taken[4] = { false, false, false, false };
 
     const auto put = [](qreal& target, qreal value)
     {
@@ -3889,84 +3970,40 @@ void EcProject::migrateLegacyGasSettings()
         if (target < 0) { target = value; }
     };
 
-    //> Spike, absolute-limit, discontinuity and nominal-lag thresholds.
-    const qreal srLim[4]  = { sp.sr_lim_co2, sp.sr_lim_h2o, sp.sr_lim_ch4, sp.sr_lim_other };
-    const qreal alMin[4]  = { sp.al_co2_min, sp.al_h2o_min, sp.al_ch4_min, sp.al_other_min };
-    const qreal alMax[4]  = { sp.al_co2_max, sp.al_h2o_max, sp.al_ch4_max, sp.al_other_max };
-    const qreal dsHf[4]   = { sp.ds_hf_co2, sp.ds_hf_h2o, sp.ds_hf_ch4, sp.ds_hf_other };
-    const qreal dsSf[4]   = { sp.ds_sf_co2, sp.ds_sf_h2o, sp.ds_sf_ch4, sp.ds_sf_other };
-    const qreal tlDef[4]  = { sp.tl_def_co2, sp.tl_def_h2o, sp.tl_def_ch4, sp.tl_def_other };
-
-    //> Spectral windows. The noise frequency is spelled sa_hfn_<gas>_fmin.
-    const qreal saFmin[4] = { sa.sa_fmin_co2, sa.sa_fmin_h2o, sa.sa_fmin_ch4, sa.sa_fmin_other };
-    const qreal saFmax[4] = { sa.sa_fmax_co2, sa.sa_fmax_h2o, sa.sa_fmax_ch4, sa.sa_fmax_other };
-    const qreal saHfn[4]  = { sa.sa_hfn_co2_fmin, sa.sa_hfn_h2o_fmin,
-                              sa.sa_hfn_ch4_fmin, sa.sa_hfn_other_fmin };
-
-    //> Time-lag windows, both optimiser and PWB.
-    const qreal toMinLag[4] = { to.co2_min_lag, to.h2o_min_lag, to.ch4_min_lag, to.gas4_min_lag };
-    const qreal toMaxLag[4] = { to.co2_max_lag, to.h2o_max_lag, to.ch4_max_lag, to.gas4_max_lag };
-    const qreal pwMinLag[4] = { pw.co2_min_lag, pw.h2o_min_lag, pw.ch4_min_lag, pw.gas4_min_lag };
-    const qreal pwMaxLag[4] = { pw.co2_max_lag, pw.h2o_max_lag, pw.ch4_max_lag, pw.gas4_max_lag };
-
-    //> Output selections.
-    const int outSp[4]   = { os.out_full_sp_co2, os.out_full_sp_h2o,
-                             os.out_full_sp_ch4, os.out_full_sp_gas4 };
-    const int outCosp[4] = { os.out_full_cosp_co2, os.out_full_cosp_h2o,
-                             os.out_full_cosp_ch4, os.out_full_cosp_gas4 };
-    const int outRaw[4]  = { os.out_raw_co2, os.out_raw_h2o,
-                             os.out_raw_ch4, os.out_raw_gas4 };
-
     for (int i = 0; i < gases.size(); ++i)
     {
-        const int slot = legacySlotOf(gases.at(i).slug);
+        const int slot = legacySlotOfSpecies(gases.at(i).slug);
         if (taken[slot]) { continue; }
         taken[slot] = true;
 
+        //> Same species-to-threshold mapping a record created from scratch
+        //> gets. Applied with `put`, so a value the file already stated for
+        //> this record wins - migration fills gaps, it does not overwrite.
+        const auto d = defaultGasProcessing(gases.at(i).slug);
         auto& proc = gases[i].proc;
-        put(proc.srLim, srLim[slot]);
-        put(proc.alMin, alMin[slot]);
-        put(proc.alMax, alMax[slot]);
-        put(proc.dsHf, dsHf[slot]);
-        put(proc.dsSf, dsSf[slot]);
-        put(proc.tlDef, tlDef[slot]);
-        put(proc.saFmin, saFmin[slot]);
-        put(proc.saFmax, saFmax[slot]);
-        put(proc.saHfnFmin, saHfn[slot]);
-        put(proc.toMinLag, toMinLag[slot]);
-        put(proc.toMaxLag, toMaxLag[slot]);
-        put(proc.pwbMinLag, pwMinLag[slot]);
-        put(proc.pwbMaxLag, pwMaxLag[slot]);
-        putFlag(proc.outFullSp, outSp[slot]);
-        putFlag(proc.outFullCospW, outCosp[slot]);
-        putFlag(proc.outRaw, outRaw[slot]);
-    }
-
-    //> H2O is the exception in three places, and getting it wrong would move
-    //> a latent-heat threshold onto a gas. Its minimum-flux counterpart is
-    //> le_min_flux and its spectral QA/QC thresholds are the LE triple -
-    //> neither is a per-gas quantity, so the water record takes none of them.
-    const qreal toMinFlux[4] = { to.co2_min_flux, -1.0, to.ch4_min_flux, to.gas4_min_flux };
-    const qreal saMinUn[4]   = { sa.sa_min_un_co2, -1.0, sa.sa_min_un_ch4, sa.sa_min_un_other };
-    const qreal saMinSt[4]   = { sa.sa_min_st_co2, -1.0, sa.sa_min_st_ch4, sa.sa_min_st_other };
-    const qreal saMax[4]     = { sa.sa_max_co2, -1.0, sa.sa_max_ch4, sa.sa_max_other };
-
-    bool tripleTaken[4] = { false, false, false, false };
-    for (int i = 0; i < gases.size(); ++i)
-    {
-        //> By species, not by position - the same rule as the loop above and
-        //> for the same reason: with records compacted, index one is water
-        //> only on a site that happens to measure it second.
-        if (gases.at(i).slug == QLatin1String("h2o")) { continue; }
-        const int slot = legacySlotOf(gases.at(i).slug);
-        if (tripleTaken[slot]) { continue; }
-        tripleTaken[slot] = true;
-
-        auto& proc = gases[i].proc;
-        put(proc.toMinFlux, toMinFlux[slot]);
-        put(proc.saMinUn, saMinUn[slot]);
-        put(proc.saMinSt, saMinSt[slot]);
-        put(proc.saMax, saMax[slot]);
+        put(proc.srLim, d.srLim);
+        put(proc.alMin, d.alMin);
+        put(proc.alMax, d.alMax);
+        put(proc.dsHf, d.dsHf);
+        put(proc.dsSf, d.dsSf);
+        put(proc.tlDef, d.tlDef);
+        put(proc.saFmin, d.saFmin);
+        put(proc.saFmax, d.saFmax);
+        put(proc.saHfnFmin, d.saHfnFmin);
+        put(proc.toMinLag, d.toMinLag);
+        put(proc.toMaxLag, d.toMaxLag);
+        put(proc.pwbMinLag, d.pwbMinLag);
+        put(proc.pwbMaxLag, d.pwbMaxLag);
+        putFlag(proc.outFullSp, d.outFullSp);
+        putFlag(proc.outFullCospW, d.outFullCospW);
+        putFlag(proc.outRaw, d.outRaw);
+        //> The LE triple and the minimum flux. defaultGasProcessing leaves
+        //> these at the sentinel for water, which is the carve-out that used
+        //> to be a second loop with its own tables and its own taken[] array.
+        put(proc.toMinFlux, d.toMinFlux);
+        put(proc.saMinUn, d.saMinUn);
+        put(proc.saMinSt, d.saMinSt);
+        put(proc.saMax, d.saMax);
     }
 }
 

@@ -29,6 +29,7 @@ OUT_PAGE = GUI_ROOT / "src" / "advoutputoptions.cpp"
 OUT_HDR = GUI_ROOT / "src" / "advoutputoptions.h"
 RECORD_HDR = GUI_ROOT / "src" / "measurement_record.h"
 RECORD_SRC = GUI_ROOT / "src" / "measurement_record.cpp"
+BASIC_PAGE_SRC = GUI_ROOT / "src" / "basicsettingspage.cpp"
 
 #: The settings the Statistical Analysis page owns, as record suffixes.
 SUFFIXES = ("sr_lim", "al_min", "al_max", "ds_hf", "ds_sf", "tl_def")
@@ -245,13 +246,28 @@ class BasicPageWritesTheAbsoluteLimitFloorToTheRecord(unittest.TestCase):
                          "flat key the engine discards")
 
     def test_the_floor_lands_on_the_record(self):
+        """And the rest of the block with it.
+
+        Setting alMin alone left the record stating the new species' floor
+        beside the previous one's ceiling, discontinuity limits and time-lag
+        window - a mixture that was never any gas's. Every threshold in the
+        block belongs to a species, so a species change re-seeds all of them
+        through defaultGasProcessing, which carries the GasMetadata floor
+        itself.
+        """
         body = self.src[self.src.index(
             "void BasicSettingsPage::applyGasAbsoluteLimitMin"):]
         body = body[: body.index("\n}")]
-        self.assertIn("proc.alMin", body)
+        self.assertIn("proc = ecProject_->defaultGasProcessing", body)
         self.assertIn("setGasColumns", body,
                       "a mutated copy of the record list has to be put back")
-        self.assertIn("defaultAbsoluteLimitMin", body)
+
+        defaults = _read(EC_PROJECT)
+        helper = defaults.index(
+            "GasProcessingSettings EcProject::defaultGasProcessing")
+        defaults = defaults[helper: defaults.index("\n}\n", helper) + 3]
+        self.assertIn("defaultAbsoluteLimitMin", defaults,
+                      "the species floor must still reach the record")
 
     def test_the_seed_is_kept_per_record(self):
         """One string cannot say which record changed, so with more than one
@@ -279,7 +295,14 @@ class LegacySettingsMigration(unittest.TestCase):
         # The function ends at the first closing brace in column 0.
         end = src.index("\n}\n", start) + 3
         self.body = src[start:end]
-        self.fields = set(re.findall(r'proc\.(\w+)', self.body))
+        #: The species-to-threshold mapping the migration now consumes. It was
+        #: inline here until a record created from scratch needed the same
+        #: answer: a gas added, or moved to another column, got a record whose
+        #: settings stayed at the sentinel and were written as no keys at all.
+        #: The invariants below are about that mapping, so they follow it.
+        helper = src.index("GasProcessingSettings EcProject::defaultGasProcessing")
+        self.defaults = src[helper: src.index("\n}\n", helper) + 3]
+        self.fields = set(re.findall(r'proc\.(\w+)', self.body + self.defaults))
 
     def test_every_processing_setting_is_migrated(self):
         """The migration must cover all of GasProcessingSettings."""
@@ -305,10 +328,17 @@ class LegacySettingsMigration(unittest.TestCase):
         migration lays the legacy slots down in that order - on a project that
         named only CO2 and CH4, index 1 is CH4 and it was CH4's minimum flux
         that got dropped.
+
+        The carve-out lives in defaultGasProcessing now, which both the
+        migration and a newly created record read. It used to be a second loop
+        in the migration with its own tables and its own taken[] array; one
+        place means a record cannot be seeded with a carve-out the migration
+        honours, or the reverse.
         """
-        self.assertIn('gases.at(i).slug == QLatin1String("h2o")', self.body)
+        self.assertIn('slug != QLatin1String("h2o")', self.defaults)
+        self.assertNotIn("if (i == 1) { continue; }", self.defaults)
         for field in ("toMinFlux", "saMinUn", "saMinSt", "saMax"):
-            self.assertIn("proc.%s" % field, self.body)
+            self.assertIn("proc.%s" % field, self.defaults)
 
     def test_migration_runs_after_the_whole_file_is_read(self):
         """The settings live in five sections read long after [Project].
@@ -1088,6 +1118,10 @@ class LegacyMigrationCoversWhatTheProjectHas(unittest.TestCase):
         src = _read(EC_PROJECT)
         start = src.index("void EcProject::migrateLegacyGasSettings")
         cls.body = src[start: src.index("\n}", start)]
+        #: The species-to-threshold mapping, shared with every record created
+        #: after the upgrade. See LegacySettingsMigration.setUp.
+        helper = src.index("GasProcessingSettings EcProject::defaultGasProcessing")
+        cls.defaults = src[helper: src.index("\n}\n", helper) + 3]
 
     def test_it_does_not_demand_four_records(self):
         """Nor address them by position.
@@ -1105,6 +1139,72 @@ class LegacyMigrationCoversWhatTheProjectHas(unittest.TestCase):
     def test_water_is_skipped_by_species(self):
         """The three latent-heat settings are not per-gas. Skipping index 1
         instead assumes water sits there - true after migration, but not for a
-        project that has only CO2 and CH4, where index 1 is CH4."""
+        project that has only CO2 and CH4, where index 1 is CH4.
+
+        Asked of defaultGasProcessing, which is where the mapping moved."""
         self.assertNotIn("if (i == 1) { continue; }", self.body)
-        self.assertIn('gases.at(i).slug == QLatin1String("h2o")', self.body)
+        self.assertNotIn("if (i == 1) { continue; }", self.defaults)
+        self.assertIn('slug != QLatin1String("h2o")', self.defaults)
+
+
+class EveryGasRecordStartsWithACompleteBlock(unittest.TestCase):
+    """A record created from scratch carries its species' thresholds.
+
+    The writer emits a per-gas key only where the record holds a real value,
+    because the engine treats a *present* tag as an override and a sentinel
+    would replace a legacy threshold with one. The corollary is that a record
+    whose settings are all -1 is written with no keys at all - and the engine
+    reads an absent al_min/al_max as "not configured" and declines the
+    absolute-limits test. Silently: the only trace is a 9 in a packed flag
+    string, beside the 9s that mean "gas not present".
+
+    migrateLegacyGasSettings fills the settings once, on a legacy upgrade, so
+    only records that survived that upgrade had any. A gas added afterwards -
+    or moved to a different column, which creates a new record - got nothing.
+
+    Observed on a CO2/H2O/COS project whose CO2 and H2O had been moved onto a
+    second analyser: the saved project carried a full settings block for COS
+    and, for the other two, `var`, `instr` and `col` alone. CO2 and H2O then
+    ran with no absolute limits, no spike limit and no time-lag window, and
+    the run looked normal.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        src = _read(BASIC_PAGE_SRC)
+        start = src.index("void BasicSettingsPage::addGasRecord")
+        cls.add_body = src[start: src.index("\n}", start)]
+
+    def test_a_new_record_is_seeded_from_its_species(self):
+        self.assertIn("rec.proc = ecProject_->defaultGasProcessing(slug)",
+                      self.add_body,
+                      "a record left at the sentinel is written with no "
+                      "per-gas keys, which the engine reads as unconfigured")
+
+    def test_the_seed_and_the_migration_share_one_mapping(self):
+        """Two tables would drift, and the drift is invisible: both produce a
+        project the engine parses happily."""
+        src = _read(EC_PROJECT)
+        self.assertEqual(
+            1,
+            src.count("GasProcessingSettings EcProject::defaultGasProcessing"),
+            "one definition of the species-to-threshold mapping")
+        migration = src[src.index("void EcProject::migrateLegacyGasSettings"):]
+        migration = migration[: migration.index("\n}\n")]
+        self.assertIn("defaultGasProcessing(gases.at(i).slug)", migration,
+                      "the migration must consume the shared mapping rather "
+                      "than carry a second copy of the tables")
+
+    def test_the_mapping_is_case_insensitive(self):
+        """Records hold a lowercase slug; the open slot's dropdown hands over a
+        display formula. Both have to reach the same species, or a gas selected
+        by name gets the open slot's thresholds while the same gas selected by
+        column gets its own."""
+        src = _read(EC_PROJECT)
+        helper = src.index("GasProcessingSettings EcProject::defaultGasProcessing")
+        body = src[helper: src.index("\n}\n", helper) + 3]
+        self.assertIn("rawSlug.toLower()", body)
+
+
+if __name__ == "__main__":
+    unittest.main()
