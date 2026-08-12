@@ -144,6 +144,11 @@ public:
     //> table's warning triangle and its tooltip as well as by the dialog, so
     //> the mark and the message cannot disagree.
     QString crossAnalyserWaterInstrument(int gasRecordIndex) const;
+    //> Whether a biomet RH column is standing in for what the hygrometers
+    //> measured: a biomet RH is selected *and* some gas record is water.
+    //> Asked by the dialog, the RH row's triangle and its tooltip, so the
+    //> three cannot disagree about when the case applies.
+    bool biometRhOverridesHygrometers() const;
     int moistureRefForGas(int gasRecordIndex) const;
     //> Correct this gas with the H2O measured at \a rawColumn, switching that
     //> column on when it is not a record yet. Keyed on the column because the
@@ -163,6 +168,9 @@ public:
     //> dialog raised there runs a nested event loop while the combo editor is
     //> still open - and over a table not yet redrawn.
     void warnOnCrossAnalyserMoisture(int gasRecordIndex);
+    //> Raised from updateRhCombo alone, on the transition into the override.
+    //> An already-configured project gets the triangle on the RH row instead.
+    void warnOnBiometRhOverride();
     qreal gasMolecularWeight(int gasRecordIndex) const;
     qreal gasDiffusivity(int gasRecordIndex) const;
     void setGasMolecularWeight(int gasRecordIndex, qreal value);
@@ -257,6 +265,10 @@ private:
     ClickLabel* gasDiffLabel;
     QDoubleSpinBox *gasDiff;
     QPushButton* moreButton;
+    //> Which analyser's gases lead the record list, and so carry `_1` in the
+    //> full output and the unsuffixed species names in the FLUXNET file.
+    //> Backed by record order alone - see EcProject::setPrimaryGasInstrument.
+    QComboBox* primaryInstrumentCombo;
     QComboBox* airTRefCombo;
     QComboBox* airPRefCombo;
     QComboBox* rhCombo;
@@ -387,6 +399,14 @@ private:
     //> every gas while a tagged one reaches only its own, so that gap decides
     //> which analyser's cell conditions a gas is computed against.
     void syncNonGasRecordInstruments();
+
+    //> Refill the primary-instrument list from the analysers the gas records
+    //> name, and point it at the one currently leading. Called whenever the
+    //> records change, because an analyser can appear or disappear with them.
+    void refreshPrimaryInstrumentCombo();
+    //> Reorder the gas records so the chosen analyser leads, then rebuild the
+    //> tables from the new order.
+    void onPrimaryInstrumentChanged();
 
     //> Fill the species and instrument a migrated project could not carry:
     //> a pre-record file names a raw column and nothing else.

@@ -3789,6 +3789,28 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
     return true;
 }
 
+/// Rewrite every moistureRef through \a remap, a map from old 1-based position
+/// to new, with 0 meaning "gone".
+///
+/// Any rearrangement of the gas list has to do this, and there is now more than
+/// one: compaction drops records, and choosing a primary instrument reorders
+/// them. `moistureRef` is a 1-based index into the very list being rearranged,
+/// so a rearrangement that forgets it repoints one gas's humidity at another
+/// gas — invisible until a flux is corrected against the wrong water. One
+/// implementation, so the second caller cannot be the one that forgets.
+static void remapMoistureRefs(QVector<GasRecord>& gases,
+                              const QVector<int>& remap)
+{
+    for (auto& gas : gases)
+    {
+        //> A reference to a record that went away becomes automatic rather
+        //> than some other gas: auto re-resolves on every read, so it repairs
+        //> itself instead of silently naming an unrelated species.
+        gas.moistureRef = gas.moistureRef > 0 && gas.moistureRef < remap.size()
+                ? remap.at(gas.moistureRef) : 0;
+    }
+}
+
 /// Drop every gas record that names no column, and renumber what pointed past
 /// one.
 ///
@@ -3807,8 +3829,7 @@ void EcProject::compactGasRecords()
     //> Old 1-based position to new, or 0 for a record that goes. Built before
     //> anything is removed, because moistureRef is a 1-based index into this
     //> same list and would otherwise point one gas too far for every record
-    //> after the hole - the failure that is invisible until a flux is
-    //> corrected against the wrong water.
+    //> after the hole.
     QVector<int> remap(gases.size() + 1, 0);
     QVector<GasRecord> kept;
     kept.reserve(gases.size());
@@ -3821,16 +3842,72 @@ void EcProject::compactGasRecords()
 
     if (kept.size() == gases.size()) { return; }
 
-    for (auto& gas : kept)
-    {
-        //> A reference to a record that just went away becomes automatic
-        //> rather than some other gas: auto re-resolves on every read, so it
-        //> repairs itself instead of silently naming an unrelated species.
-        gas.moistureRef = gas.moistureRef > 0 && gas.moistureRef < remap.size()
-                ? remap.at(gas.moistureRef) : 0;
-    }
-
+    remapMoistureRefs(kept, remap);
     gases = kept;
+}
+
+QString EcProject::primaryGasInstrument() const
+{
+    for (const auto& rec : ec_project_state_.projectGeneral.gasColumns)
+    {
+        if (MeasurementRecords::isRealInstrument(rec.instrumentId))
+        {
+            return rec.instrumentId;
+        }
+    }
+    return QString();
+}
+
+bool EcProject::setPrimaryGasInstrument(const QString& instrumentId)
+{
+    auto& gases = ec_project_state_.projectGeneral.gasColumns;
+    if (gases.isEmpty()) { return false; }
+
+    //> Which analyser leads is expressed as record order, and as nothing else.
+    //>
+    //> The engine reads gas records in file order: the full output emits its
+    //> column families in that order and numbers a repeated species by it, and
+    //> DesignatedGasSlot — which decides the bare FLUXNET species names, the
+    //> hygrometer behind the unsuffixed H/LE/ET, and the CEC pair — takes the
+    //> first record of each species. Putting the chosen analyser's records
+    //> first therefore gives it co2_1, h2o_1 and the unsuffixed FLUXNET
+    //> columns with nothing else to set: no new project key, and no engine
+    //> change to keep in step with this one.
+    //>
+    //> Stable within each group, so the order the user arranged among an
+    //> analyser's own gases survives; only the two groups move relative to
+    //> each other.
+    QVector<GasRecord> reordered;
+    reordered.reserve(gases.size());
+    QVector<int> remap(gases.size() + 1, 0);
+
+    const auto take = [&](bool wantPrimary)
+    {
+        for (int i = 0; i < gases.size(); ++i)
+        {
+            const bool isPrimary = !instrumentId.isEmpty()
+                    && gases.at(i).instrumentId == instrumentId;
+            if (isPrimary != wantPrimary) { continue; }
+            reordered.append(gases.at(i));
+            remap[i + 1] = reordered.size();
+        }
+    };
+    take(true);
+    take(false);
+
+    bool moved = false;
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        if (remap.at(i + 1) != i + 1) { moved = true; break; }
+    }
+    if (!moved) { return false; }
+
+    //> Built before anything moved, applied to the new list — see
+    //> remapMoistureRefs.
+    remapMoistureRefs(reordered, remap);
+    gases = reordered;
+    setModified(true);
+    return true;
 }
 
 /// Carry the legacy per-gas processing settings onto the records.

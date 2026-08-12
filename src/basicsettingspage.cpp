@@ -300,6 +300,15 @@ public:
             {
                 return crossAnalyserIcon();
             }
+            //> The RH row of the ambient table, when a biomet humidity is
+            //> standing in for what the hygrometers measured. Same column and
+            //> the same reasoning as above: that table is built without the
+            //> molecular columns, so Variable is present and painted by the
+            //> default painter, which honours a decoration.
+            if (index.column() == Variable && biometRhOverride(row))
+            {
+                return crossAnalyserIcon();
+            }
             return QVariant();
         }
         if (role != Qt::DisplayRole && role != Qt::EditRole && role != Qt::ToolTipRole)
@@ -334,6 +343,20 @@ public:
                 }
                 if (role == Qt::ToolTipRole)
                 {
+                    //> What the triangle on the RH row means. Same placement
+                    //> rule as the gas one above: beside the mark, where
+                    //> someone puzzled by it will point.
+                    if (biometRhOverride(row))
+                    {
+                        QString tooltip = row.row.tooltip;
+                        if (!tooltip.isEmpty()) { tooltip += QStringLiteral("\n\n"); }
+                        tooltip += tr("This biomet humidity replaces what every "
+                                      "hygrometer measured: their mole fraction, "
+                                      "mixing ratio and molar density are reported "
+                                      "from it, and every gas is WPL-corrected with "
+                                      "it. The fluxes themselves are unaffected.");
+                        return tooltip;
+                    }
                     return row.row.tooltip;
                 }
                 return row.variableText;
@@ -638,6 +661,16 @@ private:
         const int idx = gasRecordIndex(row);
         if (idx < 0) { return QString(); }
         return page_->crossAnalyserWaterInstrument(idx);
+    }
+
+    //> Whether this row is the RH row while a biomet humidity is standing in
+    //> for the hygrometers. The condition itself belongs to the page, shared
+    //> with the dialog and the tooltip; only "is this the RH row" is local.
+    bool biometRhOverride(const VariableTableCandidate& row) const
+    {
+        if (!page_) { return false; }
+        if (row.row.role != VariableTableRole::Rh) { return false; }
+        return page_->biometRhOverridesHygrometers();
     }
 
     //> The mark itself, built once.
@@ -1540,6 +1573,63 @@ void BasicSettingsPage::warnOnCrossAnalyserMoisture(int gasRecordIndex)
             .arg(species, gas.instrumentId, waterInstrument));
 }
 
+/// Whether a biomet relative humidity column is overriding the hygrometers.
+///
+/// One predicate for the dialog, the triangle and the tooltip. Three copies of
+/// a condition is how the three come to disagree about when to appear.
+///
+/// Both halves matter. A biomet RH column alone is not the case being warned
+/// about - with no hygrometer it is the *cure*, and showNoHumidityWarning says
+/// so. The two warnings are opposites and must never both fire, which is why
+/// they test the same two things and reach opposite conclusions.
+bool BasicSettingsPage::biometRhOverridesHygrometers() const
+{
+    if (!ecProject_) { return false; }
+    if (ecProject_->biomParamColRh() <= 0) { return false; }
+
+    for (const auto& gas : ecProject_->gasColumns())
+    {
+        if (gas.slug.compare(QLatin1String("h2o"), Qt::CaseInsensitive) == 0)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// Tell the user their biomet RH replaces what the hygrometers measured.
+///
+/// Raised from updateRhCombo alone, so it answers a selection the user just
+/// made. Opening a project that already has both is marked by the triangle on
+/// the RH row instead - the rule established for the cross-analyser water
+/// warning above, for the same reason: a dialog about a decision nobody just
+/// took is noise.
+///
+/// No once-per-session flag, also as above. It fires on an action, and an
+/// action repeated deserves the same answer.
+void BasicSettingsPage::warnOnBiometRhOverride()
+{
+    if (!biometRhOverridesHygrometers()) { return; }
+
+    WidgetUtils::information(
+        QApplication::activeWindow(),
+        tr("Biomet Humidity Replaces the Hygrometers"),
+        tr("<p>You selected a biomet relative humidity column, and this "
+           "project also measures H<sub>2</sub>O with an analyser.</p>"
+           "<p>EddyFlow treats the biomet sensor as the site's humidity. It "
+           "will report <b>every</b> hygrometer's mole fraction, mixing ratio "
+           "and molar density from the biomet value rather than from what "
+           "that instrument measured, and it will use the biomet humidity in "
+           "the WPL correction of every gas.</p>"
+           "<p>The fluxes themselves are not affected. Water vapour flux, "
+           "LE, ET and every covariance come from the analyser's "
+           "high-frequency signal, which this does not touch.</p>"
+           "<p>This is usually what you want &mdash; a calibrated RH sensor "
+           "is generally steadier than an analyser's water channel over a "
+           "long deployment. Deselect the biomet column if you would rather "
+           "each hygrometer reported its own humidity.</p>"));
+}
+
 /// Molecular weight of a gas record, or its species default.
 ///
 /// The record is the authority; the species table supplies the value the
@@ -2190,6 +2280,29 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
 
     auto varTitle_1 = new QLabel(tr("Gas, cell, and diagnostic measurements (eddy data)"));
     varTitle_1->setProperty("groupLabel", true);
+
+    primaryInstrumentCombo = new QComboBox;
+    primaryInstrumentCombo->setToolTip(
+        tr("<b>Primary analyser:</b> the instrument whose gases are listed "
+           "first in the output.<br><br>"
+           "This changes column names and order only — no flux value "
+           "depends on it. A species measured on two analysers is numbered by "
+           "this order, so the primary's carbon dioxide is "
+           "<i>co2_1_flux</i> and the other analyser's is <i>co2_2_flux</i>. "
+           "In the FLUXNET file the primary also takes the unsuffixed "
+           "standard names (<i>CO2</i>, <i>H2O</i>), and its hygrometer "
+           "supplies the unsuffixed <i>H</i>, <i>LE</i> and <i>ET</i> while "
+           "the others become <i>H_2</i>, <i>LE_2</i>, <i>ET_2</i>.<br><br>"
+           "The mapping is written out in the <i>column_legend</i> file "
+           "beside the results."));
+    auto primaryInstrumentLabel = new QLabel(tr("Primary analyser:"));
+    primaryInstrumentLabel->setToolTip(primaryInstrumentCombo->toolTip());
+    auto primaryInstrumentLayout = new QHBoxLayout;
+    primaryInstrumentLayout->setContentsMargins(0, 0, 0, 0);
+    primaryInstrumentLayout->setSpacing(6);
+    primaryInstrumentLayout->addWidget(primaryInstrumentLabel);
+    primaryInstrumentLayout->addWidget(primaryInstrumentCombo);
+    primaryInstrumentLayout->addStretch();
     auto varTitle_2 = new QLabel(tr("Ambient measurements (eddy or biomet data, used for flux correction and calculation of other parameters)"));
     varTitle_2->setProperty("groupLabel", true);
 
@@ -2265,6 +2378,7 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     varLayout->setContentsMargins(15, 0, 0, 0);
     varLayout->setSpacing(6);
     varLayout->addWidget(varTitle_1);
+    varLayout->addLayout(primaryInstrumentLayout);
     varLayout->addWidget(fluxVariablesTable_);
     varLayout->addSpacing(6);
     varLayout->addWidget(varTitle_2);
@@ -2534,6 +2648,13 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
 
     connect(airPRefCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateAirPRefCombo);
+
+    //> activated, not currentIndexChanged: refreshPrimaryInstrumentCombo sets
+    //> the index programmatically whenever the records change, and that must
+    //> not be mistaken for the user choosing a new primary and reordering the
+    //> list underneath them.
+    connect(primaryInstrumentCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::onPrimaryInstrumentChanged);
 
     connect(rhCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateRhCombo);
@@ -4641,7 +4762,19 @@ void BasicSettingsPage::updateAirPRefCombo(int i)
 void BasicSettingsPage::updateRhCombo(int i)
 {
     auto colNum = rhCombo->itemData(i).toInt();
+    const bool wasOverriding = biometRhOverridesHygrometers();
     ecProject_->setBiomParamColRh(colNum);
+
+    //> Only on the transition into it. Re-picking a different biomet RH column
+    //> while already overriding changes which sensor, not whether the
+    //> hygrometers are replaced, and the user has been told that already.
+    if (!wasOverriding && biometRhOverridesHygrometers())
+    {
+        warnOnBiometRhOverride();
+    }
+    //> The triangle on this row appears and disappears with the same
+    //> condition, and the row is drawn from the model rather than the combo.
+    refreshVariableTables();
 }
 
 void BasicSettingsPage::updateRgCombo(int i)
@@ -5270,6 +5403,10 @@ void BasicSettingsPage::reloadSelectedItems_1()
 
     refreshVariableTables();
 
+    //> After the records are settled: the list of analysers to choose from is
+    //> exactly the set the gas records name, and that is only known now.
+    refreshPrimaryInstrumentCombo();
+
     //> After the records are settled, so the check sees the project
     //> as it will be processed rather than mid-selection.
     showNoHumidityWarning();
@@ -5581,6 +5718,82 @@ void BasicSettingsPage::refreshVariableTables()
 /// *ambient* pressure. On a site with two analysers that silently computed one
 /// of them against the other's cell, or against the open air.
 ///
+/// Refill the primary-analyser list and point it at the one leading now.
+///
+/// The choices are the analysers the gas records actually name, so the list
+/// tracks the Variables table: select a gas on a second analyser and it
+/// appears here, deselect the last one and it goes. `none` and `other` are
+/// excluded — many unrelated variables carry "Other", so it identifies no
+/// instrument, which is the same carve-out the moisture pairing makes.
+///
+/// The current entry is derived from record order rather than stored, so a
+/// project edited outside this interface still shows the analyser whose
+/// columns it will actually produce.
+///
+/// There is no "automatic" entry, and that is a consequence of the design
+/// rather than an omission. Record order *is* the setting: no flag is written
+/// alongside it, so "nobody has chosen" and "this analyser happens to be
+/// first" are the same file and the same output. An entry for the first would
+/// be indistinguishable from the second after a reload and would do nothing
+/// when selected. The box instead always names the analyser that leads, which
+/// for an untouched project is exactly the automatic answer - said out loud.
+void BasicSettingsPage::refreshPrimaryInstrumentCombo()
+{
+    if (!ecProject_ || !primaryInstrumentCombo) { return; }
+
+    QStringList instruments;
+    for (const auto& rec : ecProject_->gasColumns())
+    {
+        if (!MeasurementRecords::isRealInstrument(rec.instrumentId)) { continue; }
+        if (instruments.contains(rec.instrumentId)) { continue; }
+        instruments.append(rec.instrumentId);
+    }
+
+    const auto leading = ecProject_->primaryGasInstrument();
+
+    //> Rebuilt wholesale rather than patched: the set can change in any way
+    //> when records change, and a stale entry here would silently reorder the
+    //> records the next time the user opened the list.
+    QSignalBlocker blocker(primaryInstrumentCombo);
+    primaryInstrumentCombo->clear();
+    if (instruments.isEmpty())
+    {
+        primaryInstrumentCombo->addItem(tr("(no gas selected)"), QString());
+    }
+    for (const auto& id : instruments)
+    {
+        primaryInstrumentCombo->addItem(id, id);
+    }
+
+    //> Fewer than two analysers is no choice at all - the only one there is
+    //> already leads, whatever the user might click.
+    primaryInstrumentCombo->setEnabled(instruments.size() > 1);
+
+    const int idx = primaryInstrumentCombo->findData(leading);
+    primaryInstrumentCombo->setCurrentIndex(idx >= 0 ? idx : 0);
+}
+
+/// Reorder the gas records so the chosen analyser leads.
+///
+/// Everything the choice controls follows from that order, so there is nothing
+/// else to write - see EcProject::setPrimaryGasInstrument. The tables are
+/// rebuilt afterwards because the rows are drawn from the record list and half
+/// of them have just moved.
+void BasicSettingsPage::onPrimaryInstrumentChanged()
+{
+    if (!ecProject_ || !primaryInstrumentCombo) { return; }
+
+    const auto chosen =
+        primaryInstrumentCombo->currentData().toString();
+    if (!ecProject_->setPrimaryGasInstrument(chosen)) { return; }
+
+    refreshVariableTables();
+    //> The list itself does not change, but the entry that is current does:
+    //> "Automatic" now resolves to whichever analyser was just moved to the
+    //> front, and leaving the box reading "Automatic" would misdescribe it.
+    refreshPrimaryInstrumentCombo();
+}
+
 /// A record whose instrument the user set by hand is left alone: `other` and
 /// `none` are deliberate answers, not missing ones.
 void BasicSettingsPage::syncNonGasRecordInstruments()

@@ -979,6 +979,18 @@ public:
     bool isEngineStep2Needed();
     bool isGoodRawFilePrototype(const QString& s);
 
+    //> The analyser whose gases lead the record list, or empty when no record
+    //> names a real instrument. Derived rather than stored: record order *is*
+    //> the setting, so a project hand-edited outside this interface still
+    //> reports the primary its columns will actually produce.
+    QString primaryGasInstrument() const;
+
+    //> Move every gas record of \a instrumentId to the front, stably, and
+    //> remap the moisture references that index that list. An empty id matches
+    //> no record and so leaves the order as declared. Returns whether anything
+    //> moved.
+    bool setPrimaryGasInstrument(const QString& instrumentId);
+
 public slots:
     void setModified(bool mod);
 

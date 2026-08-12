@@ -1007,13 +1007,18 @@ class OutputColumnsAreNamedForTheirSpecies(unittest.TestCase):
             "a slot is tagged by position again, so the duplicate check "
             "below it compares later gases against the literal 'GS4' and "
             "cannot see a repeated species")
-        self.assertIn("EddyFlowProj%gas(k)%var", block,
+        #> `rec`, not `k`. The layout pass walks FluxnetLayoutSlots and reads
+        #> whichever record each position holds, the two not being required to
+        #> run together. This assertion went on naming the loop variable of the
+        #> *other* loop in the routine and so had quietly stopped matching -
+        #> a cross-repo anchor nothing re-ran after the engine's layout refactor.
+        self.assertIn("EddyFlowProj%gas(rec)%var", block,
                       "gas tags must come from the record's species")
 
     def test_the_duplicate_check_covers_every_slot(self):
         """Two records of one species must give H2O and H2O_2, not two H2O."""
         block = self._record_branch()
-        tag_at = block.index("tag = EddyFlowProj%gas(k)%var")
+        tag_at = block.index("tag = EddyFlowProj%gas(rec)%var")
         dup_at = block.index("dup = 0")
         self.assertLess(
             tag_at, dup_at,
