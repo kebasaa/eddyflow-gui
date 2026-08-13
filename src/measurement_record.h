@@ -101,6 +101,15 @@ struct GasRecord : MeasurementRecord
 
 namespace MeasurementRecords {
 
+/// `moistureRef` value meaning "the biomet relative humidity".
+///
+/// Negative so it can never be mistaken for a 1-based record index, and the
+/// same number as the engine's `biometMoistRef` in m_typedef.f90. The two are
+/// one value written down twice, with the project file carrying it between
+/// them; changing one alone silently repoints every gas that names the biomet
+/// at a hygrometer instead.
+inline constexpr int biometMoistureRef = -1;
+
 /// Instrument id used when a variable has no analyser (legal for cell T/P).
 inline QString noneInstrument() { return QStringLiteral("none"); }
 /// Instrument id used when the user picked "Other".
@@ -117,13 +126,22 @@ inline bool isRealInstrument(const QString& instrumentId)
         && instrumentId != otherInstrument();
 }
 
-/// Index (1-based) of the H2O record that should correct \a gas.
+/// The moisture source this gas will actually be corrected with.
 ///
-/// Mirrors the engine's ResolveGasRef exactly: an explicit choice wins, then
-/// the H2O on the same analyser, then the first H2O of any. Returns 0 when the
-/// project has no H2O at all. Keep this and the engine in step - a difference
-/// here shows up as fluxes that do not match what the interface promised.
-int resolveMoistureRef(const QVector<GasRecord>& gases, int gasIndex);
+/// Mirrors the engine's ResolveGasRef: an explicit choice wins, then the H2O
+/// on the gas's own analyser, then the biomet. Returns biometMoistureRef for
+/// the biomet, a 1-based record index for a hygrometer, and 0 for nothing.
+/// Keep this and the engine in step - a difference here shows up as fluxes
+/// that do not match what the interface promised.
+///
+/// The old last rule, "the first H2O of any analyser", is gone from both:
+/// it handed a gas whose own analyser has no hygrometer another instrument's
+/// water, through a different cell at a different time lag.
+///
+/// biometRhAvailable says whether the project names a biomet RH column;
+/// neither of the last two rules can be answered without it.
+int resolveMoistureRef(const QVector<GasRecord>& gases, int gasIndex,
+                       bool biometRhAvailable = false);
 
 /// Reset references that point at records which no longer exist.
 void validateReferences(QVector<GasRecord>& gases,

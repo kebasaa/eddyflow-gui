@@ -1,24 +1,31 @@
-"""Selecting a biomet RH column replaces what the hygrometers measured.
+"""Which humidity corrects a gas is the user's choice, per gas.
 
-The engine treats a biomet relative humidity sensor as the site's humidity: it
-reports every hygrometer's mole fraction, mixing ratio and molar density from
-that value rather than from the instrument's own channel, and it WPL-corrects
-every gas with it. That is usually the right call - a calibrated RH sensor is
-steadier than an analyser's water channel over a long deployment - but nothing
-told the user it was happening, and a column named `h2o_1_mixing_ratio` reading
-biomet rather than the LI-7200 is not something anyone would guess.
+A site can have two hygrometers and a biomet RH sensor, and until now the
+engine decided between them on its own: biomet overwrote the *primary*
+hygrometer's reported humidity and nothing else, so which instrument's numbers
+were real followed the primary designation. Widening that to every hygrometer
+only replaced one blanket rule with another.
 
-So: a dialog when the user turns it on, a triangle on the RH row when a project
-arrives with it already on. That split is the rule established for the
-cross-analyser water warning, and for the same reason - a dialog about a
-decision nobody just took is noise, and the second time it appears the user has
-learned to dismiss it without reading.
+So the Moisture column offers the biomet alongside the analyser channels, and a
+tickbox sets every gas to it at once for the common case. Three things this
+file exists to hold in place:
 
-The condition has two halves and both matter. A biomet RH column with no
-hygrometer is not this case at all: there is nothing to override, and
-`showNoHumidityWarning` tells the user that a biomet RH is exactly what their
-project needs. The two warnings are opposites. They test the same two things
-and must never both appear, which is only reliable while they share the test.
+  - **The sentinel is one number written down twice.** `moistureRef = -1` means
+    the biomet here and in the engine's `biometMoistRef`, and the project file
+    carries it between them. Anything that treats a negative reference as
+    corruption - `validateReferences` did - turns "use the biomet" into "work
+    it out yourself" on the next load, and the dropdown appears to forget.
+
+  - **`resolveMoistureRef` mirrors `ResolveGasRef`.** Explicit choice, then the
+    gas's own analyser, then the biomet. The interface shows what the engine
+    will use, or it is lying about the fluxes.
+
+  - **The tickbox is the only action with a consequence.** Selecting a biomet
+    RH column makes the biomet *available*; it overrides nothing by itself, so
+    it raises nothing. Ticking the box changes every gas, and says so.
+
+The engine never reads `biom_rh_override`. It acts on the per-gas references
+the box sets, and the key exists only so the box comes back ticked.
 """
 
 from pathlib import Path
@@ -30,6 +37,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 PAGE = "src/basicsettingspage.cpp"
 PAGE_H = "src/basicsettingspage.h"
+PROJECT = "src/ecproject.cpp"
+RECORD_H = "src/measurement_record.h"
+RECORD = "src/measurement_record.cpp"
 
 
 def read(path):
@@ -62,146 +72,181 @@ def body(path, signature):
     raise AssertionError("unterminated body for %s" % signature)
 
 
-class OnePredicateForAllThree(unittest.TestCase):
-    """Dialog, triangle and tooltip. Three copies of a condition is how the
-    mark comes to appear where the message does not, or the reverse."""
+class TheSentinelSurvivesTheRoundTrip(unittest.TestCase):
+    def test_it_is_a_named_constant(self):
+        self.assertIn("inline constexpr int biometMoistureRef = -1;",
+                      code(RECORD_H))
 
-    def test_the_predicate_exists(self):
-        self.assertIn("bool BasicSettingsPage::biometRhOverridesHygrometers() const",
-                      code(PAGE))
+    def test_nothing_uses_the_bare_literal(self):
+        """A -1 spelled out is a -1 nobody can grep for when the engine's
+        matching constant changes."""
+        for path in (PAGE, PROJECT, RECORD):
+            src = code(path)
+            self.assertNotIn("moistureRef = -1", src,
+                             "%s must go through the named constant" % path)
 
-    def test_it_tests_both_halves(self):
-        block = body(PAGE, "bool BasicSettingsPage::biometRhOverridesHygrometers() const")
-        self.assertIn("biomParamColRh()", block)
-        self.assertIn('QLatin1String("h2o")', block,
-                      "a biomet RH with no hygrometer is not this case - it is "
-                      "the case showNoHumidityWarning is about")
+    def test_validation_does_not_reset_it(self):
+        """It used to zero every negative reference, which would silently undo
+        the user's choice on each load."""
+        block = body(RECORD, "void validateReferences(")
+        self.assertIn("gas.moistureRef != biometMoistureRef", block,
+                      "the biomet sentinel is a valid reference, not a "
+                      "corrupt index, and must survive validation")
 
-    def test_every_consumer_asks_it(self):
+    def test_the_engine_constant_is_named_in_the_comment(self):
+        """One value, two files, joined only by the project file."""
+        self.assertIn("biometMoistRef", read(RECORD_H))
+
+
+class ResolutionMirrorsTheEngine(unittest.TestCase):
+    def setUp(self):
+        self.block = body(RECORD, "int resolveMoistureRef(")
+
+    def test_an_explicit_biomet_choice_wins(self):
+        self.assertIn("gas.moistureRef == biometMoistureRef", self.block)
+
+    def test_the_own_analyser_hygrometer_comes_next(self):
+        self.assertIn("gases.at(i).instrumentId == gas.instrumentId",
+                      self.block)
+
+    def test_the_last_rule_is_the_biomet_not_a_borrowed_hygrometer(self):
+        """The old fallback took the first H2O of any analyser, through a
+        different cell at a different time lag."""
+        self.assertIn("if (biometRhAvailable) { return biometMoistureRef; }",
+                      self.block)
+        self.assertNotIn("if (gases.at(i).slug == kH2o) { return i + 1; }",
+                         self.block,
+                         "borrowing another analyser's water is no longer an "
+                         "automatic outcome")
+
+    def test_the_order_is_own_analyser_before_biomet(self):
+        self.assertLess(
+            self.block.index("gases.at(i).instrumentId == gas.instrumentId"),
+            self.block.index("if (biometRhAvailable) { return biometMoistureRef; }"))
+
+    def test_callers_say_whether_a_biomet_exists(self):
+        """Without the flag the last two rules cannot be answered, and the
+        default of false would quietly report no moisture source at all."""
         src = code(PAGE)
-        #> The predicate's own definition, the dialog, the model helper, and
-        #> the transition test in updateRhCombo.
-        self.assertGreaterEqual(src.count("biometRhOverridesHygrometers()"), 4)
-        self.assertIn("page_->biometRhOverridesHygrometers()", src,
-                      "the table must ask the page rather than re-deriving it")
-
-    def test_the_two_warnings_cannot_both_fire(self):
-        """showNoHumidityWarning returns early when a biomet RH column is
-        selected; this one returns early when no gas record is water. They
-        partition the space."""
-        other = body(PAGE, "void BasicSettingsPage::showNoHumidityWarning()")
-        self.assertIn("biomParamColRh() > 0) { return; }", other)
+        for m in re.finditer(r"resolveMoistureRef\(([^;]*?)\);", src, re.S):
+            self.assertIn("biometRhAvailable()", m.group(1),
+                          "every caller must pass the availability flag")
 
 
-class TheDialogAnswersAnAction(unittest.TestCase):
-    def test_it_is_raised_from_the_combo_handler(self):
+class TheDropdownOffersIt(unittest.TestCase):
+    def setUp(self):
+        self.block = body(PAGE, "QVector<QPair<int, QString>> BasicSettingsPage::moistureChoices() const")
+
+    def test_only_when_the_project_has_one(self):
+        self.assertIn("if (biometRhAvailable())", self.block)
+
+    def test_it_is_keyed_on_the_biomet_column_numbering(self):
+        """Biomet columns carry col + 1000 through this interface, so the entry
+        cannot collide with a raw column and setMoistureColumnForGas can tell
+        the two apart without a second parameter."""
+        self.assertIn("ecProject_->biomParamColRh()", self.block)
+
+    def test_one_spelling_shared_with_the_cell(self):
+        """moistureLabelForGas finds the current entry by matching this text;
+        two spellings leave the cell blank and the delegate reads that as
+        nothing selected."""
+        self.assertIn("biometMoistureLabel()", self.block)
+        self.assertIn("biometMoistureLabel()",
+                      body(PAGE, "QString BasicSettingsPage::moistureLabelForGas(int gasRecordIndex) const"))
+
+    def test_selecting_it_stores_the_sentinel(self):
+        block = body(PAGE, "bool BasicSettingsPage::setMoistureColumnForGas(int gasRecordIndex, int rawColumn)")
+        self.assertIn("if (rawColumn > 1000)", block)
+        self.assertIn("MeasurementRecords::biometMoistureRef", block)
+
+
+class TheTickboxIsTheOnlyActionThatChangesAnything(unittest.TestCase):
+    def test_selecting_an_rh_column_raises_nothing(self):
         block = body(PAGE, "void BasicSettingsPage::updateRhCombo(int i)")
-        self.assertIn("warnOnBiometRhOverride()", block)
+        self.assertNotIn("warnOnBiometRhOverride", block,
+                         "picking a biomet RH column overrides nothing on its "
+                         "own; it only makes the biomet available")
 
-    def test_only_on_the_transition_into_the_override(self):
-        """Re-picking a different biomet RH column while already overriding
-        changes which sensor, not whether the hygrometers are replaced."""
-        block = body(PAGE, "void BasicSettingsPage::updateRhCombo(int i)")
-        self.assertIn("const bool wasOverriding = biometRhOverridesHygrometers();",
-                      block)
-        self.assertIn("if (!wasOverriding && biometRhOverridesHygrometers())",
-                      block)
-        self.assertLess(block.index("wasOverriding = "),
-                        block.index("setBiomParamColRh"),
-                        "the before-state must be sampled before the project "
-                        "is changed, or it reads the after-state")
+    def test_the_box_raises_it_on_the_way_in_only(self):
+        block = body(PAGE, "void BasicSettingsPage::onBiometRhOverrideToggled(bool on)")
+        self.assertIn("if (on) { warnOnBiometRhOverride(); }", block)
 
-    def test_no_load_path_raises_it(self):
-        """Opening a project must not raise it - the triangle covers that."""
-        src = code(PAGE)
-        for caller in ("void BasicSettingsPage::reloadSelectedItems_1()",
-                       "void BasicSettingsPage::updateMetadataRead("):
-            if caller not in src:
-                continue
-            self.assertNotIn("warnOnBiometRhOverride", body(PAGE, caller),
-                             "%s must not raise a dialog about a state the "
-                             "user did not just create" % caller)
+    def test_ticking_sets_every_gas(self):
+        block = body(PROJECT, "bool EcProject::setBiometRhOverride(bool on)")
+        self.assertIn("for (auto& gas : gases)", block)
+        self.assertIn("gas.moistureRef = want", block)
 
-    def test_it_has_no_once_per_session_flag(self):
-        """It fires on an action, and an action repeated deserves the same
-        answer. The flag belongs to the load-time warnings."""
-        block = body(PAGE, "void BasicSettingsPage::warnOnBiometRhOverride()")
-        self.assertNotIn("Warned_", block)
+    def test_unticking_returns_them_to_automatic(self):
+        block = body(PROJECT, "bool EcProject::setBiometRhOverride(bool on)")
+        self.assertIn("on ? MeasurementRecords::biometMoistureRef : 0", block)
 
-    def test_the_table_is_refreshed_so_the_triangle_follows(self):
-        block = body(PAGE, "void BasicSettingsPage::updateRhCombo(int i)")
+    def test_the_box_is_disabled_without_a_biomet_column(self):
+        block = body(PAGE, "void BasicSettingsPage::refreshBiometRhOverrideBox()")
+        self.assertIn("setEnabled(biometRhAvailable())", block)
+
+    def test_rebuilding_the_box_is_not_mistaken_for_a_click(self):
+        block = body(PAGE, "void BasicSettingsPage::refreshBiometRhOverrideBox()")
+        self.assertIn("QSignalBlocker", block)
+
+    def test_the_tables_are_rebuilt_after_a_toggle(self):
+        """Every Moisture cell just changed."""
+        block = body(PAGE, "void BasicSettingsPage::onBiometRhOverrideToggled(bool on)")
         self.assertIn("refreshVariableTables()", block)
 
 
+class TheKeyIsForTheInterfaceAlone(unittest.TestCase):
+    def test_it_is_written_and_read_back(self):
+        src = code(PROJECT)
+        self.assertIn("EcIni::INI_BIOMET_RH_OVERRIDE", src)
+        self.assertEqual(2, src.count("INI_BIOMET_RH_OVERRIDE"),
+                         "written once, read once")
+
+    def test_the_write_site_says_the_engine_ignores_it(self):
+        """Every other key in that group is read by the engine, and a reader
+        will assume this one is."""
+        text = read(PROJECT)
+        at = text.index("INI_BIOMET_RH_OVERRIDE")
+        preamble = text[max(0, at - 600): at]
+        self.assertIn("engine", preamble)
+
+    def test_the_engine_does_not_read_it(self):
+        engine = ROOT.parent / "eddyflow-engine" / "src"
+        if not engine.is_dir():
+            self.skipTest("engine tree not beside this one")
+        hits = [p for p in engine.rglob("*.f90")
+                if "biom_rh_override" in p.read_text(encoding="utf-8",
+                                                     errors="replace")]
+        self.assertEqual([], hits,
+                         "the engine acts on the per-gas references, not on "
+                         "this key")
+
+
 class TheTextSaysWhatMovesAndWhatDoesNot(unittest.TestCase):
-    """Getting either half wrong sends the user looking in the wrong place."""
-
     def setUp(self):
-        self.text = read(PAGE)
-        start = self.text.index("void BasicSettingsPage::warnOnBiometRhOverride()")
-        self.block = self.text[start: start + 2200]
-
-    def test_it_names_the_columns_that_change(self):
-        for term in ("mole fraction", "mixing ratio", "molar density", "WPL"):
-            self.assertIn(term, self.block)
-
-    def test_it_says_every_hygrometer_not_just_one(self):
-        """The whole point of the engine change. Bare "every" is not enough to
-        assert on - the text says "every gas" too, so dropping the quantifier
-        from the hygrometer clause left this passing."""
-        plain = re.sub(r"<[^>]+>", "", self.block)
-        plain = re.sub(r"\s+", " ", plain)
-        self.assertIn("every hygrometer", plain)
-
-    def test_it_says_the_fluxes_are_untouched(self):
-        self.assertIn("not affected", self.block)
-        for term in ("LE", "ET", "covariance"):
-            self.assertIn(term, self.block)
-
-    def test_it_says_how_to_turn_it_off(self):
-        self.assertIn("Deselect", self.block)
-
-
-class TheTriangleMarksTheAlreadySetCase(unittest.TestCase):
-    def test_the_decoration_is_on_the_rh_row(self):
-        src = code(PAGE)
-        self.assertIn("bool biometRhOverride(const VariableTableCandidate& row) const",
-                      src)
-        block = body(PAGE, "bool biometRhOverride(const VariableTableCandidate& row) const")
-        self.assertIn("row.row.role != VariableTableRole::Rh", block)
-
-    def test_it_is_on_the_variable_column(self):
-        """paintComboCell fills the combo-painted columns from DisplayRole
-        alone, so a decoration there is discarded and reads as working."""
-        src = code(PAGE)
-        m = re.search(r"if \(index\.column\(\) == Variable && biometRhOverride\(row\)\)", src)
-        self.assertTrue(m, "the RH decoration must be on the Variable column")
-
-    def test_it_reuses_the_existing_icon(self):
-        src = code(PAGE)
-        start = src.index("biometRhOverride(row))")
-        self.assertIn("crossAnalyserIcon()", src[start: start + 200])
-
-    def test_the_tooltip_explains_the_mark(self):
-        src = code(PAGE)
-        self.assertIn("if (biometRhOverride(row))", src)
         text = read(PAGE)
-        at = text.index("This biomet humidity replaces what every")
-        tip = text[at: at + 500]
-        self.assertIn("hygrometer", tip)
-        self.assertIn("unaffected", tip)
+        start = text.index("void BasicSettingsPage::warnOnBiometRhOverride()")
+        plain = text[start: start + 1800]
+        #> Join the adjacent string literals before matching. A sentence split
+        #> across a line break is still that sentence, and an assertion that
+        #> fails on where the wrap landed tests the formatting rather than the
+        #> message.
+        plain = re.sub(r'"\s*"', "", plain)
+        plain = re.sub(r"<[^>]+>", "", plain)
+        self.plain = re.sub(r"\s+", " ", plain)
 
+    def test_it_says_every_gas(self):
+        self.assertIn("Every gas", self.plain)
 
-class ItIsDeclared(unittest.TestCase):
-    def test_the_predicate_is_reachable_from_the_table(self):
-        """The model holds a BasicSettingsPage* and calls through it."""
-        h = read(PAGE_H)
-        at = h.index("bool biometRhOverridesHygrometers() const;")
-        before = h[:at]
-        self.assertGreater(before.rindex("public:"),
-                           before.rindex("private:") if "private:" in before else -1,
-                           "the predicate must be public for the table model "
-                           "to call it")
+    def test_it_names_the_corrections_that_change(self):
+        for term in ("WPL", "drift", "LI-7700"):
+            self.assertIn(term, self.plain)
+
+    def test_it_says_the_hygrometers_still_report_themselves(self):
+        self.assertIn("still report what they measured", self.plain)
+        self.assertIn("h2o_biomet", self.plain)
+
+    def test_it_says_unticking_does_not_undo(self):
+        self.assertIn("cannot restore", self.plain)
 
 
 if __name__ == "__main__":

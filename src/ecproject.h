@@ -991,6 +991,15 @@ public:
     //> moved.
     bool setPrimaryGasInstrument(const QString& instrumentId);
 
+    //> "Override instrument H2O measurements". Interface state only: the
+    //> engine reads each gas's moisture reference, which ticking the box
+    //> sets to the biomet, and never reads this.
+    bool biometRhOverride() const
+        { return ec_project_state_.biomParam.rh_override; }
+    //> Set the flag and point every gas at the biomet, or return them all to
+    //> automatic. Returns whether anything changed.
+    bool setBiometRhOverride(bool on);
+
 public slots:
     void setModified(bool mod);
 

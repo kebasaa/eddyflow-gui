@@ -27,11 +27,19 @@ const QString kH2o = QStringLiteral("h2o");
 
 namespace MeasurementRecords {
 
-int resolveMoistureRef(const QVector<GasRecord>& gases, int gasIndex)
+int resolveMoistureRef(const QVector<GasRecord>& gases, int gasIndex,
+                       bool biometRhAvailable)
 {
     if (gasIndex < 0 || gasIndex >= gases.size()) { return 0; }
 
     const auto& gas = gases.at(gasIndex);
+
+    // The biomet, named. Honoured whether or not the project also has a
+    // hygrometer - saying so is how a user chooses between them.
+    if (gas.moistureRef == biometMoistureRef && biometRhAvailable)
+    {
+        return biometMoistureRef;
+    }
 
     // An explicit choice always wins, including one that crosses analysers:
     // correcting a gas with another instrument's H2O is the point of the
@@ -55,11 +63,16 @@ int resolveMoistureRef(const QVector<GasRecord>& gases, int gasIndex)
         }
     }
 
-    // Failing that, the first H2O the project has.
-    for (int i = 0; i < gases.size(); ++i)
-    {
-        if (gases.at(i).slug == kH2o) { return i + 1; }
-    }
+    // Failing that, the biomet.
+    //
+    // This step used to be "the first H2O the project has", which handed a gas
+    // whose own analyser carries no hygrometer another instrument's water,
+    // taken through a different cell at a different time lag. A site RH sensor
+    // measures the air rather than the inside of an unrelated analyser.
+    //
+    // Mirrors ResolveGasRef in define_e2_set.f90. The two must agree, or this
+    // interface names a humidity source the engine will not use.
+    if (biometRhAvailable) { return biometMoistureRef; }
 
     return 0;
 }
@@ -78,7 +91,15 @@ void validateReferences(QVector<GasRecord>& gases,
         {
             gas.moistureRef = 0;
         }
-        if (gas.moistureRef < 0) { gas.moistureRef = 0; }
+        //> The biomet sentinel is a valid reference, not a corrupt index, and
+        //> survives. Everything else negative does not: this used to reset any
+        //> negative value, which would now quietly turn "use the biomet" into
+        //> "work it out yourself" on every load, and the dropdown would appear
+        //> to forget what the user chose.
+        if (gas.moistureRef < 0 && gas.moistureRef != biometMoistureRef)
+        {
+            gas.moistureRef = 0;
+        }
 
         if (gas.cellRef > cells.size() || gas.cellRef < 0) { gas.cellRef = 0; }
     }

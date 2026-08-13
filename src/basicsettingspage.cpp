@@ -670,7 +670,7 @@ private:
     {
         if (!page_) { return false; }
         if (row.row.role != VariableTableRole::Rh) { return false; }
-        return page_->biometRhOverridesHygrometers();
+        return page_->biometRhOverrideActive();
     }
 
     //> The mark itself, built once.
@@ -1394,7 +1394,28 @@ QVector<QPair<int, QString>> BasicSettingsPage::moistureChoices() const
         seen.append(item.rawColumn);
         out.append(qMakePair(item.rawColumn, labelFor(item.rawColumn, false)));
     }
+
+    //> The biomet relative humidity, last, because it is the fallback rather
+    //> than a measurement in the sample stream. Keyed on the ambient combos'
+    //> own numbering, where a biomet column is col + 1000 - so it cannot
+    //> collide with a raw column, and setMoistureColumnForGas can tell the two
+    //> apart without a second parameter.
+    if (biometRhAvailable())
+    {
+        out.append(qMakePair(ecProject_->biomParamColRh(), biometMoistureLabel()));
+    }
     return out;
+}
+
+/// What the biomet reads as in the Moisture column.
+///
+/// One spelling, shared by the dropdown entry and the cell that shows the
+/// current choice: moistureLabelForGas finds the selected entry by matching
+/// this text, so two spellings would leave the cell blank and the delegate
+/// would read that as nothing selected.
+QString BasicSettingsPage::biometMoistureLabel()
+{
+    return tr("Biomet RH (site humidity)");
 }
 
 int BasicSettingsPage::moistureRefForGas(int gasRecordIndex) const
@@ -1403,7 +1424,8 @@ int BasicSettingsPage::moistureRefForGas(int gasRecordIndex) const
     // Resolved, not raw: a stored 0 means "auto", and what the user needs to
     // see is which H2O that actually lands on.
     return MeasurementRecords::resolveMoistureRef(ecProject_->gasColumns(),
-                                                  gasRecordIndex);
+                                                  gasRecordIndex,
+                                                  biometRhAvailable());
 }
 
 QString BasicSettingsPage::moistureLabelForGas(int gasRecordIndex) const
@@ -1411,6 +1433,8 @@ QString BasicSettingsPage::moistureLabelForGas(int gasRecordIndex) const
     if (!ecProject_) { return QString(); }
     const int ref = moistureRefForGas(gasRecordIndex);
     const auto& gases = ecProject_->gasColumns();
+    //> The biomet is not a record, so it has no raw column to match on below.
+    if (ref == MeasurementRecords::biometMoistureRef) { return biometMoistureLabel(); }
     if (ref <= 0 || ref > gases.size()) { return QString(); }
 
     //> Matched on the record's raw column, which is what the choices are keyed
@@ -1442,6 +1466,23 @@ bool BasicSettingsPage::setMoistureColumnForGas(int gasRecordIndex, int rawColum
     {
         const auto& gases = ecProject_->gasColumns();
         if (gasRecordIndex < 0 || gasRecordIndex >= gases.size()) { return false; }
+    }
+
+    //> The biomet relative humidity, which is not an analyser channel and so
+    //> has no gas record to point at. Biomet columns carry col + 1000 through
+    //> this interface already - the ambient combos build their item data that
+    //> way - so the dropdown can offer it without a numbering of its own.
+    //> The engine's -1 says the same thing on its side.
+    if (rawColumn > 1000)
+    {
+        auto gases = ecProject_->gasColumns();
+        if (gases.at(gasRecordIndex).moistureRef != MeasurementRecords::biometMoistureRef)
+        {
+            gases[gasRecordIndex].moistureRef =
+                MeasurementRecords::biometMoistureRef;
+            ecProject_->setGasColumns(gases);
+        }
+        return false;
     }
 
     bool recordsChanged = false;
@@ -1522,7 +1563,8 @@ QString BasicSettingsPage::crossAnalyserWaterInstrument(int gasRecordIndex) cons
 
     //> Resolved, not the stored reference: 0 means "auto", and what matters is
     //> the hygrometer the engine will actually use. Mirrors ResolveGasRef.
-    const int ref = MeasurementRecords::resolveMoistureRef(gases, gasRecordIndex);
+    const int ref = MeasurementRecords::resolveMoistureRef(
+        gases, gasRecordIndex, biometRhAvailable());
     if (ref <= 0 || ref > gases.size()) { return QString(); }
     const auto& water = gases.at(ref - 1);
 
@@ -1582,19 +1624,16 @@ void BasicSettingsPage::warnOnCrossAnalyserMoisture(int gasRecordIndex)
 /// about - with no hygrometer it is the *cure*, and showNoHumidityWarning says
 /// so. The two warnings are opposites and must never both fire, which is why
 /// they test the same two things and reach opposite conclusions.
-bool BasicSettingsPage::biometRhOverridesHygrometers() const
+bool BasicSettingsPage::biometRhAvailable() const
+{
+    return ecProject_ && ecProject_->biomParamColRh() > 0;
+}
+
+bool BasicSettingsPage::biometRhOverrideActive() const
 {
     if (!ecProject_) { return false; }
-    if (ecProject_->biomParamColRh() <= 0) { return false; }
-
-    for (const auto& gas : ecProject_->gasColumns())
-    {
-        if (gas.slug.compare(QLatin1String("h2o"), Qt::CaseInsensitive) == 0)
-        {
-            return true;
-        }
-    }
-    return false;
+    if (!biometRhAvailable()) { return false; }
+    return ecProject_->biometRhOverride();
 }
 
 /// Tell the user their biomet RH replaces what the hygrometers measured.
@@ -1609,25 +1648,45 @@ bool BasicSettingsPage::biometRhOverridesHygrometers() const
 /// action repeated deserves the same answer.
 void BasicSettingsPage::warnOnBiometRhOverride()
 {
-    if (!biometRhOverridesHygrometers()) { return; }
-
     WidgetUtils::information(
         QApplication::activeWindow(),
-        tr("Biomet Humidity Replaces the Hygrometers"),
-        tr("<p>You selected a biomet relative humidity column, and this "
-           "project also measures H<sub>2</sub>O with an analyser.</p>"
-           "<p>EddyFlow treats the biomet sensor as the site's humidity. It "
-           "will report <b>every</b> hygrometer's mole fraction, mixing ratio "
-           "and molar density from the biomet value rather than from what "
-           "that instrument measured, and it will use the biomet humidity in "
-           "the WPL correction of every gas.</p>"
-           "<p>The fluxes themselves are not affected. Water vapour flux, "
-           "LE, ET and every covariance come from the analyser's "
-           "high-frequency signal, which this does not touch.</p>"
-           "<p>This is usually what you want &mdash; a calibrated RH sensor "
-           "is generally steadier than an analyser's water channel over a "
-           "long deployment. Deselect the biomet column if you would rather "
-           "each hygrometer reported its own humidity.</p>"));
+        tr("Every Gas Will Use the Biomet Humidity"),
+        tr("<p>Every gas's moisture source has been set to the biomet "
+           "relative humidity sensor. That is the humidity EddyFlow will use "
+           "to correct all of them &mdash; the WPL density term, the drift "
+           "correction, and the LI-7700 multipliers where they apply.</p>"
+           "<p>The hygrometers still report what they measured. Their "
+           "<i>mole fraction</i>, <i>mixing ratio</i> and <i>molar density</i> "
+           "columns are unaffected, and the biomet humidity appears beside "
+           "them as <i>h2o_biomet_*</i> so the two can be compared.</p>"
+           "<p>Unticking returns every gas to <b>Automatic</b>. It cannot "
+           "restore what each gas named before, because that is not kept.</p>"));
+}
+
+/// Enable and check the box from the project.
+///
+/// Enabled only while a biomet RH column is selected: without one there is
+/// nothing to override, and a tickable box that did nothing would be worse
+/// than an absent one.
+void BasicSettingsPage::refreshBiometRhOverrideBox()
+{
+    if (!ecProject_ || !biometRhOverrideBox) { return; }
+    QSignalBlocker blocker(biometRhOverrideBox);
+    biometRhOverrideBox->setEnabled(biometRhAvailable());
+    biometRhOverrideBox->setChecked(biometRhOverrideActive());
+}
+
+/// Point every gas at the biomet, or return them all to automatic.
+void BasicSettingsPage::onBiometRhOverrideToggled(bool on)
+{
+    if (!ecProject_) { return; }
+    if (!ecProject_->setBiometRhOverride(on)) { return; }
+
+    //> Every Moisture cell just changed, and the RH row's triangle with them.
+    refreshVariableTables();
+    //> Only on the way in. Unticking is a return to the default and says so on
+    //> the box itself; a dialog for it would be noise.
+    if (on) { warnOnBiometRhOverride(); }
 }
 
 /// Molecular weight of a gas record, or its species default.
@@ -2297,11 +2356,24 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
            "beside the results."));
     auto primaryInstrumentLabel = new QLabel(tr("Primary analyser:"));
     primaryInstrumentLabel->setToolTip(primaryInstrumentCombo->toolTip());
+    biometRhOverrideBox = new QCheckBox(tr("Override instrument H2O measurements"));
+    biometRhOverrideBox->setToolTip(
+        tr("<b>Use the biomet relative humidity for every gas.</b>"
+           "<p>Sets each gas's moisture source to the biomet sensor, in one "
+           "step, instead of picking it per gas in the Moisture column.</p>"
+           "<p>Unticking returns every gas to <i>Automatic</i>. It cannot put "
+           "back what each gas named before &mdash; that is not kept &mdash; "
+           "so set them again afterwards if they were not all automatic.</p>"
+           "<p>The hygrometers still report what they measured. Only which "
+           "humidity <i>corrects</i> each gas changes.</p>"));
+
     auto primaryInstrumentLayout = new QHBoxLayout;
     primaryInstrumentLayout->setContentsMargins(0, 0, 0, 0);
     primaryInstrumentLayout->setSpacing(6);
     primaryInstrumentLayout->addWidget(primaryInstrumentLabel);
     primaryInstrumentLayout->addWidget(primaryInstrumentCombo);
+    primaryInstrumentLayout->addSpacing(18);
+    primaryInstrumentLayout->addWidget(biometRhOverrideBox);
     primaryInstrumentLayout->addStretch();
     auto varTitle_2 = new QLabel(tr("Ambient measurements (eddy or biomet data, used for flux correction and calculation of other parameters)"));
     varTitle_2->setProperty("groupLabel", true);
@@ -2655,6 +2727,9 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     //> list underneath them.
     connect(primaryInstrumentCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::onPrimaryInstrumentChanged);
+
+    connect(biometRhOverrideBox, &QCheckBox::toggled,
+            this, &BasicSettingsPage::onBiometRhOverrideToggled);
 
     connect(rhCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateRhCombo);
@@ -4762,19 +4837,17 @@ void BasicSettingsPage::updateAirPRefCombo(int i)
 void BasicSettingsPage::updateRhCombo(int i)
 {
     auto colNum = rhCombo->itemData(i).toInt();
-    const bool wasOverriding = biometRhOverridesHygrometers();
     ecProject_->setBiomParamColRh(colNum);
 
-    //> Only on the transition into it. Re-picking a different biomet RH column
-    //> while already overriding changes which sensor, not whether the
-    //> hygrometers are replaced, and the user has been told that already.
-    if (!wasOverriding && biometRhOverridesHygrometers())
-    {
-        warnOnBiometRhOverride();
-    }
-    //> The triangle on this row appears and disappears with the same
-    //> condition, and the row is drawn from the model rather than the combo.
+    //> No dialog here. Selecting a biomet RH column overrides nothing on its
+    //> own now - it makes the biomet *available*, as a choice in the Moisture
+    //> column and as the automatic fallback. The tickbox is the action with a
+    //> consequence, and it carries the warning.
+    //>
+    //> The tables are rebuilt because the Moisture dropdown gains or loses its
+    //> biomet entry with this, and the tickbox is enabled by the same test.
     refreshVariableTables();
+    refreshBiometRhOverrideBox();
 }
 
 void BasicSettingsPage::updateRgCombo(int i)
@@ -5406,6 +5479,7 @@ void BasicSettingsPage::reloadSelectedItems_1()
     //> After the records are settled: the list of analysers to choose from is
     //> exactly the set the gas records name, and that is only known now.
     refreshPrimaryInstrumentCombo();
+    refreshBiometRhOverrideBox();
 
     //> After the records are settled, so the check sees the project
     //> as it will be processed rather than mid-selection.

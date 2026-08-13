@@ -456,6 +456,8 @@ namespace EcIni
     const auto INI_BIOMET_4    = QStringLiteral("biom_ta");
     const auto INI_BIOMET_5    = QStringLiteral("biom_pa");
     const auto INI_BIOMET_6    = QStringLiteral("biom_rh");
+    //> Interface-only: the engine never reads it. See EcProject.
+    const auto INI_BIOMET_RH_OVERRIDE = QStringLiteral("biom_rh_override");
     const auto INI_BIOMET_7    = QStringLiteral("biom_rg");
     const auto INI_BIOMET_8    = QStringLiteral("biom_lwin");
     const auto INI_BIOMET_9    = QStringLiteral("biom_ppfd");

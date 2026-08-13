@@ -2113,6 +2113,13 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_BIOMET_4, ec_project_state_.biomParam.col_ta - 1000);
         project_ini.setValue(EcIni::INI_BIOMET_5, ec_project_state_.biomParam.col_pa - 1000);
         project_ini.setValue(EcIni::INI_BIOMET_6, ec_project_state_.biomParam.col_rh);
+        //> Written for this interface alone. Every other key in this group is
+        //> read by the engine, and a reader will assume this one is too - it
+        //> is not. What the engine acts on is each gas's own moisture
+        //> reference, which ticking the box sets to the biomet; this only
+        //> remembers that the box was ticked.
+        project_ini.setValue(EcIni::INI_BIOMET_RH_OVERRIDE,
+            ec_project_state_.biomParam.rh_override ? 1 : 0);
         project_ini.setValue(EcIni::INI_BIOMET_7, ec_project_state_.biomParam.col_rg);
         project_ini.setValue(EcIni::INI_BIOMET_8, ec_project_state_.biomParam.col_lwin);
         project_ini.setValue(EcIni::INI_BIOMET_9, ec_project_state_.biomParam.col_ppfd);
@@ -3719,6 +3726,8 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.biomParam.col_rh
                 = project_ini.value(EcIni::INI_BIOMET_6,
                                     defaultEcProjectState.biomParam.col_rh).toInt();
+        ec_project_state_.biomParam.rh_override =
+            project_ini.value(EcIni::INI_BIOMET_RH_OVERRIDE, 0).toInt() == 1;
         ec_project_state_.biomParam.col_rg
                 = project_ini.value(EcIni::INI_BIOMET_7,
                                     defaultEcProjectState.biomParam.col_rg).toInt();
@@ -3844,6 +3853,30 @@ void EcProject::compactGasRecords()
 
     remapMoistureRefs(kept, remap);
     gases = kept;
+}
+
+/// Point every gas at the biomet, or return them all to automatic.
+///
+/// The flag is only remembered so the tickbox comes back ticked; what the
+/// engine acts on is the per-gas references this sets. Which is why unticking
+/// restores *automatic* rather than what each gas named before: nothing kept
+/// those, and inventing a previous state would be worse than saying plainly
+/// that the box does not undo.
+bool EcProject::setBiometRhOverride(bool on)
+{
+    auto& gases = ec_project_state_.projectGeneral.gasColumns;
+    const int want = on ? MeasurementRecords::biometMoistureRef : 0;
+
+    bool changed = ec_project_state_.biomParam.rh_override != on;
+    ec_project_state_.biomParam.rh_override = on;
+    for (auto& gas : gases)
+    {
+        if (gas.moistureRef == want) { continue; }
+        gas.moistureRef = want;
+        changed = true;
+    }
+    if (changed) { setModified(true); }
+    return changed;
 }
 
 QString EcProject::primaryGasInstrument() const

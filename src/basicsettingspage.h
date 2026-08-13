@@ -144,11 +144,16 @@ public:
     //> table's warning triangle and its tooltip as well as by the dialog, so
     //> the mark and the message cannot disagree.
     QString crossAnalyserWaterInstrument(int gasRecordIndex) const;
-    //> Whether a biomet RH column is standing in for what the hygrometers
-    //> measured: a biomet RH is selected *and* some gas record is water.
-    //> Asked by the dialog, the RH row's triangle and its tooltip, so the
-    //> three cannot disagree about when the case applies.
-    bool biometRhOverridesHygrometers() const;
+    //> Whether the project names a biomet relative humidity column. Gates the
+    //> biomet entry in the Moisture dropdown and the override tickbox, and is
+    //> what resolveMoistureRef needs to answer its last two rules.
+    bool biometRhAvailable() const;
+    //> Whether the user ticked "override instrument H2O measurements", which
+    //> is a state and not an event: asked by the RH row's triangle and its
+    //> tooltip as well as by the dialog, so the three cannot disagree.
+    bool biometRhOverrideActive() const;
+    //> The biomet's one spelling in the Moisture column.
+    static QString biometMoistureLabel();
     int moistureRefForGas(int gasRecordIndex) const;
     //> Correct this gas with the H2O measured at \a rawColumn, switching that
     //> column on when it is not a record yet. Keyed on the column because the
@@ -168,8 +173,9 @@ public:
     //> dialog raised there runs a nested event loop while the combo editor is
     //> still open - and over a table not yet redrawn.
     void warnOnCrossAnalyserMoisture(int gasRecordIndex);
-    //> Raised from updateRhCombo alone, on the transition into the override.
-    //> An already-configured project gets the triangle on the RH row instead.
+    //> Raised when the user ticks the override box, which is the only action
+    //> that changes anything. An already-ticked project gets the triangle on
+    //> the RH row instead of a dialog on open.
     void warnOnBiometRhOverride();
     qreal gasMolecularWeight(int gasRecordIndex) const;
     qreal gasDiffusivity(int gasRecordIndex) const;
@@ -269,6 +275,9 @@ private:
     //> full output and the unsuffixed species names in the FLUXNET file.
     //> Backed by record order alone - see EcProject::setPrimaryGasInstrument.
     QComboBox* primaryInstrumentCombo;
+    //> "Override instrument H2O measurements": sets every gas's moisture
+    //> source to the biomet in one step.
+    QCheckBox* biometRhOverrideBox;
     QComboBox* airTRefCombo;
     QComboBox* airPRefCombo;
     QComboBox* rhCombo;
@@ -404,9 +413,13 @@ private:
     //> name, and point it at the one currently leading. Called whenever the
     //> records change, because an analyser can appear or disappear with them.
     void refreshPrimaryInstrumentCombo();
+    //> Enable and check the override box from the project state.
+    void refreshBiometRhOverrideBox();
     //> Reorder the gas records so the chosen analyser leads, then rebuild the
     //> tables from the new order.
     void onPrimaryInstrumentChanged();
+    //> Point every gas at the biomet, or return them all to automatic.
+    void onBiometRhOverrideToggled(bool on);
 
     //> Fill the species and instrument a migrated project could not carry:
     //> a pre-record file names a raw column and nothing else.

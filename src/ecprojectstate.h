@@ -505,6 +505,11 @@ struct BiometState
     int col_ta = 999;
     int col_pa = 999;
     int col_rh = -1;
+    //> "Override instrument H2O measurements": every gas's moisture
+    //> reference set to the biomet. Read by this interface only - the
+    //> engine sees the per-gas references and nothing else - and stored
+    //> so the tickbox comes back the way the user left it.
+    bool rh_override = false;
     int col_rg = -1;
     int col_lwin = -1;
     int col_ppfd = -1;
