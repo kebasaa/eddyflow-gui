@@ -53,6 +53,7 @@ public:
         NOMTIMELAG,
         MINTIMELAG,
         MAXTIMELAG,
+        ERRORVALUE,
         VARNUMCOLS
     };
 

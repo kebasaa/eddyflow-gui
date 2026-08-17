@@ -90,6 +90,18 @@ namespace DlIni
     const auto INI_ANEM_14          = QStringLiteral("vpath_length");
     const auto INI_ANEM_15          = QStringLiteral("tau");
     const auto INI_ANEM_16          = QStringLiteral("sw_version");
+    //> The rate an instrument samples at. Shared spelling with the IRGA side
+    //> because the engine reads one instr_<K>_* block whatever the category.
+    //> 0 means "the station's acquisition frequency", which is what the engine
+    //> falls back to for a value it cannot use - so an instrument left alone
+    //> follows the station rather than freezing whatever it was when saved.
+    const auto INI_ANEM_17          = QStringLiteral("ac_freq");
+    //> 0 if the instrument reports an instant, 1 if it averages over its own
+    //> sampling interval. The engine reads it as a number at a slot that was
+    //> reserved and unread, so an absent key means 0 - which is what every
+    //> metadata file written before this says, and the safe answer: pairing an
+    //> averaged wind against a point-sampled gas biases the covariance.
+    const auto INI_ANEM_18          = QStringLiteral("integrates");
     const auto INI_IRGA_0           = QStringLiteral("manufacturer");
     const auto INI_IRGA_1           = QStringLiteral("model");
     const auto INI_IRGA_3           = QStringLiteral("id");
@@ -105,6 +117,10 @@ namespace DlIni
     const auto INI_IRGA_14          = QStringLiteral("kw");
     const auto INI_IRGA_15          = QStringLiteral("ko");
     const auto INI_IRGA_16          = QStringLiteral("sw_version");
+    //> See INI_ANEM_17 - the same key, written for either category.
+    const auto INI_IRGA_17          = QStringLiteral("ac_freq");
+    //> See INI_ANEM_18 - the same key, written for either category.
+    const auto INI_IRGA_18          = QStringLiteral("integrates");
 
     const auto INIGROUP_VARDESC         = QStringLiteral("FileDescription");
     const auto INI_VARDESC_PREFIX       = QStringLiteral("col_");
@@ -124,6 +140,12 @@ namespace DlIni
     const auto INI_VARDESC_NOM_TIMELAG  = QStringLiteral("nom_timelag");
     const auto INI_VARDESC_MIN_TIMELAG  = QStringLiteral("min_timelag");
     const auto INI_VARDESC_MAX_TIMELAG  = QStringLiteral("max_timelag");
+    //> What this column writes when the instrument had no reading, in the unit
+    //> the column is written in. The engine recognises -9999, NaN, an
+    //> unparseable token and an empty field regardless; this only adds a
+    //> logger-specific value, and is written as -9999 so the default is visible
+    //> rather than implied.
+    const auto INI_VARDESC_ERROR_VALUE  = QStringLiteral("error_value");
 } // namespace DlIni
 
 #endif // DLINIDEFS_H

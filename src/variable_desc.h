@@ -132,7 +132,8 @@ public:
                  qreal bValue,
                  qreal nomTimelag,
                  qreal minTimelag,
-                 qreal maxTimelag
+                 qreal maxTimelag,
+                 qreal errorValue
                  );
 
     VariableDesc(const VariableDesc& fileDesc);
@@ -200,6 +201,14 @@ public:
     void setMinTimelag(qreal l);
 
     // get/set
+    //> What this column writes when it has no reading, in the units the file
+    //> is in. -9999 by default, which is also one of the values the engine
+    //> always treats as missing - along with NaN, an unparseable token and an
+    //> empty field - so a column only has to state this when its logger writes
+    //> something else.
+    qreal errorValue() const;
+    void setErrorValue(qreal v);
+
     qreal maxTimelag() const;
     void setMaxTimelag(qreal l);
 
@@ -261,6 +270,7 @@ private:
     qreal aValue_;
     qreal bValue_;
     qreal nomTimelag_;
+    qreal errorValue_;
     qreal minTimelag_;
     qreal maxTimelag_;
 };
@@ -342,6 +352,12 @@ inline qreal VariableDesc::bValue() const
 
 inline void VariableDesc::setBValue(qreal v)
     { bValue_ = v; }
+
+inline qreal VariableDesc::errorValue() const
+    { return errorValue_; }
+
+inline void VariableDesc::setErrorValue(qreal v)
+    { errorValue_ = v; }
 
 inline qreal VariableDesc::nomTimelag() const
     { return nomTimelag_; }

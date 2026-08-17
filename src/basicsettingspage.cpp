@@ -1858,7 +1858,11 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
                                 "be computed. Data can be 'missing' either "
                                 "because absent in the raw data files, or "
                                 "because eliminated during one of the raw "
-                                "data screening procedures, e.g. de-spiking."));
+                                "data screening procedures, e.g. de-spiking. "
+                                "This is also the file's own completeness "
+                                "threshold, and the allowance for every "
+                                "instrument that is not given one of its own "
+                                "below."));
     maxLackSpin = new QSpinBox;
     maxLackSpin->setRange(0, 99);
     maxLackSpin->setSingleStep(1);
@@ -1868,6 +1872,16 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     maxLackSpin->setToolTip(maxLackLabel->toolTip());
     maxLackSpin->setMinimumWidth(110);
     maxLackSpin->setMaximumWidth(125);
+
+    //> Filled by refreshInstrMaxLackRows once a metadata file is loaded. It
+    //> starts empty and hidden, because a project with no metadata has no
+    //> instruments to state an allowance for.
+    instrLackLayout_ = new QGridLayout;
+    instrLackLayout_->setContentsMargins(0, 0, 0, 0);
+    instrLackLayout_->setVerticalSpacing(3);
+    instrLackContainer_ = new QWidget(this);
+    instrLackContainer_->setLayout(instrLackLayout_);
+    instrLackContainer_->hide();
 
     lockedIcon = new QLabel;
     auto pixmap_2x = QPixmap(QStringLiteral(":/icons/vlink-locked"));
@@ -2026,6 +2040,7 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     filesInfoLayout->addWidget(questionMark_4, 6, 10, Qt::AlignLeft);
     filesInfoLayout->addWidget(decChangingLabel, 7, 7, 1, -1);
     filesInfoLayout->addWidget(magneticDeclinationFetchProgress, 8, 7);
+    filesInfoLayout->addWidget(instrLackContainer_, 9, 0, 1, 11);
     filesInfoLayout->setRowStretch(10, 1);
     filesInfoLayout->setRowMinimumHeight(1, 21);
     filesInfoLayout->setRowMinimumHeight(2, 21);
@@ -3675,6 +3690,11 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
 
     addNoneStr_1();
     filterVariables();
+    //> The instrument set has just been re-read, and the allowance rows are
+    //> keyed by position in it. Rebuilt here rather than patched, so a
+    //> reordered or shortened list cannot leave a row writing to a slot that
+    //> now belongs to a different device.
+    refreshInstrMaxLackRows();
     emit updateMetadataReadResult(true);
 }
 
@@ -4338,6 +4358,9 @@ void BasicSettingsPage::refresh()
     }
 
     maxLackSpin->setValue(ecProject_->screenMaxLack());
+    //> After the spin above, so the per-instrument rows are seeded from a
+    //> project that has already been read.
+    refreshInstrMaxLackRows();
     avgIntervalSpin->setValue(ecProject_->screenAvrgLen());
 
     subsetCheckBox->setChecked(ecProject_->generalSubset());
@@ -5479,6 +5502,7 @@ void BasicSettingsPage::reloadSelectedItems_1()
     //> After the records are settled: the list of analysers to choose from is
     //> exactly the set the gas records name, and that is only known now.
     refreshPrimaryInstrumentCombo();
+    refreshInstrMaxLackRows();
     refreshBiometRhOverrideBox();
 
     //> After the records are settled, so the check sees the project
@@ -5574,6 +5598,19 @@ void BasicSettingsPage::seedGasRecordsFromMetadata()
             ? GasMetadata::normaliseFormula(var.variable())
             : role.slug;
         rec.instrumentId = canonicalInstrumentForColumn(rec.rawColumn);
+        //> The same seeding addGasRecord does, for the same reason. This is the
+        //> other way a record comes into existence - the preselection that runs
+        //> when a metadata file is read - and it left proc at the -1 sentinel.
+        //> An unset setting is written as no key at all, so those records
+        //> reached the engine with no absolute limits, no spike limit, no
+        //> discontinuity limits and no time-lag windows, and the engine
+        //> declined every test that needs them.
+        //>
+        //> The roles table above is co2, h2o, ch4 and one other, so it was
+        //> exactly the site's main gases that lost their settings while the
+        //> ones the user ticked by hand kept theirs. The pages show species
+        //> defaults for a sentinel field, so nothing on screen said so.
+        rec.proc = ecProject_->defaultGasProcessing(rec.slug);
         gases.append(rec);
     }
 
@@ -5804,6 +5841,118 @@ void BasicSettingsPage::refreshVariableTables()
 /// project edited outside this interface still shows the analyser whose
 /// columns it will actually produce.
 ///
+/// Rebuild the per-instrument missing-samples allowance rows.
+///
+/// The engine keys the allowance by the instrument's position in the
+/// .metadata - anemometers first, then analysers, one shared counter - which is
+/// exactly the order DlProject::saveProject writes instr_<K>_* in. Walking the
+/// two lists in that order here is what keeps the two files agreeing; deriving
+/// the number any other way would hand one instrument's allowance to another.
+///
+/// Rebuilt wholesale rather than patched, for the same reason as the primary
+/// instrument list: the set can change in any way when the metadata is
+/// reloaded, and a stale row would go on writing to a slot that now belongs to
+/// a different device.
+///
+/// The known weakness, worth stating: the key is positional, so reordering the
+/// instruments in the Metadata File Editor remaps the allowances. Only
+/// rewriting the whole block on every metadata load - which is what this does -
+/// keeps that from going unnoticed.
+void BasicSettingsPage::refreshInstrMaxLackRows()
+{
+    if (!ecProject_ || !dlProject_ || !instrLackLayout_) { return; }
+
+    while (auto item = instrLackLayout_->takeAt(0))
+    {
+        delete item->widget();
+        delete item;
+    }
+
+    struct Row { QString label; };
+    QList<Row> rows;
+    for (const auto& anem : *dlProject_->anems())
+    {
+        auto name = anem.id().trimmed();
+        if (name.isEmpty()) { name = anem.model().trimmed(); }
+        if (name.isEmpty()) { name = tr("Anemometer"); }
+        rows.append({name});
+    }
+    for (const auto& irga : *dlProject_->irgas())
+    {
+        auto name = irga.id().trimmed();
+        if (name.isEmpty()) { name = irga.model().trimmed(); }
+        if (name.isEmpty()) { name = tr("Gas analyzer"); }
+        rows.append({name});
+    }
+
+    //> Nothing to show without a metadata file.
+    if (rows.isEmpty())
+    {
+        instrLackContainer_->hide();
+        return;
+    }
+
+    //> The engine holds instr_1..MAX_INSTRUMENTS and matches its keys by name,
+    //> so a row past that would write an allowance nothing reads - and
+    //> EcProject would not even read it back. The metadata file itself already
+    //> warns when it describes more instruments than that.
+    if (rows.size() > Defs::MAX_INSTRUMENTS)
+    {
+        rows = rows.mid(0, Defs::MAX_INSTRUMENTS);
+    }
+
+    const auto tip = tr("<b>Per-instrument missing sample allowance:</b> How "
+                        "much of its own expected data this instrument may be "
+                        "missing. An instrument that samples slower than the "
+                        "station cannot fill every row of the raw file, and "
+                        "what it does record is judged against what it should "
+                        "have produced at its own acquisition frequency - "
+                        "which you state in the Metadata File Editor, on the "
+                        "instrument itself. Left at <i>Same as above</i>, an "
+                        "instrument uses the allowance above and follows it "
+                        "when it changes.");
+
+    auto title = new QLabel(tr("Missing samples allowance, per instrument :"),
+                            instrLackContainer_);
+    title->setToolTip(tip);
+    instrLackLayout_->addWidget(title, 0, 0, 1, 2);
+
+    int row = 1;
+    int slot = 1;
+    for (const auto& r : rows)
+    {
+        auto label = new QLabel(r.label, instrLackContainer_);
+        label->setToolTip(tip);
+
+        auto spin = new QSpinBox(instrLackContainer_);
+        //> -1 is "states nothing"; the project drops the key entirely for it,
+        //> which is what makes the instrument follow the global allowance
+        //> rather than freeze today's value.
+        spin->setRange(-1, 99);
+        spin->setSpecialValueText(tr("Same as above"));
+        spin->setSuffix(tr("  [%]", "Percentage"));
+        spin->setAccelerated(true);
+        spin->setMinimumWidth(130);
+        spin->setMaximumWidth(145);
+        spin->setToolTip(tip);
+        spin->setValue(ecProject_->screenInstrMaxLack(slot));
+
+        const int thisSlot = slot;
+        connect(spin, QOverload<int>::of(&QSpinBox::valueChanged),
+                this, [=](int value)
+                {
+                    ecProject_->setScreenInstrMaxLack(thisSlot, value);
+                });
+
+        instrLackLayout_->addWidget(label, row, 0, Qt::AlignRight);
+        instrLackLayout_->addWidget(spin, row, 1);
+        ++row;
+        ++slot;
+    }
+    instrLackLayout_->setColumnStretch(2, 1);
+    instrLackContainer_->show();
+}
+
 /// There is no "automatic" entry, and that is a consequence of the design
 /// rather than an omission. Record order *is* the setting: no flag is written
 /// alongside it, so "nobody has chosen" and "this analyser happens to be
@@ -5866,6 +6015,7 @@ void BasicSettingsPage::onPrimaryInstrumentChanged()
     //> "Automatic" now resolves to whichever analyser was just moved to the
     //> front, and leaving the box reading "Automatic" would misdescribe it.
     refreshPrimaryInstrumentCombo();
+    refreshInstrMaxLackRows();
 }
 
 /// A record whose instrument the user set by hand is left alone: `other` and

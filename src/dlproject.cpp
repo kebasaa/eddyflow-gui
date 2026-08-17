@@ -489,6 +489,7 @@ void DlProject::newProject(const ProjConfigState& project_config)
     var.setNomTimelag(0.0);
     var.setMinTimelag(0.0);
     var.setMaxTimelag(0.0);
+    var.setErrorValue(-9999.0);
     addVariable(var);
 
     setModified(false); // new documents are not in a modified state
@@ -654,6 +655,12 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
                 anem.setVPathLength(project_ini.value(prefix + DlIni::INI_ANEM_14, 1.0).toReal());
                 anem.setHPathLength(project_ini.value(prefix + DlIni::INI_ANEM_13, 1.0).toReal());
                 anem.setTau(project_ini.value(prefix + DlIni::INI_ANEM_15, 0.1).toReal());
+                //> 0 - and an absent key, which is every metadata file written
+                //> before this - means "the station's acquisition frequency".
+                anem.setAcFreq(project_ini.value(prefix + DlIni::INI_ANEM_17, 0.0).toReal());
+                anem.setSampling(project_ini.value(prefix + DlIni::INI_ANEM_18, 0).toInt() == 1
+                                 ? AnemDesc::getANEM_SAMPLING_STRING_1()
+                                 : AnemDesc::getANEM_SAMPLING_STRING_0());
                 addAnemometer(anem);
             }
             // irga case
@@ -718,6 +725,11 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
                 irga.setHPathLength(project_ini.value(prefix + DlIni::INI_IRGA_11, 1.0).toReal());
                 irga.setVPathLength(project_ini.value(prefix + DlIni::INI_IRGA_12, 1.0).toReal());
                 irga.setTau(project_ini.value(prefix + DlIni::INI_IRGA_13, 0.1).toReal());
+                //> See the anemometer above.
+                irga.setAcFreq(project_ini.value(prefix + DlIni::INI_IRGA_17, 0.0).toReal());
+                irga.setSampling(project_ini.value(prefix + DlIni::INI_IRGA_18, 0).toInt() == 1
+                                 ? IrgaDesc::getIRGA_SAMPLING_STRING_1()
+                                 : IrgaDesc::getIRGA_SAMPLING_STRING_0());
                 irga.setKWater(project_ini.value(prefix + DlIni::INI_IRGA_14, 0.15).toReal());
                 irga.setKOxygen(project_ini.value(prefix + DlIni::INI_IRGA_15, 0.0085).toReal());
                 addIrga(irga);
@@ -973,6 +985,9 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
             var.setNomTimelag(project_ini.value(prefix + DlIni::INI_VARDESC_NOM_TIMELAG, 0.0).toReal());
             var.setMinTimelag(project_ini.value(prefix + DlIni::INI_VARDESC_MIN_TIMELAG, 0.0).toReal());
             var.setMaxTimelag(project_ini.value(prefix + DlIni::INI_VARDESC_MAX_TIMELAG, 0.0).toReal());
+            //> -9999 for a file written before the key existed, which is what
+            //> the engine assumes for such a file anyway.
+            var.setErrorValue(project_ini.value(prefix + DlIni::INI_VARDESC_ERROR_VALUE, -9999.0).toReal());
             addVariable(var);
         }
     project_ini.endGroup();
@@ -1206,6 +1221,11 @@ bool DlProject::saveProject(const QString& filename)
                                  QString::number(anem.hPathLength(), 'f', 4));
             project_ini.setValue(prefix + DlIni::INI_ANEM_15,
                                  QString::number(anem.tau(), 'f', 4));
+            project_ini.setValue(prefix + DlIni::INI_ANEM_17,
+                                 QString::number(anem.acFreq(), 'f', 3));
+            project_ini.setValue(prefix + DlIni::INI_ANEM_18,
+                                 anem.sampling() == AnemDesc::getANEM_SAMPLING_STRING_1()
+                                     ? 1 : 0);
             ++k;
         }
 
@@ -1271,6 +1291,11 @@ bool DlProject::saveProject(const QString& filename)
                                  QString::number(irga.kWater(), 'f', 6));
             project_ini.setValue(prefix + DlIni::INI_IRGA_15,
                                  QString::number(irga.kOxygen(), 'f', 6));
+            project_ini.setValue(prefix + DlIni::INI_IRGA_17,
+                                 QString::number(irga.acFreq(), 'f', 3));
+            project_ini.setValue(prefix + DlIni::INI_IRGA_18,
+                                 irga.sampling() == IrgaDesc::getIRGA_SAMPLING_STRING_1()
+                                     ? 1 : 0);
             ++k;
             ++j;
         }
@@ -1336,6 +1361,8 @@ bool DlProject::saveProject(const QString& filename)
                                  QString::number(var.minTimelag(), 'f', 2));
             project_ini.setValue(prefix + DlIni::INI_VARDESC_MAX_TIMELAG,
                                  QString::number(var.maxTimelag(), 'f', 2));
+            project_ini.setValue(prefix + DlIni::INI_VARDESC_ERROR_VALUE,
+                                 QString::number(var.errorValue(), 'f', 4));
             ++k;
         }
     project_ini.endGroup();

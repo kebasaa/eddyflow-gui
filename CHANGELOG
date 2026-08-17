@@ -1,6 +1,63 @@
 7.3.0 (2026-07-28)
 
     GUI:
+	- New feature: Every anemometer and gas analyzer carries an acquisition frequency, in the
+	               Metadata File Editor's instrument tables. It shows the station's frequency
+	               until the instrument is given one of its own - and goes on following it, so
+	               changing the station's rate changes every instrument that has not been set
+	               apart from it. Stating a lower rate is what stops the gaps a slower
+	               instrument leaves in the raw file being counted as missing data; before
+	               this, such a column was dropped and its flux was -9999
+	- New feature: Every raw column carries an error value, in the Raw File Description table -
+	               what that column writes when the instrument had no reading, in the column's own
+	               unit. -9999 by default, which the engine treats as missing whether or not a
+	               column declares it, along with NaN, an unparseable word such as NA, and an
+	               empty field; the field only has to be changed when the logger writes something
+	               else. Recognised in the raw file before any unit conversion, because a fill
+	               value is only recognisable while it still looks like itself
+	- New feature: Absolute limits are seeded per species rather than from one shared "other"
+	               pair. N2O and COS used to get the same window though they differ by three
+	               orders of magnitude. CO2, CH4, N2O and H2O keep the ceilings in force today;
+	               COS takes 0.01 and CO 5 umol/mol, well above their measured backgrounds -
+	               CO's is loose on purpose, since urban air reaches several umol/mol and a
+	               limit deletes the sample rather than flagging it;
+	               N2, O2 and Ar state their own because a generic ceiling would sit orders below
+	               their abundance; anything else takes 5000 of the unit trace gases are quoted
+	               in, so 5 umol/mol. All in the stored basis - umol/mol, mmol/mol for water -
+	               and pinned by a check that no ceiling may fall below what the atmosphere
+	               actually contains, since a limit deletes the sample rather than flagging it
+	- New feature: Every instrument carries a sampling mode beside its acquisition frequency:
+	               "Instantaneous" or "Averaged over the interval". It decides how the vertical
+	               wind is paired with that instrument's samples when its cospectrum is built,
+	               and only matters for an instrument slower than the station - so it is greyed
+	               out until one is given a rate of its own. Instantaneous is the default
+	- New feature: Basic Settings carries a missing-samples allowance per instrument, beside
+	               the project-wide one. Left at "Same as above", an instrument uses the
+	               project-wide allowance and follows it when it changes; the key is written
+	               only for the instruments that state one of their own. The rows are numbered
+	               the way the metadata numbers instruments - anemometers first, then analysers
+	               - and are rebuilt whenever the metadata is reloaded
+	- Bugfix: The spectral assessment file test reads the file's own structure instead of counting
+	          rows against the shipped sample. It assumed 14 rows per non-water gas from a fixed
+	          row 19, so it was wrong for any project with a second hygrometer - which adds an
+	          11-row humidity block - and it compared block headers whole, so every trailing
+	          token the engine added (groups=, var=, instr=, exp=) made a good file look broken.
+	          A block is now found by the word TFP in its header and sized by whether that header
+	          says "numerosity", which is how the engine itself reads it. The warning also no
+	          longer claims the engine will ignore the file
+	- Bugfix: Refreshed the sample assessment file, which still carried a preamble line the engine
+	          stopped writing and a block for the retired fourth gas slot
+	- Bugfix: Species molecular weights carry six figures, matching the engine. CO2 and N2O were
+	          both 44.01 and so appeared identical; they are 44.0095 and 44.0128. CH4 and H2O
+	          moved with them, to 16.0425 and 18.0153
+	- Bugfix: Gases preselected from the metadata file are given their species' processing settings.
+	          They were created with none, so a project wrote no sr_lim, al_min/al_max, ds_hf/ds_sf,
+	          tl_def or time-lag windows for exactly the site's main gases - and the engine reads an
+	          absent threshold as "not configured" and declines the test. The pages showed plausible
+	          defaults throughout, because a spin box falls back to the species default for an unset
+	          field, so nothing on screen said the values were never saved
+	- Bugfix: A project already saved without those settings is repaired when it is opened. The
+	          legacy migration could not do it: it only ran on files predating the gas records
 	- Bugfix: Time lag optimization file browse no longer opens a second, redundant file dialog
 
 7.2.5 (2026-07-27)

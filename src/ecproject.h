@@ -222,6 +222,9 @@ public:
     void setScreenFlag10Policy(int n);
 
     void setScreenMaxLack(int n);
+    //> A negative value removes the instrument's own allowance, so it goes back
+    //> to following the global one.
+    void setScreenInstrMaxLack(int slot, int n);
     void setScreenUOffset(double d);
     void setScreenVOffset(double d);
     void setScreenWOffset(double d);
@@ -662,6 +665,13 @@ public:
     int screenFlag10Upper() const { return ec_project_state_.screenGeneral.flag10_policy; }
 
     int screenMaxLack() const { return ec_project_state_.screenSetting.max_lack; }
+    //> The allowance an instrument states for itself, or -1 when it states
+    //> none and so follows screenMaxLack(). Slot is the instrument's 1-based
+    //> position in the .metadata, anemometers first.
+    int screenInstrMaxLack(int slot) const
+    { return ec_project_state_.screenSetting.instr_max_lack.value(slot, -1); }
+    const QMap<int, int>& screenInstrMaxLacks() const
+    { return ec_project_state_.screenSetting.instr_max_lack; }
     double screenUOffset() const { return ec_project_state_.screenSetting.u_offset; }
     double screenVOffset() const { return ec_project_state_.screenSetting.v_offset; }
     double screenWOffset() const { return ec_project_state_.screenSetting.w_offset; }
@@ -1036,6 +1046,11 @@ private:
     //> read long after the [Project] group, so it can only run once the whole
     //> file is in.
     void migrateLegacyGasSettings();
+    //> Fill any per-gas setting the file did not state, on every load and for
+    //> every record. The legacy migration above is gated on an upgrade and
+    //> takes only the first record of each species, so a record-format project
+    //> whose records were never seeded had nothing to repair it.
+    void repairMissingGasProcessing();
 
 public:
     //> The per-gas processing settings a record of \a slug starts life with.

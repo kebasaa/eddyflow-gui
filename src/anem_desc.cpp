@@ -54,6 +54,25 @@ QStringList sortedWithOtherLast(QStringList list)
 
 } // namespace
 
+const QString AnemDesc::getANEM_SAMPLING_STRING_0()
+{
+    static const QString s(QStringLiteral("Instantaneous"));
+    return s;
+}
+
+const QString AnemDesc::getANEM_SAMPLING_STRING_1()
+{
+    static const QString s(QStringLiteral("Averaged over the interval"));
+    return s;
+}
+
+//> Not sorted: these two are an ordered pair, and the first is the default.
+const QStringList AnemDesc::samplingStringList()
+{
+    return QStringList() << getANEM_SAMPLING_STRING_0()
+                         << getANEM_SAMPLING_STRING_1();
+}
+
 const QString AnemDesc::getANEM_MANUFACTURER_STRING_0()
 {
     static const auto s(QStringLiteral("Campbell Scientific"));
@@ -267,6 +286,8 @@ AnemDesc::AnemDesc() :
     vPathLength_(1.0),
     hPathLength_(1.0),
     tau_(0.1),
+    acFreq_(0.0),
+    sampling_(getANEM_SAMPLING_STRING_0()),
     hasGoodWindComponents_(false),
     hasGoodTemp_(false)
 { ; }
@@ -285,6 +306,8 @@ AnemDesc::AnemDesc (const QString& manufacturer,
                     qreal vPathLength,
                     qreal hPathLength,
                     qreal tau,
+                    qreal acFreq,
+                    const QString& sampling,
                     bool hasGoodWindComponents,
                     bool hasGoodTemp) :
     manufacturer_(manufacturer),
@@ -301,6 +324,8 @@ AnemDesc::AnemDesc (const QString& manufacturer,
     vPathLength_(vPathLength),
     hPathLength_(hPathLength),
     tau_(tau),
+    acFreq_(acFreq),
+    sampling_(sampling),
     hasGoodWindComponents_(hasGoodWindComponents),
     hasGoodTemp_(hasGoodTemp)
 { ; }
@@ -322,6 +347,8 @@ AnemDesc::AnemDesc(const AnemDesc& anem) :
     vPathLength_(anem.vPathLength_),
     hPathLength_(anem.hPathLength_),
     tau_(anem.tau_),
+    acFreq_(anem.acFreq_),
+    sampling_(anem.sampling_),
     hasGoodWindComponents_(anem.hasGoodWindComponents_),
     hasGoodTemp_(anem.hasGoodTemp_)
 { ; }
@@ -344,6 +371,8 @@ AnemDesc& AnemDesc::operator=(const AnemDesc& anem)
         vPathLength_ = anem.vPathLength_;
         hPathLength_ = anem.hPathLength_;
         tau_ = anem.tau_;
+        acFreq_ = anem.acFreq_;
+        sampling_ = anem.sampling_;
         hasGoodWindComponents_ = anem.hasGoodWindComponents_;
         hasGoodTemp_ = anem.hasGoodTemp_;
     }
@@ -367,6 +396,8 @@ bool AnemDesc::operator==(const AnemDesc& anem) const
              && qFuzzyCompare(vPathLength_, anem.vPathLength_)
              && qFuzzyCompare(hPathLength_, anem.hPathLength_)
              && qFuzzyCompare(tau_, anem.tau_)
+             && qFuzzyCompare(acFreq_, anem.acFreq_)
+             && (sampling_ == anem.sampling_)
              && (hasGoodWindComponents_ == anem.hasGoodWindComponents_)
              && (hasGoodTemp_ == anem.hasGoodTemp_));
 }

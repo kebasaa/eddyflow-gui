@@ -26,6 +26,7 @@
 #define ECPROJECTSTATE_H
 
 #include <QList>
+#include <QMap>
 
 #include "angle_item.h"
 #include "defs.h"
@@ -239,6 +240,12 @@ struct ScreenGeneralState
 struct ScreenSettingState
 {
     int max_lack = 10;
+    //> Per-instrument allowance, slot -> percent. An instrument absent from
+    //> the map has none of its own and falls back to max_lack, which is what
+    //> the engine does with a key it does not find. Keyed rather than indexed
+    //> because "not set" and "set to the same number as the global" are
+    //> different things: only the first follows the global if it changes.
+    QMap<int, int> instr_max_lack {};
     int cross_wind = 0;
     int flow_distortion = 0;
     int rot_meth = 1;

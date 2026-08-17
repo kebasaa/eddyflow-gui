@@ -319,6 +319,7 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenGeneral.flag10_threshold, previousProject.ec_project_state_.screenGeneral.flag10_threshold);
     dataSetTest = dataSetTest && (ec_project_state_.screenGeneral.flag10_policy == previousProject.ec_project_state_.screenGeneral.flag10_policy);
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.max_lack == previousProject.ec_project_state_.screenSetting.max_lack);
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.instr_max_lack == previousProject.ec_project_state_.screenSetting.instr_max_lack);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.u_offset, previousProject.ec_project_state_.screenSetting.u_offset);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.v_offset, previousProject.ec_project_state_.screenSetting.v_offset);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.w_offset, previousProject.ec_project_state_.screenSetting.w_offset);
@@ -971,6 +972,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     // preproc setting section
     ec_project_state_.screenSetting.avrg_len = defaultEcProjectState.screenSetting.avrg_len;
     ec_project_state_.screenSetting.max_lack = defaultEcProjectState.screenSetting.max_lack;
+    ec_project_state_.screenSetting.instr_max_lack = defaultEcProjectState.screenSetting.instr_max_lack;
     ec_project_state_.screenSetting.u_offset = defaultEcProjectState.screenSetting.u_offset;
     ec_project_state_.screenSetting.v_offset = defaultEcProjectState.screenSetting.v_offset;
     ec_project_state_.screenSetting.w_offset = defaultEcProjectState.screenSetting.w_offset;
@@ -1720,6 +1722,15 @@ bool EcProject::saveEcProject(const QString &filename)
     // screen settings section
     project_ini.beginGroup(EcIni::INIGROUP_SCREEN_SETTINGS);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_1, ec_project_state_.screenSetting.max_lack);
+        //> Written only for the instruments that state one. Writing every slot
+        //> would freeze the global's current value onto instruments nobody has
+        //> touched, and they would stop following it.
+        for (auto it = ec_project_state_.screenSetting.instr_max_lack.constBegin();
+             it != ec_project_state_.screenSetting.instr_max_lack.constEnd(); ++it)
+        {
+            project_ini.setValue(EcIni::iniScreenSettingsInstrMaxLack(it.key()),
+                                 it.value());
+        }
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_12, ec_project_state_.screenSetting.u_offset);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_13, ec_project_state_.screenSetting.v_offset);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_14, ec_project_state_.screenSetting.w_offset);
@@ -2556,9 +2567,17 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.spectraSettings.sa_min_smpl
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_4,
                                     defaultEcProjectState.spectraSettings.sa_min_smpl).toInt();
+        //> Falls back to sa_fmin_co2, not sa_fmax_co2.
+        //>
+        //> The key read has always been right; the default named the wrong
+        //> field, so a project without the flat key got CO2's *upper* bound as
+        //> its lower one - fmin == fmax, an empty frequency range. Latent for
+        //> as long as the writer still emitted sa_fmin_co2; the record format
+        //> stopped emitting it, so from then on every round-tripped project
+        //> took the bad default and carried it onto its CO2 records.
         ec_project_state_.spectraSettings.sa_fmin_co2
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_5,
-                                    defaultEcProjectState.spectraSettings.sa_fmax_co2).toDouble();
+                                    defaultEcProjectState.spectraSettings.sa_fmin_co2).toDouble();
         ec_project_state_.spectraSettings.sa_fmin_h2o
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_6,
                                     defaultEcProjectState.spectraSettings.sa_fmin_h2o).toDouble();
@@ -2889,6 +2908,17 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenSetting.max_lack
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_1,
                                     defaultEcProjectState.screenSetting.max_lack).toInt();
+        //> Only the slots the file actually carries, so an absent key stays
+        //> absent and goes on resolving to max_lack rather than being pinned
+        //> to whatever max_lack happened to be when the project was opened.
+        ec_project_state_.screenSetting.instr_max_lack.clear();
+        for (int slot = 1; slot <= Defs::MAX_INSTRUMENTS; ++slot)
+        {
+            const auto key = EcIni::iniScreenSettingsInstrMaxLack(slot);
+            if (!project_ini.contains(key)) { continue; }
+            ec_project_state_.screenSetting.instr_max_lack.insert(
+                slot, project_ini.value(key).toInt());
+        }
         ec_project_state_.screenSetting.u_offset
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_12,
                                     defaultEcProjectState.screenSetting.u_offset).toDouble();
@@ -3795,6 +3825,12 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         if (modified != nullptr) { *modified = true; }
     }
 
+    //> Unconditional, and after the legacy migration so that a flat value the
+    //> old file stated is still preferred over the species default. A
+    //> record-format project can carry a gas with no processing block at all -
+    //> see repairMissingGasProcessing - and nothing else would ever fill it.
+    repairMissingGasProcessing();
+
     return true;
 }
 
@@ -4034,11 +4070,19 @@ GasProcessingSettings EcProject::defaultGasProcessing(const QString& rawSlug) co
     proc.outFullCospW = outCosp[slot];
     proc.outRaw       = outRaw[slot];
 
-    //> The species' own plausibility floor wins over the slot's. Only N2O has
-    //> a published value; every other species answers 0, which is the same
-    //> "no floor" the open slot already used.
+    //> The species' own plausibility window wins over the slot's.
+    //>
+    //> The floor: only N2O has a published value; every other species answers
+    //> 0, which is the same "no floor" the open slot already used.
+    //>
+    //> The ceiling: a real number for every species, because the slot's was
+    //> shared by everything past methane - N2O and COS were seeded from one
+    //> pair though they differ by three orders of magnitude. A species that
+    //> states none takes the generic, so this never resolves to 0 and the
+    //> engine never sees the max <= min it reads as "limits absent".
     const qreal floor = GasMetadata::defaultAbsoluteLimitMin(slug);
     if (floor > 0.0) { proc.alMin = floor; }
+    proc.alMax = GasMetadata::defaultAbsoluteLimitMax(slug);
 
     //> H2O is the exception in four places, and getting it wrong would move a
     //> latent-heat threshold onto a gas. Its minimum-flux counterpart is
@@ -4061,6 +4105,60 @@ GasProcessingSettings EcProject::defaultGasProcessing(const QString& rawSlug) co
     return proc;
 }
 
+/// Fill one record's unset processing fields from this species' defaults.
+///
+/// Gap-filling only: a value the file already stated wins. There is no way to
+/// state "no threshold" through the interface, so a sentinel here always means
+/// the key was absent, never that somebody wanted the test declined.
+static void seedGasProcessingGaps(GasProcessingSettings& proc,
+                                  const GasProcessingSettings& d)
+{
+    const auto put = [](qreal& target, qreal value)
+    {
+        if (target < 0.0) { target = value; }
+    };
+    const auto putFlag = [](int& target, int value)
+    {
+        if (target < 0) { target = value; }
+    };
+
+    //> An empty or inverted spectral frequency range counts as unset.
+    //>
+    //> No configuration can want fmin >= fmax, and the interface cannot
+    //> produce one, so a record holding it was written from the loader's
+    //> sa_fmin_co2 default when that default still named sa_fmax_co2. That
+    //> value is *stated*, not a sentinel, so `put` below would keep it and the
+    //> fix to the loader would never reach a project already saved with it.
+    if (proc.saFmin >= 0.0 && proc.saFmax >= 0.0 && proc.saFmin >= proc.saFmax)
+    {
+        proc.saFmin = -1.0;
+    }
+
+    put(proc.srLim, d.srLim);
+    put(proc.alMin, d.alMin);
+    put(proc.alMax, d.alMax);
+    put(proc.dsHf, d.dsHf);
+    put(proc.dsSf, d.dsSf);
+    put(proc.tlDef, d.tlDef);
+    put(proc.saFmin, d.saFmin);
+    put(proc.saFmax, d.saFmax);
+    put(proc.saHfnFmin, d.saHfnFmin);
+    put(proc.toMinLag, d.toMinLag);
+    put(proc.toMaxLag, d.toMaxLag);
+    put(proc.pwbMinLag, d.pwbMinLag);
+    put(proc.pwbMaxLag, d.pwbMaxLag);
+    putFlag(proc.outFullSp, d.outFullSp);
+    putFlag(proc.outFullCospW, d.outFullCospW);
+    putFlag(proc.outRaw, d.outRaw);
+    //> The LE triple and the minimum flux. defaultGasProcessing leaves
+    //> these at the sentinel for water, which is the carve-out that used
+    //> to be a second loop with its own tables and its own taken[] array.
+    put(proc.toMinFlux, d.toMinFlux);
+    put(proc.saMinUn, d.saMinUn);
+    put(proc.saMinSt, d.saMinSt);
+    put(proc.saMax, d.saMax);
+}
+
 void EcProject::migrateLegacyGasSettings()
 {
     auto& gases = ec_project_state_.projectGeneral.gasColumns;
@@ -4071,15 +4169,6 @@ void EcProject::migrateLegacyGasSettings()
     //> has nothing legacy to say about the second.
     bool taken[4] = { false, false, false, false };
 
-    const auto put = [](qreal& target, qreal value)
-    {
-        if (target < 0.0) { target = value; }
-    };
-    const auto putFlag = [](int& target, int value)
-    {
-        if (target < 0) { target = value; }
-    };
-
     for (int i = 0; i < gases.size(); ++i)
     {
         const int slot = legacySlotOfSpecies(gases.at(i).slug);
@@ -4087,33 +4176,30 @@ void EcProject::migrateLegacyGasSettings()
         taken[slot] = true;
 
         //> Same species-to-threshold mapping a record created from scratch
-        //> gets. Applied with `put`, so a value the file already stated for
-        //> this record wins - migration fills gaps, it does not overwrite.
-        const auto d = defaultGasProcessing(gases.at(i).slug);
-        auto& proc = gases[i].proc;
-        put(proc.srLim, d.srLim);
-        put(proc.alMin, d.alMin);
-        put(proc.alMax, d.alMax);
-        put(proc.dsHf, d.dsHf);
-        put(proc.dsSf, d.dsSf);
-        put(proc.tlDef, d.tlDef);
-        put(proc.saFmin, d.saFmin);
-        put(proc.saFmax, d.saFmax);
-        put(proc.saHfnFmin, d.saHfnFmin);
-        put(proc.toMinLag, d.toMinLag);
-        put(proc.toMaxLag, d.toMaxLag);
-        put(proc.pwbMinLag, d.pwbMinLag);
-        put(proc.pwbMaxLag, d.pwbMaxLag);
-        putFlag(proc.outFullSp, d.outFullSp);
-        putFlag(proc.outFullCospW, d.outFullCospW);
-        putFlag(proc.outRaw, d.outRaw);
-        //> The LE triple and the minimum flux. defaultGasProcessing leaves
-        //> these at the sentinel for water, which is the carve-out that used
-        //> to be a second loop with its own tables and its own taken[] array.
-        put(proc.toMinFlux, d.toMinFlux);
-        put(proc.saMinUn, d.saMinUn);
-        put(proc.saMinSt, d.saMinSt);
-        put(proc.saMax, d.saMax);
+        //> gets.
+        seedGasProcessingGaps(gases[i].proc,
+                              defaultGasProcessing(gases.at(i).slug));
+    }
+}
+
+void EcProject::repairMissingGasProcessing()
+{
+    auto& gases = ec_project_state_.projectGeneral.gasColumns;
+
+    //> Every record, not the first of each species, and on every load rather
+    //> than only on a legacy upgrade.
+    //>
+    //> A record-format project could carry a gas with no processing block at
+    //> all, and stay that way: seedGasRecordsFromMetadata built the records the
+    //> metadata preselects without seeding proc, an unset field is written as
+    //> no key, an absent key reads back as unset, and migrateLegacyGasSettings
+    //> only ever ran on files with no gas_num. The engine read the result as
+    //> "not configured" and declined the absolute-limits, spike, discontinuity
+    //> and time-lag-window tests for exactly the site's main gases, silently.
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        seedGasProcessingGaps(gases[i].proc,
+                              defaultGasProcessing(gases.at(i).slug));
     }
 }
 
@@ -5203,6 +5289,23 @@ void EcProject::setGeneralFilesFound(int n)
     // in fact, the corresponding recursion checkbox is enough to inform
     // about a possible interactive change
 //    setModified(true);
+}
+
+void EcProject::setScreenInstrMaxLack(int slot, int n)
+{
+    auto& lacks = ec_project_state_.screenSetting.instr_max_lack;
+    if (n < 0)
+    {
+        //> Removed rather than stored as a sentinel: the key's absence IS the
+        //> "follows the global" state, in the file and in the engine alike.
+        if (!lacks.remove(slot)) { return; }
+    }
+    else
+    {
+        if (lacks.value(slot, -1) == n) { return; }
+        lacks.insert(slot, n);
+    }
+    setModified(true);
 }
 
 void EcProject::setGeneralHfCorrectGhgBa(int n)

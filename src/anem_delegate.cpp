@@ -47,6 +47,7 @@ bool isComboRow(int row)
 {
     return row == AnemModel::MANUFACTURER
            || row == AnemModel::MODEL
+           || row == AnemModel::SAMPLING
            || row == AnemModel::WINDFORMAT
            || row == AnemModel::NORTHALIGNMENT;
 }
@@ -258,6 +259,29 @@ QWidget *AnemDelegate::createEditor(QWidget* parent,
                   this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
           return dspin;
         }
+      case AnemModel::ACFREQ:
+          //> Same validation as the station's own frequency spin
+          //> (dlsitetab.cpp): 3 decimals, 0.001-100 Hz. The value shown is the
+          //> station's until the instrument is given one of its own.
+          dspin = new QDoubleSpinBox(parent);
+          dspin->setDecimals(3);
+          dspin->setRange(0.001, 100.0);
+          dspin->setSingleStep(1.0);
+          dspin->setAccelerated(true);
+          dspin->setSuffix(QStringLiteral(" [Hz]"));
+          connect(dspin, &QDoubleSpinBox::editingFinished,
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
+          return dspin;
+      case AnemModel::SAMPLING:
+          combo = new QComboBox(parent);
+          combo->setEditable(false);
+          combo->addItems(AnemDesc::samplingStringList());
+          combo->view()->setTextElideMode(Qt::ElideNone);
+          connect(combo, QOverload<int>::of(&QComboBox::activated),
+                  this, QOverload<>::of(&AnemDelegate::commitAndCloseEditor));
+          TableDelegateUtils::prepareComboEditor(combo, parent);
+          TableDelegateUtils::showPopupQueued(combo);
+          return combo;
         default:
           return nullptr;
     }
@@ -330,6 +354,16 @@ void AnemDelegate::setEditorData(QWidget* editor,
                 dspin->setValue(value.toReal());
             }
             break;
+        case AnemModel::ACFREQ:
+            dspin = static_cast<QDoubleSpinBox*>(editor);
+            if (!dspin) { return; }
+            dspin->setValue(value.toReal());
+            break;
+        case AnemModel::SAMPLING:
+            combo = static_cast<QComboBox*>(editor);
+            if (!combo) { return; }
+            combo->setCurrentIndex(combo->findText(value.toString()));
+            break;
         default:
             QStyledItemDelegate::setEditorData(editor, index);
             break;
@@ -389,6 +423,18 @@ void AnemDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
             dspin = static_cast<QDoubleSpinBox*>(editor);
             if (!dspin) { return; }
             value = dspin->value();
+            model->setData(index, value);
+            break;
+        case AnemModel::ACFREQ:
+            dspin = static_cast<QDoubleSpinBox*>(editor);
+            if (!dspin) { return; }
+            value = dspin->value();
+            model->setData(index, value);
+            break;
+        case AnemModel::SAMPLING:
+            combo = static_cast<QComboBox*>(editor);
+            if (!combo) { return; }
+            value = combo->currentText();
             model->setData(index, value);
             break;
         default:

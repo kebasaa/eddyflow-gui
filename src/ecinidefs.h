@@ -201,6 +201,12 @@ namespace EcIni
 
     const auto INIGROUP_SCREEN_SETTINGS = QStringLiteral("RawProcess_Settings");
     const auto INI_SCREEN_SETTINGS_1    = QStringLiteral("max_lack");
+    //> Per-instrument missing-samples allowance, keyed by the instrument's
+    //> 1-based position in the .metadata - anemometers first, then analysers,
+    //> one shared counter, exactly the order DlProject writes instr_<K>_*.
+    //> Absent means "use max_lack", which is every project written before this.
+    inline QString iniScreenSettingsInstrMaxLack(int slot)
+    { return QStringLiteral("instr_%1_max_lack").arg(slot); }
     const auto INI_SCREEN_SETTINGS_2    = QStringLiteral("cross_wind");
     const auto INI_SCREEN_SETTINGS_3    = QStringLiteral("flow_distortion");
     const auto INI_SCREEN_SETTINGS_4    = QStringLiteral("rot_meth");

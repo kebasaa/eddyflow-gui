@@ -29,13 +29,25 @@
 #include <QDebug>
 
 #include "defs.h"
+#include "dlproject.h"
 #include "stringutils.h"
 #include "widget_utils.h"
 
-AnemModel::AnemModel(QObject *parent, AnemDescList *list) :
+AnemModel::AnemModel(QObject *parent, AnemDescList *list, DlProject *project) :
     QAbstractTableModel(parent),
-    list_(list)
+    list_(list),
+    project_(project)
 {
+}
+
+qreal AnemModel::stationAcFreq() const
+{
+    return project_ ? project_->acquisitionFrequency() : 10.0;
+}
+
+qreal AnemModel::displayedAcFreq(const AnemDesc& anem) const
+{
+    return anem.acFreq() > 0.0 ? anem.acFreq() : stationAcFreq();
 }
 
 AnemModel::~AnemModel()
@@ -275,6 +287,18 @@ QVariant AnemModel::data(const QModelIndex& index, int role) const
                 {
                     return QVariant(QString::number(anemDesc.tau(), 'f', 4) + QStringLiteral(" [s]"));
                 }
+            case ACFREQ:
+                //> Shown as the station's rate while the instrument states
+                //> none, so the cell always reads as the rate actually in
+                //> force - and follows the station if that changes.
+                return QVariant(QString::number(displayedAcFreq(anemDesc), 'f', 3)
+                                + QStringLiteral(" [Hz]"));
+            case SAMPLING:
+                //> Only says anything for an instrument slower than the
+                //> station: at the station's rate there is no interval to
+                //> average over, and w is the same sample either way.
+                if (anemDesc.acFreq() <= 0.0) { return nullStrValue; }
+                return QVariant(anemDesc.sampling());
             default:
                 return QVariant();
         }
@@ -482,6 +506,10 @@ QVariant AnemModel::data(const QModelIndex& index, int role) const
                 {
                     return QVariant(anemDesc.tau());
                 }
+            case ACFREQ:
+                return QVariant(displayedAcFreq(anemDesc));
+            case SAMPLING:
+                return QVariant(anemDesc.sampling());
             default:
                 return QVariant();
         }
@@ -504,6 +532,8 @@ QVariant AnemModel::data(const QModelIndex& index, int role) const
             case VPATHLENGTH:
             case HPATHLENGTH:
             case TAU:
+            case ACFREQ:
+            case SAMPLING:
             default:
                 return QVariant(Qt::AlignVCenter | Qt::AlignRight);
         }
@@ -574,6 +604,12 @@ QVariant AnemModel::data(const QModelIndex& index, int role) const
                 }
             case NORTHOFFSET:
                 return QVariant(tr("North off-set value"));
+            case ACFREQ:
+                if (anemDesc.acFreq() <= 0.0)
+                {
+                    return QVariant(tr("Same as the station's acquisition frequency"));
+                }
+                return QVariant(tr("Acquisition frequency of this anemometer"));
             case VPATHLENGTH:
             case HPATHLENGTH:
             case TAU:
@@ -713,6 +749,29 @@ bool AnemModel::setData(const QModelIndex& index, const QVariant& value, int rol
             }
             anemDesc.setTau(value.toReal());
             break;
+        case ACFREQ:
+        {
+            //> Stored as 0 when it matches the station, so the instrument goes
+            //> on following the station rather than freezing today's number.
+            //> Typing the station's own rate is not "changing it".
+            const auto entered = value.toReal();
+            const auto stored = qFuzzyCompare(entered, stationAcFreq()) ? 0.0 : entered;
+            //> Offset by one: qFuzzyCompare is undefined against exactly
+            //> zero, which is the value that means "follow the station".
+            if (qFuzzyCompare(stored + 1.0, anemDesc.acFreq() + 1.0))
+            {
+                return false;
+            }
+            anemDesc.setAcFreq(stored);
+            break;
+        }
+        case SAMPLING:
+            if (value == anemDesc.sampling())
+            {
+                return false;
+            }
+            anemDesc.setSampling(value.toString());
+            break;
         default:
             return false;
     }
@@ -722,7 +781,7 @@ bool AnemModel::setData(const QModelIndex& index, const QVariant& value, int rol
 
     // whole column may have changed
     emit dataChanged(index.sibling(MANUFACTURER, column),
-                     index.sibling(TAU, column));
+                     index.sibling(SAMPLING, column));
     return true;
 }
 
@@ -785,6 +844,8 @@ QVariant AnemModel::headerData(int section, Qt::Orientation orientation,
             case VPATHLENGTH:
             case HPATHLENGTH:
             case TAU:
+            case ACFREQ:
+            case SAMPLING:
                 return QVariant(QString());
             default:
                 return QVariant();
@@ -848,6 +909,16 @@ Qt::ItemFlags AnemModel::flags(const QModelIndex& index) const
             {
                 return currentFlags;
             }
+        case SAMPLING:
+            //> Greyed out until the instrument is given a rate of its own -
+            //> see the display role.
+            if (anemDesc.acFreq() <= 0.0)
+            {
+                currentFlags &= ~Qt::ItemIsEnabled;
+                currentFlags &= ~Qt::ItemIsEditable;
+                currentFlags &= ~Qt::ItemIsSelectable;
+            }
+            return currentFlags;
         default:
             return currentFlags;
     }

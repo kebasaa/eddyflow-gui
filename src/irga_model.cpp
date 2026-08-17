@@ -31,13 +31,25 @@
 #include <QDebug>
 
 #include "defs.h"
+#include "dlproject.h"
 #include "stringutils.h"
 #include "widget_utils.h"
 
-IrgaModel::IrgaModel(QObject *parent, IrgaDescList *list) :
+IrgaModel::IrgaModel(QObject *parent, IrgaDescList *list, DlProject *project) :
     QAbstractTableModel(parent),
-    list_(list)
+    list_(list),
+    project_(project)
 {;}
+
+qreal IrgaModel::stationAcFreq() const
+{
+    return project_ ? project_->acquisitionFrequency() : 10.0;
+}
+
+qreal IrgaModel::displayedAcFreq(const IrgaDesc& irga) const
+{
+    return irga.acFreq() > 0.0 ? irga.acFreq() : stationAcFreq();
+}
 
 IrgaModel::~IrgaModel(){
 }
@@ -262,6 +274,17 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                 {
                     return QVariant(QString::number(irgaDesc.kOxygen(), 'f', 6) + QStringLiteral(" [") + Defs::M3_G_CM_STRING + QStringLiteral("]"));
                 }
+            case ACFREQ:
+                //> Shown as the station's rate while the analyser states none,
+                //> so the cell always reads as the rate actually in force.
+                return QVariant(QString::number(displayedAcFreq(irgaDesc), 'f', 3)
+                                + QStringLiteral(" [Hz]"));
+            case SAMPLING:
+                //> Only says anything for an instrument slower than the
+                //> station: at the station's rate there is no interval to
+                //> average over, and w is the same sample either way.
+                if (irgaDesc.acFreq() <= 0.0) { return nullStrValue; }
+                return QVariant(irgaDesc.sampling());
             default:
                 return QVariant();
         }
@@ -398,6 +421,10 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                 {
                     return QVariant(irgaDesc.kOxygen());
                 }
+            case ACFREQ:
+                return QVariant(displayedAcFreq(irgaDesc));
+            case SAMPLING:
+                return QVariant(irgaDesc.sampling());
             default:
                 return QVariant();
         }
@@ -421,6 +448,8 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
             case TAU:
             case KWATER:
             case KOXYGEN:
+            case ACFREQ:
+            case SAMPLING:
             default:
                 return QVariant(Qt::AlignVCenter | Qt::AlignRight);
         }
@@ -640,6 +669,28 @@ bool IrgaModel::setData(const QModelIndex& index, const QVariant& value, int rol
             }
             irgaDesc.setKOxygen(value.toReal());
             break;
+        case ACFREQ:
+        {
+            //> Stored as 0 when it matches the station, so the analyser goes on
+            //> following the station rather than freezing today's number.
+            const auto entered = value.toReal();
+            const auto stored = qFuzzyCompare(entered, stationAcFreq()) ? 0.0 : entered;
+            //> Offset by one: qFuzzyCompare is undefined against exactly zero,
+            //> which is the value that means "follow the station".
+            if (qFuzzyCompare(stored + 1.0, irgaDesc.acFreq() + 1.0))
+            {
+                return false;
+            }
+            irgaDesc.setAcFreq(stored);
+            break;
+        }
+        case SAMPLING:
+            if (value == irgaDesc.sampling())
+            {
+                return false;
+            }
+            irgaDesc.setSampling(value.toString());
+            break;
         default:
             return false;
     }
@@ -651,7 +702,7 @@ bool IrgaModel::setData(const QModelIndex& index, const QVariant& value, int rol
 //    emit dataChanged(index.sibling(column, MANUFACTURER),
 //                     index.sibling(column, KOXYGEN));
     emit dataChanged(index.sibling(MANUFACTURER, column),
-                     index.sibling(KOXYGEN, column));
+                     index.sibling(SAMPLING, column));
     return true;
 }
 
@@ -714,6 +765,8 @@ QVariant IrgaModel::headerData(int section, Qt::Orientation orientation,
             case TAU:
             case KWATER:
             case KOXYGEN:
+            case ACFREQ:
+            case SAMPLING:
                 return QVariant(QString());
             default:
                 return QVariant();
@@ -805,6 +858,16 @@ Qt::ItemFlags IrgaModel::flags(const QModelIndex& index) const
             {
                 return currentFlags;
             }
+        case SAMPLING:
+            //> Greyed out until the instrument is given a rate of its own -
+            //> see the display role.
+            if (irgaDesc.acFreq() <= 0.0)
+            {
+                currentFlags &= ~Qt::ItemIsEnabled;
+                currentFlags &= ~Qt::ItemIsEditable;
+                currentFlags &= ~Qt::ItemIsSelectable;
+            }
+            return currentFlags;
         default:
             return currentFlags;
     }

@@ -501,7 +501,8 @@ VariableDesc::VariableDesc() :
     bValue_(0.0),
     nomTimelag_(0.0),
     minTimelag_(0.0),
-    maxTimelag_(0.0)
+    maxTimelag_(0.0),
+    errorValue_(-9999.0)
 { ; }
 
 VariableDesc::VariableDesc(const QString& ignore,
@@ -518,7 +519,8 @@ VariableDesc::VariableDesc(const QString& ignore,
                            qreal bValue,
                            qreal nomTimelag,
                            qreal minTimelag,
-                           qreal maxTimelag
+                           qreal maxTimelag,
+                           qreal errorValue
                            ) :
     ignore_(ignore),
     numeric_(notNumeric),
@@ -534,7 +536,8 @@ VariableDesc::VariableDesc(const QString& ignore,
     bValue_(bValue),
     nomTimelag_(nomTimelag),
     minTimelag_(minTimelag),
-    maxTimelag_(maxTimelag)
+    maxTimelag_(maxTimelag),
+    errorValue_(errorValue)
 { ; }
 
 VariableDesc::~VariableDesc() { ; }
@@ -554,7 +557,8 @@ VariableDesc::VariableDesc(const VariableDesc& fileDesc) :
     bValue_(fileDesc.bValue_),
     nomTimelag_(fileDesc.nomTimelag_),
     minTimelag_(fileDesc.minTimelag_),
-    maxTimelag_(fileDesc.maxTimelag_)
+    maxTimelag_(fileDesc.maxTimelag_),
+    errorValue_(fileDesc.errorValue_)
 { ; }
 
 VariableDesc& VariableDesc::operator=(const VariableDesc& fileDesc)
@@ -576,6 +580,7 @@ VariableDesc& VariableDesc::operator=(const VariableDesc& fileDesc)
         nomTimelag_ = fileDesc.nomTimelag_;
         minTimelag_ = fileDesc.minTimelag_;
         maxTimelag_ = fileDesc.maxTimelag_;
+        errorValue_ = fileDesc.errorValue_;
     }
     return *this;
 }
@@ -596,7 +601,8 @@ bool VariableDesc::operator==(const VariableDesc& fileDesc) const
             && qFuzzyCompare(bValue_, fileDesc.bValue_)
             && qFuzzyCompare(nomTimelag_, fileDesc.nomTimelag_)
             && qFuzzyCompare(minTimelag_, fileDesc.minTimelag_)
-            && qFuzzyCompare(maxTimelag_, fileDesc.maxTimelag_);
+            && qFuzzyCompare(maxTimelag_, fileDesc.maxTimelag_)
+            && qFuzzyCompare(errorValue_, fileDesc.errorValue_);
 }
 
 // Return string list of anem types

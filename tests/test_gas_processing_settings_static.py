@@ -1044,41 +1044,67 @@ class OutputColumnsAreNamedForTheirSpecies(unittest.TestCase):
             "record is the authority on which species occupies the slot")
 
 
-class SpectralAssessmentValidatorIsPositionAware(unittest.TestCase):
-    """The assessment file carries one 14-row transfer-function block per
-    non-water gas, so every row after the blocks shifts by 14 per gas.
+class SpectralAssessmentValidatorReadsTheFormat(unittest.TestCase):
+    """The validator must find the file's sections the way the engine does.
 
-    The validator spelled out three block positions - rows 19-30, 33-44 and
-    47-58 - and every later section by absolute row number. Those are the CO2,
-    CH4 and fourth-gas blocks only on a project laid out in that order, and
-    water is skipped, so the block sequence is not the record sequence.
+    It used to walk the file by arithmetic: three spelled-out block positions,
+    then one 14-row block per non-water gas from a fixed row 19, then every
+    later section as an offset. Two things break that. A hygrometer past the
+    primary gets a nine-row RH-class block, so no single block height describes
+    the layout; and the engine appends `groups=`, `var=`, `instr=` and `exp=`
+    past the columns of a block header, so comparing header lines whole against
+    the shipped sample rejects files that are perfectly good.
+
+    The engine's reader has never counted: a block is a line containing TFP,
+    and it holds nine humidity classes if the header also says `numerosity` and
+    twelve months if it does not. Those two rules are the format.
     """
 
     @classmethod
     def setUpClass(cls):
         cls.src = _read(GUI_ROOT / "src" / "ancillaryfiletest.cpp")
 
-    def test_the_block_positions_are_computed(self):
-        self.assertIn("tfpGasSlots", self.src)
-        self.assertIn("kSpectraGasBlockRows", self.src)
-        for literal in ("i = 32; i < 44", "i = 46; i < 58",
+    def test_the_geometry_constants_are_gone(self):
+        for literal in ("kSpectraGasBlockRows", "kSpectraFixedRows",
+                        "i = 32; i < 44", "i = 46; i < 58",
                         "templateList, actualList, 44, 46",
-                        "templateList, actualList, 58, 62"):
+                        "18 + kSpectraGasBlockRows"):
             self.assertNotIn(literal, self.src,
-                             "%s is an absolute row position" % literal)
+                             "%s assumes a fixed layout" % literal)
 
-    def test_water_is_excluded_from_the_blocks(self):
-        """Its cutoffs are the RH-class table above them, which is why the
-        engine writes one block per configured gas *but water*."""
-        body = self.src[self.src.index("QVector<int> tfpGasSlots"):]
+    def test_blocks_are_found_by_their_headers(self):
+        body = self.src[self.src.index("QVector<SpectraBlock> spectraBlocks"):]
         body = body[: body.index("\n}")]
-        self.assertIn('slug == QLatin1String("h2o")', body)
+        self.assertIn('contains(QStringLiteral("TFP"))', body,
+                      "a block is a line containing TFP")
+        self.assertIn('contains(QStringLiteral("numerosity"))', body,
+                      "`numerosity` is what says nine RH rows and not twelve "
+                      "monthly ones - the same discriminator the engine uses")
 
-    def test_a_gas_count_mismatch_explains_itself(self):
-        """A longer file is not a wrong file, and a bare row count says
-        nothing about why it differs."""
-        self.assertIn("kSpectraFixedRows", self.src)
-        self.assertIn("describes %1 gases", self.src)
+    def test_a_block_name_stops_at_the_columns(self):
+        """Header lines carry trailing key=value tokens, and more will be
+        added. Taking the name as everything before TFP is what makes the
+        validator immune to the next one."""
+        body = self.src[self.src.index("QString spectraBlockName"):]
+        body = body[: body.index("\n}")]
+        self.assertIn('word == QLatin1String("TFP")', body)
+
+    def test_every_hygrometer_past_the_primary_expects_a_block(self):
+        """Only the primary's table is unnamed and positional. Skipping every
+        water record left the expected list short by one per extra hygrometer
+        while the file was longer by eleven rows apiece."""
+        body = self.src[self.src.index("QVector<int> tfpGasSlots"):]
+        body = body[: body.index("\n}\n")]
+        self.assertIn("primaryWater", body,
+                      "the primary is the one water record without a block")
+        self.assertIn("i == primaryWater", body,
+                      "every other hygrometer has a named block like a gas's")
+
+    def test_the_tail_is_found_by_its_own_headers(self):
+        for anchor in ("RH/fc_exponential_fit_parameters",
+                       "High-pass_correction_factor_model_parameters"):
+            self.assertIn(anchor, self.src,
+                          "%s must be located by text, not by offset" % anchor)
 
 
 class CapacityConstantsMatchTheEngine(unittest.TestCase):
@@ -1209,6 +1235,61 @@ class EveryGasRecordStartsWithACompleteBlock(unittest.TestCase):
         helper = src.index("GasProcessingSettings EcProject::defaultGasProcessing")
         body = src[helper: src.index("\n}\n", helper) + 3]
         self.assertIn("rawSlug.toLower()", body)
+
+    def test_the_metadata_preselection_seeds_too(self):
+        """The other way a record comes into existence.
+
+        seedGasRecordsFromMetadata builds the co2/h2o/ch4/other records the
+        metadata preselects. It filled column, slug and instrument and left
+        proc at the sentinel, so those records - the site's main gases - were
+        written with no thresholds at all while the ones the user ticked by
+        hand, which go through addGasRecord, kept theirs. CH-LAE ran a whole
+        day that way: gas_1 and gas_2 carried `col`, `instr`, `moist`, `mw`
+        and nothing else."""
+        src = _read(BASIC_PAGE_SRC)
+        start = src.index("void BasicSettingsPage::seedGasRecordsFromMetadata")
+        body = src[start: src.index("\n}", start)]
+        self.assertIn("rec.proc = ecProject_->defaultGasProcessing(rec.slug)",
+                      body,
+                      "a preselected record left at the sentinel is written "
+                      "with no per-gas keys, which the engine reads as "
+                      "unconfigured and then declines the tests")
+
+    def test_a_record_format_project_is_repaired_on_load(self):
+        """Seeding on creation does not help a project already saved without
+        the block: absent key reads back as sentinel, sentinel is written as
+        absent key. migrateLegacyGasSettings cannot do it - it is gated on
+        wasUpgradedOnLoad_, which is only set for a file with no gas_num."""
+        src = _read(EC_PROJECT)
+        self.assertIn("void EcProject::repairMissingGasProcessing", src)
+        repair = src[src.index("void EcProject::repairMissingGasProcessing"):]
+        repair = repair[: repair.index("\n}\n")]
+        self.assertIn("defaultGasProcessing(gases.at(i).slug)", repair,
+                      "the repair must consume the shared mapping")
+        self.assertNotIn("taken[", repair,
+                         "every record, not the first of each species")
+
+        #> Called outside the wasUpgradedOnLoad_ branch that gates the legacy
+        #> migration, or it repairs exactly the files that never needed it.
+        call = src.index("repairMissingGasProcessing();")
+        gate = src.rindex("if (wasUpgradedOnLoad_)", 0, call)
+        branch_end = src.index("\n    }\n", gate)
+        self.assertGreater(call, branch_end,
+                           "the repair must run on every load, not only on a "
+                           "legacy upgrade")
+
+    def test_the_seed_the_migration_and_the_repair_share_one_gap_filler(self):
+        """Three copies of the twenty put() lines would drift silently."""
+        src = _read(EC_PROJECT)
+        self.assertEqual(
+            1, src.count("static void seedGasProcessingGaps"),
+            "one definition of the gap-filling rule")
+        for caller in ("void EcProject::migrateLegacyGasSettings",
+                       "void EcProject::repairMissingGasProcessing"):
+            body = src[src.index(caller):]
+            body = body[: body.index("\n}\n")]
+            self.assertIn("seedGasProcessingGaps(", body,
+                          "%s must consume the shared gap-filler" % caller)
 
 
 if __name__ == "__main__":

@@ -240,6 +240,13 @@ private:
 
     ClickLabel *maxLackLabel;
     QSpinBox *maxLackSpin;
+    //> Per-instrument missing-samples allowance: one row per instrument the
+    //> loaded metadata describes, in the order the engine numbers them -
+    //> anemometers first, then analysers, one shared counter. Rebuilt whenever
+    //> the metadata changes, because the set can change in any way and a stale
+    //> row would write an allowance onto the wrong instrument.
+    QWidget *instrLackContainer_ {nullptr};
+    QGridLayout *instrLackLayout_ {nullptr};
 
     QRadioButton* useMagneticNRadio;
     QRadioButton* useGeographicNRadio;
@@ -413,6 +420,9 @@ private:
     //> name, and point it at the one currently leading. Called whenever the
     //> records change, because an analyser can appear or disappear with them.
     void refreshPrimaryInstrumentCombo();
+    //> Rebuild the per-instrument missing-samples allowance rows from the
+    //> loaded metadata, and set each to what the project states for it.
+    void refreshInstrMaxLackRows();
     //> Enable and check the override box from the project state.
     void refreshBiometRhOverrideBox();
     //> Reorder the gas records so the chosen analyser leads, then rebuild the

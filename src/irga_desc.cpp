@@ -56,6 +56,25 @@ QStringList sortedWithOtherLast(QStringList list)
 
 } // namespace
 
+const QString IrgaDesc::getIRGA_SAMPLING_STRING_0()
+{
+    static const QString s(QStringLiteral("Instantaneous"));
+    return s;
+}
+
+const QString IrgaDesc::getIRGA_SAMPLING_STRING_1()
+{
+    static const QString s(QStringLiteral("Averaged over the interval"));
+    return s;
+}
+
+//> Not sorted: an ordered pair whose first entry is the default.
+const QStringList IrgaDesc::samplingStringList()
+{
+    return QStringList() << getIRGA_SAMPLING_STRING_0()
+                         << getIRGA_SAMPLING_STRING_1();
+}
+
 const QString IrgaDesc::getIRGA_MANUFACTURER_STRING_0()
 {
     static const QString s(QStringLiteral("LI-COR"));
@@ -249,7 +268,9 @@ IrgaDesc::IrgaDesc() :
     hPathLength_(1.0),
     tau_(0.1),
     kWater_(0.15),
-    kOxygen_(0.0085)
+    kOxygen_(0.0085),
+    acFreq_(0.0),
+    sampling_(getIRGA_SAMPLING_STRING_0())
 { ; }
 
 IrgaDesc::IrgaDesc(const QString& manufacture,
@@ -266,7 +287,9 @@ IrgaDesc::IrgaDesc(const QString& manufacture,
                    qreal hPathLength,
                    qreal tau,
                    qreal kWater,
-                   qreal kOxygen) :
+                   qreal kOxygen,
+                   qreal acFreq,
+                   const QString& sampling) :
     manufacturer_(manufacture),
     model_(model),
     swVersion_(swVersion),
@@ -281,7 +304,9 @@ IrgaDesc::IrgaDesc(const QString& manufacture,
     hPathLength_(hPathLength),
     tau_(tau),
     kWater_(kWater),
-    kOxygen_(kOxygen)
+    kOxygen_(kOxygen),
+    acFreq_(acFreq),
+    sampling_(sampling)
 { ; }
 
 IrgaDesc::~IrgaDesc() { ; }
@@ -301,7 +326,9 @@ IrgaDesc::IrgaDesc(const IrgaDesc& irga) :
     hPathLength_(irga.hPathLength_),
     tau_(irga.tau_),
     kWater_(irga.kWater_),
-    kOxygen_(irga.kOxygen_)
+    kOxygen_(irga.kOxygen_),
+    acFreq_(irga.acFreq_),
+    sampling_(irga.sampling_)
 { ; }
 
 IrgaDesc& IrgaDesc::operator=(const IrgaDesc& irga)
@@ -323,6 +350,8 @@ IrgaDesc& IrgaDesc::operator=(const IrgaDesc& irga)
         tau_ = irga.tau_;
         kWater_ = irga.kWater_;
         kOxygen_ = irga.kOxygen_;
+        acFreq_ = irga.acFreq_;
+        sampling_ = irga.sampling_;
     }
     return *this;
 }
@@ -343,7 +372,9 @@ bool IrgaDesc::operator==(const IrgaDesc& irga) const
             && qFuzzyCompare(hPathLength_, irga.hPathLength_)
             && qFuzzyCompare(tau_, irga.tau_)
             && qFuzzyCompare(kWater_, irga.kWater_)
-            && qFuzzyCompare(kOxygen_, irga.kOxygen_);
+            && qFuzzyCompare(kOxygen_, irga.kOxygen_)
+            && qFuzzyCompare(acFreq_, irga.acFreq_)
+            && (sampling_ == irga.sampling_);
 }
 
 // Return string list of anem measures types

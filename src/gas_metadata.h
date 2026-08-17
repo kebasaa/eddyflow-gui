@@ -32,7 +32,20 @@ struct GasEntry {
     //> molecular weight and the diffusivity rather than in an `if` that named
     //> one species.
     double absoluteLimitMin = 0.0;
+    //> Plausibility ceiling, in the same stored basis: umol/mol for every gas
+    //> but water, which is on the mmol/mol basis. Zero means the species states
+    //> none and defaultAbsoluteLimitMax answers with the generic below.
+    //>
+    //> The basis matters more than it looks. al_ch4_max is 1000 and that is
+    //> 1000 umol/mol, not 1000 nmol/mol; a ceiling of 1 would sit BELOW ambient
+    //> methane of 1.92 umol/mol and reject every real reading.
+    double absoluteLimitMax = 0.0;
 };
+
+//> The ceiling for a species that states none: 5000 of the unit trace gases are
+//> quoted in, which is 5000 nmol/mol and so 5 umol/mol stored. Loose enough to
+//> pass anything atmospheric and tight enough to catch a fill value.
+constexpr double genericAbsoluteLimitMax = 5.0;
 
 QString normaliseFormula(const QString& s);
 const GasEntry* findGas(const QString& formula);
@@ -53,6 +66,9 @@ const GasEntry* findSpecies(const QString& formula);
 //> answers 0, which is the same "no species-specific floor" the fourth slot
 //> already used for everything that was not N2O.
 double defaultAbsoluteLimitMin(const QString& formula);
+
+//> Species-specific ceiling, or the generic when the species states none.
+double defaultAbsoluteLimitMax(const QString& formula);
 
 QStringList selectableGasVariableList();
 bool isSelectableGasVariable(const QString& formula);

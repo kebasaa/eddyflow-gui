@@ -66,7 +66,7 @@ DlRawfileDescTab::DlRawfileDescTab(QWidget* parent, DlProject* dlProject) :
     hHeaderView->setHighlightSections(true);
     hHeaderView->setSectionsMovable(false);
 
-    variableView_->setMinimumHeight(298);
+    variableView_->setMinimumHeight(324);
     variableView_->resizeRowsToContents();
     variableView_->resizeColumnsToContents();
     for (int i = 0; i < variableModel_->rowCount(); i++)

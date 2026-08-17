@@ -104,9 +104,9 @@ class TheSpeciesTablesAgree(unittest.TestCase):
     #> The interface's three historic gases live in findSpecies' own small
     #> table rather than in the registry, so they are stated here.
     HISTORIC = {
-        "co2": (44.01, 0.1381),
-        "h2o": (18.02, 0.2178),
-        "ch4": (16.04, 0.1952),
+        "co2": (44.0095, 0.1381),
+        "h2o": (18.0153, 0.2178),
+        "ch4": (16.0425, 0.1952),
     }
 
     def setUp(self):

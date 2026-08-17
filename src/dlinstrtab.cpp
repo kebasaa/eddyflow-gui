@@ -77,7 +77,7 @@ DlInstrTab::DlInstrTab(QWidget *parent, DlProject *dlProject) :
     dlProject_(dlProject)
 {
     anemView_ = new AnemView(this);
-    anemModel_ = new AnemModel(anemView_, dlProject_->anems());
+    anemModel_ = new AnemModel(anemView_, dlProject_->anems(), dlProject_);
     anemDelegate_ = new AnemDelegate(anemView_);
 
     anemView_->setModel(anemModel_);
@@ -128,10 +128,10 @@ DlInstrTab::DlInstrTab(QWidget *parent, DlProject *dlProject) :
     anemGroup->setFlat(true);
     anemGroup->setToolTip(tr("<b>Anemometers info:</b> Describe anemometers used at the flux station to collect data you want to process."));
     anemGroup->setLayout(anemLayout);
-    anemGroup->setMinimumHeight(378);
+    anemGroup->setMinimumHeight(430);
 
     irgaView_ = new IrgaView(this);
-    irgaModel_ = new IrgaModel(irgaView_, dlProject_->irgas());
+    irgaModel_ = new IrgaModel(irgaView_, dlProject_->irgas(), dlProject_);
     irgaDelegate_ = new IrgaDelegate(irgaView_);
     irgaView_->setModel(irgaModel_);
     irgaView_->setItemDelegate(irgaDelegate_);
@@ -182,7 +182,7 @@ DlInstrTab::DlInstrTab(QWidget *parent, DlProject *dlProject) :
     irgaGroup->setObjectName(QStringLiteral("simpleGroupBox"));
     irgaGroup->setFlat(true);
     irgaGroup->setToolTip(tr("<b>Gas analyzers info:</b> Describe gas analyzers used to collect the data you want to process."));
-    irgaGroup->setMinimumHeight(378);
+    irgaGroup->setMinimumHeight(430);
     irgaGroup->setLayout(irgaLayout);
 
     auto instrLayout = new QHBoxLayout;

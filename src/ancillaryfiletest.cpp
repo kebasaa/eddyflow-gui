@@ -29,6 +29,7 @@
 #include <QDialogButtonBox>
 #include <QFile>
 #include <QFileDialog>
+#include <QMap>
 #include <QTextBrowser>
 #include <QPushButton>
 #include <QRegularExpression>
@@ -80,22 +81,91 @@ bool gasSpeciesConfigured(const EcProject* project, const QString& slug)
     return false;
 }
 
-/// Rows a single gas's transfer-function block occupies: twelve month labels
-/// and the two header rows that follow it.
-constexpr int kSpectraGasBlockRows = 14;
-/// Rows the file carries regardless of how many gases it describes: the
-/// header and RH-class table above the blocks, and the exponential-fit and
-/// high-pass sections below them.
-constexpr int kSpectraFixedRows = 29;
-
-/// Record indices of the gases that get a transfer-function block, in the
-/// order the engine writes them.
+/// Rows in the two shapes of transfer-function block.
 ///
-/// Water is not among them: its cutoffs are the nine RH classes tabulated
-/// above the blocks, which is why the engine writes "one block per configured
-/// gas but water". So the block sequence is not the record sequence, and the
-/// third block is the fourth record only on a project laid out CO2, H2O, CH4,
-/// other - which is what the three hard-coded positions this replaces assumed.
+/// The file used to be walked by arithmetic - fourteen rows per non-water gas
+/// from a fixed row 19, and a fixed twenty-nine rows of everything else. That
+/// held only while every block had the same height and only non-water gases
+/// had one. Neither is true: a hygrometer past the primary gets a nine-row
+/// RH-class block of its own, so no single multiply describes the layout, and
+/// the arithmetic silently pointed the tail checks at a hygrometer's class
+/// rows instead.
+///
+/// The engine's own reader has never counted. It finds a block by the word
+/// TFP in its header and takes the block's shape from whether that header also
+/// says `numerosity` - nine humidity classes if it does, twelve months if it
+/// does not. Those two rules are what this file is, so they are what is used
+/// here, and a block count or a new trailing token cannot break them.
+constexpr int kSpectraRhRows = 9;
+constexpr int kSpectraMonthRows = 12;
+
+/// The name a block header states: everything before the word TFP.
+///
+/// Headers carry `groups=`, `var=`, `instr=` and `exp=` after the columns, and
+/// more may follow. They are deliberately past the point every reader of this
+/// format stops, so the name is taken the same way rather than by comparing
+/// the line whole.
+QString spectraBlockName(const QStringList& line)
+{
+    QStringList words;
+    for (const auto& word : line)
+    {
+        if (word == QLatin1String("TFP")) { break; }
+        words << word;
+    }
+    return words.join(QLatin1Char(' '));
+}
+
+/// One transfer-function block: where its header sits and how many rows follow.
+struct SpectraBlock
+{
+    int header = -1;
+    int rows = 0;
+    bool rhClasses = false;
+    QString name;
+};
+
+/// Every TFP block in \a lines, in file order.
+QVector<SpectraBlock> spectraBlocks(const QList<QStringList>& lines)
+{
+    QVector<SpectraBlock> found;
+    for (auto i = 0; i < lines.size(); ++i)
+    {
+        if (!lines.at(i).contains(QStringLiteral("TFP"))) { continue; }
+        //> The preamble names TFP too, in prose, on a line that is one word.
+        if (lines.at(i).size() < 3) { continue; }
+        SpectraBlock block;
+        block.header = i;
+        block.name = spectraBlockName(lines.at(i));
+        block.rhClasses = lines.at(i).contains(QStringLiteral("numerosity"));
+        block.rows = block.rhClasses ? kSpectraRhRows : kSpectraMonthRows;
+        found << block;
+    }
+    return found;
+}
+
+/// The first row whose first word is \a word, or -1.
+int spectraRowStarting(const QList<QStringList>& lines, const QString& word)
+{
+    for (auto i = 0; i < lines.size(); ++i)
+    {
+        if (lines.at(i).value(0).startsWith(word)) { return i; }
+    }
+    return -1;
+}
+
+/// Record indices of the gases that get a named transfer-function block, in the
+/// order the engine writes them: every non-water record, then every hygrometer
+/// except the primary.
+///
+/// Only the PRIMARY hygrometer is absent - its cutoffs are the nine RH classes
+/// tabulated above the blocks, in the one position no header names. Every other
+/// hygrometer has a named block exactly like a gas's, and skipping all of them
+/// left this list short by one per extra hygrometer while the file was longer
+/// by nine rows plus a header and a blank apiece.
+///
+/// The primary is the first record declaring water, which is how the engine
+/// resolves it.
 QVector<int> tfpGasSlots(const EcProject* project)
 {
     //> Not named `slots`: Qt #defines that away for the moc's `public slots:`
@@ -104,9 +174,23 @@ QVector<int> tfpGasSlots(const EcProject* project)
     if (!project) { return blockSlots; }
 
     const auto& gases = project->gasColumns();
+    const auto isWater = [&gases](int i)
+    { return gases.at(i).slug == QLatin1String("h2o"); };
+
+    auto primaryWater = -1;
     for (int i = 0; i < gases.size(); ++i)
     {
-        if (gases.at(i).slug == QLatin1String("h2o")) { continue; }
+        if (isWater(i)) { primaryWater = i; break; }
+    }
+
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        if (isWater(i)) { continue; }
+        blockSlots.append(i);
+    }
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        if (!isWater(i) || i == primaryWater) { continue; }
         blockSlots.append(i);
     }
     return blockSlots;
@@ -455,136 +539,145 @@ bool AncillaryFileTest::parseFile(const QString& filename, LineList *lines)
 
 bool AncillaryFileTest::testSpectraF(const LineList& templateList, const LineList& actualList)
 {
-    // test total number of rows
-    auto rowCountTest = (actualList.size() == templateList.size());
-    testResults_->append(QLatin1String("Number of rows [")
-                  + QString::number(actualList.size())
-                  + QStringLiteral("]: ")
-                  + formatPassFail(rowCountTest));
-    if (!rowCountTest)
-    {
-        //> The commonest cause, and the one a bare row count does not
-        //> explain: the file carries fourteen rows per non-water gas, and the
-        //> shipped template describes three of them. A project with more
-        //> gases produces a longer file that is not wrong, only longer.
-        const auto blocks = tfpGasSlots(ecProject_).size();
-        const auto templateBlocks =
-            (templateList.size() - kSpectraFixedRows) / kSpectraGasBlockRows;
-        if (blocks != templateBlocks)
-        {
-            testResults_->append(
-                tr("The sample file describes %1 gases and this project has "
-                   "%2. Each gas adds %3 rows, so the counts differ by design "
-                   "— compare against a sample from a project with the same "
-                   "gases.")
-                    .arg(templateBlocks).arg(blocks).arg(kSpectraGasBlockRows));
-        }
-        return false;
-    }
+    Q_UNUSED(templateList)
 
-    // other tests
+    //> Checked against what the format says it is, not against the sample file
+    //> row by row.
+    //>
+    //> The row-by-row comparison could not survive the format growing. The
+    //> engine appended `groups=` to every block header so a gas could state
+    //> its own month grouping, then `var=`/`instr=` so a block could say which
+    //> analyser it belongs to, then `exp=` for a hygrometer's own RH relation -
+    //> all deliberately past the columns, where every reader of this file
+    //> stops. Compared whole, each one made the shipped sample differ from a
+    //> perfectly good file, and the sample also had to be reissued for every
+    //> project with a different number of gases. It was rejecting files the
+    //> engine reads without complaint, and the dialog then told the user the
+    //> engine would fall back to the default method, which was not true.
     QList<bool> test;
     auto last_test = [&](){ return test.value(test.size() - 1); };
-
-    // test header, rows 1-7
-    test << ContainerHelper::rangeEqual(templateList, actualList, 0, 7);
-    testResults_->append(QLatin1String("Header, rows 1-7: ")
-                                  + formatPassFail(last_test()));
-
-    // test water vapour TFP labels, rows 8-16
-    for (auto i = 7; i < 16; ++i)
+    auto check = [&](bool ok, const QString& what)
     {
-        test << (StringUtils::subStringList(templateList.value(i), 0, 6)
-                == StringUtils::subStringList(actualList.value(i), 0, 6));
-        testResults_->append(QLatin1String("<u>H<sub>2</sub>O</u> TFP label, row ")
-                                      + QString::number(i + 1)
-                                      + QStringLiteral(": ")
-                                      + formatPassFail(last_test()));
+        test << ok;
+        testResults_->append(what + QStringLiteral(": ") + formatPassFail(last_test()));
+    };
+
+    check(actualList.value(0).value(0).startsWith(
+              QLatin1String("Transfer_function_parameters_(TFP)")),
+          tr("Transfer-function preamble"));
+
+    const auto blocks = spectraBlocks(actualList);
+    testResults_->append(tr("Blocks found: %1 (%2 rows)")
+                             .arg(blocks.size()).arg(actualList.size()));
+
+    check(!blocks.isEmpty(), tr("At least one transfer-function block"));
+    if (blocks.isEmpty()) { return false; }
+
+    //> The primary hygrometer's table comes first and is the one block no
+    //> header names - it is identified by position, and by carrying humidity
+    //> classes rather than months.
+    check(blocks.first().rhClasses,
+          tr("First block is the water-vapour RH table"));
+
+    static const QStringList months = {
+        QStringLiteral("January"), QStringLiteral("February"),
+        QStringLiteral("March"), QStringLiteral("April"),
+        QStringLiteral("May"), QStringLiteral("June"),
+        QStringLiteral("July"), QStringLiteral("August"),
+        QStringLiteral("September"), QStringLiteral("October"),
+        QStringLiteral("November"), QStringLiteral("December") };
+
+    for (const auto& block : blocks)
+    {
+        const auto label = block.name.isEmpty() ? tr("(unnamed)") : block.name;
+        auto rowsOk = (block.header + block.rows) < actualList.size();
+        if (!rowsOk)
+        {
+            check(false, tr("<u>%1</u>: block is truncated").arg(label));
+            continue;
+        }
+
+        //> The label column of every row, against the labels the format
+        //> defines - not against the sample's rows, which sit at a different
+        //> offset the moment a block is added anywhere above.
+        for (auto i = 0; i < block.rows; ++i)
+        {
+            const auto& line = actualList.value(block.header + 1 + i);
+            if (block.rhClasses)
+            {
+                rowsOk &= (line.value(0) == QLatin1String("RH")
+                           && line.value(1) == QLatin1String("class"));
+            }
+            else
+            {
+                rowsOk &= (line.value(0) == months.value(i));
+            }
+        }
+        check(rowsOk, tr("<u>%1</u>: %2 %3 rows")
+                          .arg(label).arg(block.rows)
+                          .arg(block.rhClasses ? tr("RH-class") : tr("monthly")));
     }
 
-    // test header rows 17-18
-    test << ContainerHelper::rangeEqual(templateList, actualList, 16, 18);
-    testResults_->append(QLatin1String("Header rows 17-18: ")
-                                  + formatPassFail(last_test()));
-
-    //> One transfer-function block per non-water gas: twelve label rows, then
-    //> two header rows, repeating. The first begins at row 19.
+    //> How many blocks this project expects of each species, against how many
+    //> the file carries. This is what the bare row count was standing in for,
+    //> and it names the species instead of only saying the length is wrong.
     //>
-    //> Walked with a cursor rather than at three spelled-out positions. Those
-    //> positions - 19-30, 33-44, 47-58 - are only the CO2, CH4 and fourth-gas
-    //> blocks on a project laid out in that order, and every row after them
-    //> shifts by fourteen for each additional gas.
-    const auto tfpSlots = tfpGasSlots(ecProject_);
-    auto row = 18;
-    for (auto k = 0; k < tfpSlots.size(); ++k)
+    //> Counted per species rather than matched per record: a species measured
+    //> once is named bare - COS - and one measured twice is numbered CO2_1 and
+    //> CO2_2, so there is no record-to-block name to compare. The count is the
+    //> question anyway: two CO2 analysers want two CO2 blocks.
+    QMap<QString, int> wanted;
+    for (const auto slot : tfpGasSlots(ecProject_))
     {
-        const auto slot = tfpSlots.at(k);
-        if (row + 12 > templateList.size()) { break; }
-
         if (!gasSlotConfigured(ecProject_, slot))
         {
             testResults_->append(tr("<u>%1</u>: not configured in this project — <b>skipped</b>")
                                  .arg(gasSlotName(ecProject_, slot)));
+            continue;
         }
-        else
-        {
-            for (auto i = row; i < row + 12; ++i)
-            {
-                test << (StringUtils::subStringList(templateList.value(i), 0, 2)
-                        == StringUtils::subStringList(actualList.value(i), 0, 2));
-
-                testResults_->append(QLatin1String("<u>")
-                                              + gasSlotName(ecProject_, slot)
-                                              + QLatin1String("</u> TFP label, row ")
-                                              + QString::number(i + 1)
-                                              + QStringLiteral(": ")
-                                              + formatPassFail(last_test()));
-            }
-        }
-        row += 12;
-
-        //> The two header rows that separate this block from the next.
-        test << ContainerHelper::rangeEqual(templateList, actualList, row, row + 2);
-        testResults_->append(QLatin1String("Header rows ")
-                                      + QString::number(row + 1)
-                                      + QLatin1String("-")
-                                      + QString::number(row + 2)
-                                      + QStringLiteral(": ")
-                                      + formatPassFail(last_test()));
-        row += 2;
+        wanted[gasSlotName(ecProject_, slot).toUpper()] += 1;
     }
 
-    //> The fixed tail: the RH/fc exponential fit block and the high-pass
-    //> parameters. Offsets from the cursor, so they follow however many gas
-    //> blocks came before.
-    test << ContainerHelper::rangeEqual(templateList, actualList, row, row + 2);
-    testResults_->append(QLatin1String("Header, rows ")
-                                  + QString::number(row + 1)
-                                  + QLatin1String("-")
-                                  + QString::number(row + 2)
-                                  + QStringLiteral(": ")
-                                  + formatPassFail(last_test()));
-    row += 2;
-
-    test << ContainerHelper::rangeEqual(templateList, actualList, row + 1, row + 7);
-    testResults_->append(QLatin1String("Header, rows ")
-                                  + QString::number(row + 2)
-                                  + QLatin1String("-")
-                                  + QString::number(row + 7)
-                                  + QStringLiteral(": ")
-                                  + formatPassFail(last_test()));
-    row += 7;
-
-    // test high pass parameters labels
-    for (auto i = row; i < row + 2 && i < templateList.size(); ++i)
+    for (auto it = wanted.constBegin(); it != wanted.constEnd(); ++it)
     {
-        test << (StringUtils::subStringList(templateList.value(i), 0, 2)
-                == StringUtils::subStringList(actualList.value(i), 0, 2));
+        //> `CO2` or `CO2_<n>`, which is how the engine names a species that
+        //> occurs once and one that repeats.
+        const QRegularExpression named(
+            QStringLiteral("^%1(_\\d+)?$").arg(QRegularExpression::escape(it.key())));
+        auto seen = 0;
+        for (const auto& block : blocks)
+        {
+            if (named.match(block.name.toUpper()).hasMatch()) { ++seen; }
+        }
+        //> Reported, not failed: the engine reads a file whose block set
+        //> differs from the project's, consuming what it does not recognise and
+        //> falling back per gas. A file fitted for another project is worth a
+        //> word, not a refusal - and the dialog used to claim the engine would
+        //> ignore the file entirely, which was never true.
+        if (seen < it.value())
+        {
+            testResults_->append(
+                tr("<u>%1</u>: %2 of %3 blocks in this file — the analytic "
+                   "correction will be used for the rest")
+                    .arg(it.key()).arg(seen).arg(it.value()));
+        }
+    }
 
-        testResults_->append(QLatin1String("HP correction parameters label, row ")
-                                      + QString::number(i + 1)
-                                      + QStringLiteral(": ")
-                                      + formatPassFail(last_test()));
+    const auto expRow = spectraRowStarting(
+        actualList, QStringLiteral("RH/fc_exponential_fit_parameters"));
+    check(expRow >= 0, tr("RH/fc exponential fit section"));
+
+    const auto hpRow = spectraRowStarting(
+        actualList, QStringLiteral("High-pass_correction_factor_model_parameters"));
+    check(hpRow >= 0, tr("High-pass correction factor section"));
+
+    if (expRow >= 0 && hpRow >= 0)
+    {
+        check(hpRow > expRow, tr("Sections in order"));
+        check(spectraRowStarting(actualList, QStringLiteral("unstable")) > hpRow,
+              tr("High-pass unstable row"));
+        check(spectraRowStarting(actualList, QStringLiteral("stable")) > hpRow,
+              tr("High-pass stable row"));
     }
 
     auto res = true;
@@ -598,52 +691,87 @@ bool AncillaryFileTest::testSpectraF(const LineList& templateList, const LineLis
 
 bool AncillaryFileTest::testSpectraS(const LineList &actualList)
 {
-    // get numbers
+    //> The primary hygrometer's table, taken from wherever its header is rather
+    //> than from rows 8-16. Its position is fixed in the format and the engine's
+    //> reader does count to it - but finding it by header costs nothing and
+    //> stops this from being a second place that has to be revisited if the
+    //> preamble ever gains or loses a line.
+    const auto allBlocks = spectraBlocks(actualList);
     QVector<double> FnH2o;
     QVector<double> fcH2o;
     QVector<double> numerosity;
-    for (auto i = 7; i < 16; ++i)
+    if (!allBlocks.isEmpty() && allBlocks.first().rhClasses)
     {
-        FnH2o << StringUtils::subStringList(actualList.value(i), 6, 7).value(0).toDouble();
-        fcH2o << StringUtils::subStringList(actualList.value(i), 7, 8).value(0).toDouble();
-        numerosity << StringUtils::subStringList(actualList.value(i), 8, 9).value(0).toDouble();
+        const auto& water = allBlocks.first();
+        for (auto i = 0; i < water.rows; ++i)
+        {
+            const auto& line = actualList.value(water.header + 1 + i);
+            FnH2o << line.value(6).toDouble();
+            fcH2o << line.value(7).toDouble();
+            numerosity << line.value(8).toDouble();
+        }
     }
-    //> Block k of the transfer-function table, twelve rows starting at 19.
-    //> Positions computed rather than spelled out: every row after the blocks
-    //> shifts by kSpectraGasBlockRows for each gas the project adds, so the
-    //> fit and model parameters below are offsets from the end of the blocks
-    //> and not the absolute rows 63, 70 and 71.
-    const auto tfpSlots = tfpGasSlots(ecProject_);
-    const auto blockRow = [](int k) { return 18 + kSpectraGasBlockRows * k; };
-
-    QVector<double> FnCo2;
-    QVector<double> fcCo2;
-    for (auto i = blockRow(0); i < blockRow(0) + 12; ++i)
+    //> The monthly blocks, found by their headers.
+    //>
+    //> `18 + 14 * k` was only ever the k-th block on a file where every block
+    //> is fourteen rows and the first starts at 19. A hygrometer past the
+    //> primary breaks both halves of that, and the tail offsets built on it
+    //> then read a hygrometer's RH-class rows as the exponential fit and a
+    //> block header as the high-pass parameters - producing zeroes that passed
+    //> the range tests below rather than a failure.
+    const auto blocks = spectraBlocks(actualList);
+    QVector<SpectraBlock> monthly;
+    for (const auto& block : blocks)
     {
-        FnCo2 << StringUtils::subStringList(actualList.value(i), 2, 3).value(0).toDouble();
-        fcCo2 << StringUtils::subStringList(actualList.value(i), 3, 4).value(0).toDouble();
-    }
-    QVector<double> FnCh4;
-    QVector<double> fcCh4;
-    for (auto i = blockRow(1); i < blockRow(1) + 12; ++i)
-    {
-        FnCh4 << StringUtils::subStringList(actualList.value(i), 2, 3).value(0).toDouble();
-        fcCh4 << StringUtils::subStringList(actualList.value(i), 3, 4).value(0).toDouble();
+        if (!block.rhClasses) { monthly << block; }
     }
 
-    //> The tail: two header rows after the last block, then the RH/fc
-    //> exponential fit, then the high-pass parameters seven rows on.
-    const auto tailRow = blockRow(tfpSlots.isEmpty() ? 3 : tfpSlots.size()) + 2;
+    const auto columnOf = [&actualList](const SpectraBlock& block, int column)
+    {
+        QVector<double> values;
+        for (auto i = 0; i < block.rows; ++i)
+        {
+            values << actualList.value(block.header + 1 + i).value(column).toDouble();
+        }
+        return values;
+    };
+    const auto emptyIfAbsent = [&](int which, int column)
+    {
+        return which < monthly.size() ? columnOf(monthly.at(which), column)
+                                      : QVector<double>();
+    };
+
+    const auto FnCo2 = emptyIfAbsent(0, 2);
+    const auto fcCo2 = emptyIfAbsent(0, 3);
+    const auto FnCh4 = emptyIfAbsent(1, 2);
+    const auto fcCh4 = emptyIfAbsent(1, 3);
+
+    //> The tail, located by the text of its own headers. The exponential values
+    //> sit three rows below their title, the high-pass pair four and five below
+    //> theirs.
+    const auto expTitle = spectraRowStarting(
+        actualList, QStringLiteral("RH/fc_exponential_fit_parameters"));
+    const auto hpTitle = spectraRowStarting(
+        actualList, QStringLiteral("High-pass_correction_factor_model_parameters"));
+
     QVector<double> fitParameters;
-    for (auto i = 0; i < 3; ++i)
+    if (expTitle >= 0)
     {
-        fitParameters << actualList.value(tailRow).value(i).toDouble();
+        for (auto i = 0; i < 3; ++i)
+        {
+            fitParameters << actualList.value(expTitle + 3).value(i).toDouble();
+        }
     }
     QVector<double> modelParameters;
-    modelParameters << actualList.value(tailRow + 7).value(2).toDouble();
-    modelParameters << actualList.value(tailRow + 7).value(3).toDouble();
-    modelParameters << actualList.value(tailRow + 8).value(2).toDouble();
-    modelParameters << actualList.value(tailRow + 8).value(3).toDouble();
+    if (hpTitle >= 0)
+    {
+        const auto unstable = spectraRowStarting(actualList, QStringLiteral("unstable"));
+        const auto stable = spectraRowStarting(actualList, QStringLiteral("stable"));
+        modelParameters << actualList.value(unstable).value(2).toDouble();
+        modelParameters << actualList.value(unstable).value(3).toDouble();
+        modelParameters << actualList.value(stable).value(2).toDouble();
+        modelParameters << actualList.value(stable).value(3).toDouble();
+    }
 
     // test criteria
     QList<bool> test;

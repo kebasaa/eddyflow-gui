@@ -86,7 +86,9 @@ public:
              qreal hPathLength,
              qreal tau,
              qreal kWater,
-             qreal kOxygen);
+             qreal kOxygen,
+             qreal acFreq,
+             const QString& sampling);
 
     IrgaDesc(const IrgaDesc& irga);
 
@@ -148,6 +150,18 @@ public:
     qreal kWater() const;
     void setKWater(qreal s);
 
+    //> The rate this analyser samples at, in Hz. 0 means "the station's
+    //> acquisition frequency" - see AnemDesc::acFreq.
+    qreal acFreq() const;
+    void setAcFreq(qreal f);
+
+    //> See AnemDesc::sampling.
+    const QString& sampling() const;
+    void setSampling(const QString& s);
+    static const QString getIRGA_SAMPLING_STRING_0();
+    static const QString getIRGA_SAMPLING_STRING_1();
+    static const QStringList samplingStringList();
+
     qreal kOxygen() const;
     void setKOxygen(qreal s);
 
@@ -189,6 +203,8 @@ private:
     qreal tau_;
     qreal kWater_;
     qreal kOxygen_;
+    qreal acFreq_;
+    QString sampling_;
 };
 
 using IrgaDescList = QList<IrgaDesc>;
@@ -280,6 +296,18 @@ inline qreal IrgaDesc::kWater() const
 
 inline void IrgaDesc::setKWater(qreal s)
     { kWater_ = s; }
+
+inline qreal IrgaDesc::acFreq() const
+    { return acFreq_; }
+
+inline const QString& IrgaDesc::sampling() const
+    { return sampling_; }
+
+inline void IrgaDesc::setSampling(const QString& s)
+    { sampling_ = s; }
+
+inline void IrgaDesc::setAcFreq(qreal f)
+    { acFreq_ = f; }
 
 inline qreal IrgaDesc::kOxygen() const
     { return kOxygen_; }
