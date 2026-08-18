@@ -59,6 +59,17 @@
 	- Bugfix: A project already saved without those settings is repaired when it is opened. The
 	          legacy migration could not do it: it only ran on files predating the gas records
 	- Bugfix: Time lag optimization file browse no longer opens a second, redundant file dialog
+	- Bugfix: The instrument tables show every row, and each label sits on its own row. The row
+	          labels are a widget of QLabels beside the table rather than the table's own header, and
+	          nothing tied the two together: the container's height was a hard-coded number sized for the
+	          row count of the day, and with the vertical scroll bar off the rows past it could not be
+	          reached - the analyzer table lost Acquisition frequency and Sampling entirely. The labels
+	          were also left to size themselves, so one taller than a row, such as the extinction
+	          coefficients' subscripts, took its extra from the rest and pushed every label below it off
+	          its row, which is how the acquisition frequency came to read against Time response. Each
+	          view now states the height it needs from its own row count, every label is pinned to one
+	          row, and the block starts where row 0 starts instead of half a row above it. The Raw File
+	          Description table had the same two faults and is fixed with them
 
 7.2.5 (2026-07-27)
 

@@ -66,13 +66,42 @@ VariableTableView::~VariableTableView()
     delete m_header;
 }
 
+//> The labels are a widget of their own beside the table, so nothing ties them
+//> to the rows unless we do it here: every section is pinned to one row height
+//> and the block starts at the viewport's top, where row 0 starts. It used to
+//> start half a row higher, and the labels were left to size themselves.
+void VariableTableView::layoutHeader()
+{
+    const int rowH = this->rowHeight(0);
+    const int top = this->rowHeight(0) + 6;
+    m_header->setSectionHeight(rowH);
+    setViewportMargins(m_header->sizeHint().width(), top, 0, 0);
+    m_header->setGeometry(0,
+                          top,
+                          m_header->sizeHint().width() + 10,
+                          rowH * m_header->sectionCount());
+}
+
+//> Ask for room for every row. The vertical scroll bar is off, so a row that
+//> does not fit is a row nobody can reach - which is how two rows added to
+//> these tables went missing behind a hard-coded container height.
+QSize VariableTableView::minimumSizeHint() const
+{
+    const int rows = model() ? model()->rowCount() : 0;
+    int rowH = rowHeight(0);
+    if (rowH <= 0) { rowH = verticalHeader()->defaultSectionSize(); }
+    return {QTableView::minimumSizeHint().width(),
+            rowH * (rows + 1) + 8 + 2 * frameWidth()};
+}
+
+QSize VariableTableView::sizeHint() const
+{
+    return minimumSizeHint();
+}
+
 void VariableTableView::resizeEvent(QResizeEvent *event)
 {
-    setViewportMargins(m_header->sizeHint().width(), this->rowHeight(0) + 6, 0, 0);
-    m_header->setGeometry(0,
-                          static_cast<int>(this->rowHeight(0) / 2.0),
-                          m_header->sizeHint().width() + 10,
-                          this->rowHeight(0) * m_header->sectionCount());
+    layoutHeader();
     horizontalHeader()->setMinimumWidth(horizontalHeader()->count() * horizontalHeader()->sectionSize(1));
     horizontalScrollBar()->setMaximum((horizontalHeader()->count() - 1) * horizontalHeader()->sectionSize(1));
     horizontalScrollBar()->updateGeometry();
@@ -82,11 +111,7 @@ void VariableTableView::resizeEvent(QResizeEvent *event)
 
 void VariableTableView::showEvent(QShowEvent *event)
 {
-    setViewportMargins(m_header->sizeHint().width(), this->rowHeight(0) + 6, 0, 0);
-    m_header->setGeometry(0,
-                          static_cast<int>(this->rowHeight(0) / 2.0),
-                          m_header->sizeHint().width() + 10,
-                          this->rowHeight(0) * m_header->sectionCount());
+    layoutHeader();
     horizontalHeader()->setMinimumWidth(horizontalHeader()->count() * horizontalHeader()->sectionSize(1));
     horizontalScrollBar()->setMaximum((horizontalHeader()->count() - 1) * horizontalHeader()->sectionSize(1));
     horizontalScrollBar()->updateGeometry();

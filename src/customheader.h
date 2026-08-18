@@ -47,6 +47,12 @@ public:
                     QuestionMarkHint questionMark = QuestionMarkHint::NoQuestionMark,
                     ClickLabel::HeaderData headerData = ClickLabel::NoHeader);
     int sectionCount();
+    //> Make every section exactly one table row tall. The labels sit beside
+    //> the table in a grid of their own, so without this the layout shares the
+    //> widget's height out by each label's natural height: one label taller
+    //> than a row - rich text such as k<sub>W</sub> renders taller - steals
+    //> from the rest and every label below it slides off its row.
+    void setSectionHeight(int height);
 
 signals:
 
@@ -54,7 +60,15 @@ private slots:
     void onlineHelpTrigger();
 
 private:
+    void applySectionHeight(QWidget* w);
+
     QGridLayout *layout;
+    //> 0 until a view states a row height, so a header nobody sizes keeps the
+    //> natural layout it had before.
+    int sectionHeight {0};
+    //> Counted here rather than read back from the layout: the bottom stretch
+    //> setSectionHeight adds is a grid row too, and rowCount() would include it.
+    int sections {0};
 };
 
 #endif // CUSTOMHEADER_H

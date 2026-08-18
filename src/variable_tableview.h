@@ -37,6 +37,9 @@ public:
     explicit VariableTableView(QWidget* parent = nullptr);
     ~VariableTableView();
 
+    QSize sizeHint() const override;
+    QSize minimumSizeHint() const override;
+
 signals:
 
 public slots:
@@ -49,6 +52,8 @@ protected:
     void closeEditor(QWidget * editor, QAbstractItemDelegate::EndEditHint hint) override;
 
 private:
+    void layoutHeader();
+
     CustomHeader *m_header;
 
     void previousEditableIndex(const QModelIndex &originalIndex);
