@@ -10,7 +10,6 @@
 #include <QDialog>
 #include <QVector>
 
-class QCheckBox;
 class QDoubleSpinBox;
 class QGridLayout;
 class QLabel;
@@ -75,10 +74,6 @@ private:
     QDoubleSpinBox *hdiPrefilterSpin;
     QSpinBox *smoothingWidthSpin;
     QSpinBox *randomSeedSpin;
-    QCheckBox *detectOnRawCheckBox;
-    QCheckBox *approxCcfCheckBox;
-    QCheckBox *maxArOrderCheckBox;
-    QSpinBox  *maxArOrderSpin;
 
     EcProject *ecProject_;
     ConfigState *configState_;

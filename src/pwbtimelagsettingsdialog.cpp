@@ -7,17 +7,16 @@
 #include "pwbtimelagsettingsdialog.h"
 
 #include <QButtonGroup>
-#include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QDoubleSpinBox>
 #include <QFile>
 #include <QFileInfo>
 #include <QGridLayout>
-#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QRadioButton>
+#include <QSignalBlocker>
 #include <QSpinBox>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -28,6 +27,12 @@
 #include "measurement_record.h"
 #include "filebrowsewidget.h"
 #include "widget_utils.h"
+
+namespace {
+//> The window read_ini_rp.f90 applies when a project states none.
+constexpr double kDefaultMinLag = -10.0;
+constexpr double kDefaultMaxLag =  10.0;
+}  // namespace
 
 PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
                                                    EcProject *ecProject,
@@ -46,14 +51,14 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
     title->setProperty("groupLabel", true);
 
     existingRadio = new QRadioButton(tr("Time-lag file available : "));
-    existingRadio->setToolTip(tr("<b>Time-lag file available:</b> Select either a per-period PWB cache or a standard Time-lag_optimisation_results file. A PWB cache reuses exact timestamp- and gas-specific lags; missing entries are detected and saved to a new output-side cache. An aggregate file uses its gas and H2O RH-class lags for the whole run and does not run PWB."));
+    existingRadio->setToolTip(tr("<b>Time-lag file available:</b> Select either a PWB half-hourly time-lag table (*_pwb_timelag_*.csv, written by a previous run) or a standard Time-lag_optimisation_results file. The half-hourly table reuses the exact lag recorded for each timestamp and gas; any period missing from it is detected and the table rewritten. An aggregate file uses its gas and H2O RH-class lags for the whole run and does not run PWB."));
 
     nonExistingRadio = new QRadioButton(tr("Time lag file not available :"));
     nonExistingRadio->setToolTip(tr("<b>Time lag file not available:</b> Choose this option and provide the following information if you need to detect time lags for your dataset with pre-whitening block-bootstrap."));
 
     fileBrowse = new FileBrowseWidget;
-    fileBrowse->setToolTip(tr("<b>Load:</b> Load a PWB per-period cache or aggregate time-lag file"));
-    fileBrowse->setDialogTitle(tr("Select a PWB Cache or Time-Lag Results File"));
+    fileBrowse->setToolTip(tr("<b>Load:</b> Load a PWB half-hourly time-lag table or an aggregate time-lag file"));
+    fileBrowse->setDialogTitle(tr("Select a PWB Time-Lag Table or Time-Lag Results File"));
     fileBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("timelag_file")));
     fileBrowse->setDialogFilter(tr("All Files (*.*)"));
 
@@ -67,18 +72,6 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
     radioGroup = new QButtonGroup(this);
     radioGroup->addButton(existingRadio, 0);
     radioGroup->addButton(nonExistingRadio, 1);
-
-    detectOnRawCheckBox = new QCheckBox(tr("Detect time lag on raw data (pre-processing step)"));
-    detectOnRawCheckBox->setToolTip(tr(
-        "<b>Detect time lag on raw data:</b><br>"
-        "When enabled, PWB time lag detection runs as a pre-processing step directly on "
-        "the raw high-frequency data, before any block averaging or flux computation. "
-        "This can improve lag accuracy for instruments with variable or drift-prone lags "
-        "by working with the full temporal resolution of the data.<br><br>"
-        "<b>When to use:</b> Enable when closed-path instruments show systematic lag "
-        "variability within an averaging period, or when block-averaged signals lack "
-        "the resolution needed for reliable peak detection.<br><br>"
-        "<b>Default:</b> Unchecked — detection runs on the averaged time series as normal."));
 
     auto windowTitle = WidgetUtils::createBlueLabel(this, tr("Time lag search windows"));
     auto minTitle = WidgetUtils::createBlueLabel(this, tr("Minimum"));
@@ -105,11 +98,25 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
     devThreshSpin = createSecondsSpin(0.0, 100.0);
     hdiPrefilterSpin = createSecondsSpin(0.0, 100.0);
     hdiPrefilterSpin->setSpecialValueText(tr("Disabled"));
+    hdiPrefilterSpin->setToolTip(tr(
+        "<b>HDI prefilter:</b><br>"
+        "Detections whose 95% HDI is wider than this are discarded before the "
+        "S1/S2 classification runs, so temporal continuity cannot accept a "
+        "vague detection merely because it happens to land near the previous "
+        "period's lag.<br><br>"
+        "Stricter than the reliable-HDI threshold above, which only decides "
+        "whether a detection is accepted outright.<br><br>"
+        "<b>Default:</b> 1.00 s. Set to zero to disable."));
 
     smoothingWidthSpin = new QSpinBox;
     smoothingWidthSpin->setRange(1, 999);
     smoothingWidthSpin->setSingleStep(2);
     smoothingWidthSpin->setAccelerated(true);
+    smoothingWidthSpin->setToolTip(tr(
+        "<b>Smoothing width:</b> width of the centred rolling mean applied to "
+        "each bootstrap cross-correlation before its peak is located. Must be "
+        "odd - a centred window has no midpoint otherwise - so an even value "
+        "is rounded up."));
 
     randomSeedSpin = new QSpinBox;
     randomSeedSpin->setRange(1, 2147483647);
@@ -136,82 +143,40 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
     detection->addWidget(randomSeedSpin, 8, 1);
     detection->setColumnStretch(2, 1);
 
-    // Speed options group
-    auto speedGroup = new QGroupBox(tr("Speed options"));
-    auto warningLabel = new QLabel(
-        tr("<i>&#9888; These options may slightly affect outputs — see tooltips for details.</i>"));
-    warningLabel->setWordWrap(true);
-
-    approxCcfCheckBox = new QCheckBox(tr("Use approximate CCF (faster)"));
-    approxCcfCheckBox->setToolTip(tr(
-        "<b>Use approximate CCF (faster):</b><br>"
-        "Skips variance normalisation inside the bootstrap CCF loop. Only the "
-        "cross-covariance (not the full correlation coefficient) is used to locate "
-        "the lag peak.<br><br>"
-        "<b>Speedup:</b> ~2–3× additional; ~4–5× total vs. the "
-        "original two-pass implementation.<br><br>"
-        "<b>Output impact:</b> The argmax of the normalised and unnormalised CCF is "
-        "practically always identical when the lag window is small relative to N "
-        "(e.g. standard 30-min periods with ±10 s windows). A shift of ±1 sample "
-        "is possible in rare edge cases: very short periods, very wide lag windows, "
-        "or low data availability after gap-filling.<br><br>"
-        "<b>Guidance:</b> Suitable for routine production runs. Leave unchecked for "
-        "validation runs, method comparisons, or non-standard setups."));
-
-    maxArOrderCheckBox = new QCheckBox(tr("Cap AR model order"));
-    maxArOrderCheckBox->setToolTip(tr(
-        "<b>Cap AR model order:</b><br>"
-        "By default, AIC-based AR model selection searches up to order ~455 for "
-        "30-min 20 Hz data. Enabling this cap limits the search to the value shown, "
-        "reducing AR fitting time by ~9× for a cap of 100, and proportionally more "
-        "for smaller caps.<br><br>"
-        "<b>Speedup:</b> The AR step is ~10–15%% of total PWB time, so the "
-        "end-to-end gain is ~10–15%% additional.<br><br>"
-        "<b>Output impact:</b> If the true optimal AR order exceeds the cap, "
-        "pre-whitening is slightly less effective, potentially widening the HDI or "
-        "shifting the selected lag. Most likely to occur for strongly autocorrelated "
-        "gases (e.g. H₂O in humid conditions). In practice, EC turbulence signals "
-        "are well-described by AR(1)–AR(10).<br><br>"
-        "<b>Guidance:</b> Leave uncapped for final archival datasets. "
-        "A cap of 100 is a conservative starting point. Reducing the cap further "
-        "(e.g. to 50 or below) gives more speedup but increases the risk of "
-        "under-fitting the AR model, which may widen the HDI or shift the selected lag."));
-
-    maxArOrderSpin = new QSpinBox;
-    maxArOrderSpin->setRange(1, 1000);
-    maxArOrderSpin->setValue(100);
-    maxArOrderSpin->setEnabled(false);
-    maxArOrderSpin->setToolTip(maxArOrderCheckBox->toolTip());
-
-    auto maxArRow = new QHBoxLayout;
-    maxArRow->addWidget(maxArOrderCheckBox);
-    maxArRow->addWidget(maxArOrderSpin);
-    maxArRow->addStretch();
-
-    auto speedLayout = new QVBoxLayout;
-    speedLayout->addWidget(warningLabel);
-    speedLayout->addWidget(approxCcfCheckBox);
-    speedLayout->addLayout(maxArRow);
-    speedGroup->setLayout(speedLayout);
+    //> Detection runs on rotated, pre-WPL high-frequency data, and there is
+    //> no longer a control for that. A checkbox here offered a choice between
+    //> two stages that both ran on rotated 20 Hz data, described in its
+    //> tooltip as a choice between raw and block-averaged data - which it
+    //> never was. The conversion it actually straddled runs before time-lag
+    //> compensation, so detecting after it puts cell temperature and water
+    //> into the gas series at the wrong relative lag.
+    auto stageNote = new QLabel(tr(
+        "<i>Time lags are detected on rotated high-frequency data, before the "
+        "mixing-ratio conversion, as a pre-processing pass over the whole "
+        "run.</i>"));
+    stageNote->setWordWrap(true);
 
     auto pwbOptionsLayout = new QVBoxLayout;
-    pwbOptionsLayout->addWidget(detectOnRawCheckBox);
+    pwbOptionsLayout->addWidget(stageNote);
     // Gases on one analyser share a detected lag (PWB's S4_instrument_shared
     // rule), so a window set for one of them decides the others too. Without
     // saying so, narrowing CO2's window and watching H2O move looks like a bug.
     auto sharingNote = new QLabel(tr(
-        "<i>Gases measured by the same instrument share a detected time lag: "
-        "when one is detected natively, the others on that instrument adopt "
-        "it. Narrowing one gas's window therefore affects every gas on the "
-        "same analyser.</i>"));
+        "<i>Each averaging period gets its own time lag per gas. Where a "
+        "period has no reliable detection, the lag is filled in this order: "
+        "another gas on the same analyser in that period (they share a tube, "
+        "so they share a delay; water never donates, its lag being humidity "
+        "dependent), then interpolation between the reliable lags either side, "
+        "then the nearest reliable lag at the start or end of the run, then "
+        "the gas's median, and finally covariance maximisation. Because gases "
+        "on one analyser share, narrowing one gas's window can affect every "
+        "gas on that analyser.</i>"));
     sharingNote->setWordWrap(true);
 
     pwbOptionsLayout->addLayout(windows);
     pwbOptionsLayout->addWidget(sharingNote);
     pwbOptionsLayout->addSpacing(10);
     pwbOptionsLayout->addLayout(detection);
-    pwbOptionsLayout->addSpacing(10);
-    pwbOptionsLayout->addWidget(speedGroup);
     pwbOptionsLayout->setContentsMargins(0, 0, 0, 0);
 
     pwbOptionsContainer = new QWidget;
@@ -247,23 +212,20 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
     connect(hdiPrefilterSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             ecProject_, &EcProject::setPwbHdiPrefilter);
     connect(smoothingWidthSpin, QOverload<int>::of(&QSpinBox::valueChanged),
-            ecProject_, &EcProject::setPwbSmoothingWidth);
+            this, [this](int n) {
+        //> A centred rolling mean of even width has no midpoint: the engine
+        //> sums 2*(n/2)+1 terms whatever is asked for, so an even value here
+        //> only ever meant the odd one above it.
+        if (n % 2 == 0)
+        {
+            QSignalBlocker block(smoothingWidthSpin);
+            ++n;
+            smoothingWidthSpin->setValue(n);
+        }
+        ecProject_->setPwbSmoothingWidth(n);
+    });
     connect(randomSeedSpin, QOverload<int>::of(&QSpinBox::valueChanged),
             ecProject_, &EcProject::setPwbRandomSeed);
-    connect(detectOnRawCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
-        ecProject_->setPwbDetectOnRaw(checked ? 1 : 0);
-    });
-    connect(approxCcfCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
-        ecProject_->setPwbApproxCcf(checked ? 1 : 0);
-    });
-    connect(maxArOrderCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
-        maxArOrderSpin->setEnabled(checked);
-        ecProject_->setPwbMaxArOrder(checked ? maxArOrderSpin->value() : 0);
-    });
-    connect(maxArOrderSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int n) {
-        if (maxArOrderCheckBox->isChecked())
-            ecProject_->setPwbMaxArOrder(n);
-    });
 
     refresh();
 }
@@ -288,16 +250,6 @@ void PwbTimelagSettingsDialog::refresh()
     smoothingWidthSpin->setValue(ecProject_->pwbSmoothingWidth());
     randomSeedSpin->setValue(ecProject_->pwbRandomSeed());
 
-    detectOnRawCheckBox->setChecked(ecProject_->pwbDetectOnRaw() != 0);
-    approxCcfCheckBox->setChecked(ecProject_->pwbApproxCcf() != 0);
-
-    const int maxAr = ecProject_->pwbMaxArOrder();
-    const bool capEnabled = (maxAr > 0);
-    maxArOrderCheckBox->setChecked(capEnabled);
-    maxArOrderSpin->setEnabled(capEnabled);
-    if (capEnabled)
-        maxArOrderSpin->setValue(maxAr);
-
     setPwbControlsEnabled(ecProject_->timelagOptMode() != 0);
 
     ecProject_->setModified(oldmod);
@@ -314,10 +266,6 @@ void PwbTimelagSettingsDialog::setPwbControlsEnabled(bool enabled)
 {
     fileBrowse->setEnabled(!enabled);
     pwbOptionsContainer->setEnabled(enabled);
-    if (enabled)
-    {
-        maxArOrderSpin->setEnabled(maxArOrderCheckBox->isChecked());
-    }
 }
 
 void PwbTimelagSettingsDialog::updateFile(const QString& fp)
@@ -443,29 +391,33 @@ void PwbTimelagSettingsDialog::onLagChanged(int gasIndex, bool isMin, double val
 
 }
 
-/// Stored minimum for a gas: its record, or 0 when it has none.
+/// Stored minimum for a gas, or the window the engine searches without one.
+///
+/// Both of these answered 0.0 when the record carried no window, while the
+/// engine's own default is [-10, +10] - so the dialog showed a window nobody
+/// was using, and a user who wanted a minimum of 0 could not say so: setting a
+/// spin to the value it already displays emits no signal, the record kept its
+/// sentinel, and the engine went on searching from -10.
 double PwbTimelagSettingsDialog::pwbMinLagFor(int gasIndex) const
 {
     const auto &gases = ecProject_->gasColumns();
     if (gasIndex >= 0 && gasIndex < gases.size()
-        && gases.at(gasIndex).proc.pwbMinLag > -9000.0
-        && gases.at(gasIndex).proc.pwbMinLag != -1.0)
+        && gases.at(gasIndex).proc.pwbMinLag > -9000.0)
     {
         return gases.at(gasIndex).proc.pwbMinLag;
     }
-    return 0.0;
+    return kDefaultMinLag;
 }
 
 double PwbTimelagSettingsDialog::pwbMaxLagFor(int gasIndex) const
 {
     const auto &gases = ecProject_->gasColumns();
     if (gasIndex >= 0 && gasIndex < gases.size()
-        && gases.at(gasIndex).proc.pwbMaxLag > -9000.0
-        && gases.at(gasIndex).proc.pwbMaxLag != -1.0)
+        && gases.at(gasIndex).proc.pwbMaxLag > -9000.0)
     {
         return gases.at(gasIndex).proc.pwbMaxLag;
     }
-    return 0.0;
+    return kDefaultMaxLag;
 }
 
 QDoubleSpinBox *PwbTimelagSettingsDialog::createLagSpin()

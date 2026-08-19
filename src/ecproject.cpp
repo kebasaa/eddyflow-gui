@@ -2064,14 +2064,12 @@ bool EcProject::saveEcProject(const QString &filename)
             for (int i = 0; i < gases.size(); ++i)
             {
                 const auto p = QStringLiteral("gas_%1_pwb_").arg(i + 1);
-                if (gases.at(i).proc.pwbMinLag > -9000.0
-                    && gases.at(i).proc.pwbMinLag != -1.0)
+                if (gases.at(i).proc.pwbMinLag > -9000.0)
                 {
                     project_ini.setValue(p + QStringLiteral("min_lag"),
                         QString::number(gases.at(i).proc.pwbMinLag, 'f', 1));
                 }
-                if (gases.at(i).proc.pwbMaxLag > -9000.0
-                    && gases.at(i).proc.pwbMaxLag != -1.0)
+                if (gases.at(i).proc.pwbMaxLag > -9000.0)
                 {
                     project_ini.setValue(p + QStringLiteral("max_lag"),
                         QString::number(gases.at(i).proc.pwbMaxLag, 'f', 1));
@@ -2086,14 +2084,13 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_PWB_TIMELAG_13, QString::number(ec_project_state_.pwbTimelag.hdi_prefilter_s, 'f', 2));
         project_ini.setValue(EcIni::INI_PWB_TIMELAG_14, ec_project_state_.pwbTimelag.smoothing_width);
         project_ini.setValue(EcIni::INI_PWB_TIMELAG_15, ec_project_state_.pwbTimelag.random_seed);
-        project_ini.setValue(EcIni::INI_PWB_TIMELAG_16, ec_project_state_.pwbTimelag.approx_ccf);
-        project_ini.setValue(EcIni::INI_PWB_TIMELAG_17, ec_project_state_.pwbTimelag.max_ar_order);
-        //> The pre-WPL detection flag, under the name the engine reads.
-        //> The key it used to be written as is removed rather than left
-        //> behind: it is inert now, and a file carrying both spellings
-        //> invites someone to edit the one nothing reads.
+        //> Three retired settings, removed rather than left behind: they
+        //> are inert now, and a key nothing reads is a key someone will
+        //> eventually edit expecting it to matter.
+        project_ini.remove(EcIni::INI_PWB_TIMELAG_16_RETIRED);
+        project_ini.remove(EcIni::INI_PWB_TIMELAG_17_RETIRED);
         project_ini.remove(EcIni::INI_PWB_TIMELAG_18_RETIRED);
-        project_ini.setValue(EcIni::INI_PWB_TIMELAG_18, ec_project_state_.pwbTimelag.detect_on_raw);
+        project_ini.remove(EcIni::INI_PWB_TIMELAG_18_LEGACY);
     project_ini.endGroup();
 
     // random error section
@@ -3683,15 +3680,6 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.pwbTimelag.random_seed
                 = project_ini.value(EcIni::INI_PWB_TIMELAG_15,
                                     defaultEcProjectState.pwbTimelag.random_seed).toInt();
-        ec_project_state_.pwbTimelag.approx_ccf
-                = project_ini.value(EcIni::INI_PWB_TIMELAG_16,
-                                    defaultEcProjectState.pwbTimelag.approx_ccf).toInt();
-        ec_project_state_.pwbTimelag.max_ar_order
-                = project_ini.value(EcIni::INI_PWB_TIMELAG_17,
-                                    defaultEcProjectState.pwbTimelag.max_ar_order).toInt();
-        ec_project_state_.pwbTimelag.detect_on_raw
-                = project_ini.value(EcIni::INI_PWB_TIMELAG_18,
-                                    defaultEcProjectState.pwbTimelag.detect_on_raw).toInt();
 
         //> Per-gas search windows. Read after the gas records exist, so the
         //> loop can address them; absent keys leave the record's sentinel in
@@ -4122,6 +4110,10 @@ static void seedGasProcessingGaps(GasProcessingSettings& proc,
     {
         if (target < 0.0) { target = value; }
     };
+    const auto putLag = [](qreal& target, qreal value)
+    {
+        if (target < -9000.0) { target = value; }
+    };
     const auto putFlag = [](int& target, int value)
     {
         if (target < 0) { target = value; }
@@ -4150,8 +4142,10 @@ static void seedGasProcessingGaps(GasProcessingSettings& proc,
     put(proc.saHfnFmin, d.saHfnFmin);
     put(proc.toMinLag, d.toMinLag);
     put(proc.toMaxLag, d.toMaxLag);
-    put(proc.pwbMinLag, d.pwbMinLag);
-    put(proc.pwbMaxLag, d.pwbMaxLag);
+    //> Not put(): that reads any negative value as unset, and a negative
+    //> minimum is a legitimate PWB window bound. Only the sentinel is unset.
+    putLag(proc.pwbMinLag, d.pwbMinLag);
+    putLag(proc.pwbMaxLag, d.pwbMaxLag);
     putFlag(proc.outFullSp, d.outFullSp);
     putFlag(proc.outFullCospW, d.outFullCospW);
     putFlag(proc.outRaw, d.outRaw);
@@ -7118,24 +7112,6 @@ void EcProject::setPwbSmoothingWidth(int n)
 void EcProject::setPwbRandomSeed(int n)
 {
     ec_project_state_.pwbTimelag.random_seed = n;
-    setModified(true);
-}
-
-void EcProject::setPwbApproxCcf(int n)
-{
-    ec_project_state_.pwbTimelag.approx_ccf = n;
-    setModified(true);
-}
-
-void EcProject::setPwbMaxArOrder(int n)
-{
-    ec_project_state_.pwbTimelag.max_ar_order = n;
-    setModified(true);
-}
-
-void EcProject::setPwbDetectOnRaw(int n)
-{
-    ec_project_state_.pwbTimelag.detect_on_raw = n;
     setModified(true);
 }
 

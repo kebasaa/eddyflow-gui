@@ -1,6 +1,7 @@
 """The PWB keys this interface writes are the ones the engine reads.
 
-`pwb_detect_on_raw` is why this file exists. The interface wrote it, the
+`pwb_detect_on_raw` is why this file exists (that setting has since been
+retired altogether, but the class of mistake it made has not). The interface wrote it, the
 engine declared `pwb_detect_prewpl`, and `SearchLocalTags` matches tag labels
 by **exact equality** - so the two never met. The checkbox had no effect on any
 run, the pre-processing pass was off for every project ever saved, and nothing
@@ -129,7 +130,10 @@ class ThePwbKeysReachTheEngine(unittest.TestCase):
         #> gas_<i>_pwb_*, not from this table, and the engine's own suite
         #> covers those.
         written = gui_written_constants()
-        self.assertGreaterEqual(len(written), 10, "no PWB writes found")
+        #> Eight live settings: INI_PWB_TIMELAG_8..15. The bound only guards
+        #> against a parse that finds nothing and makes the loop below
+        #> vacuous; it is not a count anyone should have to maintain upward.
+        self.assertGreaterEqual(len(written), 8, "no PWB writes found")
         for name in sorted(written):
             key = self.keys.get(name)
             self.assertIsNotNone(key, "%s is written but not declared" % name)
@@ -152,23 +156,36 @@ class ThePwbKeysReachTheEngine(unittest.TestCase):
                              "in the file" % name)
             self.assertNotIn(self.keys[name], self.tags)
 
-    def test_the_pre_pass_flag_is_the_engine_spelling(self):
-        #> The specific failure this file was written for.
-        self.assertEqual(self.keys.get("INI_PWB_TIMELAG_18"),
-                         "pwb_detect_prewpl")
-        self.assertIn("pwb_detect_prewpl", self.tags)
-
-    def test_the_retired_spelling_is_removed_and_never_read(self):
-        #> Every project on disk carries it, set to 1. Reading it back would
-        #> switch on a pass that has never run, for everyone at once.
-        self.assertEqual(self.keys.get("INI_PWB_TIMELAG_18_RETIRED"),
-                         "pwb_detect_on_raw")
-        self.assertNotIn("pwb_detect_on_raw", self.tags)
+    def test_the_three_retired_settings_are_removed_and_never_read(self):
+        #> pwb_detect_prewpl chose between detecting before and after the
+        #> pointwise mixing-ratio conversion. Both ran on rotated 20 Hz data,
+        #> and that conversion runs before time-lag compensation - so after it
+        #> the cell temperature and water signals sit in the gas series at the
+        #> wrong relative lag, and the gas series is the one being
+        #> cross-correlated. Detection is pre-WPL now, with nothing to choose.
+        #>
+        #> pwb_approx_ccf and pwb_max_ar_order were speed options worth well
+        #> under a percent of runtime apiece, and both cost accuracy for it.
+        #>
+        #> pwb_detect_on_raw is the spelling the interface used before the
+        #> rename; no engine reader ever had it.
+        #>
+        #> All four are removed on save and none is read back: a key nothing
+        #> reads is a key someone will eventually edit expecting it to matter.
         project = gui(PROJECT)
-        self.assertIn("project_ini.remove(EcIni::INI_PWB_TIMELAG_18_RETIRED)",
-                      project)
-        #> Removed, not read: it must not appear in any value() call.
-        self.assertNotIn("value(EcIni::INI_PWB_TIMELAG_18_RETIRED", project)
+        retired = {
+            "INI_PWB_TIMELAG_16_RETIRED": "pwb_approx_ccf",
+            "INI_PWB_TIMELAG_17_RETIRED": "pwb_max_ar_order",
+            "INI_PWB_TIMELAG_18_RETIRED": "pwb_detect_prewpl",
+            "INI_PWB_TIMELAG_18_LEGACY": "pwb_detect_on_raw",
+        }
+        for name, key in retired.items():
+            self.assertEqual(self.keys.get(name), key)
+            self.assertNotIn(key, self.tags,
+                             "%s is retired but the engine still declares it"
+                             % key)
+            self.assertIn("project_ini.remove(EcIni::%s)" % name, project)
+            self.assertNotIn("value(EcIni::%s" % name, project)
 
 
 @unittest.skipUnless(ENGINE_READER.exists(),
@@ -199,15 +216,18 @@ class ThePwbDefaultsAgree(unittest.TestCase):
             self.assertAlmostEqual(here, float(expected), places=6,
                                    msg="%s moved on both sides at once" % field)
 
-    def test_the_pre_pass_defaults_off(self):
-        #> The engine initialises .false. and the dialog's own tooltip says
-        #> "Default: Unchecked". A 1 here would contradict both, and would
-        #> turn the pass on for every project the moment it is re-saved.
-        self.assertEqual(self.gui_default("detect_on_raw"), "0")
+    def test_no_control_offers_a_detection_stage_or_a_speed_option(self):
+        #> The settings are gone from both sides, so the dialog must not still
+        #> present them - a checkbox wired to nothing is worse than no
+        #> checkbox, because it looks like it works.
+        dialog = gui("src/pwbtimelagsettingsdialog.cpp")
+        for gone in ("detectOnRawCheckBox", "approxCcfCheckBox",
+                     "maxArOrderCheckBox", "maxArOrderSpin", "Speed options"):
+            self.assertNotIn(gone, dialog)
         reader = read(ENGINE_READER)
-        self.assertIn("PWBSetup%detect_prewpl = .false.", reader)
-        self.assertIn("Default:</b> Unchecked",
-                      gui("src/pwbtimelagsettingsdialog.cpp"))
+        for gone in ("PWBSetup%detect_prewpl", "PWBSetup%approx_ccf",
+                     "PWBSetup%max_ar_order"):
+            self.assertNotIn(gone, reader)
 
 
 if __name__ == "__main__":

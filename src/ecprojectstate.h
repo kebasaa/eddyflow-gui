@@ -494,14 +494,6 @@ struct PwbTimelagState
     //> default with nothing to say it had.
     int smoothing_width = 5;
     int random_seed = 2024;
-    int approx_ccf    = 0;
-    int max_ar_order  = 0;
-    //> Off, which is what the engine applies when the key is absent,
-    //> what this dialog's own tooltip promises, and what has actually
-    //> been happening: until the key was renamed to the engine's
-    //> spelling, nothing read it. A default of 1 here would turn the
-    //> pass on for every project the moment it is re-saved.
-    int detect_on_raw = 0;
 };
 
 struct RandomErrorState

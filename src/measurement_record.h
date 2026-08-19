@@ -52,8 +52,13 @@ struct GasProcessingSettings
     qreal toMinFlux = -1.0;
     qreal toMinLag = -1.0;
     qreal toMaxLag = -1.0;
-    qreal pwbMinLag = -1.0;
-    qreal pwbMaxLag = -1.0;
+    //> Not the -1.0 the neighbours use. A PWB search window may legitimately
+    //> open at a negative lag, and -1.0 s is a perfectly ordinary bound - so
+    //> with that sentinel a user could neither state -1.0 nor state 0.0 (the
+    //> dialog showed 0.0 for "unset", and setting a spin to the value it
+    //> already displays emits nothing). Both are expressible against this one.
+    qreal pwbMinLag = -9999.0;
+    qreal pwbMaxLag = -9999.0;
     qreal saFmin = -1.0;
     qreal saFmax = -1.0;
     qreal saHfnFmin = -1.0;

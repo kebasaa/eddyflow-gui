@@ -1,3 +1,36 @@
+7.3.1 (2026-08-19)
+
+	GUI:
+	- Change: The "Speed options" group is gone. Both options cost accuracy and bought almost
+	          nothing, and both tooltips overstated the gain by one to two orders of magnitude.
+	          "Use approximate CCF" claimed 2-3x for skipping the CCF normalisation; that saves
+	          two passes over the series against one per lag, well under a percent, and because
+	          the divisor is constant across lags it changed nothing WITHIN a combination while
+	          deciding the winner BETWEEN them by unit scale - the four pair the scalar against
+	          vertical wind and against sonic temperature, whose covariances are not in the same
+	          units. That is a systematic bias on every period, not the "shift of +/-1 sample in
+	          rare edge cases" the tooltip described. "Cap AR model order" claimed 10-15% of
+	          total PWB time; AR fitting is about a percent of it, and capping under-fits the
+	          pre-whitener, which is the step that sharpens the peak the method exists to find.
+	          The engine gained a guard band and hoisted buffers in their place, which cost
+	          nothing scientifically and are worth appreciably more
+	- Change: The "Detect time lag on raw data" checkbox is gone, replaced by a line saying what
+	          actually happens. Its tooltip described a choice between raw and block-averaged
+	          data; there was never such a choice. Both settings ran on rotated 20 Hz data and the
+	          flag only ever chose whether the gas series had already been through the
+	          mixing-ratio conversion. Detection is pre-WPL now, with nothing left to pick
+	- Fix: The per-gas search windows show the window that will actually be searched. Both spins
+	       displayed 0.0 when a gas had no window stored while the engine searched [-10, +10], so
+	       the dialog reported a window nobody was using - and because setting a spin to the value
+	       it already displays emits nothing, a user who wanted a minimum of 0 could not say so:
+	       the record kept its sentinel and the engine went on searching from -10. The sentinel
+	       moved off -1.0 too, which is an ordinary bound a user may want to state
+	- Fix: The smoothing width is kept odd. A centred rolling mean of even width has no midpoint;
+	       the engine sums the odd count either way, so an even value here only ever meant the odd
+	       one above it
+	- Change: The HDI prefilter tooltip says what it does, now that it does something. Nothing in
+	          the engine had ever read that setting
+
 7.3.0 (2026-07-28)
 
     GUI:

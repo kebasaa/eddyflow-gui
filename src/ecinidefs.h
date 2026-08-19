@@ -437,23 +437,29 @@ namespace EcIni
     const auto INI_PWB_TIMELAG_13   = QStringLiteral("pwb_hdi_prefilter_s");
     const auto INI_PWB_TIMELAG_14   = QStringLiteral("pwb_smoothing_width");
     const auto INI_PWB_TIMELAG_15   = QStringLiteral("pwb_random_seed");
-    const auto INI_PWB_TIMELAG_16   = QStringLiteral("pwb_approx_ccf");
-    const auto INI_PWB_TIMELAG_17   = QStringLiteral("pwb_max_ar_order");
-    //> The engine's own spelling. This was `pwb_detect_on_raw`, which no
-    //> reader on the engine side has ever had: SearchLocalTags matches tag
-    //> labels by exact equality, so the checkbox wrote a key nothing read,
-    //> and the pre-processing pass has been off for every project ever
-    //> saved. The engine declares `pwb_detect_prewpl` - SNTags(424) in
-    //> m_rp_global_var.f90 - and gates the pass on it in eddyflow-rp_main.
-    //>
-    //> The old key is deliberately NOT accepted as a legacy alias. It was
-    //> written unconditionally with a default of 1, so every project on disk
-    //> carries `pwb_detect_on_raw=1`; honouring that would switch on, for
-    //> everybody at once, a pass that has never actually run. It is removed
-    //> on save instead, and the default below is the engine's own.
-    const auto INI_PWB_TIMELAG_18   = QStringLiteral("pwb_detect_prewpl");
-    //> Retired with the rename above. Only ever removed, never read.
-    const auto INI_PWB_TIMELAG_18_RETIRED = QStringLiteral("pwb_detect_on_raw");
+    //> pwb_approx_ccf and pwb_max_ar_order stood here and are retired, so
+    //> they are only ever removed on save. Both were offered as speed
+    //> options and neither was one: skipping the CCF normalisation saved two
+    //> passes over the series against one per lag - well under a percent -
+    //> while leaving the four pre-whitening combinations compared on
+    //> unnormalised covariances in different physical units, so the winner
+    //> was decided by the units of vertical wind against those of sonic
+    //> temperature. Capping the AR order saved about as little and
+    //> under-fits the pre-whitener, which is the step that sharpens the peak
+    //> the method exists to find.
+    const auto INI_PWB_TIMELAG_16_RETIRED = QStringLiteral("pwb_approx_ccf");
+    const auto INI_PWB_TIMELAG_17_RETIRED = QStringLiteral("pwb_max_ar_order");
+    //> Detection runs on rotated, pre-WPL data and there is
+    //> no longer a stage to choose: both alternatives ran on rotated 20 Hz
+    //> data, and the only difference was whether the gas series had been
+    //> through the pointwise mixing-ratio conversion first. That conversion
+    //> runs before time-lag compensation, so after it the cell temperature
+    //> and water signals sit in the gas series at the wrong relative lag -
+    //> and the gas series is the one being cross-correlated.
+    const auto INI_PWB_TIMELAG_18_RETIRED = QStringLiteral("pwb_detect_prewpl");
+    //> The spelling the interface used before that setting was renamed to the
+    //> engine's. No reader ever had it, so it is only ever removed.
+    const auto INI_PWB_TIMELAG_18_LEGACY = QStringLiteral("pwb_detect_on_raw");
 
     //> Random-uncertainty settings live in [Project], not in a RawProcess
     //> group. The engine declares them in EPPrjNTags and parses that table only

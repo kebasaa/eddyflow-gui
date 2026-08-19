@@ -506,9 +506,6 @@ public:
     void setPwbHdiPrefilter(double d);
     void setPwbSmoothingWidth(int n);
     void setPwbRandomSeed(int n);
-    void setPwbApproxCcf(int n);
-    void setPwbMaxArOrder(int n);
-    void setPwbDetectOnRaw(int n);
 
     void setRandomErrorMethod(int n);
     void setRandomErrorItsMethod(int n);
@@ -951,9 +948,6 @@ public:
     double pwbHdiPrefilter() const { return ec_project_state_.pwbTimelag.hdi_prefilter_s; }
     int pwbSmoothingWidth() const { return ec_project_state_.pwbTimelag.smoothing_width; }
     int pwbRandomSeed()  const { return ec_project_state_.pwbTimelag.random_seed; }
-    int pwbApproxCcf()    const { return ec_project_state_.pwbTimelag.approx_ccf; }
-    int pwbMaxArOrder()   const { return ec_project_state_.pwbTimelag.max_ar_order; }
-    int pwbDetectOnRaw()  const { return ec_project_state_.pwbTimelag.detect_on_raw; }
 
     int randErrorMethod() const { return ec_project_state_.randomError.ru_method; }
     int randErrorItsMehod() const { return ec_project_state_.randomError.its_method; }
