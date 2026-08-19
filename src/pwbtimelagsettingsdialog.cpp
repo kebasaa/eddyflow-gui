@@ -92,6 +92,14 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
 
     blockLengthSpin = createSecondsSpin(0.0, 1000.0);
     blockLengthSpin->setSpecialValueText(tr("Auto (2 x search window)"));
+    blockLengthSpin->setToolTip(tr(
+        "<b>Block length:</b> length of the resampling blocks the bootstrap "
+        "draws, which preserve local autocorrelation.<br><br>"
+        "This is a <b>floor</b>, applied per gas. A block shorter than the "
+        "lag range cannot contain the lag structure the bootstrap exists to "
+        "preserve, so each gas actually uses "
+        "<i>max(this, 2 x its widest search bound)</i> - a gas searching to "
+        "25 s resamples in 50 s blocks whatever is set here."));
 
     minValidFracSpin = createFractionSpin();
     hdiThreshSpin = createSecondsSpin(0.0, 100.0);
@@ -118,6 +126,30 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
         "odd - a centred window has no midpoint otherwise - so an even value "
         "is rounded up."));
 
+    maxCarrySpin = new QDoubleSpinBox;
+    maxCarrySpin->setDecimals(1);
+    maxCarrySpin->setRange(0.0, 8760.0);
+    maxCarrySpin->setSingleStep(1.0);
+    maxCarrySpin->setAccelerated(true);
+    maxCarrySpin->setSuffix(tr("  [h]"));
+    maxCarrySpin->setSpecialValueText(tr("Unlimited"));
+    maxCarrySpin->setToolTip(tr(
+        "<b>Max carry:</b><br>"
+        "How far a detected time lag may travel to a period that detected "
+        "none. It bounds all three ways a gas reaches its own lag - "
+        "interpolation between reliable neighbours, carrying the last one "
+        "forward, and filling backward from the next - because bounding only "
+        "one of them would achieve nothing: with detections either side of a "
+        "long unusable stretch, an unbounded backward fill covers exactly the "
+        "span the forward carry was forbidden to cross.<br><br>"
+        "Past this distance the period takes the lag of another gas on the "
+        "same analyser instead, and failing that the gas's median.<br><br>"
+        "Measured in <b>elapsed hours</b>, not in averaging periods: the "
+        "table has a row only where a period was processed, so counting "
+        "periods would reach straight across a gap in the raw files.<br><br>"
+        "<b>Default:</b> 24 h. Set to zero for the published rule, under "
+        "which one reliable half hour can supply days."));
+
     randomSeedSpin = new QSpinBox;
     randomSeedSpin->setRange(1, 2147483647);
     randomSeedSpin->setAccelerated(true);
@@ -139,8 +171,10 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
     detection->addWidget(hdiPrefilterSpin, 6, 1);
     detection->addWidget(new QLabel(tr("Smoothing width :")), 7, 0, Qt::AlignRight);
     detection->addWidget(smoothingWidthSpin, 7, 1);
-    detection->addWidget(new QLabel(tr("Random seed :")), 8, 0, Qt::AlignRight);
-    detection->addWidget(randomSeedSpin, 8, 1);
+    detection->addWidget(new QLabel(tr("Max carry :")), 8, 0, Qt::AlignRight);
+    detection->addWidget(maxCarrySpin, 8, 1);
+    detection->addWidget(new QLabel(tr("Random seed :")), 9, 0, Qt::AlignRight);
+    detection->addWidget(randomSeedSpin, 9, 1);
     detection->setColumnStretch(2, 1);
 
     //> Detection runs on rotated, pre-WPL high-frequency data, and there is
@@ -163,14 +197,17 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
     // saying so, narrowing CO2's window and watching H2O move looks like a bug.
     auto sharingNote = new QLabel(tr(
         "<i>Each averaging period gets its own time lag per gas. Where a "
-        "period has no reliable detection, the lag is filled in this order: "
-        "another gas on the same analyser in that period (they share a tube, "
-        "so they share a delay; water never donates, its lag being humidity "
-        "dependent), then interpolation between the reliable lags either side, "
-        "then the nearest reliable lag at the start or end of the run, then "
-        "the gas's median, and finally covariance maximisation. Because gases "
-        "on one analyser share, narrowing one gas's window can affect every "
-        "gas on that analyser.</i>"));
+        "period has no reliable detection, the gas's <b>own</b> lag is used "
+        "first in all three of its forms - interpolated between the reliable "
+        "lags either side, carried forward, or filled backward - each no "
+        "further than Max carry. Only past that is the lag of another gas on "
+        "the <b>same analyser</b> borrowed, and then the gas's median. Two "
+        "gases down one tube still have measurably different delays, so a "
+        "borrowed lag trades a stale number for a biased one.<br>"
+        "A lag is never taken from a different instrument, and never from "
+        "water, whose delay depends on humidity as the trace gases' does "
+        "not. A gas whose record names no instrument neither donates nor "
+        "borrows, since nothing then proves it shares a tube.</i>"));
     sharingNote->setWordWrap(true);
 
     pwbOptionsLayout->addLayout(windows);
@@ -224,6 +261,8 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
         }
         ecProject_->setPwbSmoothingWidth(n);
     });
+    connect(maxCarrySpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            ecProject_, &EcProject::setPwbMaxCarryH);
     connect(randomSeedSpin, QOverload<int>::of(&QSpinBox::valueChanged),
             ecProject_, &EcProject::setPwbRandomSeed);
 
@@ -248,6 +287,7 @@ void PwbTimelagSettingsDialog::refresh()
     devThreshSpin->setValue(ecProject_->pwbDevThresh());
     hdiPrefilterSpin->setValue(ecProject_->pwbHdiPrefilter());
     smoothingWidthSpin->setValue(ecProject_->pwbSmoothingWidth());
+    maxCarrySpin->setValue(ecProject_->pwbMaxCarryH());
     randomSeedSpin->setValue(ecProject_->pwbRandomSeed());
 
     setPwbControlsEnabled(ecProject_->timelagOptMode() != 0);

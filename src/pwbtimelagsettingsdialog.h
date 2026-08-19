@@ -73,6 +73,7 @@ private:
     QDoubleSpinBox *devThreshSpin;
     QDoubleSpinBox *hdiPrefilterSpin;
     QSpinBox *smoothingWidthSpin;
+    QDoubleSpinBox *maxCarrySpin;
     QSpinBox *randomSeedSpin;
 
     EcProject *ecProject_;

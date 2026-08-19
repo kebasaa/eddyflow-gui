@@ -2084,6 +2084,8 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_PWB_TIMELAG_13, QString::number(ec_project_state_.pwbTimelag.hdi_prefilter_s, 'f', 2));
         project_ini.setValue(EcIni::INI_PWB_TIMELAG_14, ec_project_state_.pwbTimelag.smoothing_width);
         project_ini.setValue(EcIni::INI_PWB_TIMELAG_15, ec_project_state_.pwbTimelag.random_seed);
+        project_ini.setValue(EcIni::INI_PWB_TIMELAG_19,
+            QString::number(ec_project_state_.pwbTimelag.max_carry_h, 'f', 2));
         //> Three retired settings, removed rather than left behind: they
         //> are inert now, and a key nothing reads is a key someone will
         //> eventually edit expecting it to matter.
@@ -3680,6 +3682,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.pwbTimelag.random_seed
                 = project_ini.value(EcIni::INI_PWB_TIMELAG_15,
                                     defaultEcProjectState.pwbTimelag.random_seed).toInt();
+        ec_project_state_.pwbTimelag.max_carry_h
+                = project_ini.value(EcIni::INI_PWB_TIMELAG_19,
+                                    defaultEcProjectState.pwbTimelag.max_carry_h).toDouble();
 
         //> Per-gas search windows. Read after the gas records exist, so the
         //> loop can address them; absent keys leave the record's sentinel in
@@ -7112,6 +7117,12 @@ void EcProject::setPwbSmoothingWidth(int n)
 void EcProject::setPwbRandomSeed(int n)
 {
     ec_project_state_.pwbTimelag.random_seed = n;
+    setModified(true);
+}
+
+void EcProject::setPwbMaxCarryH(double n)
+{
+    ec_project_state_.pwbTimelag.max_carry_h = n;
     setModified(true);
 }
 

@@ -506,6 +506,7 @@ public:
     void setPwbHdiPrefilter(double d);
     void setPwbSmoothingWidth(int n);
     void setPwbRandomSeed(int n);
+    void setPwbMaxCarryH(double n);
 
     void setRandomErrorMethod(int n);
     void setRandomErrorItsMethod(int n);
@@ -948,6 +949,7 @@ public:
     double pwbHdiPrefilter() const { return ec_project_state_.pwbTimelag.hdi_prefilter_s; }
     int pwbSmoothingWidth() const { return ec_project_state_.pwbTimelag.smoothing_width; }
     int pwbRandomSeed()  const { return ec_project_state_.pwbTimelag.random_seed; }
+    qreal pwbMaxCarryH() const { return ec_project_state_.pwbTimelag.max_carry_h; }
 
     int randErrorMethod() const { return ec_project_state_.randomError.ru_method; }
     int randErrorItsMehod() const { return ec_project_state_.randomError.its_method; }

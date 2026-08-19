@@ -494,6 +494,11 @@ struct PwbTimelagState
     //> default with nothing to say it had.
     int smoothing_width = 5;
     int random_seed = 2024;
+    //> Twenty-four hours, matching read_ini_rp.f90. dyco leaves its
+    //> equivalent unlimited, which is the paper's rule and means one good
+    //> half hour can supply days; a tube delay that drifts with pump
+    //> temperature does not stay put that long.
+    qreal max_carry_h = 24.0;
 };
 
 struct RandomErrorState

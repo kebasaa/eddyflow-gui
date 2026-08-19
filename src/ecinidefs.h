@@ -460,6 +460,14 @@ namespace EcIni
     //> The spelling the interface used before that setting was renamed to the
     //> engine's. No reader ever had it, so it is only ever removed.
     const auto INI_PWB_TIMELAG_18_LEGACY = QStringLiteral("pwb_detect_on_raw");
+    //> How far a detected lag may travel to a period that detected none, in
+    //> hours of elapsed time; 0 is unlimited, which is the published rule.
+    //> The engine bounds interpolation, forward carry and backward fill with
+    //> the one value - bounding a single direction would achieve nothing,
+    //> since with detections either side of a long unusable stretch the later
+    //> one would fill from the future exactly the span the earlier one was
+    //> forbidden to cross.
+    const auto INI_PWB_TIMELAG_19   = QStringLiteral("pwb_max_carry_h");
 
     //> Random-uncertainty settings live in [Project], not in a RawProcess
     //> group. The engine declares them in EPPrjNTags and parses that table only

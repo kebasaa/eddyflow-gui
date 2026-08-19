@@ -50,6 +50,10 @@ SHARED_DEFAULTS = {
     "hdi_prefilter_s": ("PWBSetup%hdi_prefilter_s = ", "1.0"),
     "smoothing_width": ("PWBSetup%smoothing_width = ", "5"),
     "random_seed": ("PWBSetup%random_seed = ", "2024"),
+    #> Hours, and the two sides must agree on the number as much as on the
+    #> unit: this bounds how far a lag travels to a period that detected none,
+    #> so a disagreement changes which periods get a borrowed lag at all.
+    "max_carry_h": ("PWBSetup%max_carry_h = ", "24"),
 }
 
 

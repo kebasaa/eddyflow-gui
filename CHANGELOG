@@ -1,3 +1,29 @@
+7.3.2 (2026-08-19)
+
+	GUI:
+	- New feature: A "Max carry" setting bounds how far a detected time lag may travel to an
+	               averaging period that detected none - all three ways a gas reaches its own
+	               lag, interpolation between reliable neighbours, carrying the last one forward
+	               and filling backward from the next, because bounding one of them alone
+	               achieves nothing. Past it the period takes the lag of another gas on the same
+	               analyser instead, and failing that the gas's median.
+	               In elapsed hours rather than in averaging periods, because the engine's table
+	               has a row only where a period was processed: counting periods would reach
+	               straight across a gap in the raw files. Twenty-four hours by default; zero is
+	               the published rule, under which one reliable half hour can supply days
+	- Change: The gap-filling note says what the engine now does, which is the reverse of what it
+	          said. A gas's OWN lag comes first in all three of its forms, and a lag borrowed
+	          from a neighbour on the same analyser only after them: two gases down one tube
+	          still have measurably different delays, so borrowing trades a stale number for a
+	          biased one. It also states the two rules a reader cannot infer from the controls -
+	          that a lag is never taken from a different instrument, nor from water, and that a
+	          gas whose record names no instrument neither donates nor borrows, since nothing
+	          then proves it shares a tube with anything
+	- Change: The block-length setting is described as what it is, a floor. The engine derives
+	          the block per gas as max(this, 2 x that gas's widest search bound), so a gas
+	          searching to 25 s resamples in 50 s blocks whatever is set here - a block shorter
+	          than the lag range cannot contain the structure the bootstrap exists to preserve
+
 7.3.1 (2026-08-19)
 
 	GUI:
