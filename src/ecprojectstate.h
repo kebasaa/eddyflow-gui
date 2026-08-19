@@ -488,11 +488,20 @@ struct PwbTimelagState
     qreal hdi_thresh_s = 0.5;
     qreal dev_thresh_s = 0.5;
     qreal hdi_prefilter_s = 1.0;
-    int smoothing_width = 6;
+    //> 5, not 6: read_ini_rp.f90 applies 5 when the key is absent, and
+    //> a project written here always states the key - so a 6 here made
+    //> every interface-written project differ from the engine's own
+    //> default with nothing to say it had.
+    int smoothing_width = 5;
     int random_seed = 2024;
     int approx_ccf    = 0;
     int max_ar_order  = 0;
-    int detect_on_raw = 1;
+    //> Off, which is what the engine applies when the key is absent,
+    //> what this dialog's own tooltip promises, and what has actually
+    //> been happening: until the key was renamed to the engine's
+    //> spelling, nothing read it. A default of 1 here would turn the
+    //> pass on for every project the moment it is re-saved.
+    int detect_on_raw = 0;
 };
 
 struct RandomErrorState

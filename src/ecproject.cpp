@@ -2088,6 +2088,11 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_PWB_TIMELAG_15, ec_project_state_.pwbTimelag.random_seed);
         project_ini.setValue(EcIni::INI_PWB_TIMELAG_16, ec_project_state_.pwbTimelag.approx_ccf);
         project_ini.setValue(EcIni::INI_PWB_TIMELAG_17, ec_project_state_.pwbTimelag.max_ar_order);
+        //> The pre-WPL detection flag, under the name the engine reads.
+        //> The key it used to be written as is removed rather than left
+        //> behind: it is inert now, and a file carrying both spellings
+        //> invites someone to edit the one nothing reads.
+        project_ini.remove(EcIni::INI_PWB_TIMELAG_18_RETIRED);
         project_ini.setValue(EcIni::INI_PWB_TIMELAG_18, ec_project_state_.pwbTimelag.detect_on_raw);
     project_ini.endGroup();
 

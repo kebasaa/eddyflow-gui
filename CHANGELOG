@@ -1,6 +1,29 @@
 7.3.0 (2026-07-28)
 
     GUI:
+	- Fix: The "Detect time lag on raw data" checkbox does something. It never did: this
+	       wrote the setting as pwb_detect_on_raw and the engine has always declared
+	       pwb_detect_prewpl, and the engine matches tag labels by exact equality - so the box
+	       reached nothing and the pre-processing pass was off for every project ever saved,
+	       whatever it showed. It writes the engine's spelling now.
+	       The old key is deliberately not read as an alias, and is removed from any project
+	       this saves. It was written unconditionally with a default of 1, so every project on
+	       disk carries pwb_detect_on_raw=1 - honouring it would switch on, for everybody at
+	       once, a pass that has never actually run.
+	       Its default here is 0 now, which is what the engine applies when the key is absent
+	       and what this dialog's own tooltip has said throughout ("Default: Unchecked"). So no
+	       result moves: the pass stays off until somebody ticks the box, and ticking it works
+	- Fix: The PWB smoothing width defaults to 5, as the engine does. It defaulted to 6 here,
+	       and because this writes the key unconditionally, every project it saved carried a 6
+	       while a project without the key got the engine's 5 - two defaults for one setting,
+	       with nothing anywhere to say they disagreed. A project already saved keeps whatever
+	       it states; only a new one changes
+	- New feature: A check that reads BOTH repositories: every PWB key this writes must appear
+	               in the engine's tag table, and the defaults the two share must agree.
+	               Nothing at build time connects them, so a name or a default can drift with
+	               both sides compiling and running perfectly - which is how both fixes above
+	               went unnoticed. It skips when the engine is not checked out beside this tree,
+	               like the other cross-repo checks here
 	- New feature: Every anemometer and gas analyzer carries an acquisition frequency, in the
 	               Metadata File Editor's instrument tables. It shows the station's frequency
 	               until the instrument is given one of its own - and goes on following it, so

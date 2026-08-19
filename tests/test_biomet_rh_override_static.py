@@ -210,15 +210,41 @@ class TheKeyIsForTheInterfaceAlone(unittest.TestCase):
         self.assertIn("engine", preamble)
 
     def test_the_engine_does_not_read_it(self):
+        """It is in no tag table, so no engine reader can ever see it.
+
+        This used to assert the string appeared in no engine source file at
+        all, which was the same thing until the engine's EddyPro importer
+        started WRITING the key - at the interface's own default, so that a
+        converted project round-trips through here without a missing setting.
+        Written is not read, and it is read that matters: the engine acts on
+        the per-gas moisture references, not on this key.
+
+        The tag tables are the whole test. A key absent from them cannot be
+        matched by SearchLocalTags, which compares labels by exact equality,
+        so no amount of code elsewhere can act on it.
+        """
         engine = ROOT.parent / "eddyflow-engine" / "src"
         if not engine.is_dir():
             self.skipTest("engine tree not beside this one")
-        hits = [p for p in engine.rglob("*.f90")
-                if "biom_rh_override" in p.read_text(encoding="utf-8",
+
+        tables = [engine / "src_common" / "m_common_global_var.f90",
+                  engine / "src_rp" / "m_rp_global_var.f90",
+                  engine / "src_fcc" / "m_fx_global_var_mod.f90"]
+        for table in tables:
+            self.assertTrue(table.is_file(), "%s is gone" % table.name)
+            self.assertNotIn("biom_rh_override",
+                             table.read_text(encoding="utf-8", errors="replace"),
+                             "%s declares the key, so the engine now reads it "
+                             "- this page's warning is no longer the whole "
+                             "story" % table.name)
+
+        #> And wherever it does appear, it is only ever written out.
+        hits = [f for f in engine.rglob("*.f90")
+                if "biom_rh_override" in f.read_text(encoding="utf-8",
                                                      errors="replace")]
-        self.assertEqual([], hits,
-                         "the engine acts on the per-gas references, not on "
-                         "this key")
+        self.assertEqual(["m_eddypro_import.f90"], [f.name for f in hits],
+                         "the key turned up somewhere new in the engine; "
+                         "check whether that place reads it")
 
 
 class TheTextSaysWhatMovesAndWhatDoesNot(unittest.TestCase):

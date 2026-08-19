@@ -439,7 +439,21 @@ namespace EcIni
     const auto INI_PWB_TIMELAG_15   = QStringLiteral("pwb_random_seed");
     const auto INI_PWB_TIMELAG_16   = QStringLiteral("pwb_approx_ccf");
     const auto INI_PWB_TIMELAG_17   = QStringLiteral("pwb_max_ar_order");
-    const auto INI_PWB_TIMELAG_18   = QStringLiteral("pwb_detect_on_raw");
+    //> The engine's own spelling. This was `pwb_detect_on_raw`, which no
+    //> reader on the engine side has ever had: SearchLocalTags matches tag
+    //> labels by exact equality, so the checkbox wrote a key nothing read,
+    //> and the pre-processing pass has been off for every project ever
+    //> saved. The engine declares `pwb_detect_prewpl` - SNTags(424) in
+    //> m_rp_global_var.f90 - and gates the pass on it in eddyflow-rp_main.
+    //>
+    //> The old key is deliberately NOT accepted as a legacy alias. It was
+    //> written unconditionally with a default of 1, so every project on disk
+    //> carries `pwb_detect_on_raw=1`; honouring that would switch on, for
+    //> everybody at once, a pass that has never actually run. It is removed
+    //> on save instead, and the default below is the engine's own.
+    const auto INI_PWB_TIMELAG_18   = QStringLiteral("pwb_detect_prewpl");
+    //> Retired with the rename above. Only ever removed, never read.
+    const auto INI_PWB_TIMELAG_18_RETIRED = QStringLiteral("pwb_detect_on_raw");
 
     //> Random-uncertainty settings live in [Project], not in a RawProcess
     //> group. The engine declares them in EPPrjNTags and parses that table only
