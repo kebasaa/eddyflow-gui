@@ -62,7 +62,7 @@ namespace Defs
     //> role. A 4.x file is migrated on load and saved back in this format;
     //> nothing but the reader understands the old shape.
     const auto PROJECT_FILE_VERSION = 0x050000;
-    const auto PROJECT_FILE_VERSION_STR = QStringLiteral("5.0.0");
+    const auto PROJECT_FILE_VERSION_STR = QStringLiteral("5.1.0");
 
     const auto METADATA_FILE_VERSION = 0x030201;
     const auto METADATA_FILE_VERSION_STR = QStringLiteral("3.2.2");

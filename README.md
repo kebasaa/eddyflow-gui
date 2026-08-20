@@ -181,7 +181,9 @@ You can run EddyFlow using sample data files available at the [eddyflow-build-sc
   - Hsieh et al. (2000)
   
 + ET & NEE Partitioning
-  - Conditional Eddy Covariance (Zahn et al. 2022)
+  - Conditional Eddy Covariance (Zahn et al. 2022), over any number of
+    CO2/H2O channel pairings, and extending to any further species measured
+    alongside them - carbonyl sulfide included
 
 + Other options applied in both Express and/or Advanced Mode include:
   - Sonic temperature correction for humidity following van Dijk et al. (2004)

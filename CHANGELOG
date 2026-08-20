@@ -1,6 +1,42 @@
 7.3.0 (2026-08-20)
 
     GUI:
+	- BREAKING: The project format goes to 5.1.0, with the rebuilt Conditional Eddy Covariance
+	          settings. An older engine refuses such a file rather than ignoring the parts of it
+	          it does not know.
+	- New feature: A "Channel pairing" table in CEC Settings says which CO2 channel is
+	          partitioned against which H2O channel. It defaults to one pairing per CO2 channel,
+	          each with the water on the same analyser, which is what a site means when it has
+	          not said - and is what the engine derives on its own from an unstated project. A
+	          pairing that crosses two analysers is marked, because the octants are built from
+	          the water and the carbon together and across two instruments those two arrive at
+	          different time lags and through different spectral responses.
+	          Which of the pairing's two fluxes are reported moved into the same table, one
+	          setting per pairing.
+	- New feature: Each pairing can carry further species to partition in the same octants,
+	          chosen from the gases the site measures. Carbonyl sulfide is the useful case: its
+	          plant uptake is stomatal and effectively irreversible, so the stomatal component is
+	          a cleaner photosynthesis proxy than the CO2 one.
+	- New feature: A "Singularity band" setting, defaulting to the 0.2 Zahn et al. (2022) use.
+	          The engine had it hard-coded at a quarter of that.
+	- Fix: Conditional Eddy Covariance requires BOTH a CO2 and an H2O channel, and says so
+	          when one is missing. It used to accept either and force the choice to whichever was
+	          present - and the engine, which needs both to decide which octant a parcel is in,
+	          then refused to run, so the project got a full set of columns containing nothing
+	          but the error code with nothing anywhere explaining why.
+	- Change: The global three-way "Flux partitioning" combo is retired. It said nothing useful
+	          once a site could have a pairing per analyser, and it was what forced the
+	          impossible choice above. The checkbox is now a master switch.
+	- Fix: The three occupancy limits are percentages and the engine now reads them as such
+	          unconditionally. It used to pick between a percentage and a fraction by magnitude,
+	          so a box labelled [%] and set to 0.5 came back as fifty per cent.
+	- Fix: The hyperbolic threshold's tooltip describes what the engine does. It cited MREA's
+	          dimensionless H = 0.25 while the engine compared against the raw product, where no
+	          value of H means anything in particular; the engine is dimensionless now and the
+	          text says so, including that raising H also thins the octants.
+	- Fix: The Conditional Eddy Covariance checkbox has the documentation link every other
+	          checkbox in its block has, and its tooltip names the columns the engine actually
+	          writes - Reco_cec, not R_cec.
 	- Change: The "Detect time lag on raw data" control is retired, and with it the choice it
 	          offered. It never reached the engine in the first place: this wrote the setting as
 	          pwb_detect_on_raw while the engine declared pwb_detect_prewpl, and the engine matches

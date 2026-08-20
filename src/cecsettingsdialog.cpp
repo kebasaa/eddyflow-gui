@@ -11,17 +11,21 @@
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QHeaderView>
 #include <QLabel>
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QSpinBox>
+#include <QTableView>
 #include <QVBoxLayout>
 
+#include "cecpairmodel.h"
 #include "ecproject.h"
 
 namespace
 {
 constexpr double DefaultH = 0.0;
+constexpr double DefaultSingularBand = 0.20;
 constexpr double DefaultMinO1O2 = 20.0;
 constexpr double DefaultMinOctant = 5.0;
 constexpr double DefaultMinValid = 90.0;
@@ -39,10 +43,19 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject) :
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
 
     hSpin = new QDoubleSpinBox(this);
-    hSpin->setRange(0.0, 1000.0);
+    //> Dimensionless now, scaled by sigma_w*sigma_s, so the useful range is a
+    //> few multiples of one rather than the thousand an absolute product
+    //> needed.
+    hSpin->setRange(0.0, 10.0);
     hSpin->setDecimals(3);
     hSpin->setSingleStep(0.05);
     hSpin->setAccelerated(true);
+
+    singularBandSpin = new QDoubleSpinBox(this);
+    singularBandSpin->setRange(0.0, 1.0);
+    singularBandSpin->setDecimals(2);
+    singularBandSpin->setSingleStep(0.05);
+    singularBandSpin->setAccelerated(true);
 
     minO1O2Spin = createPercentSpin();
     minOctantSpin = createPercentSpin();
@@ -58,6 +71,7 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject) :
     maxGapFillSpin->setSuffix(tr("  [samples]"));
 
     hLabel = new QLabel(tr("Hyperbolic threshold H :"), this);
+    singularBandLabel = new QLabel(tr("Singularity band :"), this);
     minO1O2Label = new QLabel(tr("Minimum O1 + O2 occupancy :"), this);
     minOctantLabel = new QLabel(tr("Minimum per-octant occupancy :"), this);
     minValidLabel = new QLabel(tr("Minimum valid data :"), this);
@@ -72,7 +86,9 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject) :
     };
 
     setOptionTooltip(hLabel, hSpin,
-                     tr("<b>Hyperbolic threshold H:</b> Earlier MREA work used H = 0.25, but Zahn et al. (2022) found the method was no longer sensitive to H after adding the partitioning constraint and used no hyperbolic threshold. Default: 0."));
+                     tr("<b>Hyperbolic threshold H:</b> Leaves out the events nearest the origin, whose sign is instrument noise rather than a surface signature. A point counts toward an octant only when |w's'| is at least H\xc2\xb7\xcf\x83<sub>w</sub>\xc2\xb7\xcf\x83<sub>s</sub>, so one value of H means the same thing at every site and in any unit. This is what makes the method usable when turbulence is weak: without it, noise around c' = 0 fills both octants about equally and the CO\xe2\x82\x82 ratio walks into the singularity below. Raising H also thins the octants, so the occupancy limits below may need to come down with it. Earlier MREA work used H = 0.25; Zahn et al. (2022) found their results insensitive to it and used none. Default: 0 (off)."));
+    setOptionTooltip(singularBandLabel, singularBandSpin,
+                     tr("<b>Singularity band:</b> When a species' two components nearly cancel, their ratio approaches \xe2\x88\x921 and the partition divides by something near zero on a total that is itself near zero. Periods whose ratio falls within this distance of \xe2\x88\x921 are reported as singular and their components withheld. Zahn et al. (2022) reject \xe2\x88\x921.2 to \xe2\x88\x920.8 and note the width is dataset-dependent. Only species whose components have opposite signs can reach it, so water is never affected. Set to 0 to disable. Default: 0.20."));
     setOptionTooltip(minO1O2Label, minO1O2Spin,
                      tr("<b>Minimum O1 + O2 occupancy:</b> O1 and O2 are the two upward-motion octants used by the CEC/MREA partitioning constraint. Zahn et al. (2022) require at least 20% of instantaneous points in these two octants combined. Default: 20%."));
     setOptionTooltip(minOctantLabel, minOctantSpin,
@@ -95,6 +111,8 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject) :
     partitionLayout->addWidget(minO1O2Spin, 1, 1);
     partitionLayout->addWidget(minOctantLabel, 2, 0, Qt::AlignRight);
     partitionLayout->addWidget(minOctantSpin, 2, 1);
+    partitionLayout->addWidget(singularBandLabel, 3, 0, Qt::AlignRight);
+    partitionLayout->addWidget(singularBandSpin, 3, 1);
     partitionLayout->setColumnStretch(2, 1);
 
     auto qcGroup = new QGroupBox(tr("QC/preprocessing limits"), this);
@@ -110,6 +128,49 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject) :
     qcLayout->addWidget(maxGapFillSpin, 3, 1);
     qcLayout->setColumnStretch(2, 1);
 
+    //> Which channels go together, and what else rides along with them.
+    //>
+    //> This used to be implicit: the first record of each species, whatever
+    //> analyser each happened to sit on. A site running two analysers had no
+    //> way to say that each should be partitioned against its own water, and
+    //> no way to partition anything but its CO2 and its H2O.
+    auto pairGroup = new QGroupBox(tr("Channel pairing"), this);
+    pairGroup->setToolTip(tr("Which CO\xe2\x82\x82 channel is partitioned against which H\xe2\x82\x82O channel, and which further species ride along in the same octants. Defaults to one pairing per CO\xe2\x82\x82 channel, each with the water on its own analyser."));
+
+    pairModel = new CecPairModel(ecProject_, this);
+    pairTable = new QTableView(pairGroup);
+    pairTable->setModel(pairModel);
+    pairTable->setItemDelegate(new CecPairDelegate(pairModel, pairTable));
+    pairTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    pairTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    pairTable->setEditTriggers(QAbstractItemView::AllEditTriggers);
+    pairTable->setAlternatingRowColors(true);
+    pairTable->verticalHeader()->setVisible(false);
+    pairTable->horizontalHeader()->setStretchLastSection(false);
+    pairTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    pairTable->horizontalHeader()->setSectionResizeMode(CecPairModel::Extra,
+                                                        QHeaderView::Stretch);
+    pairTable->setMinimumHeight(120);
+
+    addPairButton = new QPushButton(tr("Add"), pairGroup);
+    addPairButton->setProperty("mdButton", true);
+    addPairButton->setToolTip(tr("Add a pairing. Two pairings may share a CO\xe2\x82\x82 channel \xe2\x80\x93 a site with two hygrometers on one analyser \xe2\x80\x93 and their columns are told apart by an occurrence number after the instrument name."));
+    removePairButton = new QPushButton(tr("Remove"), pairGroup);
+    removePairButton->setProperty("mdButton", true);
+    resetPairsButton = new QPushButton(tr("Same-analyser default"), pairGroup);
+    resetPairsButton->setProperty("mdButton", true);
+    resetPairsButton->setToolTip(tr("Discard the table and derive it again: one pairing per CO\xe2\x82\x82 channel, each with the H\xe2\x82\x82O on the same analyser."));
+
+    auto pairButtons = new QHBoxLayout;
+    pairButtons->addWidget(addPairButton);
+    pairButtons->addWidget(removePairButton);
+    pairButtons->addWidget(resetPairsButton);
+    pairButtons->addStretch();
+
+    auto pairLayout = new QVBoxLayout(pairGroup);
+    pairLayout->addWidget(pairTable);
+    pairLayout->addLayout(pairButtons);
+
     auto restoreButton = new QPushButton(tr("Restore Default Values"), this);
     restoreButton->setProperty("mdButton", true);
     restoreButton->setToolTip(tr("<b>Restore Default Values:</b> Resets CEC limits to the defaults used by Zahn et al. (2022)."));
@@ -122,6 +183,7 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject) :
     buttonLayout->addWidget(closeButtons);
 
     auto mainLayout = new QVBoxLayout(this);
+    mainLayout->addWidget(pairGroup);
     mainLayout->addWidget(partitionGroup);
     mainLayout->addWidget(qcGroup);
     mainLayout->addLayout(buttonLayout);
@@ -141,6 +203,18 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject) :
             ecProject_, &EcProject::setGeneralCecMaxStationarity);
     connect(maxGapFillSpin, QOverload<int>::of(&QSpinBox::valueChanged),
             ecProject_, &EcProject::setGeneralCecMaxGapFill);
+    connect(singularBandSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            ecProject_, &EcProject::setGeneralCecSingularBand);
+    connect(addPairButton, &QPushButton::clicked,
+            this, &CecSettingsDialog::addPair);
+    connect(removePairButton, &QPushButton::clicked,
+            this, &CecSettingsDialog::removeSelectedPair);
+    connect(resetPairsButton, &QPushButton::clicked,
+            pairModel, &CecPairModel::restoreDefaults);
+    connect(pairTable->selectionModel(), &QItemSelectionModel::selectionChanged,
+            this, &CecSettingsDialog::updatePairButtons);
+    connect(pairModel, &QAbstractItemModel::modelReset,
+            this, &CecSettingsDialog::updatePairButtons);
     connect(restoreButton, &QPushButton::clicked,
             this, &CecSettingsDialog::restoreDefaults);
     connect(closeButtons, &QDialogButtonBox::rejected,
@@ -158,6 +232,7 @@ void CecSettingsDialog::refresh()
     const QSignalBlocker signalStrengthBlocker(signalStrengthSpin);
     const QSignalBlocker maxStationarityBlocker(maxStationaritySpin);
     const QSignalBlocker maxGapFillBlocker(maxGapFillSpin);
+    const QSignalBlocker singularBandBlocker(singularBandSpin);
 
     hSpin->setValue(ecProject_->generalCecH());
     minO1O2Spin->setValue(ecProject_->generalCecMinO1O2());
@@ -166,6 +241,31 @@ void CecSettingsDialog::refresh()
     signalStrengthSpin->setValue(ecProject_->generalCecSignalStrength());
     maxStationaritySpin->setValue(ecProject_->generalCecMaxStationarity());
     maxGapFillSpin->setValue(ecProject_->generalCecMaxGapFill());
+    singularBandSpin->setValue(ecProject_->generalCecSingularBand());
+
+    //> The pairings name gas records, so a record added or removed elsewhere
+    //> can invalidate one. Re-read rather than trust what the table holds.
+    pairModel->reload();
+    updatePairButtons();
+}
+
+void CecSettingsDialog::addPair()
+{
+    pairModel->addPair();
+    pairTable->selectRow(pairModel->rowCount() - 1);
+}
+
+void CecSettingsDialog::removeSelectedPair()
+{
+    const auto rows = pairTable->selectionModel()->selectedRows();
+    if (rows.isEmpty()) { return; }
+    pairModel->removePair(rows.first().row());
+}
+
+void CecSettingsDialog::updatePairButtons()
+{
+    removePairButton->setEnabled(
+        !pairTable->selectionModel()->selectedRows().isEmpty());
 }
 
 void CecSettingsDialog::restoreDefaults()
@@ -177,6 +277,8 @@ void CecSettingsDialog::restoreDefaults()
     signalStrengthSpin->setValue(DefaultSignalStrength);
     maxStationaritySpin->setValue(DefaultMaxStationarity);
     maxGapFillSpin->setValue(DefaultMaxGapFill);
+    singularBandSpin->setValue(DefaultSingularBand);
+    pairModel->restoreDefaults();
 }
 
 QDoubleSpinBox *CecSettingsDialog::createPercentSpin()

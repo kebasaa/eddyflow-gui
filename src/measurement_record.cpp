@@ -146,4 +146,34 @@ QVector<int> gasDisplayOrder(const QVector<GasRecord>& gases)
     return order;
 }
 
+QVector<CecPairRecord> defaultCecPairs(const QVector<GasRecord>& gases)
+{
+    QVector<CecPairRecord> pairs;
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        if (gases.at(i).slug.compare(QStringLiteral("co2"), Qt::CaseInsensitive) != 0)
+        { continue; }
+
+        CecPairRecord pair;
+        pair.meth = 1;
+        pair.carbonIndex = i + 1;
+
+        //> The water on the same analyser, because the octants are built from
+        //> the water and the carbon together and across two instruments those
+        //> two arrive at different time lags and through different spectral
+        //> responses. Left at zero when that analyser carries none, which the
+        //> engine resolves to the designated hygrometer and warns about.
+        for (int j = 0; j < gases.size(); ++j)
+        {
+            if (gases.at(j).slug.compare(QStringLiteral("h2o"), Qt::CaseInsensitive) != 0)
+            { continue; }
+            if (gases.at(j).instrumentId != gases.at(i).instrumentId) { continue; }
+            pair.waterIndex = j + 1;
+            break;
+        }
+        pairs.append(pair);
+    }
+    return pairs;
+}
+
 } // namespace MeasurementRecords

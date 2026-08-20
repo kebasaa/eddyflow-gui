@@ -154,6 +154,10 @@ public:
     void setGeneralCecSignalStrength(double d);
     void setGeneralCecMaxGapFill(int n);
     void setGeneralCecMaxStationarity(double d);
+    void setGeneralCecSingularBand(double d);
+    void setCecPairs(const QVector<CecPairRecord>& pairs);
+    void writeCecPairs(QSettings& project_ini);
+    void readCecPairs(QSettings& project_ini);
 
     void setGeneralOutRich(int n);
     void setGeneralOutMd(int n);
@@ -600,6 +604,8 @@ public:
     double generalCecSignalStrength() const { return ec_project_state_.projectGeneral.cec_signal_strength; }
     int generalCecMaxGapFill() const { return ec_project_state_.projectGeneral.cec_max_gap_fill; }
     double generalCecMaxStationarity() const { return ec_project_state_.projectGeneral.cec_max_stationarity; }
+    double generalCecSingularBand() const { return ec_project_state_.projectGeneral.cec_singular_band; }
+    const QVector<CecPairRecord>& cecPairs() const { return ec_project_state_.projectGeneral.cecPairs; }
     int generalTob1Format() const { return ec_project_state_.projectGeneral.tob1_format; }
     const QString& generalOutPath() const { return ec_project_state_.projectGeneral.out_path; }
     int generalFixedOutFormat() const { return ec_project_state_.projectGeneral.fix_out_format; }

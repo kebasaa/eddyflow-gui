@@ -673,7 +673,9 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
             && qFuzzyCompare(ec_project_state_.projectGeneral.cec_min_valid, previousProject.ec_project_state_.projectGeneral.cec_min_valid)
             && qFuzzyCompare(ec_project_state_.projectGeneral.cec_signal_strength, previousProject.ec_project_state_.projectGeneral.cec_signal_strength)
             && (ec_project_state_.projectGeneral.cec_max_gap_fill == previousProject.ec_project_state_.projectGeneral.cec_max_gap_fill)
-            && qFuzzyCompare(ec_project_state_.projectGeneral.cec_max_stationarity, previousProject.ec_project_state_.projectGeneral.cec_max_stationarity);
+            && qFuzzyCompare(ec_project_state_.projectGeneral.cec_max_stationarity, previousProject.ec_project_state_.projectGeneral.cec_max_stationarity)
+            && qFuzzyCompare(ec_project_state_.projectGeneral.cec_singular_band, previousProject.ec_project_state_.projectGeneral.cec_singular_band)
+            && (ec_project_state_.projectGeneral.cecPairs == previousProject.ec_project_state_.projectGeneral.cecPairs);
     }
 
     subTest = (ec_project_state_.projectGeneral.master_sonic == previousProject.ec_project_state_.projectGeneral.master_sonic);
@@ -911,6 +913,8 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.projectGeneral.cec_signal_strength = defaultEcProjectState.projectGeneral.cec_signal_strength;
     ec_project_state_.projectGeneral.cec_max_gap_fill = defaultEcProjectState.projectGeneral.cec_max_gap_fill;
     ec_project_state_.projectGeneral.cec_max_stationarity = defaultEcProjectState.projectGeneral.cec_max_stationarity;
+    ec_project_state_.projectGeneral.cec_singular_band = defaultEcProjectState.projectGeneral.cec_singular_band;
+    ec_project_state_.projectGeneral.cecPairs.clear();
     ec_project_state_.projectGeneral.tob1_format = defaultEcProjectState.projectGeneral.tob1_format;
     ec_project_state_.projectGeneral.out_path.clear();
     ec_project_state_.projectGeneral.fix_out_format = defaultEcProjectState.projectGeneral.fix_out_format;
@@ -1317,6 +1321,68 @@ void EcProject::migrateLegacyColumnsToRecords()
     addPlain(g.diagColumns, QStringLiteral("diag_anem"), g.col_diag_anem);
 }
 
+/// The Conditional Eddy Covariance pairings, beside the gas records they
+/// index into.
+///
+/// An empty list writes nothing at all, not `cec_num=0`: those two say
+/// different things to the engine. Absent means "you decide", and it derives
+/// one pairing per carbon channel from the analyser layout; zero means "none",
+/// and it runs no partition. The interface writes the list as soon as the
+/// table is touched, so what the file states is what the user chose.
+void EcProject::writeCecPairs(QSettings& project_ini)
+{
+    const auto& pairs = ec_project_state_.projectGeneral.cecPairs;
+
+    const auto stale = project_ini.childKeys().filter(
+        QRegularExpression(QStringLiteral("^cec_\\d+_")));
+    for (const auto& key : stale) { project_ini.remove(key); }
+    project_ini.remove(EcIni::INI_PROJECT_CEC_NUM);
+    if (pairs.isEmpty()) { return; }
+
+    project_ini.setValue(EcIni::INI_PROJECT_CEC_NUM, pairs.size());
+    for (int i = 0; i < pairs.size(); ++i)
+    {
+        const auto p = QStringLiteral("cec_%1_").arg(i + 1);
+        const auto& pair = pairs.at(i);
+        project_ini.setValue(p + QStringLiteral("meth"), pair.meth);
+        project_ini.setValue(p + QStringLiteral("co2"), pair.carbonIndex);
+        project_ini.setValue(p + QStringLiteral("h2o"), pair.waterIndex);
+        QStringList extras;
+        for (int idx : pair.extraIndices)
+        {
+            if (idx > 0) { extras << QString::number(idx); }
+        }
+        project_ini.setValue(p + QStringLiteral("extra"),
+                             extras.join(QLatin1Char(',')));
+    }
+}
+
+void EcProject::readCecPairs(QSettings& project_ini)
+{
+    auto& pairs = ec_project_state_.projectGeneral.cecPairs;
+    pairs.clear();
+
+    const int num = project_ini.value(EcIni::INI_PROJECT_CEC_NUM, 0).toInt();
+    for (int i = 1; i <= num; ++i)
+    {
+        const auto p = QStringLiteral("cec_%1_").arg(i);
+        CecPairRecord pair;
+        pair.meth = project_ini.value(p + QStringLiteral("meth"), 1).toInt();
+        pair.carbonIndex = project_ini.value(p + QStringLiteral("co2"), 0).toInt();
+        pair.waterIndex = project_ini.value(p + QStringLiteral("h2o"), 0).toInt();
+        const auto extras = project_ini.value(p + QStringLiteral("extra"))
+                                .toString()
+                                .split(QLatin1Char(','), Qt::SkipEmptyParts);
+        for (const auto& token : extras)
+        {
+            bool ok = false;
+            const int idx = token.trimmed().toInt(&ok);
+            if (ok && idx > 0) { pair.extraIndices.append(idx); }
+        }
+        pairs.append(pair);
+    }
+}
+
 void EcProject::writeMeasurementRecords(QSettings& project_ini)
 {
     const auto& g = ec_project_state_.projectGeneral;
@@ -1552,6 +1618,8 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_PROJECT_77, QString::number(ec_project_state_.projectGeneral.cec_signal_strength, 'f', 1));
         project_ini.setValue(EcIni::INI_PROJECT_78, ec_project_state_.projectGeneral.cec_max_gap_fill);
         project_ini.setValue(EcIni::INI_PROJECT_79, QString::number(ec_project_state_.projectGeneral.cec_max_stationarity, 'f', 1));
+        project_ini.setValue(EcIni::INI_PROJECT_80, QString::number(ec_project_state_.projectGeneral.cec_singular_band, 'f', 3));
+        writeCecPairs(project_ini);
         project_ini.setValue(EcIni::INI_PROJECT_50, ec_project_state_.projectGeneral.tob1_format);
         project_ini.setValue(EcIni::INI_PROJECT_51, QDir::fromNativeSeparators(ec_project_state_.projectGeneral.out_path));
         project_ini.setValue(EcIni::INI_PROJECT_52, ec_project_state_.projectGeneral.fix_out_format);
@@ -2574,6 +2642,15 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
                 = (cecMaxStationarityOk && cecMaxStationarity >= 0.0)
                     ? cecMaxStationarity
                     : defaultEcProjectState.projectGeneral.cec_max_stationarity;
+        bool cecSingularBandOk = false;
+        const double cecSingularBand
+                = project_ini.value(EcIni::INI_PROJECT_80,
+                                    defaultEcProjectState.projectGeneral.cec_singular_band).toDouble(&cecSingularBandOk);
+        ec_project_state_.projectGeneral.cec_singular_band
+                = (cecSingularBandOk && cecSingularBand >= 0.0 && cecSingularBand <= 1.0)
+                    ? cecSingularBand
+                    : defaultEcProjectState.projectGeneral.cec_singular_band;
+        readCecPairs(project_ini);
         ec_project_state_.projectGeneral.tob1_format
                 = project_ini.value(EcIni::INI_PROJECT_50,
                                     defaultEcProjectState.projectGeneral.tob1_format).toInt();
@@ -5804,6 +5881,19 @@ void EcProject::setGeneralCecMaxGapFill(int n)
 void EcProject::setGeneralCecMaxStationarity(double d)
 {
     ec_project_state_.projectGeneral.cec_max_stationarity = d;
+    setModified(true);
+}
+
+void EcProject::setGeneralCecSingularBand(double d)
+{
+    ec_project_state_.projectGeneral.cec_singular_band = d;
+    setModified(true);
+}
+
+void EcProject::setCecPairs(const QVector<CecPairRecord>& pairs)
+{
+    if (ec_project_state_.projectGeneral.cecPairs == pairs) { return; }
+    ec_project_state_.projectGeneral.cecPairs = pairs;
     setModified(true);
 }
 

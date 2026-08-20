@@ -11,7 +11,10 @@
 
 class QDoubleSpinBox;
 class QLabel;
+class QPushButton;
 class QSpinBox;
+class QTableView;
+class CecPairModel;
 class EcProject;
 
 class CecSettingsDialog : public QDialog
@@ -26,11 +29,15 @@ public slots:
 
 private slots:
     void restoreDefaults();
+    void addPair();
+    void removeSelectedPair();
+    void updatePairButtons();
 
 private:
     QDoubleSpinBox *createPercentSpin();
 
     QDoubleSpinBox *hSpin;
+    QDoubleSpinBox *singularBandSpin;
     QDoubleSpinBox *minO1O2Spin;
     QDoubleSpinBox *minOctantSpin;
     QDoubleSpinBox *minValidSpin;
@@ -39,12 +46,19 @@ private:
     QSpinBox *maxGapFillSpin;
 
     QLabel *hLabel;
+    QLabel *singularBandLabel;
     QLabel *minO1O2Label;
     QLabel *minOctantLabel;
     QLabel *minValidLabel;
     QLabel *signalStrengthLabel;
     QLabel *maxStationarityLabel;
     QLabel *maxGapFillLabel;
+
+    QTableView *pairTable;
+    CecPairModel *pairModel;
+    QPushButton *addPairButton;
+    QPushButton *removePairButton;
+    QPushButton *resetPairsButton;
 
     EcProject *ecProject_;
 };

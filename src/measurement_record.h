@@ -104,6 +104,34 @@ struct GasRecord : MeasurementRecord
     GasProcessingSettings proc;
 };
 
+//> One Conditional Eddy Covariance pairing: a carbon channel, a water
+//> channel, and any further species partitioned in the octants those two
+//> define. Indices are 1-based into the gas record list, matching the engine's
+//> cec_<i>_carbon / cec_<i>_water keys; 0 means "not stated", which the engine
+//> resolves from the analyser layout.
+//>
+//> Named for the role rather than the species because that is what they are -
+//> nothing requires the carbon channel to be CO2 rather than a second CO2
+//> isotopologue - and because a bare co2/h2o reads as the fixed slot constant
+//> the gas records replaced.
+struct CecPairRecord
+{
+    //> 0 off, 1 water and carbon, 2 water only, 3 carbon only.
+    int meth = 1;
+    int carbonIndex = 0;
+    int waterIndex = 0;
+    QVector<int> extraIndices;
+
+    bool operator==(const CecPairRecord& other) const
+    {
+        return meth == other.meth
+               && carbonIndex == other.carbonIndex
+               && waterIndex == other.waterIndex
+               && extraIndices == other.extraIndices;
+    }
+    bool operator!=(const CecPairRecord& other) const { return !(*this == other); }
+};
+
 namespace MeasurementRecords {
 
 /// `moistureRef` value meaning "the biomet relative humidity".
@@ -167,6 +195,16 @@ QString gasLabel(const QVector<GasRecord>& gases, int index);
 /// Records with no raw column are left out: they are slots kept so the
 /// mapping stays put, not measurements.
 QVector<int> gasDisplayOrder(const QVector<GasRecord>& gases);
+
+//> The pairings a site means when it has not said: one per carbon channel,
+//> each with the water on the same analyser.
+//>
+//> Mirrors AutoCecPairs in the engine's gas_slot_resolution.f90, and must keep
+//> mirroring it - the engine derives the same list when the project states
+//> none, so a difference here is a project whose interface and whose run
+//> disagree about which channels were paired. Same contract as
+//> resolveMoistureRef above.
+QVector<CecPairRecord> defaultCecPairs(const QVector<GasRecord>& gases);
 
 } // namespace MeasurementRecords
 

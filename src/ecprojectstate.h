@@ -104,6 +104,10 @@ struct ProjectGeneralState
     qreal cec_signal_strength = 70.0;
     int cec_max_gap_fill = 4;
     qreal cec_max_stationarity = 25.0;
+    qreal cec_singular_band = 0.20;
+    //> Empty means the project has not said, and the engine derives one
+    //> pairing per carbon channel from the analyser layout.
+    QVector<CecPairRecord> cecPairs;
     int tob1_format = 0;
     QString out_path = QString();
     int fix_out_format = 0;

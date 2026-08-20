@@ -110,6 +110,10 @@ namespace EcIni
     const auto INI_PROJECT_77   = QStringLiteral("cec_signal_strength");
     const auto INI_PROJECT_78   = QStringLiteral("cec_max_gap_fill");
     const auto INI_PROJECT_79   = QStringLiteral("cec_max_stationarity");
+    const auto INI_PROJECT_80   = QStringLiteral("cec_singular_band");
+    //> The pairing list is written as cec_num plus cec_<i>_meth / _co2 /
+    //> _h2o / _extra, composed like the gas records rather than named here.
+    const auto INI_PROJECT_CEC_NUM = QStringLiteral("cec_num");
 
     const auto INIGROUP_SPEC_SETTINGS = QStringLiteral("FluxCorrection_SpectralAnalysis_General");
     const auto INI_SPEC_SETTINGS_0    = QStringLiteral("sa_start_date");

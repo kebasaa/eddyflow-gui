@@ -123,9 +123,7 @@ private slots:
     void updateFpMeth_1(bool b);
     void updateFpMeth_2(int n);
 
-    void onClickCecMethodLabel();
     void updateCecMeth_1(bool b);
-    void updateCecMeth_2(int n);
     void updateCecAvailability();
 
     void updateWplMeth_1(bool b);
@@ -196,8 +194,6 @@ private:
     QComboBox* fpMethodCombo;
 
     RichTextCheckBox* cecCheckBox;
-    ClickLabel* cecLabel;
-    QComboBox* cecMethodCombo;
     QPushButton* cecSettingsButton;
 
     RichTextCheckBox* wplCheckBox;
