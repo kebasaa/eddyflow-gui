@@ -1,107 +1,21 @@
-7.3.4 (2026-08-20)
-
-	GUI:
-	- Fix: A project file written with Windows path separators can be opened without destroying its
-	       paths. QSettings reads INI values through an unescaper, and drops any escape it does not
-	       recognise together with the character after it - and every separator in a native Windows
-	       path introduces one. Measured, not supposed:
-	       "C:\Users\jonmuell\Documents\_data\CH-LAE COS\lae_biomet.csv" came back as
-	       "C:sersonmuellocumentsdataH-LAE COSae_biomet.csv". Saving then wrote that back, so a
-	       single open-and-save destroyed the path permanently and the engine was left opening a file
-	       that could not exist.
-	       Nothing can recover it afterwards - by the time QSettings hands the value over, the
-	       characters are gone - so separators are now converted before QSettings sees the file, and
-	       the project is marked modified so that saving keeps the repair. A file this interface
-	       wrote is already forward-slashed and is passed through untouched; only a hand-edited or
-	       third-party file takes the copy, and the user is told it happened
-
-7.3.3 (2026-08-20)
-
-	GUI:
-	- Fix: The PWB smoothing width accepts even values again. It was clamped to odd, which was a
-	       workaround for an engine bug - the rolling mean summed one term more than an even width
-	       asked for - and the clamp outlived it, blocking the paper's own value: hz/2 + 1 is 6 at
-	       10 Hz. The engine follows R's convention for both parities now, so there is nothing to
-	       clamp.
-	       The tooltip says what the two parities do and what the choice costs: on the reference
-	       implementation's data, widening from 5 to 11 at 20 Hz widened the 95% interval from
-	       0.00/0.05 s to 0.30/0.20 s, against the 0.5 s threshold that decides whether a
-	       detection is accepted at all
-
-7.3.2 (2026-08-19)
-
-	GUI:
-	- New feature: A "Max carry" setting bounds how far a detected time lag may travel to an
-	               averaging period that detected none - all three ways a gas reaches its own
-	               lag, interpolation between reliable neighbours, carrying the last one forward
-	               and filling backward from the next, because bounding one of them alone
-	               achieves nothing. Past it the period takes the lag of another gas on the same
-	               analyser instead, and failing that the gas's median.
-	               In elapsed hours rather than in averaging periods, because the engine's table
-	               has a row only where a period was processed: counting periods would reach
-	               straight across a gap in the raw files. Twenty-four hours by default; zero is
-	               the published rule, under which one reliable half hour can supply days
-	- Change: The gap-filling note says what the engine now does, which is the reverse of what it
-	          said. A gas's OWN lag comes first in all three of its forms, and a lag borrowed
-	          from a neighbour on the same analyser only after them: two gases down one tube
-	          still have measurably different delays, so borrowing trades a stale number for a
-	          biased one. It also states the two rules a reader cannot infer from the controls -
-	          that a lag is never taken from a different instrument, nor from water, and that a
-	          gas whose record names no instrument neither donates nor borrows, since nothing
-	          then proves it shares a tube with anything
-	- Change: The block-length setting is described as what it is, a floor. The engine derives
-	          the block per gas as max(this, 2 x that gas's widest search bound), so a gas
-	          searching to 25 s resamples in 50 s blocks whatever is set here - a block shorter
-	          than the lag range cannot contain the structure the bootstrap exists to preserve
-
-7.3.1 (2026-08-19)
-
-	GUI:
-	- Change: The "Speed options" group is gone. Both options cost accuracy and bought almost
-	          nothing, and both tooltips overstated the gain by one to two orders of magnitude.
-	          "Use approximate CCF" claimed 2-3x for skipping the CCF normalisation; that saves
-	          two passes over the series against one per lag, well under a percent, and because
-	          the divisor is constant across lags it changed nothing WITHIN a combination while
-	          deciding the winner BETWEEN them by unit scale - the four pair the scalar against
-	          vertical wind and against sonic temperature, whose covariances are not in the same
-	          units. That is a systematic bias on every period, not the "shift of +/-1 sample in
-	          rare edge cases" the tooltip described. "Cap AR model order" claimed 10-15% of
-	          total PWB time; AR fitting is about a percent of it, and capping under-fits the
-	          pre-whitener, which is the step that sharpens the peak the method exists to find.
-	          The engine gained a guard band and hoisted buffers in their place, which cost
-	          nothing scientifically and are worth appreciably more
-	- Change: The "Detect time lag on raw data" checkbox is gone, replaced by a line saying what
-	          actually happens. Its tooltip described a choice between raw and block-averaged
-	          data; there was never such a choice. Both settings ran on rotated 20 Hz data and the
-	          flag only ever chose whether the gas series had already been through the
-	          mixing-ratio conversion. Detection is pre-WPL now, with nothing left to pick
-	- Fix: The per-gas search windows show the window that will actually be searched. Both spins
-	       displayed 0.0 when a gas had no window stored while the engine searched [-10, +10], so
-	       the dialog reported a window nobody was using - and because setting a spin to the value
-	       it already displays emits nothing, a user who wanted a minimum of 0 could not say so:
-	       the record kept its sentinel and the engine went on searching from -10. The sentinel
-	       moved off -1.0 too, which is an ordinary bound a user may want to state
-	- Fix: The smoothing width is kept odd. A centred rolling mean of even width has no midpoint;
-	       the engine sums the odd count either way, so an even value here only ever meant the odd
-	       one above it
-	- Change: The HDI prefilter tooltip says what it does, now that it does something. Nothing in
-	          the engine had ever read that setting
-
-7.3.0 (2026-07-28)
+7.3.0 (2026-08-20)
 
     GUI:
-	- Fix: The "Detect time lag on raw data" checkbox does something. It never did: this
-	       wrote the setting as pwb_detect_on_raw and the engine has always declared
-	       pwb_detect_prewpl, and the engine matches tag labels by exact equality - so the box
-	       reached nothing and the pre-processing pass was off for every project ever saved,
-	       whatever it showed. It writes the engine's spelling now.
-	       The old key is deliberately not read as an alias, and is removed from any project
-	       this saves. It was written unconditionally with a default of 1, so every project on
-	       disk carries pwb_detect_on_raw=1 - honouring it would switch on, for everybody at
-	       once, a pass that has never actually run.
-	       Its default here is 0 now, which is what the engine applies when the key is absent
-	       and what this dialog's own tooltip has said throughout ("Default: Unchecked"). So no
-	       result moves: the pass stays off until somebody ticks the box, and ticking it works
+	- Change: The "Detect time lag on raw data" control is retired, and with it the choice it
+	          offered. It never reached the engine in the first place: this wrote the setting as
+	          pwb_detect_on_raw while the engine declared pwb_detect_prewpl, and the engine matches
+	          tag labels by exact equality, so the box was inert for every project ever saved
+	          whatever it showed. Renaming it would have switched on, for everybody at once, a pass
+	          that had never run.
+	          It is gone instead, because there is no longer anything to choose. Its tooltip
+	          described a decision between raw and block-averaged data and there was never such a
+	          decision: both settings ran on rotated 20 Hz data, and the flag only ever selected
+	          whether the gas series had already been through the mixing-ratio conversion. That
+	          conversion runs before time-lag compensation, so detecting after it puts cell
+	          temperature and water into the gas series at the wrong relative lag - and the gas
+	          series is the one being cross-correlated. Detection is pre-WPL now, always.
+	          Both spellings are removed from any project this saves, so no dead key is left behind
+	          for somebody to edit in the belief that it matters
 	- Fix: The PWB smoothing width defaults to 5, as the engine does. It defaulted to 6 here,
 	       and because this writes the key unconditionally, every project it saved carried a 6
 	       while a project without the key got the engine's 5 - two defaults for one setting,
@@ -182,6 +96,76 @@
 	          view now states the height it needs from its own row count, every label is pinned to one
 	          row, and the block starts where row 0 starts instead of half a row above it. The Raw File
 	          Description table had the same two faults and is fixed with them
+	- Fix: A project file written with Windows path separators can be opened without destroying its
+	       paths. QSettings reads INI values through an unescaper, and drops any escape it does not
+	       recognise together with the character after it - and every separator in a native Windows
+	       path introduces one. Measured, not supposed:
+	       "C:\Users\jonmuell\Documents\_data\CH-LAE COS\lae_biomet.csv" came back as
+	       "C:sersonmuellocumentsdataH-LAE COSae_biomet.csv". Saving then wrote that back, so a
+	       single open-and-save destroyed the path permanently and the engine was left opening a file
+	       that could not exist.
+	       Nothing can recover it afterwards - by the time QSettings hands the value over, the
+	       characters are gone - so separators are now converted before QSettings sees the file, and
+	       the project is marked modified so that saving keeps the repair. A file this interface
+	       wrote is already forward-slashed and is passed through untouched; only a hand-edited or
+	       third-party file takes the copy, and the user is told it happened
+	- Fix: The PWB smoothing width accepts either parity. A centred rolling mean of even width has
+	       no midpoint, and the engine used to widen it by a sample rather than follow R, so an
+	       even value quietly meant something other than what it said. The engine follows zoo's
+	       align="center" convention for both parities now - an odd window is symmetric, an even
+	       one puts its extra sample after the centre - which makes the paper's own value reachable:
+	       hz/2 + 1 is 6 at 10 Hz.
+	       The tooltip says what the choice costs. On the reference implementation's data, widening
+	       from 5 to 11 at 20 Hz widened the 95% interval from 0.00/0.05 s to 0.30/0.20 s, against
+	       the 0.5 s threshold that decides whether a detection is accepted at all
+	- New feature: A "Max carry" setting bounds how far a detected time lag may travel to an
+	               averaging period that detected none - all three ways a gas reaches its own
+	               lag, interpolation between reliable neighbours, carrying the last one forward
+	               and filling backward from the next, because bounding one of them alone
+	               achieves nothing. Past it the period takes the lag of another gas on the same
+	               analyser instead, and failing that the gas's median.
+	               In elapsed hours rather than in averaging periods, because the engine's table
+	               has a row only where a period was processed: counting periods would reach
+	               straight across a gap in the raw files. Twenty-four hours by default; zero is
+	               the published rule, under which one reliable half hour can supply days
+	- Change: The gap-filling note says what the engine now does, which is the reverse of what it
+	          said. A gas's OWN lag comes first in all three of its forms, and a lag borrowed
+	          from a neighbour on the same analyser only after them: two gases down one tube
+	          still have measurably different delays, so borrowing trades a stale number for a
+	          biased one. It also states the two rules a reader cannot infer from the controls -
+	          that a lag is never taken from a different instrument, nor from water, and that a
+	          gas whose record names no instrument neither donates nor borrows, since nothing
+	          then proves it shares a tube with anything
+	- Change: The block-length setting is described as what it is, a floor. The engine derives
+	          the block per gas as max(this, 2 x that gas's widest search bound), so a gas
+	          searching to 25 s resamples in 50 s blocks whatever is set here - a block shorter
+	          than the lag range cannot contain the structure the bootstrap exists to preserve
+	- Change: The "Speed options" group is gone. Both options cost accuracy and bought almost
+	          nothing, and both tooltips overstated the gain by one to two orders of magnitude.
+	          "Use approximate CCF" claimed 2-3x for skipping the CCF normalisation; that saves
+	          two passes over the series against one per lag, well under a percent, and because
+	          the divisor is constant across lags it changed nothing WITHIN a combination while
+	          deciding the winner BETWEEN them by unit scale - the four pair the scalar against
+	          vertical wind and against sonic temperature, whose covariances are not in the same
+	          units. That is a systematic bias on every period, not the "shift of +/-1 sample in
+	          rare edge cases" the tooltip described. "Cap AR model order" claimed 10-15% of
+	          total PWB time; AR fitting is about a percent of it, and capping under-fits the
+	          pre-whitener, which is the step that sharpens the peak the method exists to find.
+	          The engine gained a guard band and hoisted buffers in their place, which cost
+	          nothing scientifically and are worth appreciably more
+	- Change: The "Detect time lag on raw data" checkbox is gone, replaced by a line saying what
+	          actually happens. Its tooltip described a choice between raw and block-averaged
+	          data; there was never such a choice. Both settings ran on rotated 20 Hz data and the
+	          flag only ever chose whether the gas series had already been through the
+	          mixing-ratio conversion. Detection is pre-WPL now, with nothing left to pick
+	- Fix: The per-gas search windows show the window that will actually be searched. Both spins
+	       displayed 0.0 when a gas had no window stored while the engine searched [-10, +10], so
+	       the dialog reported a window nobody was using - and because setting a spin to the value
+	       it already displays emits nothing, a user who wanted a minimum of 0 could not say so:
+	       the record kept its sentinel and the engine went on searching from -10. The sentinel
+	       moved off -1.0 too, which is an ordinary bound a user may want to state
+	- Change: The HDI prefilter tooltip says what it does, now that it does something. Nothing in
+	          the engine had ever read that setting
 
 7.2.5 (2026-07-27)
 
