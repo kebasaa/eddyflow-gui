@@ -1,6 +1,17 @@
 7.3.0 (2026-08-20)
 
     GUI:
+	- Fix: The minus signs in the singularity-band tooltip are the characters they were
+	       meant to be. Written as a UTF-8 escape immediately before a digit -
+	       \xe2\x88\x92 then 1 - the escape swallowed the digit, because a C++ hex
+	       escape takes as many hex digits as follow rather than two. Every "-1",
+	       "-1.2" and "-0.8" in that tooltip was corrupted, and the compiler had been
+	       saying so. A check now refuses the pattern anywhere in the sources.
+	- Change: The small-gap-fill tooltip says what the setting now does: it repairs runs
+	       of condemned samples AFTER the signal-strength screen, which is the order
+	       Zahn et al. (2022) state and which the engine has been corrected to follow,
+	       and 0 turns it off for anyone who would rather lose the period than
+	       interpolate across an analyser that was not seeing.
 	- Fix: Opening an EddyPro project no longer writes anything. It used to write two files
 	       before the user had seen the project: <base>.eddyflow deliberately, and then the
 	       user's own .metadata by accident. The second is the one that mattered - reopening
