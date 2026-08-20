@@ -170,7 +170,11 @@ int main(int argc, char *argv[])
     app.installEventFilter(&openFileFilter);
     app.processEvents();
     auto requestedFile = openFileFilter.fileRequested();
-    if (requestedFile.endsWith(QStringLiteral(".eddypro")))
+    //> Both formats. This accepted .eddypro alone, so the fork's own projects
+    //> could not be opened by double-clicking them - only EddyPro's could. A
+    //> .eddypro goes on to fileOpen, which redirects it to the importer.
+    if (requestedFile.endsWith(QStringLiteral(".eddypro"))
+        || requestedFile.endsWith(QStringLiteral(".") + Defs::PROJECT_FILE_EXT))
     {
         fileToOpen = requestedFile;
     }

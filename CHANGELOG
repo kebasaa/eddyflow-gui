@@ -1,6 +1,40 @@
 7.3.0 (2026-08-20)
 
     GUI:
+	- Fix: Opening an EddyPro project no longer writes anything. It used to write two files
+	       before the user had seen the project: <base>.eddyflow deliberately, and then the
+	       user's own .metadata by accident. The second is the one that mattered - reopening
+	       drove DlProject::loadProject over the EddyPro metadata, any retired Campbell model
+	       key set legacyInstrumentSlugs, that called setModified(true), and projectModified is
+	       wired to saveAvailable, which writes. So a Campbell site's metadata was rewritten in
+	       place, with no backup, by the act of looking at it.
+	       The conversion happens in memory now and stops there. What comes out is an ordinary
+	       unsaved document - modified, never saved - which is the same state File > New
+	       produces and which the rest of the interface already understands: Save routes to
+	       Save As, closing prompts, and the Run buttons refuse until it is on disk. Save opens
+	       the Save As dialog pre-filled with <base>.eddyflow beside the .eddypro.
+	- New feature: The metadata is written when the project is, not before, and to a name that
+	               cannot be the file it was read from. It goes beside the project under the
+	               project's own base name, with proj_file pointed at it; on a straight import
+	               that name IS the EddyPro metadata, so that case takes _ep_imported instead -
+	               the same suffix, for the same reason, as the engine's own importer. Paths are
+	               compared canonically, because the two spellings arrive from different places
+	- Fix: An EddyPro project opens from the command line, from Recent Files, and by
+	       double-clicking on macOS. The redirect to the importer sat inside the branch that
+	       only runs when the user picked the file from the dialog, so every other route fell
+	       through to the native-format check and was told the file was "not in EddyFlow native
+	       format" - which of an EddyPro project is true and useless. The macOS Finder filter
+	       accepted .eddypro and dropped .eddyflow, so the fork's own projects could not be
+	       double-clicked at all; it takes both now
+	- Fix: An imported project whose proj_file names a metadata that is not on this machine
+	       falls back to the file of the project's own name beside it. proj_file is an absolute
+	       path from wherever the project was made, so a project that has been copied anywhere
+	       names a path that is not there - and without the fallback the import has no metadata
+	       to resolve its gas records against, which leaves every species blank. This is the
+	       rule the engine's importer already follows
+	- Fix: The silent metadata cleanup leaves an unsaved project alone. It clears proj_file and
+	       calls fileSave, which for a project that has never been saved is Save As - a save
+	       dialog in front of somebody who has only just opened something
 	- BREAKING: The project format goes to 5.1.0, with the rebuilt Conditional Eddy Covariance
 	          settings. An older engine refuses such a file rather than ignoring the parts of it
 	          it does not know.

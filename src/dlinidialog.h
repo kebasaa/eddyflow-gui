@@ -55,6 +55,20 @@ public:
     inline void setNewFlag(bool b) { newFlag_ = b; }
     bool requestMetadataReset();
 
+    //> Hold the metadata in memory instead of writing it.
+    //>
+    //> Every other edit here autosaves: setModified(true) reaches
+    //> saveAvailable() through DlProject::projectModified, and that calls
+    //> apply(), which writes. That is deliberate - there is no Save button in
+    //> this dialog because there does not need to be one - but it is wrong for
+    //> an imported EddyPro project, where the file on disk belongs to EddyPro
+    //> and the user has not agreed to anything yet. Between beginDeferredSave()
+    //> and the first project save, nothing is written; commitDeferredSave()
+    //> then writes once, to wherever the project went.
+    void beginDeferredSave();
+    inline bool hasDeferredSave() const { return deferredSave_; }
+    bool commitDeferredSave(const QString& path);
+
 signals:
     void metadataFileSaved(const QString &);
     void mdFileEditClearRequest();
@@ -87,6 +101,7 @@ private:
 
     QString filename_;
     bool newFlag_;
+    bool deferredSave_;
 
     DlProject *dlProject_;
     ConfigState *configState_;

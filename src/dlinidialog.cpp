@@ -43,6 +43,7 @@ DlIniDialog::DlIniDialog(QWidget *parent, DlProject *dlProject, ConfigState* con
     QDialog(parent),
     filename_(QString()),
     newFlag_(true),
+    deferredSave_(false),
     dlProject_(dlProject),
     configState_(config)
 {
@@ -255,6 +256,32 @@ void DlIniDialog::apply()
     }
 }
 
+void DlIniDialog::beginDeferredSave()
+{
+    deferredSave_ = true;
+}
+
+/// Write the held metadata, once, to where the project decided.
+///
+/// Called from MainWindow::saveFile before the project itself is written, so
+/// that proj_file can be set to this path first and the project on disk names
+/// it correctly from the outset.
+bool DlIniDialog::commitDeferredSave(const QString& path)
+{
+    if (path.isEmpty()) { return false; }
+    if (!saveFile(path)) { return false; }
+
+    //> From here it is an ordinary open metadata file, and the autosave that
+    //> was suppressed above resumes - every later edit writes to this path.
+    filename_ = path;
+    newFlag_ = false;
+    deferredSave_ = false;
+    disableResetButton(newFlag_);
+    WidgetUtils::rememberDialogPath(QStringLiteral("metadata_file"), filename_, true);
+    emit metadataFileSaved(filename_);
+    return true;
+}
+
 bool DlIniDialog::saveFile(const QString& filename)
 {
     bool status = true;
@@ -331,6 +358,15 @@ void DlIniDialog::fileSaveAs()
 
 void DlIniDialog::saveAvailable()
 {
+    //> An imported project's metadata is held until the project is saved, so
+    //> that opening a .eddypro to look at it writes nothing. Returning here is
+    //> what makes that true: this slot is the only route from a change to a
+    //> write, and both of its arms would write the wrong thing. The newFlag_
+    //> arm puts a modal Save As in the middle of an import; the other writes
+    //> the imported metadata over filename_, which at that moment still names
+    //> the metadata of whatever project was open before.
+    if (deferredSave_) { return; }
+
     if (newFlag_)
     {
         WidgetUtils::information(QApplication::activeWindow(),
