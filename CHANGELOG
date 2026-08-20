@@ -1,3 +1,33 @@
+7.3.4 (2026-08-20)
+
+	GUI:
+	- Fix: A project file written with Windows path separators can be opened without destroying its
+	       paths. QSettings reads INI values through an unescaper, and drops any escape it does not
+	       recognise together with the character after it - and every separator in a native Windows
+	       path introduces one. Measured, not supposed:
+	       "C:\Users\jonmuell\Documents\_data\CH-LAE COS\lae_biomet.csv" came back as
+	       "C:sersonmuellocumentsdataH-LAE COSae_biomet.csv". Saving then wrote that back, so a
+	       single open-and-save destroyed the path permanently and the engine was left opening a file
+	       that could not exist.
+	       Nothing can recover it afterwards - by the time QSettings hands the value over, the
+	       characters are gone - so separators are now converted before QSettings sees the file, and
+	       the project is marked modified so that saving keeps the repair. A file this interface
+	       wrote is already forward-slashed and is passed through untouched; only a hand-edited or
+	       third-party file takes the copy, and the user is told it happened
+
+7.3.3 (2026-08-20)
+
+	GUI:
+	- Fix: The PWB smoothing width accepts even values again. It was clamped to odd, which was a
+	       workaround for an engine bug - the rolling mean summed one term more than an even width
+	       asked for - and the clamp outlived it, blocking the paper's own value: hz/2 + 1 is 6 at
+	       10 Hz. The engine follows R's convention for both parities now, so there is nothing to
+	       clamp.
+	       The tooltip says what the two parities do and what the choice costs: on the reference
+	       implementation's data, widening from 5 to 11 at 20 Hz widened the 95% interval from
+	       0.00/0.05 s to 0.30/0.20 s, against the 0.5 s threshold that decides whether a
+	       detection is accepted at all
+
 7.3.2 (2026-08-19)
 
 	GUI:

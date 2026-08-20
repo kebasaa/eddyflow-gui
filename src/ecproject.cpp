@@ -2166,6 +2166,69 @@ bool EcProject::saveEcProject(const QString &filename)
 }
 
 // Load a project. Assumes file has been checked with nativeFormat()
+//> A project file whose values carry native Windows separators cannot be read
+//> with QSettings as it stands, and the damage is silent.
+//>
+//> QSettings(IniFormat) unescapes values on read, and drops any escape it does
+//> not recognise together with the character after it. Every separator in a
+//> Windows path introduces one: "C:\\Users\\jonmuell\\Documents\\x.csv" comes back
+//> as "C:sersonmuellocuments.csv" - measured, not supposed. Saving then writes
+//> that back, so one open-and-save destroys the path permanently, and the
+//> engine is left opening a file that cannot exist.
+//>
+//> Nothing can recover it after the fact: by the time QSettings hands the value
+//> over, the characters are gone. So the separators are converted BEFORE
+//> QSettings sees the file. A file this interface wrote is already
+//> forward-slashed and is passed through untouched; only a hand-edited or
+//> third-party file takes the copy.
+//>
+//> Returns the path to read from - the original, or a repaired temporary - and
+//> reports through `repaired` whether anything had to be changed.
+QString normalisedProjectPath(const QString& filename, QTemporaryFile& scratch,
+                              bool* repaired)
+{
+    *repaired = false;
+
+    QFile in(filename);
+    if (!in.open(QIODevice::ReadOnly | QIODevice::Text)) { return filename; }
+    const QString text = QString::fromUtf8(in.readAll());
+    in.close();
+
+    QStringList out;
+    out.reserve(1024);
+    bool changed = false;
+    const auto lines = text.split(QLatin1Char('\n'));
+    for (const QString& line : lines)
+    {
+        const int eq = line.indexOf(QLatin1Char('='));
+        //> Section headers, comments and blank lines have no value to repair.
+        const QString trimmed = line.trimmed();
+        if (eq <= 0 || trimmed.startsWith(QLatin1Char('['))
+            || trimmed.startsWith(QLatin1Char(';')))
+        {
+            out << line;
+            continue;
+        }
+        const QString key = line.left(eq + 1);
+        QString value = line.mid(eq + 1);
+        if (value.contains(QLatin1Char('\\')))
+        {
+            value.replace(QLatin1Char('\\'), QLatin1Char('/'));
+            changed = true;
+        }
+        out << key + value;
+    }
+
+    if (!changed) { return filename; }
+
+    if (!scratch.open()) { return filename; }
+    scratch.write(out.join(QLatin1Char('\n')).toUtf8());
+    scratch.flush();
+    scratch.close();
+    *repaired = true;
+    return scratch.fileName();
+}
+
 bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *modified)
 {
     auto parent = static_cast<MainWindow*>(this->parent());
@@ -2193,7 +2256,29 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         return false;
     }
 
-    QSettings project_ini(filename, QSettings::IniFormat);
+    //> Repair native separators before QSettings can eat them; see the note
+    //> on normalisedProjectPath above. The temporary lives until the end of
+    //> this function, which outlasts every read from project_ini.
+    QTemporaryFile normalisedCopy;
+    bool pathsRepaired = false;
+    const QString readFrom =
+        normalisedProjectPath(filename, normalisedCopy, &pathsRepaired);
+
+    QSettings project_ini(readFrom, QSettings::IniFormat);
+
+    if (pathsRepaired)
+    {
+        //> Marked modified so that saving persists the repair, and said out
+        //> loud because the file on disk still holds separators that any
+        //> other Qt reader would destroy.
+        if (modified != nullptr) { *modified = true; }
+        WidgetUtils::information(
+            nullptr,
+            tr("Project paths adjusted"),
+            tr("This project file uses Windows path separators."),
+            tr("Paths have been converted to forward slashes so they survive "
+               "being read. Save the project to keep the correction."));
+    }
 
     // in case of old non existing file name, use the current existing
     QString projectFilename = project_ini.value(EcIni::INI_PROJECT_2, QString()).toString();

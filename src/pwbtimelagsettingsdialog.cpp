@@ -16,7 +16,6 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QRadioButton>
-#include <QSignalBlocker>
 #include <QSpinBox>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -122,9 +121,17 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
     smoothingWidthSpin->setAccelerated(true);
     smoothingWidthSpin->setToolTip(tr(
         "<b>Smoothing width:</b> width of the centred rolling mean applied to "
-        "each bootstrap cross-correlation before its peak is located. Must be "
-        "odd - a centred window has no midpoint otherwise - so an even value "
-        "is rounded up."));
+        "each bootstrap cross-correlation before its peak is located, in "
+        "records.<br><br>"
+        "Either parity is allowed. An odd window is symmetric; an even one "
+        "puts its extra sample after the centre, following the same "
+        "convention R does.<br><br>"
+        "<b>Default:</b> 5, which is RFlux's. The paper specifies "
+        "<i>hz/2 + 1</i> instead - 6 at 10 Hz, 11 at 20 Hz - and the choice "
+        "is not cosmetic: on the reference implementation's test data, "
+        "widening from 5 to 11 at 20 Hz widened the 95% interval from "
+        "0.00/0.05 s to 0.30/0.20 s, against the 0.5 s threshold that decides "
+        "whether a detection is accepted."));
 
     maxCarrySpin = new QDoubleSpinBox;
     maxCarrySpin->setDecimals(1);
@@ -249,18 +256,7 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
     connect(hdiPrefilterSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             ecProject_, &EcProject::setPwbHdiPrefilter);
     connect(smoothingWidthSpin, QOverload<int>::of(&QSpinBox::valueChanged),
-            this, [this](int n) {
-        //> A centred rolling mean of even width has no midpoint: the engine
-        //> sums 2*(n/2)+1 terms whatever is asked for, so an even value here
-        //> only ever meant the odd one above it.
-        if (n % 2 == 0)
-        {
-            QSignalBlocker block(smoothingWidthSpin);
-            ++n;
-            smoothingWidthSpin->setValue(n);
-        }
-        ecProject_->setPwbSmoothingWidth(n);
-    });
+            ecProject_, &EcProject::setPwbSmoothingWidth);
     connect(maxCarrySpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             ecProject_, &EcProject::setPwbMaxCarryH);
     connect(randomSeedSpin, QOverload<int>::of(&QSpinBox::valueChanged),
