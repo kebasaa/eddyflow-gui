@@ -113,6 +113,9 @@ namespace EcIni
     const auto INI_PROJECT_80   = QStringLiteral("cec_singular_band");
     //> 0 = Zahn et al.'s flux stationarity, 1 = the partition ratio's own.
     const auto INI_PROJECT_81   = QStringLiteral("cec_stationarity_mode");
+    //> How many of its own random errors a flux must exceed before the pairing
+    //> will partition it. 0 is off, and is the paper.
+    const auto INI_PROJECT_82   = QStringLiteral("cec_min_flux_sigma");
     //> The pairing list is written as cec_num plus cec_<i>_meth / _co2 /
     //> _h2o / _extra, composed like the gas records rather than named here.
     const auto INI_PROJECT_CEC_NUM = QStringLiteral("cec_num");

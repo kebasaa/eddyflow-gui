@@ -1,6 +1,23 @@
 8.0.0 (2026-08-20)
 
     GUI:
+	- New feature: "Only partition a resolvable flux", in CEC Settings, writing the
+	       engine's new cec_min_flux_sigma. Refuses a pairing whose water or carbon
+	       flux is smaller than the given number of times its own random error,
+	       instead of splitting a signal that is not there: the octants mean
+	       something only if the sign of c' carries a surface signature, and where
+	       the scalar is barely coupled to the vertical wind that sign is noise and
+	       the moist ejections split near evenly between O1 and O2. Ticking it
+	       switches on random uncertainty estimation - as ticking CEC switches on
+	       WPL, and for the same kind of reason: the test has nothing to compare a
+	       flux against until the random error is being estimated - and it selects
+	       Finkelstein and Sims (2001), the estimator whose value makes the
+	       comparison a statement about the correlation rather than about an assumed
+	       eddy size. That stays the user's to switch off, and a warning triangle is
+	       lit while the project is in the state where the test cannot run. The
+	       tooltip says which way is stricter and that the paper suggests no value at
+	       all. Unticked - the default - reproduces the published method, and Restore
+	       Default Values puts it back. The box offers 2 when switched on.
 	- New feature: "Judge the partition, not the flux", beside the stationarity limit in
 	       CEC Settings. Unchecked - the default - is Zahn et al. (2022), which
 	       drops a period when Foken's non-stationarity statistic for w'c' or

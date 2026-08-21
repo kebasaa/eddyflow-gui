@@ -681,6 +681,7 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
             && qFuzzyCompare(ec_project_state_.projectGeneral.cec_max_stationarity, previousProject.ec_project_state_.projectGeneral.cec_max_stationarity)
             && qFuzzyCompare(ec_project_state_.projectGeneral.cec_singular_band, previousProject.ec_project_state_.projectGeneral.cec_singular_band)
             && (ec_project_state_.projectGeneral.cec_stationarity_mode == previousProject.ec_project_state_.projectGeneral.cec_stationarity_mode)
+            && qFuzzyCompare(ec_project_state_.projectGeneral.cec_min_flux_sigma, previousProject.ec_project_state_.projectGeneral.cec_min_flux_sigma)
             && (ec_project_state_.projectGeneral.cecPairs == previousProject.ec_project_state_.projectGeneral.cecPairs);
     }
 
@@ -921,6 +922,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.projectGeneral.cec_max_stationarity = defaultEcProjectState.projectGeneral.cec_max_stationarity;
     ec_project_state_.projectGeneral.cec_singular_band = defaultEcProjectState.projectGeneral.cec_singular_band;
     ec_project_state_.projectGeneral.cec_stationarity_mode = defaultEcProjectState.projectGeneral.cec_stationarity_mode;
+    ec_project_state_.projectGeneral.cec_min_flux_sigma = defaultEcProjectState.projectGeneral.cec_min_flux_sigma;
     ec_project_state_.projectGeneral.cecPairs.clear();
     ec_project_state_.projectGeneral.tob1_format = defaultEcProjectState.projectGeneral.tob1_format;
     ec_project_state_.projectGeneral.out_path.clear();
@@ -1635,6 +1637,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_PROJECT_79, QString::number(ec_project_state_.projectGeneral.cec_max_stationarity, 'f', 1));
         project_ini.setValue(EcIni::INI_PROJECT_80, QString::number(ec_project_state_.projectGeneral.cec_singular_band, 'f', 3));
         project_ini.setValue(EcIni::INI_PROJECT_81, ec_project_state_.projectGeneral.cec_stationarity_mode);
+        project_ini.setValue(EcIni::INI_PROJECT_82, QString::number(ec_project_state_.projectGeneral.cec_min_flux_sigma, 'f', 1));
         writeCecPairs(project_ini);
         project_ini.setValue(EcIni::INI_PROJECT_50, ec_project_state_.projectGeneral.tob1_format);
         project_ini.setValue(EcIni::INI_PROJECT_51, QDir::fromNativeSeparators(ec_project_state_.projectGeneral.out_path));
@@ -2674,6 +2677,18 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
                 = (project_ini.value(EcIni::INI_PROJECT_81,
                                      defaultEcProjectState.projectGeneral.cec_stationarity_mode)
                        .toInt() == 1) ? 1 : 0;
+        //> Out of range - negative, or larger than any threshold worth
+        //> setting - reads as off, which is the safe way to misread it: the
+        //> published method applies no such test.
+        auto cecMinFluxSigmaOk = false;
+        const auto cecMinFluxSigma
+                = project_ini.value(EcIni::INI_PROJECT_82,
+                                    defaultEcProjectState.projectGeneral.cec_min_flux_sigma)
+                    .toDouble(&cecMinFluxSigmaOk);
+        ec_project_state_.projectGeneral.cec_min_flux_sigma
+                = (cecMinFluxSigmaOk && cecMinFluxSigma >= 0.0 && cecMinFluxSigma <= 10.0)
+                    ? cecMinFluxSigma
+                    : defaultEcProjectState.projectGeneral.cec_min_flux_sigma;
         readCecPairs(project_ini);
         ec_project_state_.projectGeneral.tob1_format
                 = project_ini.value(EcIni::INI_PROJECT_50,
@@ -5921,6 +5936,13 @@ void EcProject::setGeneralCecStationarityMode(int n)
     setModified(true);
 }
 
+void EcProject::setGeneralCecMinFluxSigma(double d)
+{
+    if (qFuzzyCompare(ec_project_state_.projectGeneral.cec_min_flux_sigma, d)) { return; }
+    ec_project_state_.projectGeneral.cec_min_flux_sigma = d;
+    setModified(true);
+}
+
 void EcProject::setCecPairs(const QVector<CecPairRecord>& pairs)
 {
     if (ec_project_state_.projectGeneral.cecPairs == pairs) { return; }
@@ -7334,8 +7356,13 @@ void EcProject::setPwbMaxCarryH(double n)
 
 void EcProject::setRandomErrorMethod(int n)
 {
+    const auto changed = ec_project_state_.randomError.ru_method != n;
     ec_project_state_.randomError.ru_method = n;
     setModified(true);
+    //> Announced, because the control that owns it is not the only thing that
+    //> writes it: the CEC significance test switches it on from its own dialog
+    //> and the page would otherwise go on showing the old answer.
+    if (changed) { emit randomErrorMethodChanged(); }
 }
 
 void EcProject::setRandomErrorItsMethod(int n)

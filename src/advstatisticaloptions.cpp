@@ -446,6 +446,12 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
 
     connect(randomErrorCheckBox, &QCheckBox::toggled,
             this, &AdvStatisticalOptions::updateRandomErrorArea);
+    //> This control is not the only thing that writes ru_meth: the CEC
+    //> significance test switches it on from its own dialog, because it cannot
+    //> run without it. Without this the page would go on showing the old
+    //> answer until the project was reloaded.
+    connect(ecProject_, &EcProject::randomErrorMethodChanged,
+            this, &AdvStatisticalOptions::syncRandomErrorMethod);
 
     connect(randomMethodLabel, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickRandomMethodLabel);
@@ -2784,6 +2790,38 @@ void AdvStatisticalOptions::onlineHelpTrigger_10()
     WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
+/// The estimator's own settings follow its switch, wherever the switch came
+/// from.
+void AdvStatisticalOptions::setRandomErrorControlsEnabled(bool b)
+{
+    randomMethodLabel->setEnabled(b);
+    randomMethodCombo->setEnabled(b);
+    itsDefinitionLabel->setEnabled(b);
+    itsDefinitionCombo->setEnabled(b);
+    timelagMaxLabel->setEnabled(b);
+    timelagMaxSpin->setEnabled(b);
+    securityCoeffLabel->setEnabled(b);
+    securityCoeffSpin->setEnabled(b);
+}
+
+/// Re-read ru_meth after something outside this page wrote it.
+///
+/// Blocked, or the checkbox would write the value straight back and fight
+/// whatever just set it - the CEC significance test asks for Finkelstein and
+/// Sims, and an unblocked round trip through updateRandomErrorArea would
+/// replace that with whatever the combo happens to be showing.
+void AdvStatisticalOptions::syncRandomErrorMethod()
+{
+    const auto method = ecProject_->randErrorMethod();
+
+    const QSignalBlocker checkBoxBlocker(randomErrorCheckBox);
+    const QSignalBlocker comboBlocker(randomMethodCombo);
+    randomErrorCheckBox->setChecked(method != 0);
+    if (method != 0) { randomMethodCombo->setCurrentIndex(method - 1); }
+
+    setRandomErrorControlsEnabled(method != 0);
+}
+
 void AdvStatisticalOptions::onlineHelpTrigger_11()
 {
     WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Random_Uncertainty_Estimation.html")));
@@ -2800,14 +2838,7 @@ void AdvStatisticalOptions::updateRandomErrorArea(bool b)
         ecProject_->setRandomErrorMethod(0);
     }
 
-    randomMethodLabel->setEnabled(b);
-    randomMethodCombo->setEnabled(b);
-    itsDefinitionLabel->setEnabled(b);
-    itsDefinitionCombo->setEnabled(b);
-    timelagMaxLabel->setEnabled(b);
-    timelagMaxSpin->setEnabled(b);
-    securityCoeffLabel->setEnabled(b);
-    securityCoeffSpin->setEnabled(b);
+    setRandomErrorControlsEnabled(b);
 }
 
 void AdvStatisticalOptions::onClickRandomMethodLabel()

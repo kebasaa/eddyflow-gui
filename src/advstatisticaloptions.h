@@ -177,6 +177,11 @@ private slots:
     void onlineHelpTrigger_11();
 
     void updateRandomErrorArea(bool b);
+    //> ru_meth is written from the CEC settings dialog too, so this
+    //> control has to be able to learn about it from somewhere other
+    //> than a project load.
+    void syncRandomErrorMethod();
+    void setRandomErrorControlsEnabled(bool b);
     void onClickRandomMethodLabel();
     void updateRandomMethod(int n);
     void onClickItsDefinitionLabel();

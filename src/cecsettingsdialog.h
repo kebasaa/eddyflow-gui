@@ -41,6 +41,13 @@ private:
     /// Grey the signal-strength cutoff, and flag it, when the metadata
     /// declares no diagnostic for the analysers CEC will read.
     void updateSignalStrengthAvailability();
+    /// Switch random uncertainty estimation on, as the CEC checkbox switches
+    /// on WPL: the significance test has nothing to compare a flux against
+    /// until the random error is being estimated.
+    void enableRandomUncertainty();
+    /// The triangle beside the test: lit only while it is switched on and
+    /// there is no random error for it to read.
+    void updateMinFluxSigmaWarning();
 
     QDoubleSpinBox *hSpin;
     QDoubleSpinBox *singularBandSpin;
@@ -51,6 +58,9 @@ private:
     QLabel *signalStrengthWarningLabel;
     QDoubleSpinBox *maxStationaritySpin;
     QCheckBox *ratioStationarityBox;
+    QCheckBox *minFluxSigmaBox;
+    QDoubleSpinBox *minFluxSigmaSpin;
+    QLabel *minFluxSigmaWarningLabel;
     QSpinBox *maxGapFillSpin;
 
     QLabel *hLabel;

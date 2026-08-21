@@ -156,6 +156,7 @@ public:
     void setGeneralCecMaxStationarity(double d);
     void setGeneralCecSingularBand(double d);
     void setGeneralCecStationarityMode(int n);
+    void setGeneralCecMinFluxSigma(double d);
     void setCecPairs(const QVector<CecPairRecord>& pairs);
     void writeCecPairs(QSettings& project_ini);
     void readCecPairs(QSettings& project_ini);
@@ -611,6 +612,7 @@ public:
     double generalCecMaxStationarity() const { return ec_project_state_.projectGeneral.cec_max_stationarity; }
     double generalCecSingularBand() const { return ec_project_state_.projectGeneral.cec_singular_band; }
     int generalCecStationarityMode() const { return ec_project_state_.projectGeneral.cec_stationarity_mode; }
+    double generalCecMinFluxSigma() const { return ec_project_state_.projectGeneral.cec_min_flux_sigma; }
     const QVector<CecPairRecord>& cecPairs() const { return ec_project_state_.projectGeneral.cecPairs; }
     int generalTob1Format() const { return ec_project_state_.projectGeneral.tob1_format; }
     const QString& generalOutPath() const { return ec_project_state_.projectGeneral.out_path; }
@@ -1028,6 +1030,12 @@ signals:
     void ecProjectChanged();
     // send that the project has been modified
     void ecProjectModified();
+
+    //> ru_meth changed, from wherever. The control that owns it lives on the
+    //> statistical page, but the CEC significance test switches it on from its
+    //> own dialog, so that control needs to hear about it from somewhere other
+    //> than a project load.
+    void randomErrorMethodChanged();
 
     void updateInfo();
 

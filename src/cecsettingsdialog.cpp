@@ -38,6 +38,9 @@ constexpr double DefaultMinValid = 90.0;
 constexpr double DefaultSignalStrength = 70.0;
 constexpr double DefaultMaxStationarity = 25.0;
 constexpr int DefaultMaxGapFill = 4;
+//> What the box offers when it is switched on. Two sigma, the usual line
+//> between a flux and its own noise. The stored default is 0, meaning off.
+constexpr double DefaultMinFluxSigma = 2.0;
 }
 
 CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject,
@@ -98,6 +101,36 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject,
         "to reproduce the published method.</p>"));
     maxStationaritySpin->setRange(0.0, 1000.0);
 
+    //> Is there a flux here at all?
+    //>
+    //> Nothing in the published method asks this, and on a well-coupled
+    //> daytime record nothing needs to. It is the weak-turbulence case this
+    //> guards: the octants only mean something if the sign of c' carries a
+    //> surface signature, and when it does not the partition still returns two
+    //> numbers that sum to the total.
+    minFluxSigmaBox = new QCheckBox(tr("Only partition a resolvable flux"), this);
+    minFluxSigmaSpin = new QDoubleSpinBox(this);
+    minFluxSigmaSpin->setRange(0.5, 10.0);
+    minFluxSigmaSpin->setDecimals(1);
+    minFluxSigmaSpin->setSingleStep(0.5);
+    minFluxSigmaSpin->setAccelerated(true);
+    minFluxSigmaSpin->setSuffix(tr("  x random error"));
+    minFluxSigmaSpin->setEnabled(false);
+    //> Lit only in the inconsistent state - the test on, the estimate it reads
+    //> switched off. A warning icon that is usually on is one nobody reads.
+    minFluxSigmaWarningLabel = new QLabel(this);
+    minFluxSigmaWarningLabel->setPixmap(QApplication::style()
+                                        ->standardIcon(QStyle::SP_MessageBoxWarning)
+                                        .pixmap(16, 16));
+    minFluxSigmaWarningLabel->setToolTip(tr(
+        "<b>This test is on and random uncertainty estimation is off.</b> "
+        "There is no random error for it to compare a flux against, so it is "
+        "being skipped and no period is refused by it. Switch it on under "
+        "<i>Statistical Analysis &gt; Random uncertainty estimation</i>, with "
+        "Finkelstein and Sims (2001). The run will say so as well, as "
+        "Warning(115)."));
+    minFluxSigmaWarningLabel->hide();
+
     maxGapFillSpin = new QSpinBox(this);
     maxGapFillSpin->setRange(0, 999);
     maxGapFillSpin->setSingleStep(1);
@@ -133,6 +166,15 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject,
                      tr("<b>Signal-strength cutoff:</b> When signal strength is available, CO2/H2O measurements below 70% are removed because this can indicate analyzer windows that need cleaning. Default: 70%."));
     setOptionTooltip(maxStationarityLabel, maxStationaritySpin,
                      tr("<b>Maximum stationarity:</b> Zahn et al. (2022) filtered out strongly non-stationary periods using the Foken (2017) stationarity test, removing periods when the non-stationarity statistic for w'c' or w'q' exceeded 25%. Lower positive values are stricter and may discard more averaging periods; higher values are more permissive. Allowed range: 0-1000%. Set to 0 to disable this gate for sensitivity/testing runs. Invalid INI values fall back to 25%. Default: 25%."));
+    //> Not through setOptionTooltip: the label half of this row is the
+    //> checkbox itself, and that helper wants a QLabel.
+    const auto minFluxSigmaTooltip = tr("<b>Only partition a resolvable flux:</b> Refuses a pairing whose water or carbon flux is smaller than this many times its own random error, reporting it as insignificant instead of splitting it."
+       "<p>The octants mean something only if the sign of c&prime; carries a surface signature. Where the scalar is barely coupled to the vertical wind that sign is noise, the moist ejections split near evenly between O1 and O2, and the method returns an E/T and a Reco/P split of a signal that is not there. Nothing else in CEC notices: the occupancy gates see two well-filled octants, and the components still sum to the total.</p>"
+       "<p>Finkelstein and Sims (2001) give the random error of a covariance from the period's own integral timescale, and |F| / RE is about |r| &times; &radic;(N<sub>indep</sub> / 2) &ndash; so this is the significance of that correlation, with the number of independent samples measured rather than assumed. It therefore needs <b>random uncertainty estimation</b>, and ticking this box switches it on.</p>"
+       "<p><b>Higher values reject more periods</b>, night-time ones first. The paper suggests no value at all, because it applies no such test; 2 is the usual line between a flux and its own noise, and it is what this box offers. Refused periods are flagged 6 in qc_cec_&lt;species&gt;, distinguishable from every other reason a period is dropped. Unticked reproduces the published method. Default: off.</p>");
+    minFluxSigmaBox->setToolTip(minFluxSigmaTooltip);
+    minFluxSigmaSpin->setToolTip(minFluxSigmaTooltip);
+
     setOptionTooltip(maxGapFillLabel, maxGapFillSpin,
                      tr("<b>Maximum small-gap fill:</b> Runs of up to this many consecutive samples are repaired by linear interpolation, after the signal-strength screen has deleted what the analyser condemned â the order Zahn et al. (2022) state. It is what keeps a period with brief dropouts above the minimum valid data gate. Set it to 0 to never reconstruct a condemned sample, at the cost of losing more periods. Default: 4 samples."));
 
@@ -162,6 +204,9 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject,
     qcLayout->addWidget(ratioStationarityBox, 2, 2, Qt::AlignLeft);
     qcLayout->addWidget(maxGapFillLabel, 3, 0, Qt::AlignRight);
     qcLayout->addWidget(maxGapFillSpin, 3, 1);
+    qcLayout->addWidget(minFluxSigmaBox, 4, 0, Qt::AlignRight);
+    qcLayout->addWidget(minFluxSigmaSpin, 4, 1);
+    qcLayout->addWidget(minFluxSigmaWarningLabel, 4, 2, Qt::AlignLeft);
     qcLayout->setColumnStretch(2, 1);
 
     //> Which channels go together, and what else rides along with them.
@@ -239,6 +284,29 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject,
             { ecProject_->setGeneralCecStationarityMode(on ? 1 : 0); });
     connect(maxStationaritySpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             ecProject_, &EcProject::setGeneralCecMaxStationarity);
+    //> Off is stored as 0 rather than as a flag, so the spin box keeps its
+    //> value while unticked and the project says plainly that no test runs.
+    connect(minFluxSigmaBox, &QCheckBox::toggled, this, [=](bool on)
+            {
+                minFluxSigmaSpin->setEnabled(on);
+                ecProject_->setGeneralCecMinFluxSigma(
+                            on ? minFluxSigmaSpin->value() : 0.0);
+                updateMinFluxSigmaWarning();
+            });
+    //> The side effect hangs off clicked, not toggled, so that opening a
+    //> project with the test on does not silently switch anything on for the
+    //> user. Same rule as the CEC checkbox and WPL.
+    connect(minFluxSigmaBox, &QCheckBox::clicked, this, [=]()
+            {
+                if (minFluxSigmaBox->isChecked()) { enableRandomUncertainty(); }
+                updateMinFluxSigmaWarning();
+            });
+    connect(minFluxSigmaSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [=](double d)
+            {
+                if (minFluxSigmaBox->isChecked())
+                { ecProject_->setGeneralCecMinFluxSigma(d); }
+            });
     connect(maxGapFillSpin, QOverload<int>::of(&QSpinBox::valueChanged),
             ecProject_, &EcProject::setGeneralCecMaxGapFill);
     connect(singularBandSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
@@ -270,6 +338,8 @@ void CecSettingsDialog::refresh()
     const QSignalBlocker signalStrengthBlocker(signalStrengthSpin);
     const QSignalBlocker maxStationarityBlocker(maxStationaritySpin);
     const QSignalBlocker ratioStationarityBlocker(ratioStationarityBox);
+    const QSignalBlocker minFluxSigmaBoxBlocker(minFluxSigmaBox);
+    const QSignalBlocker minFluxSigmaSpinBlocker(minFluxSigmaSpin);
     const QSignalBlocker maxGapFillBlocker(maxGapFillSpin);
     const QSignalBlocker singularBandBlocker(singularBandSpin);
 
@@ -280,6 +350,14 @@ void CecSettingsDialog::refresh()
     signalStrengthSpin->setValue(ecProject_->generalCecSignalStrength());
     maxStationaritySpin->setValue(ecProject_->generalCecMaxStationarity());
     ratioStationarityBox->setChecked(ecProject_->generalCecStationarityMode() == 1);
+    //> 0 is off. The box remembers the offered value rather than 0, so
+    //> unticking and reticking does not silently arrive at a different test.
+    const auto minFluxSigma = ecProject_->generalCecMinFluxSigma();
+    minFluxSigmaBox->setChecked(minFluxSigma > 0.0);
+    minFluxSigmaSpin->setValue(minFluxSigma > 0.0 ? minFluxSigma
+                                                  : DefaultMinFluxSigma);
+    minFluxSigmaSpin->setEnabled(minFluxSigma > 0.0);
+    updateMinFluxSigmaWarning();
     maxGapFillSpin->setValue(ecProject_->generalCecMaxGapFill());
     singularBandSpin->setValue(ecProject_->generalCecSingularBand());
 
@@ -380,6 +458,27 @@ void CecSettingsDialog::updatePairButtons()
         !pairTable->selectionModel()->selectedRows().isEmpty());
 }
 
+/// Switch random uncertainty estimation on, as the CEC checkbox switches on
+/// WPL, and for the same kind of reason: the test has nothing to compare a
+/// flux against until the random error is being estimated.
+///
+/// Finkelstein and Sims because that is the estimator whose value makes
+/// |F| / RE the significance of r - it takes the number of independent samples
+/// from the period's own integral timescale rather than assuming one. Mann and
+/// Lenschow is left alone if it is already selected; it also produces a random
+/// error, and the choice is the user's.
+void CecSettingsDialog::enableRandomUncertainty()
+{
+    if (ecProject_->randErrorMethod() != 0) { return; }
+    ecProject_->setRandomErrorMethod(1);
+}
+
+void CecSettingsDialog::updateMinFluxSigmaWarning()
+{
+    minFluxSigmaWarningLabel->setVisible(minFluxSigmaBox->isChecked()
+                                         && ecProject_->randErrorMethod() == 0);
+}
+
 void CecSettingsDialog::restoreDefaults()
 {
     hSpin->setValue(DefaultH);
@@ -389,6 +488,10 @@ void CecSettingsDialog::restoreDefaults()
     signalStrengthSpin->setValue(DefaultSignalStrength);
     maxStationaritySpin->setValue(DefaultMaxStationarity);
     ratioStationarityBox->setChecked(false);
+    //> Unticking writes the 0 and greys the spin, so the value it is left
+    //> showing is only what the box will offer next time.
+    minFluxSigmaBox->setChecked(false);
+    minFluxSigmaSpin->setValue(DefaultMinFluxSigma);
     maxGapFillSpin->setValue(DefaultMaxGapFill);
     singularBandSpin->setValue(DefaultSingularBand);
     pairModel->restoreDefaults();

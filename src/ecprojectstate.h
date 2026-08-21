@@ -115,6 +115,10 @@ struct ProjectGeneralState
     //> Which stationarity criterion gates the partition: 0 the total flux's,
     //> as the paper used, 1 the ratio's own. Defaults to the paper.
     int cec_stationarity_mode = 0;
+    //> How many of its own random errors a flux must exceed before the pairing
+    //> will partition it. 0 disables the test, and is the default: Zahn et al.
+    //> apply no such test, so an untouched project does not either.
+    qreal cec_min_flux_sigma = 0.0;
     //> Empty means the project has not said, and the engine derives one
     //> pairing per carbon channel from the analyser layout.
     QVector<CecPairRecord> cecPairs;
