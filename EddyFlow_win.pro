@@ -3,8 +3,8 @@
 TEMPLATE = app
 
 # EddyFlow version
-VER_MAJ = 7
-VER_MIN = 3
+VER_MAJ = 8
+VER_MIN = 0
 VER_PAT = 0
 VERSION = $$sprintf("%1.%2.%3",$$VER_MAJ,$$VER_MIN,$$VER_PAT)
 

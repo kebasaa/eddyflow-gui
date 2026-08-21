@@ -9,6 +9,7 @@
 
 #include <QDialog>
 
+class QCheckBox;
 class QDoubleSpinBox;
 class QLabel;
 class QPushButton;
@@ -49,6 +50,7 @@ private:
     QDoubleSpinBox *signalStrengthSpin;
     QLabel *signalStrengthWarningLabel;
     QDoubleSpinBox *maxStationaritySpin;
+    QCheckBox *ratioStationarityBox;
     QSpinBox *maxGapFillSpin;
 
     QLabel *hLabel;

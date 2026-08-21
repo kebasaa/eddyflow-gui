@@ -105,6 +105,9 @@ struct ProjectGeneralState
     int cec_max_gap_fill = 4;
     qreal cec_max_stationarity = 25.0;
     qreal cec_singular_band = 0.20;
+    //> Which stationarity criterion gates the partition: 0 the total flux's,
+    //> as the paper used, 1 the ratio's own. Defaults to the paper.
+    int cec_stationarity_mode = 0;
     //> Empty means the project has not said, and the engine derives one
     //> pairing per carbon channel from the analyser layout.
     QVector<CecPairRecord> cecPairs;

@@ -675,6 +675,7 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
             && (ec_project_state_.projectGeneral.cec_max_gap_fill == previousProject.ec_project_state_.projectGeneral.cec_max_gap_fill)
             && qFuzzyCompare(ec_project_state_.projectGeneral.cec_max_stationarity, previousProject.ec_project_state_.projectGeneral.cec_max_stationarity)
             && qFuzzyCompare(ec_project_state_.projectGeneral.cec_singular_band, previousProject.ec_project_state_.projectGeneral.cec_singular_band)
+            && (ec_project_state_.projectGeneral.cec_stationarity_mode == previousProject.ec_project_state_.projectGeneral.cec_stationarity_mode)
             && (ec_project_state_.projectGeneral.cecPairs == previousProject.ec_project_state_.projectGeneral.cecPairs);
     }
 
@@ -914,6 +915,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.projectGeneral.cec_max_gap_fill = defaultEcProjectState.projectGeneral.cec_max_gap_fill;
     ec_project_state_.projectGeneral.cec_max_stationarity = defaultEcProjectState.projectGeneral.cec_max_stationarity;
     ec_project_state_.projectGeneral.cec_singular_band = defaultEcProjectState.projectGeneral.cec_singular_band;
+    ec_project_state_.projectGeneral.cec_stationarity_mode = defaultEcProjectState.projectGeneral.cec_stationarity_mode;
     ec_project_state_.projectGeneral.cecPairs.clear();
     ec_project_state_.projectGeneral.tob1_format = defaultEcProjectState.projectGeneral.tob1_format;
     ec_project_state_.projectGeneral.out_path.clear();
@@ -1619,6 +1621,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_PROJECT_78, ec_project_state_.projectGeneral.cec_max_gap_fill);
         project_ini.setValue(EcIni::INI_PROJECT_79, QString::number(ec_project_state_.projectGeneral.cec_max_stationarity, 'f', 1));
         project_ini.setValue(EcIni::INI_PROJECT_80, QString::number(ec_project_state_.projectGeneral.cec_singular_band, 'f', 3));
+        project_ini.setValue(EcIni::INI_PROJECT_81, ec_project_state_.projectGeneral.cec_stationarity_mode);
         writeCecPairs(project_ini);
         project_ini.setValue(EcIni::INI_PROJECT_50, ec_project_state_.projectGeneral.tob1_format);
         project_ini.setValue(EcIni::INI_PROJECT_51, QDir::fromNativeSeparators(ec_project_state_.projectGeneral.out_path));
@@ -2650,6 +2653,14 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
                 = (cecSingularBandOk && cecSingularBand >= 0.0 && cecSingularBand <= 1.0)
                     ? cecSingularBand
                     : defaultEcProjectState.projectGeneral.cec_singular_band;
+        //> Anything but 1 is the paper's criterion, a value from some later
+        //> version this build does not understand included. Falling back to
+        //> the published one is the safe direction to be wrong in, and it is
+        //> what the engine does with the same key.
+        ec_project_state_.projectGeneral.cec_stationarity_mode
+                = (project_ini.value(EcIni::INI_PROJECT_81,
+                                     defaultEcProjectState.projectGeneral.cec_stationarity_mode)
+                       .toInt() == 1) ? 1 : 0;
         readCecPairs(project_ini);
         ec_project_state_.projectGeneral.tob1_format
                 = project_ini.value(EcIni::INI_PROJECT_50,
@@ -5887,6 +5898,13 @@ void EcProject::setGeneralCecMaxStationarity(double d)
 void EcProject::setGeneralCecSingularBand(double d)
 {
     ec_project_state_.projectGeneral.cec_singular_band = d;
+    setModified(true);
+}
+
+void EcProject::setGeneralCecStationarityMode(int n)
+{
+    if (ec_project_state_.projectGeneral.cec_stationarity_mode == n) { return; }
+    ec_project_state_.projectGeneral.cec_stationarity_mode = n;
     setModified(true);
 }
 

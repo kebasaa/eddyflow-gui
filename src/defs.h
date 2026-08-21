@@ -53,8 +53,8 @@ class QStringLiteral;
 /// \brief Contains global string literals
 namespace Defs
 {
-    const auto APP_VERSION = 0x070300;
-    const auto APP_VERSION_STR = QStringLiteral("7.3.0");
+    const auto APP_VERSION = 0x080000;
+    const auto APP_VERSION_STR = QStringLiteral("8.0.0");
     const auto APP_STAGE_STR = QStringLiteral(""); // -rc1
 
     //> 5.0.0 is the record format: gases, cell measurements and diagnostics

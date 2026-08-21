@@ -172,6 +172,57 @@ class TheProjectFileCarriesIt(unittest.TestCase):
         #> One regex covers cec_meth, cec_singular_band, cec_num and cec_<i>_*.
         self.assertIn(r'removeMatchingKeys(ini, QStringLiteral("^cec_"))', self.project)
 
+    def test_the_stationarity_mode_round_trips_and_defaults_to_the_paper(self):
+        """A toggle between two criteria, defaulting to the published one.
+
+        Foken's statistic is relative to the whole-period covariance, so it
+        explodes when the flux is near zero - at night, on periods whose
+        octants are perfectly well sampled. Checked, the same construction is
+        applied to the partition ratio instead. Unchecked reproduces the
+        paper, and that is what an untouched project gets.
+        """
+        self.assertIn('INI_PROJECT_81   = QStringLiteral("cec_stationarity_mode")',
+                      read("src/ecinidefs.h"))
+        self.assertIn("int cec_stationarity_mode = 0;", read("src/ecprojectstate.h"))
+        proj = read("src/ecproject.cpp")
+        self.assertIn("project_ini.setValue(EcIni::INI_PROJECT_81, "
+                      "ec_project_state_.projectGeneral.cec_stationarity_mode)", proj)
+        self.assertIn("EcIni::INI_PROJECT_81", proj)
+
+    def test_an_unrecognised_mode_falls_back_to_the_paper(self):
+        #> A project written by some later version must not silently select a
+        #> criterion this build does not implement. Same rule as the engine's.
+        proj = read("src/ecproject.cpp")
+        start = proj.index("= (project_ini.value(EcIni::INI_PROJECT_81,")
+        block = proj[start:proj.index("readCecPairs", start)]
+        self.assertIn(".toInt() == 1) ? 1 : 0;", block)
+
+    def test_the_checkbox_is_wired_to_it(self):
+        dialog = read("src/cecsettingsdialog.cpp")
+        self.assertIn("setGeneralCecStationarityMode(on ? 1 : 0)", dialog)
+        self.assertIn("ratioStationarityBox->setChecked("
+                      "ecProject_->generalCecStationarityMode() == 1)", dialog)
+        #> Blocked during refresh like every other control here, or loading a
+        #> project marks it modified.
+        self.assertIn("const QSignalBlocker ratioStationarityBlocker(ratioStationarityBox);",
+                      dialog)
+        #> And Restore Defaults puts it back to the paper.
+        self.assertIn("ratioStationarityBox->setChecked(false);", dialog)
+
+    def test_the_tooltip_says_which_is_the_published_method(self):
+        dialog = read("src/cecsettingsdialog.cpp")
+        block = dialog[dialog.index("ratioStationarityBox->setToolTip"):]
+        block = block[:block.index("));") + 3]
+        #> Both states explained, the published one named, and the column
+        #> pointed at - so a user can tell which is which and go and look at
+        #> the number. Not pinned to any one phrase describing the mechanism;
+        #> that wording has already changed once and the check should not
+        #> break when it is improved again.
+        self.assertIn("Zahn et al. (2022)", block)
+        self.assertIn("<b>Unchecked</b>", block)
+        self.assertIn("<b>Checked</b>", block)
+        self.assertIn("cec_ns_", block)
+
     def test_the_format_version_was_bumped_with_the_new_keys(self):
         #> So an older engine refuses the file rather than ignoring cec_num and
         #> silently running one pairing.

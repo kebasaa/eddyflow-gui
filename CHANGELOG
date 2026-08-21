@@ -1,6 +1,20 @@
-7.3.0 (2026-08-20)
+8.0.0 (2026-08-20)
 
     GUI:
+	- New feature: "Judge the partition, not the flux", beside the stationarity limit in
+	       CEC Settings. Unchecked - the default - is Zahn et al. (2022), which
+	       drops a period when Foken's non-stationarity statistic for w'c' or
+	       w'q' exceeds the limit. That statistic divides by the covariance it is
+	       testing, so it runs away whenever the flux is near zero, which at
+	       night it is, on periods whose octants are perfectly well sampled.
+	       Checked, the criterion becomes whether the split between the two
+	       octants holds steady through the period - the same six sub-intervals,
+	       each re-centred on its own mean, but normalised by the size of the
+	       partition rather than by the flux, so it cannot run away. The
+	       statistic is written out either way as cec_ns_<species>, bounded by
+	       200, so the two criteria can be compared on one run. Leave it
+	       unchecked to reproduce the published method; Restore Default Values
+	       puts it back.
 	- New feature: AGC and RSSI can be chosen in the Raw File Description. Neither was
 	       in the variable list, so a signal-strength column could not be declared
 	       from here at all - and the engine's conditional eddy covariance screen

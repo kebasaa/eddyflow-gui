@@ -7,6 +7,7 @@
 #include "cecsettingsdialog.h"
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
 #include <QGridLayout>
@@ -75,6 +76,26 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject,
                                           .pixmap(16, 16));
     signalStrengthWarningLabel->hide();
     maxStationaritySpin = createPercentSpin();
+    ratioStationarityBox = new QCheckBox(tr("Judge the partition, not the flux"), this);
+    ratioStationarityBox->setToolTip(tr(
+        "<b>Which stationarity criterion gates the partition.</b>"
+        "<p><b>Unchecked</b> is Zahn et al. (2022): the period is dropped when "
+        "Foken's non-stationarity statistic for w'c' or w'q' exceeds the limit "
+        "beside this box. That statistic divides by the very covariance it is "
+        "testing, so it runs away as that covariance approaches zero \xe2\x80\x93 which "
+        "for carbon at night it does. It then rejects periods whose octants are "
+        "perfectly well sampled, and those are the night-time periods the paper "
+        "reports the method handling best.</p>"
+        "<p><b>Checked</b> asks instead whether the <i>split</i> between the two "
+        "octants holds steady: the same six sub-intervals, each re-centred on "
+        "its own mean, compared against the whole period. Both are measured as "
+        "a fraction of the partition's own size, which cannot vanish while the "
+        "octants hold anything, so the statistic stays bounded and a drift that "
+        "scales both octants together cancels.</p>"
+        "<p>The statistic is written out either way, as "
+        "cec_ns_&lt;species&gt;, so the two can be compared on one run. Same "
+        "limit for both; 0 disables the gate altogether. Leave this unchecked "
+        "to reproduce the published method.</p>"));
     maxStationaritySpin->setRange(0.0, 1000.0);
 
     maxGapFillSpin = new QSpinBox(this);
@@ -138,6 +159,7 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject,
     qcLayout->addWidget(signalStrengthWarningLabel, 1, 2, Qt::AlignLeft);
     qcLayout->addWidget(maxStationarityLabel, 2, 0, Qt::AlignRight);
     qcLayout->addWidget(maxStationaritySpin, 2, 1);
+    qcLayout->addWidget(ratioStationarityBox, 2, 2, Qt::AlignLeft);
     qcLayout->addWidget(maxGapFillLabel, 3, 0, Qt::AlignRight);
     qcLayout->addWidget(maxGapFillSpin, 3, 1);
     qcLayout->setColumnStretch(2, 1);
@@ -213,6 +235,8 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject,
             ecProject_, &EcProject::setGeneralCecMinValid);
     connect(signalStrengthSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             ecProject_, &EcProject::setGeneralCecSignalStrength);
+    connect(ratioStationarityBox, &QCheckBox::toggled, this, [=](bool on)
+            { ecProject_->setGeneralCecStationarityMode(on ? 1 : 0); });
     connect(maxStationaritySpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             ecProject_, &EcProject::setGeneralCecMaxStationarity);
     connect(maxGapFillSpin, QOverload<int>::of(&QSpinBox::valueChanged),
@@ -245,6 +269,7 @@ void CecSettingsDialog::refresh()
     const QSignalBlocker minValidBlocker(minValidSpin);
     const QSignalBlocker signalStrengthBlocker(signalStrengthSpin);
     const QSignalBlocker maxStationarityBlocker(maxStationaritySpin);
+    const QSignalBlocker ratioStationarityBlocker(ratioStationarityBox);
     const QSignalBlocker maxGapFillBlocker(maxGapFillSpin);
     const QSignalBlocker singularBandBlocker(singularBandSpin);
 
@@ -254,6 +279,7 @@ void CecSettingsDialog::refresh()
     minValidSpin->setValue(ecProject_->generalCecMinValid());
     signalStrengthSpin->setValue(ecProject_->generalCecSignalStrength());
     maxStationaritySpin->setValue(ecProject_->generalCecMaxStationarity());
+    ratioStationarityBox->setChecked(ecProject_->generalCecStationarityMode() == 1);
     maxGapFillSpin->setValue(ecProject_->generalCecMaxGapFill());
     singularBandSpin->setValue(ecProject_->generalCecSingularBand());
 
@@ -362,6 +388,7 @@ void CecSettingsDialog::restoreDefaults()
     minValidSpin->setValue(DefaultMinValid);
     signalStrengthSpin->setValue(DefaultSignalStrength);
     maxStationaritySpin->setValue(DefaultMaxStationarity);
+    ratioStationarityBox->setChecked(false);
     maxGapFillSpin->setValue(DefaultMaxGapFill);
     singularBandSpin->setValue(DefaultSingularBand);
     pairModel->restoreDefaults();
