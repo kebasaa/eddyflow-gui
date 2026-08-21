@@ -26,9 +26,11 @@
 #define ECPROJECTSTATE_H
 
 #include <QList>
+#include <QMap>
 
 #include "angle_item.h"
 #include "defs.h"
+#include "measurement_record.h"
 #include "sector_item.h"
 
 /// \struct ProjectGeneralState
@@ -72,6 +74,22 @@ struct ProjectGeneralState
     int col_ts = -1;
     qreal gas_mw = -1.0;
     qreal gas_diff = -1.0;
+    //> Measured columns, named by species and instrument.
+    //>
+    //> Supersedes the col_* ints above, which allow one column per gas and
+    //> cannot say which analyser a column came from. The old fields are kept
+    //> so that projects written before this can still be read and migrated;
+    //> when gasColumns is non-empty it is what gets written and processed.
+    QVector<GasRecord> gasColumns;
+    QVector<MeasurementRecord> cellColumns;
+    QVector<MeasurementRecord> diagColumns;
+    //> Analyser signal strength - AGC or RSSI - one record per declared
+    //> column, derived from the raw file description rather than selected.
+    //> The engine's conditional-eddy-covariance screen needs to know which
+    //> analyser a signal column belongs to, and until these records existed
+    //> the only statement of that was the metadata variable name, matched
+    //> case-sensitively and attributed by inference.
+    QVector<MeasurementRecord> agcColumns;
     int out_rich = 1;
     int fluxnet_standardize_biomet = 1;
     int fluxnet_err_label = 1;
@@ -93,6 +111,17 @@ struct ProjectGeneralState
     qreal cec_signal_strength = 70.0;
     int cec_max_gap_fill = 4;
     qreal cec_max_stationarity = 25.0;
+    qreal cec_singular_band = 0.20;
+    //> Which stationarity criterion gates the partition: 0 the total flux's,
+    //> as the paper used, 1 the ratio's own. Defaults to the paper.
+    int cec_stationarity_mode = 0;
+    //> How many of its own random errors a flux must exceed before the pairing
+    //> will partition it. 0 disables the test, and is the default: Zahn et al.
+    //> apply no such test, so an untouched project does not either.
+    qreal cec_min_flux_sigma = 0.0;
+    //> Empty means the project has not said, and the engine derives one
+    //> pairing per carbon channel from the analyser layout.
+    QVector<CecPairRecord> cecPairs;
     int tob1_format = 0;
     QString out_path = QString();
     int fix_out_format = 0;
@@ -134,33 +163,33 @@ struct SpectraSettingsState
     qreal sa_fmin_co2 = 0.005;
     qreal sa_fmin_h2o = 0.005;
     qreal sa_fmin_ch4 = 0.005;
-    qreal sa_fmin_gas4 = 0.005;
+    qreal sa_fmin_other = 0.005;
     qreal sa_fmax_co2 = 2.0;
     qreal sa_fmax_h2o = 2.0;
     qreal sa_fmax_ch4 = 2.0;
-    qreal sa_fmax_gas4 = 2.0;
+    qreal sa_fmax_other = 2.0;
     qreal sa_hfn_co2_fmin = 1.0;
     qreal sa_hfn_h2o_fmin = 1.0;
     qreal sa_hfn_ch4_fmin = 1.0;
-    qreal sa_hfn_gas4_fmin = 1.0;
+    qreal sa_hfn_other_fmin = 1.0;
     qreal sa_min_un_ustar = 0.2;
     qreal sa_min_un_h = 20.0;
     qreal sa_min_un_le = 20.0;
     qreal sa_min_un_co2 = 2.0;
     qreal sa_min_un_ch4 = 0.01;
-    qreal sa_min_un_gas4 = 0.01;
+    qreal sa_min_un_other = 0.01;
     qreal sa_min_st_ustar = 0.05;
     qreal sa_min_st_h = 5.0;
     qreal sa_min_st_le = 3.0;
     qreal sa_min_st_co2 = 0.5;
     qreal sa_min_st_ch4 = 0.005;
-    qreal sa_min_st_gas4 = 0.005;
+    qreal sa_min_st_other = 0.005;
     qreal sa_max_ustar = 5.0;
     qreal sa_max_h = 1000.0;
     qreal sa_max_le = 1000.0;
     qreal sa_max_co2 = 100.0;
     qreal sa_max_ch4 = 20.0;
-    qreal sa_max_gas4 = 20.0;
+    qreal sa_max_other = 20.0;
     int add_sonic_lptf = 1;
     QString ex_file = QString();
     QString sa_bin_spectra = QString();
@@ -229,6 +258,12 @@ struct ScreenGeneralState
 struct ScreenSettingState
 {
     int max_lack = 10;
+    //> Per-instrument allowance, slot -> percent. An instrument absent from
+    //> the map has none of its own and falls back to max_lack, which is what
+    //> the engine does with a key it does not find. Keyed rather than indexed
+    //> because "not set" and "set to the same number as the global" are
+    //> different things: only the first follows the global if it changes.
+    QMap<int, int> instr_max_lack {};
     int cross_wind = 0;
     int flow_distortion = 0;
     int rot_meth = 1;
@@ -352,7 +387,7 @@ struct ScreenParamState
     qreal sr_lim_co2 = 3.5;
     qreal sr_lim_h2o = 3.5;
     qreal sr_lim_ch4 = 8.0;
-    qreal sr_lim_gas4 = 8.0;
+    qreal sr_lim_other = 8.0;
     qreal sr_lim_hf = 1.0;
     qreal ar_lim = 7.0;
     int ar_bins = 100;
@@ -370,8 +405,8 @@ struct ScreenParamState
     qreal al_h2o_max = 40.0;
     qreal al_ch4_min = 0.17;
     qreal al_ch4_max = 1000.0;
-    qreal al_gas4_min = 0.0;
-    qreal al_gas4_max = 1000.0;
+    qreal al_other_min = 0.0;
+    qreal al_other_max = 1000.0;
     qreal sk_hf_skmin = -2.0;
     qreal sk_hf_skmax = 2.0;
     qreal sk_sf_skmin = -1.0;
@@ -386,7 +421,7 @@ struct ScreenParamState
     qreal ds_hf_co2 = 40.0;
     qreal ds_hf_h2o = 3.26;
     qreal ds_hf_ch4 = 40.0;
-    qreal ds_hf_gas4 = 40.0;
+    qreal ds_hf_other = 40.0;
     qreal ds_hf_var = 3.0;
     qreal ds_sf_uv = 2.7;
     qreal ds_sf_w = 1.3;
@@ -394,14 +429,14 @@ struct ScreenParamState
     qreal ds_sf_co2 = 27.0;
     qreal ds_sf_h2o = 2.2;
     qreal ds_sf_ch4 = 30.0;
-    qreal ds_sf_gas4 = 30.0;
+    qreal ds_sf_other = 30.0;
     qreal ds_sf_var = 2.0;
     qreal tl_hf_lim = 20.0;
     qreal tl_sf_lim = 10.0;
     qreal tl_def_co2 = 0.0;
     qreal tl_def_h2o = 0.0;
     qreal tl_def_ch4 = 0.0;
-    qreal tl_def_gas4 = 0.0;
+    qreal tl_def_other = 0.0;
     qreal aa_min = -30.0;
     qreal aa_max = 30.0;
     qreal aa_lim = 10.0;
@@ -471,11 +506,17 @@ struct PwbTimelagState
     qreal hdi_thresh_s = 0.5;
     qreal dev_thresh_s = 0.5;
     qreal hdi_prefilter_s = 1.0;
-    int smoothing_width = 6;
+    //> 5, not 6: read_ini_rp.f90 applies 5 when the key is absent, and
+    //> a project written here always states the key - so a 6 here made
+    //> every interface-written project differ from the engine's own
+    //> default with nothing to say it had.
+    int smoothing_width = 5;
     int random_seed = 2024;
-    int approx_ccf    = 0;
-    int max_ar_order  = 0;
-    int detect_on_raw = 1;
+    //> Twenty-four hours, matching read_ini_rp.f90. dyco leaves its
+    //> equivalent unlimited, which is the paper's rule and means one good
+    //> half hour can supply days; a tube delay that drifts with pump
+    //> temperature does not stay put that long.
+    qreal max_carry_h = 24.0;
 };
 
 struct RandomErrorState
@@ -495,6 +536,11 @@ struct BiometState
     int col_ta = 999;
     int col_pa = 999;
     int col_rh = -1;
+    //> "Override instrument H2O measurements": every gas's moisture
+    //> reference set to the biomet. Read by this interface only - the
+    //> engine sees the per-gas references and nothing else - and stored
+    //> so the tickbox comes back the way the user left it.
+    bool rh_override = false;
     int col_rg = -1;
     int col_lwin = -1;
     int col_ppfd = -1;

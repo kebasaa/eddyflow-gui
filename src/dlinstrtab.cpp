@@ -24,6 +24,9 @@
  ***************************************************************************/
 
 #include "dlinstrtab.h"
+#include <QApplication>
+#include "widget_utils.h"
+#include "defs.h"
 
 #include <QDebug>
 #include <QGroupBox>
@@ -43,12 +46,38 @@
 #include "irga_model.h"
 #include "irga_view.h"
 
+
+/// Whether the site already describes as many instruments as the format holds.
+///
+/// The check lives here rather than in the views because the limit counts
+/// *devices*: the .metadata file numbers anemometers and gas analysers with
+/// one shared counter, so two sonics leave room for six analysers. Neither
+/// view can see the other's list; this tab owns both.
+///
+/// Refused at the point of action, because the engine reads instr_1..instr_8
+/// and drops anything beyond without a word.
+bool DlInstrTab::instrumentLimitReached()
+{
+    if (!dlProject_) { return false; }
+    const int anems = dlProject_->anems() ? dlProject_->anems()->size() : 0;
+    const int irgas = dlProject_->irgas() ? dlProject_->irgas()->size() : 0;
+    if (anems + irgas < Defs::MAX_INSTRUMENTS) { return false; }
+
+    WidgetUtils::warning(QApplication::activeWindow(),
+        tr("Instrument limit reached"),
+        tr("A site may describe at most %1 instruments in total, anemometers "
+           "and gas analysers together. This site has %2 anemometers and %3 "
+           "gas analysers; remove one before adding another.")
+            .arg(Defs::MAX_INSTRUMENTS).arg(anems).arg(irgas));
+    return true;
+}
+
 DlInstrTab::DlInstrTab(QWidget *parent, DlProject *dlProject) :
     QWidget(parent),
     dlProject_(dlProject)
 {
     anemView_ = new AnemView(this);
-    anemModel_ = new AnemModel(anemView_, dlProject_->anems());
+    anemModel_ = new AnemModel(anemView_, dlProject_->anems(), dlProject_);
     anemDelegate_ = new AnemDelegate(anemView_);
 
     anemView_->setModel(anemModel_);
@@ -99,10 +128,9 @@ DlInstrTab::DlInstrTab(QWidget *parent, DlProject *dlProject) :
     anemGroup->setFlat(true);
     anemGroup->setToolTip(tr("<b>Anemometers info:</b> Describe anemometers used at the flux station to collect data you want to process."));
     anemGroup->setLayout(anemLayout);
-    anemGroup->setMinimumHeight(378);
 
     irgaView_ = new IrgaView(this);
-    irgaModel_ = new IrgaModel(irgaView_, dlProject_->irgas());
+    irgaModel_ = new IrgaModel(irgaView_, dlProject_->irgas(), dlProject_);
     irgaDelegate_ = new IrgaDelegate(irgaView_);
     irgaView_->setModel(irgaModel_);
     irgaView_->setItemDelegate(irgaDelegate_);
@@ -153,7 +181,6 @@ DlInstrTab::DlInstrTab(QWidget *parent, DlProject *dlProject) :
     irgaGroup->setObjectName(QStringLiteral("simpleGroupBox"));
     irgaGroup->setFlat(true);
     irgaGroup->setToolTip(tr("<b>Gas analyzers info:</b> Describe gas analyzers used to collect the data you want to process."));
-    irgaGroup->setMinimumHeight(378);
     irgaGroup->setLayout(irgaLayout);
 
     auto instrLayout = new QHBoxLayout;
@@ -181,8 +208,11 @@ DlInstrTab::DlInstrTab(QWidget *parent, DlProject *dlProject) :
                 dlProject_->setModified(true);
                 emit instrumentsModified();
             });
-    connect(addAnemButton, &QToolButton::clicked,
-            anemView_, &AnemView::addAnem);
+    connect(addAnemButton, &QToolButton::clicked, this, [=]()
+            {
+                if (instrumentLimitReached()) { return; }
+                anemView_->addAnem();
+            });
     connect(removeAnemButton, &QToolButton::clicked,
             anemView_, &AnemView::removeAnem);
 
@@ -191,8 +221,11 @@ DlInstrTab::DlInstrTab(QWidget *parent, DlProject *dlProject) :
                 dlProject_->setModified(true);
                 emit instrumentsModified();
             });
-    connect(addIrgaButton, &QToolButton::clicked,
-            irgaView_, &IrgaView::addIrga);
+    connect(addIrgaButton, &QToolButton::clicked, this, [=]()
+            {
+                if (instrumentLimitReached()) { return; }
+                irgaView_->addIrga();
+            });
     connect(addIrgaButton, &QToolButton::clicked,
             this, &DlInstrTab::updateScrollBars);
     connect(removeIrgaButton, &QToolButton::clicked,

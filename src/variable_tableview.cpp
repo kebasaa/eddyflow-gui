@@ -58,6 +58,7 @@ VariableTableView::VariableTableView(QWidget *parent) :
     m_header->addSection(tr("<i>Nominal time lag</i>"), tr("<b>Nominal time lag:</b> Enter the expected (nominal) time lag of the variable, with respect to the measurements of the anemometer that you plan to use for flux computation, as applicable. Time lags should be specified at least for gas concentrations and can be estimated based on instrument separation (open path) or on the sampling line characteristics and the flow rate (closed path)."), CustomHeader::QuestionMarkHint::QuestionMark, ClickLabel::VarNomTLag);
     m_header->addSection(tr("<i>Minimum time lag</i>"), tr("<b>Minimum time lag:</b> Enter the minimum expected time lag for the current variable, with respect to anemometric measurements."), CustomHeader::QuestionMarkHint::QuestionMark, ClickLabel::VarMinTLag);
     m_header->addSection(tr("<i>Maximum time lag</i>"), tr("<b>Maximum time lag:</b> Enter the maximum expected time lag for the current variable, with respect to anemometric measurements."), CustomHeader::QuestionMarkHint::QuestionMark, ClickLabel::VarMaxTLag);
+    m_header->addSection(tr("Error value"), tr("<b>Error value:</b> The value this column carries when the instrument had no reading. -9999 by default, which EddyFlow always treats as missing - along with NaN, an unparseable word such as NA, and an empty field - so this only needs changing when the logger writes something else. Stated in the same unit as the column itself, because it is recognised in the raw file before any conversion."));
 }
 
 VariableTableView::~VariableTableView()
@@ -65,13 +66,42 @@ VariableTableView::~VariableTableView()
     delete m_header;
 }
 
+//> The labels are a widget of their own beside the table, so nothing ties them
+//> to the rows unless we do it here: every section is pinned to one row height
+//> and the block starts at the viewport's top, where row 0 starts. It used to
+//> start half a row higher, and the labels were left to size themselves.
+void VariableTableView::layoutHeader()
+{
+    const int rowH = this->rowHeight(0);
+    const int top = this->rowHeight(0) + 6;
+    m_header->setSectionHeight(rowH);
+    setViewportMargins(m_header->sizeHint().width(), top, 0, 0);
+    m_header->setGeometry(0,
+                          top,
+                          m_header->sizeHint().width() + 10,
+                          rowH * m_header->sectionCount());
+}
+
+//> Ask for room for every row. The vertical scroll bar is off, so a row that
+//> does not fit is a row nobody can reach - which is how two rows added to
+//> these tables went missing behind a hard-coded container height.
+QSize VariableTableView::minimumSizeHint() const
+{
+    const int rows = model() ? model()->rowCount() : 0;
+    int rowH = rowHeight(0);
+    if (rowH <= 0) { rowH = verticalHeader()->defaultSectionSize(); }
+    return {QTableView::minimumSizeHint().width(),
+            rowH * (rows + 1) + 8 + 2 * frameWidth()};
+}
+
+QSize VariableTableView::sizeHint() const
+{
+    return minimumSizeHint();
+}
+
 void VariableTableView::resizeEvent(QResizeEvent *event)
 {
-    setViewportMargins(m_header->sizeHint().width(), this->rowHeight(0) + 6, 0, 0);
-    m_header->setGeometry(0,
-                          static_cast<int>(this->rowHeight(0) / 2.0),
-                          m_header->sizeHint().width() + 10,
-                          this->rowHeight(0) * m_header->sectionCount());
+    layoutHeader();
     horizontalHeader()->setMinimumWidth(horizontalHeader()->count() * horizontalHeader()->sectionSize(1));
     horizontalScrollBar()->setMaximum((horizontalHeader()->count() - 1) * horizontalHeader()->sectionSize(1));
     horizontalScrollBar()->updateGeometry();
@@ -81,11 +111,7 @@ void VariableTableView::resizeEvent(QResizeEvent *event)
 
 void VariableTableView::showEvent(QShowEvent *event)
 {
-    setViewportMargins(m_header->sizeHint().width(), this->rowHeight(0) + 6, 0, 0);
-    m_header->setGeometry(0,
-                          static_cast<int>(this->rowHeight(0) / 2.0),
-                          m_header->sizeHint().width() + 10,
-                          this->rowHeight(0) * m_header->sectionCount());
+    layoutHeader();
     horizontalHeader()->setMinimumWidth(horizontalHeader()->count() * horizontalHeader()->sectionSize(1));
     horizontalScrollBar()->setMaximum((horizontalHeader()->count() - 1) * horizontalHeader()->sectionSize(1));
     horizontalScrollBar()->updateGeometry();

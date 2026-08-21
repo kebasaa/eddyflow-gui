@@ -26,7 +26,10 @@
 #ifndef ADVSTATISTICALOPTIONS_H
 #define ADVSTATISTICALOPTIONS_H
 
+#include <QVector>
 #include <QWidget>
+
+#include "absolute_limit_units.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 /// \file src/advstatisticaloptions.h
@@ -46,6 +49,7 @@ class QButtonGroup;
 class QCheckBox;
 class QComboBox;
 class QDoubleSpinBox;
+class QGridLayout;
 class QGroupBox;
 class QLabel;
 class QPushButton;
@@ -55,6 +59,7 @@ class QTabBar;
 class QToolBox;
 
 class ClickLabel;
+class DlProject;
 class EcProject;
 
 /// \class AdvStatisticalOptions
@@ -64,7 +69,12 @@ class AdvStatisticalOptions : public QWidget
     Q_OBJECT
 
 public:
-    explicit AdvStatisticalOptions(QWidget* parent, EcProject* project);
+    //> Takes the raw file description as well as the project: the absolute
+    //> limits are shown in the unit the column declares, which only the
+    //> metadata knows.
+    explicit AdvStatisticalOptions(QWidget* parent,
+                                   DlProject* dlProject,
+                                   EcProject* project);
     ~AdvStatisticalOptions();
 
 public slots:
@@ -72,6 +82,7 @@ public slots:
 
 protected:
     void resizeEvent(QResizeEvent* event) override;
+    void showEvent(QShowEvent* event) override;
 
 private slots:
     void refresh();
@@ -105,10 +116,6 @@ private slots:
     void updateParamSrNumSpk(int n);
     void updateParamSrULim(double n);
     void updateParamSrWLim(double n);
-    void updateParamSrCo2Lim(double n);
-    void updateParamSrH2oLim(double n);
-    void updateParamSrCh4Lim(double n);
-    void updateParamSrGas4Lim(double n);
     void updateParamSrHfLim(double n);
     void updateDespFilter(bool b);
 
@@ -126,14 +133,6 @@ private slots:
     void updateParamAlWMin(double n);
     void updateParamAlTsonMin(double n);
     void updateParamAlTsonMax(double n);
-    void updateParamAlCo2Min(double n);
-    void updateParamAlCo2Max(double n);
-    void updateParamAlH2oMin(double n);
-    void updateParamAlH2oMax(double n);
-    void updateParamAlCh4Min(double n);
-    void updateParamAlCh4Max(double n);
-    void updateParamAlGas4Min(double n);
-    void updateParamAlGas4Max(double n);
     void updateAbsLimFilter(bool b);
 
     void updateParamSkHfSkmin(double n);
@@ -148,26 +147,14 @@ private slots:
     void updateParamDsHfUV(double n);
     void updateParamDsHfW(double n);
     void updateParamDsHfT(double n);
-    void updateParamDsHfCo2(double n);
-    void updateParamDsHfH2o(double n);
-    void updateParamDsHfCh4(double n);
-    void updateParamDsHfGas4(double n);
     void updateParamDsHfVar(double n);
     void updateParamDsSfUV(double n);
     void updateParamDsSfW(double n);
     void updateParamDsSfT(double n);
-    void updateParamDsSfCo2(double n);
-    void updateParamDsSfH2o(double n);
-    void updateParamDsSfCh4(double n);
-    void updateParamDsSfGas4(double n);
     void updateParamDsSfVar(double n);
 
     void updateParamTlHfLim(double n);
     void updateParamTlSfLim(double n);
-    void updateParamTlDefCo2(double n);
-    void updateParamTlDefH2o(double n);
-    void updateParamTlDefCh4(double n);
-    void updateParamTlDefGas4(double n);
 
     void updateParamAaMin(double n);
     void updateParamAaMax(double n);
@@ -190,6 +177,11 @@ private slots:
     void onlineHelpTrigger_11();
 
     void updateRandomErrorArea(bool b);
+    //> ru_meth is written from the CEC settings dialog too, so this
+    //> control has to be able to learn about it from somewhere other
+    //> than a project load.
+    void syncRandomErrorMethod();
+    void setRandomErrorControlsEnabled(bool b);
     void onClickRandomMethodLabel();
     void updateRandomMethod(int n);
     void onClickItsDefinitionLabel();
@@ -202,10 +194,6 @@ private slots:
     void onClickDespLabel_1();
     void onClickDespLabel_2();
     void onClickDespLabel_3();
-    void onClickDespLabel_4();
-    void onClickDespLabel_5();
-    void onClickDespLabel_6();
-    void onClickDespLabel_7();
     void onClickDespLabel_8();
 
     void onClickAmplResLabel_1();
@@ -219,10 +207,6 @@ private slots:
     void onClickAbsLimLabel_1();
     void onClickAbsLimLabel_2();
     void onClickAbsLimLabel_3();
-    void onClickAbsLimLabel_5();
-    void onClickAbsLimLabel_7();
-    void onClickAbsLimLabel_9();
-    void onClickAbsLimLabel_11();
 
     void onClickSkewnessLabel_1();
     void onClickSkewnessLabel_2();
@@ -232,18 +216,10 @@ private slots:
     void onClickDiscontLabel_1();
     void onClickDiscontLabel_2();
     void onClickDiscontLabel_3();
-    void onClickDiscontLabel_4();
-    void onClickDiscontLabel_5();
-    void onClickDiscontLabel_6();
-    void onClickDiscontLabel_7();
     void onClickDiscontLabel_8();
 
     void onClickTimeLagLabel_1();
     void onClickTimeLagLabel_2();
-    void onClickTimeLagLabel_3();
-    void onClickTimeLagLabel_4();
-    void onClickTimeLagLabel_5();
-    void onClickTimeLagLabel_6();
 
     void onClickAttackAngleLabel_1();
     void onClickAttackAngleLabel_2();
@@ -257,7 +233,40 @@ private slots:
     void updateDespikingMethod(int b);
 
 private:
+    //> One generated row per configured gas, replacing the four fixed slots
+    //> each of these tables used to carry. A site may measure the same species
+    //> on several analysers, so the tables follow the project's gas records
+    //> rather than a hard-wired CO2/H2O/CH4/4th-gas quartet.
+    struct GasRow                   //< one value per gas
+    {
+        int gasIndex = -1;          //< index into EcProject::gasColumns()
+        ClickLabel* label = nullptr;
+        QDoubleSpinBox* spin = nullptr;
+    };
+    struct GasPairRow               //< two values per gas (min/max, hard/soft)
+    {
+        int gasIndex = -1;
+        ClickLabel* label = nullptr;
+        QDoubleSpinBox* first = nullptr;
+        QDoubleSpinBox* second = nullptr;
+    };
+
+    //> Which per-gas setting a value belongs to. Used only to pick the
+    //> built-in default for a gas that has none of its own.
+    enum class GasParam { SrLim, AlMin, AlMax, DsHf, DsSf, TlDef };
+
     void createTabWidget();
+    void rebuildGasRows();
+    QString gasSignature() const;
+    QString gasRowLabel(int gasIndex) const;
+    void configureAbsLimSpin(QDoubleSpinBox* spin, int gasIndex) const;
+    AbsoluteLimitUnits::Scale absLimScale(int gasIndex) const;
+    double gasParamFor(int gasIndex, GasParam param) const;
+    double defaultGasParam(const QString& slug, GasParam param) const;
+    void onGasParamChanged(int gasIndex, GasParam param, double value);
+    void resetGasParamsToDefault();
+    void setSpikeGasRowsEnabled(bool enabled);
+
     bool atLeastOneCheckedTest();
     bool areAllCheckedTests();
     int findClosestEnabledTest(int indexDisabled);
@@ -276,10 +285,6 @@ private:
     QSpinBox* despSpin_1;
     QDoubleSpinBox* despSpin_2;
     QDoubleSpinBox* despSpin_3;
-    QDoubleSpinBox* despSpin_4;
-    QDoubleSpinBox* despSpin_5;
-    QDoubleSpinBox* despSpin_6;
-    QDoubleSpinBox* despSpin_7;
     QDoubleSpinBox* despSpin_8;
     QCheckBox* despFilterCheckBox;
 
@@ -301,14 +306,6 @@ private:
     QDoubleSpinBox* absLimSpin_2;
     QDoubleSpinBox* absLimSpin_3;
     QDoubleSpinBox* absLimSpin_4;
-    QDoubleSpinBox* absLimSpin_5;
-    QDoubleSpinBox* absLimSpin_6;
-    QDoubleSpinBox* absLimSpin_7;
-    QDoubleSpinBox* absLimSpin_8;
-    QDoubleSpinBox* absLimSpin_9;
-    QDoubleSpinBox* absLimSpin_10;
-    QDoubleSpinBox* absLimSpin_11;
-    QDoubleSpinBox* absLimSpin_12;
     QDoubleSpinBox* absLimSpin_13;
     QDoubleSpinBox* absLimSpin_14;
     QCheckBox* absLimFilterCheckBox;
@@ -329,28 +326,16 @@ private:
     QDoubleSpinBox* discontSpin_1;
     QDoubleSpinBox* discontSpin_2;
     QDoubleSpinBox* discontSpin_3;
-    QDoubleSpinBox* discontSpin_4;
-    QDoubleSpinBox* discontSpin_5;
-    QDoubleSpinBox* discontSpin_6;
-    QDoubleSpinBox* discontSpin_7;
     QDoubleSpinBox* discontSpin_8;
     QDoubleSpinBox* discontSpin_9;
     QDoubleSpinBox* discontSpin_10;
     QDoubleSpinBox* discontSpin_11;
-    QDoubleSpinBox* discontSpin_12;
-    QDoubleSpinBox* discontSpin_13;
-    QDoubleSpinBox* discontSpin_14;
-    QDoubleSpinBox* discontSpin_15;
     QDoubleSpinBox* discontSpin_16;
 
     QWidget* tab6;
     QLabel* timelagGraphLabel;
     QDoubleSpinBox* timeLagSpin_1;
     QDoubleSpinBox* timeLagSpin_2;
-    QDoubleSpinBox* timeLagSpin_3;
-    QDoubleSpinBox* timeLagSpin_4;
-    QDoubleSpinBox* timeLagSpin_5;
-    QDoubleSpinBox* timeLagSpin_6;
 
     QWidget* tab7;
     QLabel* attackAngleGraphLabel;
@@ -380,10 +365,6 @@ private:
     ClickLabel* despLabel_1;
     ClickLabel* despLabel_2;
     ClickLabel* despLabel_3;
-    ClickLabel* despLabel_4;
-    ClickLabel* despLabel_5;
-    ClickLabel* despLabel_6;
-    ClickLabel* despLabel_7;
     ClickLabel* despLabel_8;
     ClickLabel* amplResLabel_1;
     ClickLabel* amplResLabel_2;
@@ -394,10 +375,6 @@ private:
     ClickLabel* absLimLabel_1;
     ClickLabel* absLimLabel_2;
     ClickLabel* absLimLabel_3;
-    ClickLabel* absLimLabel_5;
-    ClickLabel* absLimLabel_7;
-    ClickLabel* absLimLabel_9;
-    ClickLabel* absLimLabel_11;
     ClickLabel* skewnessLabel_1;
     ClickLabel* skewnessLabel_2;
     ClickLabel* skewnessLabel_5;
@@ -405,17 +382,9 @@ private:
     ClickLabel* discontLabel_1;
     ClickLabel* discontLabel_2;
     ClickLabel* discontLabel_3;
-    ClickLabel* discontLabel_4;
-    ClickLabel* discontLabel_5;
-    ClickLabel* discontLabel_6;
-    ClickLabel* discontLabel_7;
     ClickLabel* discontLabel_8;
     ClickLabel* timeLagLabel_1;
     ClickLabel* timeLagLabel_2;
-    ClickLabel* timeLagLabel_3;
-    ClickLabel* timeLagLabel_4;
-    ClickLabel* timeLagLabel_5;
-    ClickLabel* timeLagLabel_6;
     ClickLabel* attackAngleLabel_1;
     ClickLabel* attackAngleLabel_2;
     ClickLabel* attackAngleLabel_3;
@@ -445,6 +414,40 @@ private:
     ClickLabel* securityCoeffLabel;
     QDoubleSpinBox* securityCoeffSpin;
 
+    //> The four grids that carry generated gas rows. Held because the rows,
+    //> and everything the grid places below them, are positioned in
+    //> rebuildGasRows() rather than at construction.
+    QGridLayout* tab0Grid_ = nullptr;
+    QGridLayout* tab3Grid_ = nullptr;
+    QGridLayout* tab5Grid_ = nullptr;
+    QGridLayout* tab6Grid_ = nullptr;
+
+    //> Tooltips for the generated rows, taken from the fixed labels that head
+    //> each table so the wording stays in one place.
+    QString despGasTip_;
+    QString absLimMinTip_;
+    QString absLimMaxTip_;
+    QString dsHardTip_;
+    QString dsSoftTip_;
+
+    QVector<GasRow> srRows_;        //< spike plausibility range
+    QVector<GasPairRow> alRows_;    //< absolute limits, min and max
+    QVector<GasPairRow> dsRows_;    //< discontinuities, hard and soft flag
+    QVector<GasRow> tlRows_;        //< nominal time lag
+
+    //> Where each grid's trailing stretch currently sits, so a shrinking gas
+    //> count does not leave a stretched empty row behind.
+    int srStretchRow_ = -1;
+    int alStretchRow_ = -1;
+    int dsStretchRow_ = -1;
+    int tlStretchRow_ = -1;
+
+    //> The record set the current rows were built from. Rebuilding is skipped
+    //> when it has not changed, so a value the user is editing is not
+    //> destroyed under them every time the page is shown.
+    QString gasSignature_;
+
+    DlProject* dlProject_;
     EcProject* ecProject_;
 };
 

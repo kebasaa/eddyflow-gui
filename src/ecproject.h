@@ -28,6 +28,8 @@
 
 #include <QObject>
 
+class QSettings;
+
 #include "configstate.h"
 #include "defs.h"
 #include "ecprojectstate.h"
@@ -78,6 +80,24 @@ public:
 
     // import an EddyPro project and migrate to EddyFlow format
     bool importEddyProProject(const QString &filename, bool updateMode, bool *modified);
+
+    //> Write \a sourceFile out again as an EddyPro project, for a SmartFlux
+    //> package. The mirror of importEddyProProject, and the only place this
+    //> program writes the other format: a SmartFlux module runs LI-COR's
+    //> embedded EddyPro, which knows neither the measurement records nor the
+    //> features this fork added.
+    //>
+    //> Deliberately a transform on a copy rather than a branch in
+    //> saveEcProject: the native format must not change shape depending on
+    //> what the file is going to be used for.
+    bool exportEddyProProject(const QString &sourceFile,
+                              const QString &targetFile) const;
+
+    //> Why this project cannot be expressed as an EddyPro one, or empty when
+    //> it can. Asked before a SmartFlux package is built, because the export
+    //> is lossy in ways the user has to decide about rather than discover on
+    //> the device.
+    QString smartfluxBlockReason() const;
 
     // field comparison for previous data assessment
     bool fuzzyCompare(const EcProject& previousProject);
@@ -134,6 +154,12 @@ public:
     void setGeneralCecSignalStrength(double d);
     void setGeneralCecMaxGapFill(int n);
     void setGeneralCecMaxStationarity(double d);
+    void setGeneralCecSingularBand(double d);
+    void setGeneralCecStationarityMode(int n);
+    void setGeneralCecMinFluxSigma(double d);
+    void setCecPairs(const QVector<CecPairRecord>& pairs);
+    void writeCecPairs(QSettings& project_ini);
+    void readCecPairs(QSettings& project_ini);
 
     void setGeneralOutRich(int n);
     void setGeneralOutMd(int n);
@@ -202,6 +228,9 @@ public:
     void setScreenFlag10Policy(int n);
 
     void setScreenMaxLack(int n);
+    //> A negative value removes the instrument's own allowance, so it goes back
+    //> to following the global one.
+    void setScreenInstrMaxLack(int slot, int n);
     void setScreenUOffset(double d);
     void setScreenVOffset(double d);
     void setScreenWOffset(double d);
@@ -483,9 +512,7 @@ public:
     void setPwbHdiPrefilter(double d);
     void setPwbSmoothingWidth(int n);
     void setPwbRandomSeed(int n);
-    void setPwbApproxCcf(int n);
-    void setPwbMaxArOrder(int n);
-    void setPwbDetectOnRaw(int n);
+    void setPwbMaxCarryH(double n);
 
     void setRandomErrorMethod(int n);
     void setRandomErrorItsMethod(int n);
@@ -516,6 +543,36 @@ public:
     bool generalUseTimelineFile() const { return ec_project_state_.projectGeneral.use_tlfile; }
     const QString& generalTimelineFilepath() const { return ec_project_state_.projectGeneral.timeline_file; }
     const QString& generalColMasterSonic() const { return ec_project_state_.projectGeneral.master_sonic; }
+    //> Measurement records. Prefer these over the generalCol* accessors
+    //> below, which can only ever name one column per gas.
+    const QVector<GasRecord>& gasColumns() const
+        { return ec_project_state_.projectGeneral.gasColumns; }
+    const QVector<MeasurementRecord>& cellColumns() const
+        { return ec_project_state_.projectGeneral.cellColumns; }
+    const QVector<MeasurementRecord>& diagColumns() const
+        { return ec_project_state_.projectGeneral.diagColumns; }
+    const QVector<MeasurementRecord>& agcColumns() const
+        { return ec_project_state_.projectGeneral.agcColumns; }
+    void setGasColumns(const QVector<GasRecord>& recs)
+        { ec_project_state_.projectGeneral.gasColumns = recs; setModified(true); }
+    void setCellColumns(const QVector<MeasurementRecord>& recs)
+        { ec_project_state_.projectGeneral.cellColumns = recs; setModified(true); }
+    void setDiagColumns(const QVector<MeasurementRecord>& recs)
+        { ec_project_state_.projectGeneral.diagColumns = recs; setModified(true); }
+    void setAgcColumns(const QVector<MeasurementRecord>& recs)
+        { ec_project_state_.projectGeneral.agcColumns = recs; setModified(true); }
+
+    //> Records of one species, in list order.
+    QVector<const GasRecord*> gasRecordsFor(const QString& slug) const
+    {
+        QVector<const GasRecord*> out;
+        for (const auto& rec : ec_project_state_.projectGeneral.gasColumns)
+        {
+            if (rec.slug == slug) { out.append(&rec); }
+        }
+        return out;
+    }
+
     int generalColCo2() const { return ec_project_state_.projectGeneral.col_co2; }
     int generalColH2o() const { return ec_project_state_.projectGeneral.col_h2o; }
     int generalColCh4() const { return ec_project_state_.projectGeneral.col_ch4; }
@@ -553,6 +610,10 @@ public:
     double generalCecSignalStrength() const { return ec_project_state_.projectGeneral.cec_signal_strength; }
     int generalCecMaxGapFill() const { return ec_project_state_.projectGeneral.cec_max_gap_fill; }
     double generalCecMaxStationarity() const { return ec_project_state_.projectGeneral.cec_max_stationarity; }
+    double generalCecSingularBand() const { return ec_project_state_.projectGeneral.cec_singular_band; }
+    int generalCecStationarityMode() const { return ec_project_state_.projectGeneral.cec_stationarity_mode; }
+    double generalCecMinFluxSigma() const { return ec_project_state_.projectGeneral.cec_min_flux_sigma; }
+    const QVector<CecPairRecord>& cecPairs() const { return ec_project_state_.projectGeneral.cecPairs; }
     int generalTob1Format() const { return ec_project_state_.projectGeneral.tob1_format; }
     const QString& generalOutPath() const { return ec_project_state_.projectGeneral.out_path; }
     int generalFixedOutFormat() const { return ec_project_state_.projectGeneral.fix_out_format; }
@@ -616,6 +677,13 @@ public:
     int screenFlag10Upper() const { return ec_project_state_.screenGeneral.flag10_policy; }
 
     int screenMaxLack() const { return ec_project_state_.screenSetting.max_lack; }
+    //> The allowance an instrument states for itself, or -1 when it states
+    //> none and so follows screenMaxLack(). Slot is the instrument's 1-based
+    //> position in the .metadata, anemometers first.
+    int screenInstrMaxLack(int slot) const
+    { return ec_project_state_.screenSetting.instr_max_lack.value(slot, -1); }
+    const QMap<int, int>& screenInstrMaxLacks() const
+    { return ec_project_state_.screenSetting.instr_max_lack; }
     double screenUOffset() const { return ec_project_state_.screenSetting.u_offset; }
     double screenVOffset() const { return ec_project_state_.screenSetting.v_offset; }
     double screenWOffset() const { return ec_project_state_.screenSetting.w_offset; }
@@ -729,7 +797,7 @@ public:
     double screenParamSrCo2Lim() const { return ec_project_state_.screenParam.sr_lim_co2; }
     double screenParamSrH2oLim() const { return ec_project_state_.screenParam.sr_lim_h2o; }
     double screenParamSrCh4Lim() const { return ec_project_state_.screenParam.sr_lim_ch4; }
-    double screenParamSrGas4Lim() const { return ec_project_state_.screenParam.sr_lim_gas4; }
+    double screenParamSrGas4Lim() const { return ec_project_state_.screenParam.sr_lim_other; }
     double screenParamSrHfLim() const { return ec_project_state_.screenParam.sr_lim_hf; }
 
     double screenParamArLim() const { return ec_project_state_.screenParam.ar_lim; }
@@ -750,8 +818,8 @@ public:
     double screenParamAlH2oMax() const { return ec_project_state_.screenParam.al_h2o_max; }
     double screenParamAlCh4Min() const { return ec_project_state_.screenParam.al_ch4_min; }
     double screenParamAlCh4Max() const { return ec_project_state_.screenParam.al_ch4_max; }
-    double screenParamAlGas4Min() const { return ec_project_state_.screenParam.al_gas4_min; }
-    double screenParamAlGas4Max() const { return ec_project_state_.screenParam.al_gas4_max; }
+    double screenParamAlGas4Min() const { return ec_project_state_.screenParam.al_other_min; }
+    double screenParamAlGas4Max() const { return ec_project_state_.screenParam.al_other_max; }
 
     double screenParamSkHfSkmin() const { return ec_project_state_.screenParam.sk_hf_skmin; }
     double screenParamSkHfSkmax() const { return ec_project_state_.screenParam.sk_hf_skmax; }
@@ -768,7 +836,7 @@ public:
     double screenParamDsHfCo2() const { return ec_project_state_.screenParam.ds_hf_co2; }
     double screenParamDsHfH2o() const { return ec_project_state_.screenParam.ds_hf_h2o; }
     double screenParamDsHfCh4() const { return ec_project_state_.screenParam.ds_hf_ch4; }
-    double screenParamDsHfGas4() const { return ec_project_state_.screenParam.ds_hf_gas4; }
+    double screenParamDsHfGas4() const { return ec_project_state_.screenParam.ds_hf_other; }
     double screenParamDsHfVar() const { return ec_project_state_.screenParam.ds_hf_var; }
     double screenParamDsSfUV() const { return ec_project_state_.screenParam.ds_sf_uv; }
     double screenParamDsSfW() const { return ec_project_state_.screenParam.ds_sf_w; }
@@ -776,7 +844,7 @@ public:
     double screenParamDsSfCo2() const { return ec_project_state_.screenParam.ds_sf_co2; }
     double screenParamDsSfH2o() const { return ec_project_state_.screenParam.ds_sf_h2o; }
     double screenParamDsSfCh4() const { return ec_project_state_.screenParam.ds_sf_ch4; }
-    double screenParamDsSfGas4() const { return ec_project_state_.screenParam.ds_sf_gas4; }
+    double screenParamDsSfGas4() const { return ec_project_state_.screenParam.ds_sf_other; }
     double screenParamDsSfVar() const { return ec_project_state_.screenParam.ds_sf_var; }
     int screenParamDespikeVm() const { return ec_project_state_.screenParam.despike_vm; }
 
@@ -785,7 +853,7 @@ public:
     double screenParamTlDefCo2() const { return ec_project_state_.screenParam.tl_def_co2; }
     double screenParamTlDefH2o() const { return ec_project_state_.screenParam.tl_def_h2o; }
     double screenParamTlDefCh4() const { return ec_project_state_.screenParam.tl_def_ch4; }
-    double screenParamTlDefGas4() const { return ec_project_state_.screenParam.tl_def_gas4; }
+    double screenParamTlDefGas4() const { return ec_project_state_.screenParam.tl_def_other; }
 
     double screenParamAaMin() const { return ec_project_state_.screenParam.aa_min; }
     double screenParamAaMax() const { return ec_project_state_.screenParam.aa_max; }
@@ -820,34 +888,34 @@ public:
     double spectraFminCo2() const { return ec_project_state_.spectraSettings.sa_fmin_co2; }
     double spectraFminH2o() const { return ec_project_state_.spectraSettings.sa_fmin_h2o; }
     double spectraFminCh4() const { return ec_project_state_.spectraSettings.sa_fmin_ch4; }
-    double spectraFminGas4() const { return ec_project_state_.spectraSettings.sa_fmin_gas4; }
+    double spectraFminGas4() const { return ec_project_state_.spectraSettings.sa_fmin_other; }
     double spectraFmaxCo2() const { return ec_project_state_.spectraSettings.sa_fmax_co2; }
     double spectraFmaxH2o() const { return ec_project_state_.spectraSettings.sa_fmax_h2o; }
     double spectraFmaxCh4() const { return ec_project_state_.spectraSettings.sa_fmax_ch4; }
-    double spectraFmaxGas4() const { return ec_project_state_.spectraSettings.sa_fmax_gas4; }
+    double spectraFmaxGas4() const { return ec_project_state_.spectraSettings.sa_fmax_other; }
     double spectraHfnCo2() const { return ec_project_state_.spectraSettings.sa_hfn_co2_fmin; }
     double spectraHfnH2o() const { return ec_project_state_.spectraSettings.sa_hfn_h2o_fmin; }
     double spectraHfnCh4() const { return ec_project_state_.spectraSettings.sa_hfn_ch4_fmin; }
-    double spectraHfnGas4() const { return ec_project_state_.spectraSettings.sa_hfn_gas4_fmin; }
+    double spectraHfnGas4() const { return ec_project_state_.spectraSettings.sa_hfn_other_fmin; }
     int spectraAddSonic() const { return ec_project_state_.spectraSettings.add_sonic_lptf; }
     double spectraMinUnstableUstar() const { return ec_project_state_.spectraSettings.sa_min_un_ustar; }
     double spectraMinUnstableH() const { return ec_project_state_.spectraSettings.sa_min_un_h; }
     double spectraMinUnstableLE() const { return ec_project_state_.spectraSettings.sa_min_un_le; }
     double spectraMinUnstableCo2() const { return ec_project_state_.spectraSettings.sa_min_un_co2; }
     double spectraMinUnstableCh4() const { return ec_project_state_.spectraSettings.sa_min_un_ch4; }
-    double spectraMinUnstableGas4() const { return ec_project_state_.spectraSettings.sa_min_un_gas4; }
+    double spectraMinUnstableGas4() const { return ec_project_state_.spectraSettings.sa_min_un_other; }
     double spectraMinStableUstar() const { return ec_project_state_.spectraSettings.sa_min_st_ustar; }
     double spectraMinStableH() const { return ec_project_state_.spectraSettings.sa_min_st_h; }
     double spectraMinStableLE() const { return ec_project_state_.spectraSettings.sa_min_st_le; }
     double spectraMinStableCo2() const { return ec_project_state_.spectraSettings.sa_min_st_co2; }
     double spectraMinStableCh4() const { return ec_project_state_.spectraSettings.sa_min_st_ch4; }
-    double spectraMinStableGas4() const { return ec_project_state_.spectraSettings.sa_min_st_gas4; }
+    double spectraMinStableGas4() const { return ec_project_state_.spectraSettings.sa_min_st_other; }
     double spectraMaxUstar() const { return ec_project_state_.spectraSettings.sa_max_ustar; }
     double spectraMaxH() const { return ec_project_state_.spectraSettings.sa_max_h; }
     double spectraMaxLE() const { return ec_project_state_.spectraSettings.sa_max_le; }
     double spectraMaxCo2() const { return ec_project_state_.spectraSettings.sa_max_co2; }
     double spectraMaxCh4() const { return ec_project_state_.spectraSettings.sa_max_ch4; }
-    double spectraMaxGas4() const { return ec_project_state_.spectraSettings.sa_max_gas4; }
+    double spectraMaxGas4() const { return ec_project_state_.spectraSettings.sa_max_other; }
     const QString& spectraExFile() const { return ec_project_state_.spectraSettings.ex_file; }
     const QString& spectraBinSpectra() const { return ec_project_state_.spectraSettings.sa_bin_spectra; }
     const QString& spectraFullSpectra() const { return ec_project_state_.spectraSettings.sa_full_spectra; }
@@ -895,9 +963,7 @@ public:
     double pwbHdiPrefilter() const { return ec_project_state_.pwbTimelag.hdi_prefilter_s; }
     int pwbSmoothingWidth() const { return ec_project_state_.pwbTimelag.smoothing_width; }
     int pwbRandomSeed()  const { return ec_project_state_.pwbTimelag.random_seed; }
-    int pwbApproxCcf()    const { return ec_project_state_.pwbTimelag.approx_ccf; }
-    int pwbMaxArOrder()   const { return ec_project_state_.pwbTimelag.max_ar_order; }
-    int pwbDetectOnRaw()  const { return ec_project_state_.pwbTimelag.detect_on_raw; }
+    qreal pwbMaxCarryH() const { return ec_project_state_.pwbTimelag.max_carry_h; }
 
     int randErrorMethod() const { return ec_project_state_.randomError.ru_method; }
     int randErrorItsMehod() const { return ec_project_state_.randomError.its_method; }
@@ -916,6 +982,14 @@ public:
     // is the project modified?
     bool modified() const;
 
+    //> Whether the project just loaded predated the record format and was
+    //> migrated. Only the reader understands the old shape; an upgraded
+    //> project is saved back in the new one, so the interface uses this to
+    //> notify the user once and to resolve the fourth slot's species from
+    //> the metadata before that save.
+    bool wasUpgradedOnLoad() const;
+    void clearUpgradedOnLoad();
+
     QList<AngleItem>* planarFitAngles();
     bool hasPlanarFitFullAngle();
 
@@ -924,6 +998,27 @@ public:
 
     bool isEngineStep2Needed();
     bool isGoodRawFilePrototype(const QString& s);
+
+    //> The analyser whose gases lead the record list, or empty when no record
+    //> names a real instrument. Derived rather than stored: record order *is*
+    //> the setting, so a project hand-edited outside this interface still
+    //> reports the primary its columns will actually produce.
+    QString primaryGasInstrument() const;
+
+    //> Move every gas record of \a instrumentId to the front, stably, and
+    //> remap the moisture references that index that list. An empty id matches
+    //> no record and so leaves the order as declared. Returns whether anything
+    //> moved.
+    bool setPrimaryGasInstrument(const QString& instrumentId);
+
+    //> "Override instrument H2O measurements". Interface state only: the
+    //> engine reads each gas's moisture reference, which ticking the box
+    //> sets to the biomet, and never reads this.
+    bool biometRhOverride() const
+        { return ec_project_state_.biomParam.rh_override; }
+    //> Set the flag and point every gas at the biomet, or return them all to
+    //> automatic. Returns whether anything changed.
+    bool setBiometRhOverride(bool on);
 
 public slots:
     void setModified(bool mod);
@@ -936,10 +1031,66 @@ signals:
     // send that the project has been modified
     void ecProjectModified();
 
+    //> ru_meth changed, from wherever. The control that owns it lives on the
+    //> statistical page, but the CEC significance test switches it on from its
+    //> own dialog, so that control needs to hear about it from somewhere other
+    //> than a project load.
+    void randomErrorMethodChanged();
+
     void updateInfo();
 
 private:
+    //> Persistence for the measurement records. writeMeasurementRecords
+    //> clears every gas_*/cell_*/diag_* key before writing, so shrinking a
+    //> list cannot leave orphans behind. readMeasurementRecords returns false
+    //> when the file predates records, which is the signal to migrate.
+    void writeMeasurementRecords(QSettings& project_ini);
+    bool readMeasurementRecords(QSettings& project_ini);
+    //> The body of exportEddyProProject: rebuild the flat per-slot keys the
+    //> record format replaced, drop the keys this fork added, and spell the
+    //> fourth slot the way EddyPro does.
+    void writeEddyProCompatibleKeys(QSettings& ini) const;
+
+    //> Drop the gas records that name no column, renumbering the moisture
+    //> references that pointed past one. Runs once, after every per-gas
+    //> section has been read.
+    void compactGasRecords();
+
+    void migrateLegacyColumnsToRecords();
+    //> Carries the 19 per-gas processing settings onto the records. Separate
+    //> from the column migration because those settings live in five sections
+    //> read long after the [Project] group, so it can only run once the whole
+    //> file is in.
+    void migrateLegacyGasSettings();
+    //> Fill any per-gas setting the file did not state, on every load and for
+    //> every record. The legacy migration above is gated on an upgrade and
+    //> takes only the first record of each species, so a record-format project
+    //> whose records were never seeded had nothing to repair it.
+    void repairMissingGasProcessing();
+
+public:
+    //> The per-gas processing settings a record of \a slug starts life with.
+    //>
+    //> One source for the species-to-threshold mapping, shared by the legacy
+    //> migration and by every record created afterwards. A record whose
+    //> settings stay at the -1 sentinel is written with *no* keys at all, and
+    //> the engine reads an absent al_min/al_max as "not configured" and then
+    //> declines the absolute-limits test - silently, with only a 9 in a packed
+    //> flag string to show for it. The spike limit, the discontinuity limits
+    //> and both time-lag windows go the same way.
+    //>
+    //> That is how a project ends up half-configured: migrateLegacyGasSettings
+    //> runs once, on upgrade, so a gas *added* afterwards - or moved to another
+    //> column, which creates a new record - had nothing to fill it in.
+    //>
+    //> The flat values these come from always exist. They are read with
+    //> defaultEcProjectState as the fallback, so they hold the application's
+    //> defaults even for a project file carrying no legacy key.
+    GasProcessingSettings defaultGasProcessing(const QString& slug) const;
+
+private:
     bool modified_;
+    bool wasUpgradedOnLoad_ = false;
     EcProjectState ec_project_state_;
     ProjConfigState project_config_state_;
 
@@ -948,8 +1099,13 @@ private:
 
     bool previousFileNameCompare(const QString &currentPath, const QString &previousPath);
     bool previousSettingsCompare(bool current, bool previous);
-    bool previousFourthGasCompare(int currentGas, double currGasMw, double currGasDiff,
-                                  int previousGas, double previousGasMw, double previousGasDiff);
+    //> Order-insensitive comparison of the measurement record sets. Adding a
+    //> gas must not invalidate previously processed data for the others, so
+    //> these compare as sets rather than positionally.
+    static bool gasRecordsCompare(const QVector<GasRecord>& current,
+                                  const QVector<GasRecord>& previous);
+    static bool plainRecordsCompare(const QVector<MeasurementRecord>& current,
+                                    const QVector<MeasurementRecord>& previous);
     bool compareDates(const QString& currStartDate, const QString& prevStartDate,
                       const QString& currStartTime, const QString& prevStartTime,
                       const QString& currEndDate, const QString& prevEndDate,

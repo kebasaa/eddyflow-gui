@@ -27,6 +27,7 @@
 
 #include <QDateTime>
 #include <QDialog>
+#include <QVector>
 
 #include "fileutils.h"
 
@@ -49,6 +50,7 @@ class QCheckBox;
 class QDate;
 class QDateEdit;
 class QDoubleSpinBox;
+class QGridLayout;
 class QLabel;
 class QRadioButton;
 class QSpinBox;
@@ -93,29 +95,11 @@ private slots:
     void onRhClassClicked();
     void updateRhClass(int n);
 
-    void onCo2MinFluxClicked();
-    void updateCo2MinFlux(double d);
-    void onCh4MinFluxClicked();
-    void updateCh4MinFlux(double d);
-    void onGas4MinFluxClicked();
-    void updateGas4MinFlux(double d);
     void onLeMinFluxClicked();
     void updateLeMinFlux(double d);
     void onPgRangeLabelClicked();
     void updatePgRange(double d);
 
-    void onCo2LabelClicked();
-    void updateMinCo2Tl(double d);
-    void updateMaxCo2Tl(double d);
-    void onH2oLabelClicked();
-    void updateMinH2oTl(double d);
-    void updateMaxH2oTl(double d);
-    void onCh4LabelClicked();
-    void updateMinCh4Tl(double d);
-    void updateMaxCh4Tl(double d);
-    void onGas4LabelClicked();
-    void updateMinGas4Tl(double d);
-    void updateMaxGas4Tl(double d);
 
     void updateSubsetSelection(bool b);
 
@@ -147,28 +131,46 @@ private:
     QDoubleSpinBox* leMinFluxSpin;
 
     QLabel* gasTitleLabel;
-    ClickLabel* co2MinFluxLabel;
-    QDoubleSpinBox* co2MinFluxSpin;
-    ClickLabel* ch4MinFluxLabel;
-    QDoubleSpinBox* ch4MinFluxSpin;
-    ClickLabel* gas4MinFluxLabel;
-    QDoubleSpinBox* gas4MinFluxSpin;
+    //> One minimum-flux row per gas, excluding H2O: its counterpart is
+    //> leMinFluxSpin, a latent-heat threshold that lives in the H2O section
+    //> above and is not a gas flux.
+    struct MinFluxRow
+    {
+        int gasIndex = -1;
+        ClickLabel* label = nullptr;
+        QDoubleSpinBox* spin = nullptr;
+    };
+    QVector<MinFluxRow> minFluxRows_;
 
     QLabel* searchWindowLabel;
     QLabel* minLabel;
     QLabel* maxLabel;
-    ClickLabel* co2Label;
-    ClickLabel* h2oLabel;
-    ClickLabel* ch4Label;
-    ClickLabel* gas4Label;
-    QDoubleSpinBox* minCo2TlSpin;
-    QDoubleSpinBox* maxCo2TlSpin;
-    QDoubleSpinBox* minH2oTlSpin;
-    QDoubleSpinBox* maxH2oTlSpin;
-    QDoubleSpinBox* minCh4TlSpin;
-    QDoubleSpinBox* maxCh4TlSpin;
-    QDoubleSpinBox* minGas4TlSpin;
-    QDoubleSpinBox* maxGas4TlSpin;
+    //> One time-lag search window per configured gas, replacing four fixed
+    //> rows: a site may measure the same species on several analysers, each
+    //> with its own tube and so its own plausible range.
+    struct TlRow
+    {
+        int gasIndex = -1;              //< index into EcProject::gasColumns()
+        ClickLabel* label = nullptr;
+        QDoubleSpinBox* minSpin = nullptr;
+        QDoubleSpinBox* maxSpin = nullptr;
+    };
+    QString minSpinTip_;
+    QString maxSpinTip_;
+    QVector<TlRow> tlRows_;
+    QGridLayout* propertiesLayout_ = nullptr;
+    //> First grid row of the generated tables; everything below moves
+    //> with the number of gases.
+    static const int kFirstGasGridRow = 8;
+
+    void rebuildGasRows();
+    void onMinFluxChanged(int gasIndex, double value);
+    void onTlChanged(int gasIndex, bool isMin, double value);
+    void setGasRowsEnabled(bool enabled);
+    double minFluxFor(int gasIndex) const;
+    double tlMinFor(int gasIndex) const;
+    double tlMaxFor(int gasIndex) const;
+    QDoubleSpinBox* createTlSpin(bool isMin);
 
     EcProject *ecProject_;
     ConfigState* configState_;

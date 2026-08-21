@@ -59,6 +59,7 @@
 #include "clicklabel.h"
 #include "customsplashscreen.h"
 #include "detectdaterangedialog.h"
+#include "dlinidialog.h"
 #include "dlproject.h"
 #include "ecproject.h"
 #include "globalsettings.h"
@@ -444,19 +445,22 @@ void MainWindow::fileOpen(const QString &fileName)
                         );
         if (fileStr.isEmpty()) { return; }
         WidgetUtils::rememberDialogPath(QStringLiteral("open_project"), fileStr, true);
-
-        // Redirect .eddypro files to the dedicated import path
-        if (QFileInfo(fileStr).suffix().toLower() == QLatin1String("eddypro"))
-        {
-            WidgetUtils::rememberDialogPath(QStringLiteral("import_eddypro_project"), fileStr, true);
-            importEddyProFile(fileStr);
-            return;
-        }
     }
     // programmatically
     else
     {
         fileStr = fileName;
+    }
+
+    //> Outside the branch above, so that every route reaches the importer and
+    //> not just the file dialog. It used to sit inside it, which meant a
+    //> .eddypro from the command line, from Recent Files or from the macOS
+    //> Finder fell through to openFile and was rejected as "not in EddyFlow
+    //> native format" - the one format we can certainly read.
+    if (QFileInfo(fileStr).suffix().toLower() == QLatin1String("eddypro"))
+    {
+        importEddyProFile(fileStr);
+        return;
     }
 
     QFileInfo projectDir(fileStr);
@@ -495,6 +499,27 @@ void MainWindow::fileOpen(const QString &fileName)
     silentMdClenaup();
 }
 
+/// Open an EddyPro project as an unsaved EddyFlow one, writing nothing.
+///
+/// This used to convert and save in one go: it wrote <base>.eddyflow, said so,
+/// and reopened it. Two files were therefore written before the user had seen
+/// anything - and the second was theirs, because reopening drove
+/// DlProject::loadProject over the EddyPro .metadata, which marks itself
+/// modified on any retired Campbell model key and autosaves in place, with no
+/// backup. Opening a project to look at it is not consent to rewrite it.
+///
+/// So the conversion happens in memory and stops. What comes out is an
+/// ordinary unsaved document: modified, never saved, `newFlag_` true, which is
+/// exactly the state File > New produces and which every other part of the
+/// interface already understands - fileSave routes to fileSaveAs,
+/// continueBeforeClose prompts, and the Run paths refuse until it is on disk.
+///
+/// The order matters. updateMetadataReadRequest is a direct synchronous call,
+/// and it is the only thing that fills in each gas record's species and
+/// analyser: a .eddypro states a raw column number and nothing else, and the
+/// fourth slot's species is knowable only from the metadata. It has to happen
+/// before the project is shown, or the user is looking at blank species - and
+/// would save them.
 void MainWindow::importEddyProFile(const QString& fileName)
 {
     QString fileStr = fileName;
@@ -515,26 +540,64 @@ void MainWindow::importEddyProFile(const QString& fileName)
     bool modified = false;
     if (!ecProject_->importEddyProProject(fileStr, true, &modified)) { return; }
 
-    // Compute migration target: same base name, .eddyflow extension
-    QString targetFile = QFileInfo(fileStr).path()
-                         + QDir::separator()
-                         + QFileInfo(fileStr).completeBaseName()
-                         + QStringLiteral(".") + Defs::PROJECT_FILE_EXT;
-
-    if (!ecProject_->saveEcProject(targetFile))
+    //> proj_file is an absolute path from the machine the project was made on,
+    //> so a project that has been copied anywhere names a metadata that is not
+    //> there. Fall back to the file of the project's own name beside it, which
+    //> is the rule the engine's importer follows. Without this the records
+    //> below have nothing to resolve their species against.
+    epImportSourceMetadata_.clear();
+    if (ecProject_->generalUseAltMdFile())
     {
-        WidgetUtils::warning(this, tr("Import Error"),
-                             tr("Could not save migrated project to:<br><b>%1</b>").arg(targetFile));
-        return;
+        auto mdPath = ecProject_->generalMdFilepath();
+        if (mdPath.isEmpty() || !QFile::exists(mdPath))
+        {
+            const auto sibling = QFileInfo(fileStr).path()
+                                 + QLatin1Char('/')
+                                 + QFileInfo(fileStr).completeBaseName()
+                                 + QStringLiteral(".") + Defs::METADATA_FILE_EXT;
+            if (QFile::exists(sibling))
+            {
+                ecProject_->setGeneralMdFilepath(sibling);
+                mdPath = sibling;
+            }
+        }
+        if (!mdPath.isEmpty() && QFile::exists(mdPath))
+        {
+            epImportSourceMetadata_ = QFileInfo(mdPath).canonicalFilePath();
+        }
     }
 
-    WidgetUtils::warning(this,
-        tr("EddyPro Project Imported"),
-        tr("The project was imported from EddyPro format and saved as:"
-           "<br><b>%1</b>").arg(targetFile));
+    //> Before the read below, not after: reading it is what marks it modified,
+    //> and modified is what would write it.
+    mainWidget_->projectPage()->dlIniDialog()->beginDeferredSave();
 
-    // Hand off to the normal open path to finalise UI state
-    openFile(targetFile);
+    emit updateMetadataReadRequest();
+
+    //> The name it will be given, so the Save As dialog opens on it and the
+    //> title says where this came from. newFlag_ is what makes it unsaved -
+    //> the path is only a suggestion until then.
+    const QString targetFile = QFileInfo(fileStr).path()
+                               + QLatin1Char('/')
+                               + QFileInfo(fileStr).completeBaseName()
+                               + QStringLiteral(".") + Defs::PROJECT_FILE_EXT;
+
+    const bool asModified = true;
+    setCurrentProjectFile(targetFile, asModified);
+    newFlag_ = true;
+
+    showStatusTip(tr("Project imported"));
+    consoleOutput->clear();
+    if (currentPage() != Defs::CurrPage::ProjectCreation)
+    {
+        changePage(Defs::CurrPage::ProjectCreation);
+    }
+    updateInfoDock(true);
+
+    WidgetUtils::information(this,
+        tr("EddyPro Project Imported"),
+        tr("The project was converted from EddyPro format and has not been saved."),
+        tr("Nothing has been written yet. Save it to create "
+           "<b>%1</b> and its metadata.").arg(QFileInfo(targetFile).fileName()));
 }
 
 //
@@ -557,14 +620,9 @@ bool MainWindow::openFile(const QString& filename)
                         addRecent(currentProjectFile());
                         saveAction->setEnabled(false);
 
-                        if (modified)
+                        if (ecProject_->wasUpgradedOnLoad())
                         {
-                            // load was successful
-                            WidgetUtils::warning(this,
-                                tr("Load Project"),
-                                tr("The project was successfully imported "
-                                   "and updated."),
-                                tr("Save the project to complete the update."));
+                            upgradeProjectInPlace(filename);
                         }
                         return true;
                     }
@@ -606,6 +664,51 @@ bool MainWindow::openFile(const QString& filename)
     }
     // empty file name
     return false;
+}
+
+/// Finish upgrading a project the loader migrated, without asking.
+///
+/// loadEcProject builds gas, cell and diagnostic records out of a pre-5.0.0
+/// project's flat columns, but only in memory. This used to stop there and
+/// tell the user to save, which left the upgrade half-done in two ways: an
+/// unsaved project, and - because resolveMigratedGasRecords runs at the end of
+/// BasicSettingsPage::updateMetadataRead - records whose species and analyser
+/// were only ever filled in if the user happened to visit that page first.
+///
+/// The ordering below is the whole point, so it is stated rather than implied.
+/// updateMetadataReadRequest is connected with the default AutoConnection,
+/// sender and receiver in the same thread, so `emit` is a direct synchronous
+/// call: the metadata is parsed and the records resolved before it returns,
+/// and therefore before anything is written. Make that connection queued and
+/// this silently starts saving projects with blank species.
+///
+/// A backup comes first. An upgrade the user did not ask for and cannot see
+/// must be one they can undo; if the backup cannot be written, nothing is
+/// saved and the old dialog is shown instead.
+void MainWindow::upgradeProjectInPlace(const QString& filename)
+{
+    emit updateMetadataReadRequest();
+
+    if (!FileUtils::backupFile(filename, QStringLiteral(".bak")))
+    {
+        WidgetUtils::warning(this,
+            tr("Load Project"),
+            tr("The project was imported and updated."),
+            tr("A backup could not be written, so the update was not saved. "
+               "Save the project to complete it."));
+        return;
+    }
+
+    //> Not fileSaveSilently: setCurrentProjectFile returns early for a
+    //> modified project and leaves modifiedFlag_ alone, and fileSaveSilently
+    //> short-circuits on it, so the save would be skipped. fileSave(quiet)
+    //> goes straight to the writer. Its own failure dialog is kept - a save
+    //> that did not happen must not be silent.
+    const bool quiet = true;
+    if (fileSave(quiet))
+    {
+        ecProject_->clearUpgradedOnLoad();
+    }
 }
 
 void MainWindow::fileRecent()
@@ -709,6 +812,16 @@ bool MainWindow::fileSaveAs(const QString& fileName)
         && (ecProject_->generalTitle().isEmpty()))
     {
         filenameHint = searchPath;
+    }
+    //> A project that has never been saved but carries a suggested name - an
+    //> imported EddyPro project. canonicalPath() is empty for a file that does
+    //> not exist, so the branch below cannot recognise this and the dialog
+    //> would open on the last-used directory with no name at all.
+    else if (newFlag_
+             && ecProject_->generalFileName() != Defs::DEFAULT_PROJECT_FILENAME
+             && FileUtils::existsPath(QFileInfo(ecProject_->generalFileName()).absolutePath()))
+    {
+        filenameHint = ecProject_->generalFileName();
     }
     else if (FileUtils::existsPath(QFileInfo(ecProject_->generalFileName()).canonicalPath()))
     {
@@ -901,8 +1014,52 @@ bool MainWindow::continueBeforeClose()
     return true;
 }
 
+/// Where an imported project's metadata goes, given where the project went.
+///
+/// Beside the project and named after it, so the pair keeps one name. The
+/// exception is the one that matters: on a straight import the project is
+/// offered the .eddypro's own base name, so <base>.metadata IS the EddyPro
+/// metadata we read. Writing there would destroy the file the user opened, so
+/// that case takes a suffix instead - the same suffix, and for the same
+/// reason, as the engine's own importer.
+///
+/// Compared as canonical paths. The two spellings reach here from different
+/// places and need not match as strings.
+QString MainWindow::importedMetadataTarget(const QString& projectFile) const
+{
+    const QFileInfo info(projectFile);
+    const auto base = info.path() + QLatin1Char('/') + info.completeBaseName();
+    const auto ext = QStringLiteral(".") + Defs::METADATA_FILE_EXT;
+
+    const auto plain = base + ext;
+    if (!epImportSourceMetadata_.isEmpty()
+        && QFileInfo::exists(plain)
+        && QFileInfo(plain).canonicalFilePath() == epImportSourceMetadata_)
+    {
+        return base + QStringLiteral("_ep_imported") + ext;
+    }
+    return plain;
+}
+
 bool MainWindow::saveFile(const QString& fileName)
 {
+    //> An imported project's metadata has been held in memory since the
+    //> import. Write it first, so proj_file can name it before the project
+    //> that carries proj_file is itself written.
+    if (mainWidget_->projectPage()->dlIniDialog()->hasDeferredSave())
+    {
+        const auto mdTarget = importedMetadataTarget(fileName);
+        if (!mainWidget_->projectPage()->dlIniDialog()->commitDeferredSave(mdTarget))
+        {
+            WidgetUtils::warning(this,
+                tr("Save Metadata Error"),
+                tr("%1 was unable to save the metadata as <b>%2</b>")
+                    .arg(Defs::APP_NAME, mdTarget));
+            return false;
+        }
+        ecProject_->setGeneralMdFilepath(mdTarget);
+    }
+
     bool saved = ecProject_->saveEcProject(fileName);
 
     if (saved)
@@ -4492,6 +4649,12 @@ void MainWindow::updateDockBorder(Qt::DockWidgetArea)
 
 void MainWindow::silentMdClenaup()
 {
+    //> Not for a project that has never been saved. fileSave below would route
+    //> to fileSaveAs and put a save dialog in front of somebody who has only
+    //> just opened something - and for an imported project the metadata path
+    //> this clears is the one the import just resolved.
+    if (newFlag_) { return; }
+
     if (scheduledSilentMdCleanup_)
     {
         ecProject_->setGeneralMdFilepath(QString());

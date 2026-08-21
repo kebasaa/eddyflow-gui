@@ -26,10 +26,50 @@ struct GasEntry {
     double molecularWeight;
     double diffusivity;
     DiffusivityStatus status;
+    //> Plausibility floor for the absolute-limits test, in the species' own
+    //> reporting units. Zero for almost every gas, which is why it carries a
+    //> default and only the exceptions state it - but it belongs beside the
+    //> molecular weight and the diffusivity rather than in an `if` that named
+    //> one species.
+    double absoluteLimitMin = 0.0;
+    //> Plausibility ceiling, in the same stored basis: umol/mol for every gas
+    //> but water, which is on the mmol/mol basis. Zero means the species states
+    //> none and defaultAbsoluteLimitMax answers with the generic below.
+    //>
+    //> The basis matters more than it looks. al_ch4_max is 1000 and that is
+    //> 1000 umol/mol, not 1000 nmol/mol; a ceiling of 1 would sit BELOW ambient
+    //> methane of 1.92 umol/mol and reject every real reading.
+    double absoluteLimitMax = 0.0;
 };
+
+//> The ceiling for a species that states none: 5000 of the unit trace gases are
+//> quoted in, which is 5000 nmol/mol and so 5 umol/mol stored. Loose enough to
+//> pass anything atmospheric and tight enough to catch a fill value.
+constexpr double genericAbsoluteLimitMax = 5.0;
 
 QString normaliseFormula(const QString& s);
 const GasEntry* findGas(const QString& formula);
+
+//> Like findGas, but also answers for CO2, H2O and CH4.
+//>
+//> Those three are absent from the selectable registry because they are not
+//> offered in the open slot's dropdown - they have dedicated rows. They are
+//> still gases with a molecular weight and a diffusivity, and any code that
+//> works from a species slug rather than a fixed row needs them.
+const GasEntry* findSpecies(const QString& formula);
+
+//> Species-specific floor for the absolute-limit test, or 0 for "no floor".
+//>
+//> This was written into the interface as a literal 0.032 applied whenever
+//> the fourth slot happened to hold N2O. It is a property of the species, not
+//> of the slot. Only N2O has a published value today; every other species
+//> answers 0, which is the same "no species-specific floor" the fourth slot
+//> already used for everything that was not N2O.
+double defaultAbsoluteLimitMin(const QString& formula);
+
+//> Species-specific ceiling, or the generic when the species states none.
+double defaultAbsoluteLimitMax(const QString& formula);
+
 QStringList selectableGasVariableList();
 bool isSelectableGasVariable(const QString& formula);
 bool isManualDiffusivityGas(const QString& formula);

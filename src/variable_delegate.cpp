@@ -372,6 +372,19 @@ QWidget *VariableDelegate::createEditor(QWidget* parent,
             connect(dspin, &QDoubleSpinBox::editingFinished,
                     this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
             return dspin;
+        case VariableModel::ERRORVALUE:
+            //> Wide, and no suffix: this is a value in the raw file, in whatever
+            //> unit the column is written in, and a logger may use anything -
+            //> -9999 conventionally, but 6999, -99999 and large positives all
+            //> occur. No unit to state, because it varies by column.
+            dspin = new QDoubleSpinBox(parent);
+            dspin->setDecimals(4);
+            dspin->setRange(-1.0e9, 1.0e9);
+            dspin->setSingleStep(1.0);
+            dspin->setAccelerated(true);
+            connect(dspin, &QDoubleSpinBox::editingFinished,
+                    this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
+            return dspin;
         default:
             return QStyledItemDelegate::createEditor(parent, option, index);
     }
@@ -486,6 +499,7 @@ void VariableDelegate::setEditorData(QWidget* editor,
         case VariableModel::NOMTIMELAG:
         case VariableModel::MINTIMELAG:
         case VariableModel::MAXTIMELAG:
+        case VariableModel::ERRORVALUE:
             dspin = dynamic_cast<QDoubleSpinBox*>(editor);
             if (!dspin) { return; }
             dspin->setValue(value.toReal());
@@ -595,6 +609,7 @@ void VariableDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
         case VariableModel::NOMTIMELAG:
         case VariableModel::MINTIMELAG:
         case VariableModel::MAXTIMELAG:
+        case VariableModel::ERRORVALUE:
             dspin = dynamic_cast<QDoubleSpinBox*>(editor);
             if (!dspin) { return; }
             value = dspin->value();

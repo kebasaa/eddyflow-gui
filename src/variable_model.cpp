@@ -374,6 +374,10 @@ QVariant VariableModel::data(const QModelIndex& index, int role) const
                 return QVariant(QString::number(variableDesc.minTimelag(), 'f', 2) + QStringLiteral(" [s]"));
             case MAXTIMELAG:
                 return QVariant(QString::number(variableDesc.maxTimelag(), 'f', 2) + QStringLiteral(" [s]"));
+            case ERRORVALUE:
+                //> No unit suffix: it is a raw-file value, in whatever the
+                //> input unit of this column happens to be.
+                return QVariant(QString::number(variableDesc.errorValue(), 'f', 4));
             default:
                 return QVariant();
         }
@@ -645,6 +649,8 @@ QVariant VariableModel::data(const QModelIndex& index, int role) const
                 return QVariant(variableDesc.minTimelag());
             case MAXTIMELAG:
                 return QVariant(variableDesc.maxTimelag());
+            case ERRORVALUE:
+                return QVariant(variableDesc.errorValue());
             default:
                 return QVariant();
         }
@@ -666,6 +672,7 @@ QVariant VariableModel::data(const QModelIndex& index, int role) const
             case NOMTIMELAG:
             case MINTIMELAG:
             case MAXTIMELAG:
+            case ERRORVALUE:
             default:
                 return QVariant(Qt::AlignVCenter | Qt::AlignRight);
         }
@@ -924,6 +931,13 @@ bool VariableModel::setData(const QModelIndex& index, const QVariant& value, int
             }
             variableDesc.setMaxTimelag(value.toReal());
             break;
+        case ERRORVALUE:
+            if (value == variableDesc.errorValue())
+            {
+                return false;
+            }
+            variableDesc.setErrorValue(value.toReal());
+            break;
         default:
             return false;
     }
@@ -933,7 +947,7 @@ bool VariableModel::setData(const QModelIndex& index, const QVariant& value, int
 
     // whole column may have changed
     emit dataChanged(index.sibling(IGNORE, column),
-                     index.sibling(MAXTIMELAG, column));
+                     index.sibling(ERRORVALUE, column));
     return true;
 }
 
@@ -995,6 +1009,7 @@ QVariant VariableModel::headerData(int section, Qt::Orientation orientation,
             case NOMTIMELAG:
             case MINTIMELAG:
             case MAXTIMELAG:
+            case ERRORVALUE:
                 return QVariant(QString());
             default:
                 return QVariant();

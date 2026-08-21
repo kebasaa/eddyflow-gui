@@ -57,6 +57,8 @@ IrgaTableView::IrgaTableView(QWidget *parent) :
     m_header->addSection(tr("Time response"), tr("<b>Time response:</b> Time response of the gas analyzer. Its inverse defines the maximum frequency of the atmospheric turbulent concentration fluctuations that the instrument is able to resolve. Consult the analyzer's specifications or user manual."));
     m_header->addSection(tr("Extinction coeff in Water, k<sub>W</sub>"), tr("<b>Extinction coefficient in Water, k<sub>W</sub>:</b> in Krypton or Lyman-%1 hygrometers, the extinction coefficients for oxygen of the hygrometers, associated with the third-order Taylor expansion of the Lambert-Beer law around reference conditions (van Dijk et al. 2003).").arg(Defs::ALPHA));
     m_header->addSection(tr("Extinction coeff in Oxygen, k<sub>O</sub>"), tr("<b>Extinction coefficient in Oxygen, k<sub>O</sub>:</b> in Krypton or Lyman-%1 hygrometers, the extinction coefficients for oxygen of the hygrometers, associated with the third-order Taylor expansion of the Lambert-Beer law around reference conditions (van Dijk et al. 2003).").arg(Defs::ALPHA));
+    m_header->addSection(tr("Acquisition frequency"), tr("<b>Acquisition frequency:</b> The rate at which this instrument samples, if it is slower than the station's acquisition frequency. Leave it at the station's value unless the analyzer really is slower: an instrument that has not been given a rate of its own follows the station, so changing the station's frequency changes this one too. A slower instrument leaves gaps between its samples in the raw file, and stating its rate is what stops those gaps being counted as missing data."));
+    m_header->addSection(tr("Sampling"), tr("<b>Sampling:</b> Whether this instrument reports the value at an instant or the mean over its own sampling interval. It matters only when the instrument is slower than the station: the vertical wind is then paired with each of its samples the same way - one w at that instant, or w averaged over the interval the sample closes. Pairing an averaged wind against a point-sampled gas biases the covariance, so <i>Instantaneous</i> is the default and the average is stated deliberately."));
 }
 
 IrgaTableView::~IrgaTableView()
@@ -64,13 +66,42 @@ IrgaTableView::~IrgaTableView()
     delete m_header;
 }
 
+//> The labels are a widget of their own beside the table, so nothing ties them
+//> to the rows unless we do it here: every section is pinned to one row height
+//> and the block starts at the viewport's top, where row 0 starts. It used to
+//> start half a row higher, and the labels were left to size themselves.
+void IrgaTableView::layoutHeader()
+{
+    const int rowH = rowHeight(0);
+    const int top = rowHeight(0) + 2;
+    m_header->setSectionHeight(rowH);
+    setViewportMargins(m_header->sizeHint().width() - 2, top, 0, 0);
+    m_header->setGeometry(0,
+                          top,
+                          m_header->sizeHint().width() + 10,
+                          rowH * m_header->sectionCount());
+}
+
+//> Ask for room for every row. The vertical scroll bar is off, so a row that
+//> does not fit is a row nobody can reach - which is how two rows added to
+//> these tables went missing behind a hard-coded container height.
+QSize IrgaTableView::minimumSizeHint() const
+{
+    const int rows = model() ? model()->rowCount() : 0;
+    int rowH = rowHeight(0);
+    if (rowH <= 0) { rowH = verticalHeader()->defaultSectionSize(); }
+    return {QTableView::minimumSizeHint().width(),
+            rowH * (rows + 1) + 8 + 2 * frameWidth()};
+}
+
+QSize IrgaTableView::sizeHint() const
+{
+    return minimumSizeHint();
+}
+
 void IrgaTableView::resizeEvent(QResizeEvent *event)
 {
-    setViewportMargins(m_header->sizeHint().width() - 2, rowHeight(0) + 2, 0, 0);
-    m_header->setGeometry(0,
-                          static_cast<int>(rowHeight(0) / 2.0) + 2,
-                          m_header->sizeHint().width() + 10,
-                          rowHeight(0) * m_header->sectionCount());
+    layoutHeader();
     horizontalHeader()->setMinimumWidth(horizontalHeader()->count() * horizontalHeader()->sectionSize(1));
     horizontalScrollBar()->setMaximum((horizontalHeader()->count() - 1) * horizontalHeader()->sectionSize(1));
     horizontalScrollBar()->updateGeometry();
@@ -80,11 +111,7 @@ void IrgaTableView::resizeEvent(QResizeEvent *event)
 
 void IrgaTableView::showEvent(QShowEvent *event)
 {
-    setViewportMargins(m_header->sizeHint().width() - 2, rowHeight(0) + 2, 0, 0);
-    m_header->setGeometry(0,
-                          static_cast<int>(rowHeight(0) / 2.0) + 2,
-                          m_header->sizeHint().width() + 10,
-                          rowHeight(0) * m_header->sectionCount());
+    layoutHeader();
     horizontalHeader()->setMinimumWidth(horizontalHeader()->count() * horizontalHeader()->sectionSize(1));
     horizontalScrollBar()->setMaximum((horizontalHeader()->count() - 1) * horizontalHeader()->sectionSize(1));
     horizontalScrollBar()->updateGeometry();

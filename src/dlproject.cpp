@@ -26,6 +26,7 @@
 #include "dlproject.h"
 
 #include <QDebug>
+#include <QHash>
 #include <QRegularExpression>
 #include <QSettings>
 
@@ -37,11 +38,34 @@
 
 namespace {
 
+/// Current key for a Campbell model, whatever the file spells it.
+///
+/// The names moved twice: EddyPro's bare `csat3` and `csat3b` became
+/// `campbell_*`, and those became `csi_*`. Only Campbell moved - every Gill,
+/// Metek, Young and LI-COR key is what EddyPro wrote - which is why a legacy
+/// project comes up correctly everywhere except on a Campbell site, where the
+/// model resolves to nothing and the instrument silently disappears.
 QString normalizedCampbellModelKey(const QString& key)
 {
     if (key == QStringLiteral("campbell_irgason"))
     {
         return QStringLiteral("csi_irgason_sonic");
+    }
+
+    //> The unprefixed spellings. `csat3` and `csat3b` are EddyPro's; `csat3a`
+    //> and `ec150` existed unprefixed only between 2026-06-22 and 06-26. There
+    //> is deliberately no bare `csat3c`, `ec155` or `tga200a`: those arrived
+    //> already carrying a prefix, so no file can spell them this way.
+    static const QHash<QString, QString> kBareModelKeys = {
+        { QStringLiteral("csat3"),  QStringLiteral("csi_csat3")  },
+        { QStringLiteral("csat3a"), QStringLiteral("csi_csat3a") },
+        { QStringLiteral("csat3b"), QStringLiteral("csi_csat3b") },
+        { QStringLiteral("ec150"),  QStringLiteral("csi_ec150")  },
+    };
+    const auto bare = kBareModelKeys.constFind(key);
+    if (bare != kBareModelKeys.constEnd())
+    {
+        return bare.value();
     }
 
     QString normalized = key;
@@ -109,6 +133,11 @@ const QString DlProject::VARIABLE_VAR_STRING_1 = QStringLiteral("v");
 const QString DlProject::VARIABLE_VAR_STRING_2 = QStringLiteral("w");
 const QString DlProject::VARIABLE_VAR_STRING_3 = QStringLiteral("ts");
 const QString DlProject::VARIABLE_VAR_STRING_4 = QStringLiteral("sos");
+//> These four are not gas *slots*. They are the variable names the .metadata
+//> file format defines, which is an external format the engine parses by
+//> name - so they stay, and stay spelled exactly like this, however many gas
+//> records a project carries. A fifth gas names its own species in the
+//> metadata's variable field; nothing here caps the count.
 const QString DlProject::VARIABLE_VAR_STRING_5 = QStringLiteral("co2");
 const QString DlProject::VARIABLE_VAR_STRING_6 = QStringLiteral("h2o");
 const QString DlProject::VARIABLE_VAR_STRING_7 = QStringLiteral("ch4");
@@ -135,6 +164,12 @@ const QString DlProject::VARIABLE_VAR_STRING_27 = QStringLiteral("diag_77");
 const QString DlProject::VARIABLE_VAR_STRING_28 = QStringLiteral("fast_t");
 const QString DlProject::VARIABLE_VAR_STRING_29 = QStringLiteral("flowrate");
 const QString DlProject::VARIABLE_VAR_STRING_30 = QStringLiteral("anemometer_diagnostic");
+//> Stated rather than left to the fall-through at the end of the two mapping
+//> functions, which would write whatever the display name happens to be. These
+//> are the exact strings the engine compares against, so they are pinned here
+//> and a later rename of the display name cannot silently change them.
+const QString DlProject::VARIABLE_VAR_STRING_35 = QStringLiteral("AGC");
+const QString DlProject::VARIABLE_VAR_STRING_36 = QStringLiteral("RSSI");
 
 const QString DlProject::VARIABLE_MEASURE_TYPE_STRING_0 = QStringLiteral("molar_density");
 const QString DlProject::VARIABLE_MEASURE_TYPE_STRING_1 = QStringLiteral("mole_fraction");
@@ -460,6 +495,7 @@ void DlProject::newProject(const ProjConfigState& project_config)
     var.setNomTimelag(0.0);
     var.setMinTimelag(0.0);
     var.setMaxTimelag(0.0);
+    var.setErrorValue(-9999.0);
     addVariable(var);
 
     setModified(false); // new documents are not in a modified state
@@ -474,6 +510,11 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
 
     bool isVersionCompatible = true;
     bool alreadyChecked = false;
+    //> Whether any instrument named itself with a retired model key. The file
+    //> reads correctly either way - canonicalModelKey resolves it - but the
+    //> file itself still carries the old name, so the project is marked
+    //> modified and the next save writes the current one.
+    bool legacyInstrumentSlugs = false;
 
     // open file
     QFile datafile(filename);
@@ -577,6 +618,10 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
             {
                 AnemDesc anem;
                 QString anemModel = project_ini.value(prefix + DlIni::INI_ANEM_2).toString().remove(QRegularExpression(QStringLiteral("_\\d*$")));
+                if (anemModel != canonicalModelKey(anemModel))
+                {
+                    legacyInstrumentSlugs = true;
+                }
 
                 anem.setManufacturer(fromIniAnemManufacturer(project_ini.value(prefix + DlIni::INI_ANEM_1, QString()).toString()));
                 anem.setModel(fromIniAnemModel(anemModel));
@@ -616,6 +661,12 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
                 anem.setVPathLength(project_ini.value(prefix + DlIni::INI_ANEM_14, 1.0).toReal());
                 anem.setHPathLength(project_ini.value(prefix + DlIni::INI_ANEM_13, 1.0).toReal());
                 anem.setTau(project_ini.value(prefix + DlIni::INI_ANEM_15, 0.1).toReal());
+                //> 0 - and an absent key, which is every metadata file written
+                //> before this - means "the station's acquisition frequency".
+                anem.setAcFreq(project_ini.value(prefix + DlIni::INI_ANEM_17, 0.0).toReal());
+                anem.setSampling(project_ini.value(prefix + DlIni::INI_ANEM_18, 0).toInt() == 1
+                                 ? AnemDesc::getANEM_SAMPLING_STRING_1()
+                                 : AnemDesc::getANEM_SAMPLING_STRING_0());
                 addAnemometer(anem);
             }
             // irga case
@@ -623,6 +674,10 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
             {
                 IrgaDesc irga;
                 QString irgaModel = project_ini.value(prefix + DlIni::INI_IRGA_1).toString().remove(QRegularExpression(QStringLiteral("_\\d*$")));
+                if (irgaModel != canonicalModelKey(irgaModel))
+                {
+                    legacyInstrumentSlugs = true;
+                }
 
                 irga.setManufacturer(fromIniIrgaManufacturer(project_ini.value(prefix + DlIni::INI_IRGA_0, QString()).toString()));
                 irga.setModel(fromIniIrgaModel(irgaModel));
@@ -676,6 +731,11 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
                 irga.setHPathLength(project_ini.value(prefix + DlIni::INI_IRGA_11, 1.0).toReal());
                 irga.setVPathLength(project_ini.value(prefix + DlIni::INI_IRGA_12, 1.0).toReal());
                 irga.setTau(project_ini.value(prefix + DlIni::INI_IRGA_13, 0.1).toReal());
+                //> See the anemometer above.
+                irga.setAcFreq(project_ini.value(prefix + DlIni::INI_IRGA_17, 0.0).toReal());
+                irga.setSampling(project_ini.value(prefix + DlIni::INI_IRGA_18, 0).toInt() == 1
+                                 ? IrgaDesc::getIRGA_SAMPLING_STRING_1()
+                                 : IrgaDesc::getIRGA_SAMPLING_STRING_0());
                 irga.setKWater(project_ini.value(prefix + DlIni::INI_IRGA_14, 0.15).toReal());
                 irga.setKOxygen(project_ini.value(prefix + DlIni::INI_IRGA_15, 0.0085).toReal());
                 addIrga(irga);
@@ -931,6 +991,9 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
             var.setNomTimelag(project_ini.value(prefix + DlIni::INI_VARDESC_NOM_TIMELAG, 0.0).toReal());
             var.setMinTimelag(project_ini.value(prefix + DlIni::INI_VARDESC_MIN_TIMELAG, 0.0).toReal());
             var.setMaxTimelag(project_ini.value(prefix + DlIni::INI_VARDESC_MAX_TIMELAG, 0.0).toReal());
+            //> -9999 for a file written before the key existed, which is what
+            //> the engine assumes for such a file anyway.
+            var.setErrorValue(project_ini.value(prefix + DlIni::INI_VARDESC_ERROR_VALUE, -9999.0).toReal());
             addVariable(var);
         }
     project_ini.endGroup();
@@ -939,8 +1002,17 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
 
     hasGoodWindComponentsAndTemperature();
 
+    //> A retired model key means the file on disk still says the old name, so
+    //> it is dirty from the moment it is read - including on the first read,
+    //> which is the only one the metadata editor ever does. Guarded on
+    //> checkVersion to leave the copy extracted from a GHG archive alone: it
+    //> is scratch, it is wiped on the next open, and it can never be written
+    //> back, so marking it would leave a dirty flag nothing can clear.
+    if (legacyInstrumentSlugs && checkVersion) { isVersionCompatible = false; }
+
     // just loaded projects are not modified
-    if (!isVersionCompatible && checkVersion && !firstReading)
+    if ((!isVersionCompatible && checkVersion && !firstReading)
+        || (legacyInstrumentSlugs && checkVersion))
     {
         setModified(true);
     }
@@ -951,7 +1023,8 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
 
     emit projectChanged();
 
-    if (!isVersionCompatible)
+    // The default argument is a null pointer, so this cannot dereference blind.
+    if (!isVersionCompatible && modified != nullptr)
     {
         *modified = true;
     }
@@ -1154,6 +1227,11 @@ bool DlProject::saveProject(const QString& filename)
                                  QString::number(anem.hPathLength(), 'f', 4));
             project_ini.setValue(prefix + DlIni::INI_ANEM_15,
                                  QString::number(anem.tau(), 'f', 4));
+            project_ini.setValue(prefix + DlIni::INI_ANEM_17,
+                                 QString::number(anem.acFreq(), 'f', 3));
+            project_ini.setValue(prefix + DlIni::INI_ANEM_18,
+                                 anem.sampling() == AnemDesc::getANEM_SAMPLING_STRING_1()
+                                     ? 1 : 0);
             ++k;
         }
 
@@ -1219,6 +1297,11 @@ bool DlProject::saveProject(const QString& filename)
                                  QString::number(irga.kWater(), 'f', 6));
             project_ini.setValue(prefix + DlIni::INI_IRGA_15,
                                  QString::number(irga.kOxygen(), 'f', 6));
+            project_ini.setValue(prefix + DlIni::INI_IRGA_17,
+                                 QString::number(irga.acFreq(), 'f', 3));
+            project_ini.setValue(prefix + DlIni::INI_IRGA_18,
+                                 irga.sampling() == IrgaDesc::getIRGA_SAMPLING_STRING_1()
+                                     ? 1 : 0);
             ++k;
             ++j;
         }
@@ -1284,6 +1367,8 @@ bool DlProject::saveProject(const QString& filename)
                                  QString::number(var.minTimelag(), 'f', 2));
             project_ini.setValue(prefix + DlIni::INI_VARDESC_MAX_TIMELAG,
                                  QString::number(var.maxTimelag(), 'f', 2));
+            project_ini.setValue(prefix + DlIni::INI_VARDESC_ERROR_VALUE,
+                                 QString::number(var.errorValue(), 'f', 4));
             ++k;
         }
     project_ini.endGroup();
@@ -1630,6 +1715,14 @@ QString DlProject::toIniVariableVar(const QString& s)
     {
         return DlProject::VARIABLE_VAR_STRING_30;
     }
+    else if (s == VariableDesc::getVARIABLE_VAR_STRING_35())
+    {
+        return DlProject::VARIABLE_VAR_STRING_35;
+    }
+    else if (s == VariableDesc::getVARIABLE_VAR_STRING_36())
+    {
+        return DlProject::VARIABLE_VAR_STRING_36;
+    }
     else
     {
         return s;
@@ -1898,6 +1991,11 @@ QString DlProject::fromIniAnemManufacturer(const QString& s)
     {
         return QString();
     }
+}
+
+QString DlProject::canonicalModelKey(const QString& model)
+{
+    return normalizedCampbellModelKey(model);
 }
 
 const QString DlProject::fromIniAnemModel(const QString& s)
@@ -2180,6 +2278,14 @@ QString DlProject::fromIniVariableVar(const QString& s)
     else if (s == DlProject::VARIABLE_VAR_STRING_30)
     {
         return VariableDesc::getVARIABLE_VAR_STRING_30();
+    }
+    else if (s == DlProject::VARIABLE_VAR_STRING_35)
+    {
+        return VariableDesc::getVARIABLE_VAR_STRING_35();
+    }
+    else if (s == DlProject::VARIABLE_VAR_STRING_36)
+    {
+        return VariableDesc::getVARIABLE_VAR_STRING_36();
     }
     else
     {

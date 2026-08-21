@@ -110,6 +110,15 @@ namespace EcIni
     const auto INI_PROJECT_77   = QStringLiteral("cec_signal_strength");
     const auto INI_PROJECT_78   = QStringLiteral("cec_max_gap_fill");
     const auto INI_PROJECT_79   = QStringLiteral("cec_max_stationarity");
+    const auto INI_PROJECT_80   = QStringLiteral("cec_singular_band");
+    //> 0 = Zahn et al.'s flux stationarity, 1 = the partition ratio's own.
+    const auto INI_PROJECT_81   = QStringLiteral("cec_stationarity_mode");
+    //> How many of its own random errors a flux must exceed before the pairing
+    //> will partition it. 0 is off, and is the paper.
+    const auto INI_PROJECT_82   = QStringLiteral("cec_min_flux_sigma");
+    //> The pairing list is written as cec_num plus cec_<i>_meth / _co2 /
+    //> _h2o / _extra, composed like the gas records rather than named here.
+    const auto INI_PROJECT_CEC_NUM = QStringLiteral("cec_num");
 
     const auto INIGROUP_SPEC_SETTINGS = QStringLiteral("FluxCorrection_SpectralAnalysis_General");
     const auto INI_SPEC_SETTINGS_0    = QStringLiteral("sa_start_date");
@@ -201,6 +210,12 @@ namespace EcIni
 
     const auto INIGROUP_SCREEN_SETTINGS = QStringLiteral("RawProcess_Settings");
     const auto INI_SCREEN_SETTINGS_1    = QStringLiteral("max_lack");
+    //> Per-instrument missing-samples allowance, keyed by the instrument's
+    //> 1-based position in the .metadata - anemometers first, then analysers,
+    //> one shared counter, exactly the order DlProject writes instr_<K>_*.
+    //> Absent means "use max_lack", which is every project written before this.
+    inline QString iniScreenSettingsInstrMaxLack(int slot)
+    { return QStringLiteral("instr_%1_max_lack").arg(slot); }
     const auto INI_SCREEN_SETTINGS_2    = QStringLiteral("cross_wind");
     const auto INI_SCREEN_SETTINGS_3    = QStringLiteral("flow_distortion");
     const auto INI_SCREEN_SETTINGS_4    = QStringLiteral("rot_meth");
@@ -431,11 +446,46 @@ namespace EcIni
     const auto INI_PWB_TIMELAG_13   = QStringLiteral("pwb_hdi_prefilter_s");
     const auto INI_PWB_TIMELAG_14   = QStringLiteral("pwb_smoothing_width");
     const auto INI_PWB_TIMELAG_15   = QStringLiteral("pwb_random_seed");
-    const auto INI_PWB_TIMELAG_16   = QStringLiteral("pwb_approx_ccf");
-    const auto INI_PWB_TIMELAG_17   = QStringLiteral("pwb_max_ar_order");
-    const auto INI_PWB_TIMELAG_18   = QStringLiteral("pwb_detect_on_raw");
+    //> pwb_approx_ccf and pwb_max_ar_order stood here and are retired, so
+    //> they are only ever removed on save. Both were offered as speed
+    //> options and neither was one: skipping the CCF normalisation saved two
+    //> passes over the series against one per lag - well under a percent -
+    //> while leaving the four pre-whitening combinations compared on
+    //> unnormalised covariances in different physical units, so the winner
+    //> was decided by the units of vertical wind against those of sonic
+    //> temperature. Capping the AR order saved about as little and
+    //> under-fits the pre-whitener, which is the step that sharpens the peak
+    //> the method exists to find.
+    const auto INI_PWB_TIMELAG_16_RETIRED = QStringLiteral("pwb_approx_ccf");
+    const auto INI_PWB_TIMELAG_17_RETIRED = QStringLiteral("pwb_max_ar_order");
+    //> Detection runs on rotated, pre-WPL data and there is
+    //> no longer a stage to choose: both alternatives ran on rotated 20 Hz
+    //> data, and the only difference was whether the gas series had been
+    //> through the pointwise mixing-ratio conversion first. That conversion
+    //> runs before time-lag compensation, so after it the cell temperature
+    //> and water signals sit in the gas series at the wrong relative lag -
+    //> and the gas series is the one being cross-correlated.
+    const auto INI_PWB_TIMELAG_18_RETIRED = QStringLiteral("pwb_detect_prewpl");
+    //> The spelling the interface used before that setting was renamed to the
+    //> engine's. No reader ever had it, so it is only ever removed.
+    const auto INI_PWB_TIMELAG_18_LEGACY = QStringLiteral("pwb_detect_on_raw");
+    //> How far a detected lag may travel to a period that detected none, in
+    //> hours of elapsed time; 0 is unlimited, which is the published rule.
+    //> The engine bounds interpolation, forward carry and backward fill with
+    //> the one value - bounding a single direction would achieve nothing,
+    //> since with detections either side of a long unusable stretch the later
+    //> one would fill from the future exactly the span the earlier one was
+    //> forbidden to cross.
+    const auto INI_PWB_TIMELAG_19   = QStringLiteral("pwb_max_carry_h");
 
-    const auto INIGROUP_RAND_ERROR = QStringLiteral("RawProcess_RandomUncertainty_Settings");
+    //> Random-uncertainty settings live in [Project], not in a RawProcess
+    //> group. The engine declares them in EPPrjNTags and parses that table only
+    //> from sections whose name starts with "Project" - and it has to, because
+    //> both RP and FCC need ru_meth and FCC never sweeps RawProcess at all.
+    //> Written here for years under INIGROUP_RAND_ERROR_LEGACY, where nothing
+    //> looked for them, so random uncertainty never actually ran.
+    const auto INIGROUP_RAND_ERROR = INIGROUP_PROJECT;
+    const auto INIGROUP_RAND_ERROR_LEGACY = QStringLiteral("RawProcess_RandomUncertainty_Settings");
     const auto INI_RAND_ERROR_0    = QStringLiteral("ru_meth");
     const auto INI_RAND_ERROR_1    = QStringLiteral("ru_its_meth");
     const auto INI_RAND_ERROR_2    = QStringLiteral("ru_tlag_max");
@@ -449,6 +499,8 @@ namespace EcIni
     const auto INI_BIOMET_4    = QStringLiteral("biom_ta");
     const auto INI_BIOMET_5    = QStringLiteral("biom_pa");
     const auto INI_BIOMET_6    = QStringLiteral("biom_rh");
+    //> Interface-only: the engine never reads it. See EcProject.
+    const auto INI_BIOMET_RH_OVERRIDE = QStringLiteral("biom_rh_override");
     const auto INI_BIOMET_7    = QStringLiteral("biom_rg");
     const auto INI_BIOMET_8    = QStringLiteral("biom_lwin");
     const auto INI_BIOMET_9    = QStringLiteral("biom_ppfd");

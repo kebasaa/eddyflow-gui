@@ -269,6 +269,23 @@ const QString VariableDesc::getVARIABLE_VAR_STRING_34()
     return s;
 }
 
+//> NOT tr(). These two are written into the metadata verbatim, and the engine
+//> compares them case-sensitively against 'AGC' and 'RSSI'
+//> (gas_slot_resolution.f90, set_licor_diagnostics.f90). A translated display
+//> name would be stored and then never matched, and the screen would go quiet
+//> without saying so.
+const QString VariableDesc::getVARIABLE_VAR_STRING_35()
+{
+    static const QString s(QStringLiteral("AGC"));
+    return s;
+}
+
+const QString VariableDesc::getVARIABLE_VAR_STRING_36()
+{
+    static const QString s(QStringLiteral("RSSI"));
+    return s;
+}
+
 const QString VariableDesc::getVARIABLE_MEASURE_TYPE_STRING_0()
 {
     static const QString s(tr("Molar/Mass density"));
@@ -501,7 +518,8 @@ VariableDesc::VariableDesc() :
     bValue_(0.0),
     nomTimelag_(0.0),
     minTimelag_(0.0),
-    maxTimelag_(0.0)
+    maxTimelag_(0.0),
+    errorValue_(-9999.0)
 { ; }
 
 VariableDesc::VariableDesc(const QString& ignore,
@@ -518,7 +536,8 @@ VariableDesc::VariableDesc(const QString& ignore,
                            qreal bValue,
                            qreal nomTimelag,
                            qreal minTimelag,
-                           qreal maxTimelag
+                           qreal maxTimelag,
+                           qreal errorValue
                            ) :
     ignore_(ignore),
     numeric_(notNumeric),
@@ -534,7 +553,8 @@ VariableDesc::VariableDesc(const QString& ignore,
     bValue_(bValue),
     nomTimelag_(nomTimelag),
     minTimelag_(minTimelag),
-    maxTimelag_(maxTimelag)
+    maxTimelag_(maxTimelag),
+    errorValue_(errorValue)
 { ; }
 
 VariableDesc::~VariableDesc() { ; }
@@ -554,7 +574,8 @@ VariableDesc::VariableDesc(const VariableDesc& fileDesc) :
     bValue_(fileDesc.bValue_),
     nomTimelag_(fileDesc.nomTimelag_),
     minTimelag_(fileDesc.minTimelag_),
-    maxTimelag_(fileDesc.maxTimelag_)
+    maxTimelag_(fileDesc.maxTimelag_),
+    errorValue_(fileDesc.errorValue_)
 { ; }
 
 VariableDesc& VariableDesc::operator=(const VariableDesc& fileDesc)
@@ -576,6 +597,7 @@ VariableDesc& VariableDesc::operator=(const VariableDesc& fileDesc)
         nomTimelag_ = fileDesc.nomTimelag_;
         minTimelag_ = fileDesc.minTimelag_;
         maxTimelag_ = fileDesc.maxTimelag_;
+        errorValue_ = fileDesc.errorValue_;
     }
     return *this;
 }
@@ -596,7 +618,8 @@ bool VariableDesc::operator==(const VariableDesc& fileDesc) const
             && qFuzzyCompare(bValue_, fileDesc.bValue_)
             && qFuzzyCompare(nomTimelag_, fileDesc.nomTimelag_)
             && qFuzzyCompare(minTimelag_, fileDesc.minTimelag_)
-            && qFuzzyCompare(maxTimelag_, fileDesc.maxTimelag_);
+            && qFuzzyCompare(maxTimelag_, fileDesc.maxTimelag_)
+            && qFuzzyCompare(errorValue_, fileDesc.errorValue_);
 }
 
 // Return string list of anem types
@@ -625,6 +648,8 @@ const QStringList VariableDesc::variableStringList()
             << getVARIABLE_VAR_STRING_26()
             << getVARIABLE_VAR_STRING_27()
             << getVARIABLE_VAR_STRING_30()
+            << getVARIABLE_VAR_STRING_35()
+            << getVARIABLE_VAR_STRING_36()
             );
     list.append(GasMetadata::selectableGasVariableList());
     return sortedWithOtherLast(list);
@@ -1256,7 +1281,9 @@ bool VariableDesc::isCustomVariable(const QString& var)
             && var != getVARIABLE_VAR_STRING_31()
             && var != getVARIABLE_VAR_STRING_32()
             && var != getVARIABLE_VAR_STRING_33()
-            && var != getVARIABLE_VAR_STRING_34());
+            && var != getVARIABLE_VAR_STRING_34()
+            && var != getVARIABLE_VAR_STRING_35()
+            && var != getVARIABLE_VAR_STRING_36());
 }
 
 bool VariableDesc::isScalableVariable(const QString& inputUnit)
@@ -1307,7 +1334,13 @@ bool VariableDesc::isDiagnosticVar(const QString& var)
     return (var == getVARIABLE_VAR_STRING_25()
             || var == getVARIABLE_VAR_STRING_26()
             || var == getVARIABLE_VAR_STRING_27()
-            || var == getVARIABLE_VAR_STRING_30());
+            || var == getVARIABLE_VAR_STRING_30()
+            //> Signal strength is a bare percentage the engine compares
+            //> against a threshold, so it wants the same cell treatment as
+            //> the diagnostic words: dimensionless, no measure type, no
+            //> conversion.
+            || var == getVARIABLE_VAR_STRING_35()
+            || var == getVARIABLE_VAR_STRING_36());
 }
 
 const QStringList VariableDesc::velocityInputUnitStringList()

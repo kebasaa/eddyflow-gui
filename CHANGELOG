@@ -1,3 +1,347 @@
+8.0.0 (2026-08-20)
+
+    GUI:
+	- New feature: "Only partition a resolvable flux", in CEC Settings, writing the
+	       engine's new cec_min_flux_sigma. Refuses a pairing whose water or carbon
+	       flux is smaller than the given number of times its own random error,
+	       instead of splitting a signal that is not there: the octants mean
+	       something only if the sign of c' carries a surface signature, and where
+	       the scalar is barely coupled to the vertical wind that sign is noise and
+	       the moist ejections split near evenly between O1 and O2. Ticking it
+	       switches on random uncertainty estimation - as ticking CEC switches on
+	       WPL, and for the same kind of reason: the test has nothing to compare a
+	       flux against until the random error is being estimated - and it selects
+	       Finkelstein and Sims (2001), the estimator whose value makes the
+	       comparison a statement about the correlation rather than about an assumed
+	       eddy size. That stays the user's to switch off, and a warning triangle is
+	       lit while the project is in the state where the test cannot run. The
+	       tooltip says which way is stricter and that the paper suggests no value at
+	       all. Unticked - the default - reproduces the published method, and Restore
+	       Default Values puts it back. The box offers 2 when switched on.
+	- New feature: "Judge the partition, not the flux", beside the stationarity limit in
+	       CEC Settings. Unchecked - the default - is Zahn et al. (2022), which
+	       drops a period when Foken's non-stationarity statistic for w'c' or
+	       w'q' exceeds the limit. That statistic divides by the covariance it is
+	       testing, so it runs away whenever the flux is near zero, which at
+	       night it is, on periods whose octants are perfectly well sampled.
+	       Checked, the criterion becomes whether the split between the two
+	       octants holds steady through the period - the same six sub-intervals,
+	       each re-centred on its own mean, but normalised by the size of the
+	       partition rather than by the flux, so it cannot run away. The
+	       statistic is written out either way as cec_ns_<species>, bounded by
+	       200, so the two criteria can be compared on one run. Leave it
+	       unchecked to reproduce the published method; Restore Default Values
+	       puts it back.
+	- Fix: A measurement record whose column has since been re-declared is dropped instead
+	       of being left behind. Pick a column as an analyser's diagnostic, then
+	       change that column in the Raw File Description to something else, and the
+	       record naming it survived the edit. The column left the Variables table
+	       with it, so the row that would show the record was gone and the record
+	       could not be un-ticked: invisible here, and fatal in the engine, which
+	       found two records claiming its one diagnostic slot and refused to
+	       process the project. Cell and diagnostic records are checked against the
+	       Raw File Description on every metadata read now, and one that
+	       contradicts it is removed. Gas records are deliberately untouched: they
+	       carry per-species processing settings that dropping one would discard.
+	- Fix: An AGC or RSSI column is no longer offered as a gas. It reached the custom-species
+	       branch of the Variables table, so a signal-strength percentage could be
+	       selected as something to compute a flux of.
+	- Change: A declared AGC or RSSI column is written into the project file as a record of
+	       its own - agc_<i>_var, agc_<i>_instr, agc_<i>_col - beside the gas, cell
+	       and diagnostic records. The engine had nothing but the metadata variable
+	       name to go on, matched case-sensitively, with the analyser inferred; the
+	       record says which column and which analyser outright, so the conditional
+	       eddy covariance screen can be aimed at the right one. The records are
+	       derived from the Raw File Description rather than selected, and rebuilt
+	       on every metadata read, so there is nothing to tick and nothing that can
+	       go stale.
+	- New feature: AGC and RSSI can be chosen in the Raw File Description. Neither was
+	       in the variable list, so a signal-strength column could not be declared
+	       from here at all - and the engine's conditional eddy covariance screen
+	       looks for exactly those two names on the gas's own analyser, so on most
+	       projects it silently had nothing to screen by. They are written verbatim
+	       and are not translated, because the engine's comparison is
+	       case-sensitive; a localised name would be stored and then never matched.
+	       They take the same cell treatment as the diagnostic words: dimensionless,
+	       no measure type, no conversion.
+	- Change: The signal-strength cutoff in CEC Settings says when it cannot do anything.
+	       It is greyed, with a warning triangle, when no analyser in the Raw File
+	       Description declares an AGC or RSSI column - previously it sat there
+	       offering a threshold that was never applied. Where only some analysers
+	       declare one it stays enabled, because the screen genuinely runs for
+	       those, and the triangle names the ones whose gases go unscreened. Both
+	       tooltips say that the partition itself still runs and only this screening
+	       step is skipped, so a greyed box is not read as CEC being broken.
+	- Fix: variable_desc builds without warnings. Four members were declared in a
+	       different order from the one all three constructors initialise them in,
+	       and the compiler said so on every build of the file. Harmless as it stood
+	       - they are plain reals that do not read each other - but a real -Wreorder
+	       is how a member gets initialised from one that is still garbage.
+	- Change: Switching Conditional Eddy Covariance on also switches on the compensation
+	       of density fluctuations. The partition sorts each air parcel into an
+	       octant by the SIGN of its water and carbon dioxide fluctuation, and the
+	       engine converts the raw series to mixing ratios only when WPL is on; in an
+	       uncorrected molar density from an open-path analyser, part of that
+	       fluctuation is the air expanding rather than the gas arriving, and it is
+	       large enough to reverse the sign and put the parcel in the wrong octant.
+	       The correction can still be switched back off - a closed-path analyser
+	       reporting mixing ratios is unaffected - but doing so while the partition
+	       is on now says why that is a bad idea, and leaves a warning triangle
+	       beside the setting for as long as the project stays in that state. A
+	       project saved that way opens unchanged and without a dialog, but with the
+	       triangle already showing. The run reports the same thing as Warning(114).
+	- Fix: The Conditional Eddy Covariance tooltip comes back after the checkbox has
+	       been unavailable. The restore read the tooltip it was about to overwrite,
+	       so once a site without both channels had put the "unavailable" text there,
+	       that was what got restored and the real tooltip was gone for the rest of
+	       the session.
+	- Fix: The minus signs in the singularity-band tooltip are the characters they were
+	       meant to be. Written as a UTF-8 escape immediately before a digit -
+	       \xe2\x88\x92 then 1 - the escape swallowed the digit, because a C++ hex
+	       escape takes as many hex digits as follow rather than two. Every "-1",
+	       "-1.2" and "-0.8" in that tooltip was corrupted, and the compiler had been
+	       saying so. A check now refuses the pattern anywhere in the sources.
+	- Change: The small-gap-fill tooltip says what the setting now does: it repairs runs
+	       of condemned samples AFTER the signal-strength screen, which is the order
+	       Zahn et al. (2022) state and which the engine has been corrected to follow,
+	       and 0 turns it off for anyone who would rather lose the period than
+	       interpolate across an analyser that was not seeing.
+	- Fix: Opening an EddyPro project no longer writes anything. It used to write two files
+	       before the user had seen the project: <base>.eddyflow deliberately, and then the
+	       user's own .metadata by accident. The second is the one that mattered - reopening
+	       drove DlProject::loadProject over the EddyPro metadata, any retired Campbell model
+	       key set legacyInstrumentSlugs, that called setModified(true), and projectModified is
+	       wired to saveAvailable, which writes. So a Campbell site's metadata was rewritten in
+	       place, with no backup, by the act of looking at it.
+	       The conversion happens in memory now and stops there. What comes out is an ordinary
+	       unsaved document - modified, never saved - which is the same state File > New
+	       produces and which the rest of the interface already understands: Save routes to
+	       Save As, closing prompts, and the Run buttons refuse until it is on disk. Save opens
+	       the Save As dialog pre-filled with <base>.eddyflow beside the .eddypro.
+	- New feature: The metadata is written when the project is, not before, and to a name that
+	               cannot be the file it was read from. It goes beside the project under the
+	               project's own base name, with proj_file pointed at it; on a straight import
+	               that name IS the EddyPro metadata, so that case takes _ep_imported instead -
+	               the same suffix, for the same reason, as the engine's own importer. Paths are
+	               compared canonically, because the two spellings arrive from different places
+	- Fix: An EddyPro project opens from the command line, from Recent Files, and by
+	       double-clicking on macOS. The redirect to the importer sat inside the branch that
+	       only runs when the user picked the file from the dialog, so every other route fell
+	       through to the native-format check and was told the file was "not in EddyFlow native
+	       format" - which of an EddyPro project is true and useless. The macOS Finder filter
+	       accepted .eddypro and dropped .eddyflow, so the fork's own projects could not be
+	       double-clicked at all; it takes both now
+	- Fix: An imported project whose proj_file names a metadata that is not on this machine
+	       falls back to the file of the project's own name beside it. proj_file is an absolute
+	       path from wherever the project was made, so a project that has been copied anywhere
+	       names a path that is not there - and without the fallback the import has no metadata
+	       to resolve its gas records against, which leaves every species blank. This is the
+	       rule the engine's importer already follows
+	- Fix: The silent metadata cleanup leaves an unsaved project alone. It clears proj_file and
+	       calls fileSave, which for a project that has never been saved is Save As - a save
+	       dialog in front of somebody who has only just opened something
+	- BREAKING: The project format goes to 5.1.0, with the rebuilt Conditional Eddy Covariance
+	          settings. An older engine refuses such a file rather than ignoring the parts of it
+	          it does not know.
+	- New feature: A "Channel pairing" table in CEC Settings says which CO2 channel is
+	          partitioned against which H2O channel. It defaults to one pairing per CO2 channel,
+	          each with the water on the same analyser, which is what a site means when it has
+	          not said - and is what the engine derives on its own from an unstated project. A
+	          pairing that crosses two analysers is marked, because the octants are built from
+	          the water and the carbon together and across two instruments those two arrive at
+	          different time lags and through different spectral responses.
+	          Which of the pairing's two fluxes are reported moved into the same table, one
+	          setting per pairing.
+	- New feature: Each pairing can carry further species to partition in the same octants,
+	          chosen from the gases the site measures. Carbonyl sulfide is the useful case: its
+	          plant uptake is stomatal and effectively irreversible, so the stomatal component is
+	          a cleaner photosynthesis proxy than the CO2 one.
+	- New feature: A "Singularity band" setting, defaulting to the 0.2 Zahn et al. (2022) use.
+	          The engine had it hard-coded at a quarter of that.
+	- Fix: Conditional Eddy Covariance requires BOTH a CO2 and an H2O channel, and says so
+	          when one is missing. It used to accept either and force the choice to whichever was
+	          present - and the engine, which needs both to decide which octant a parcel is in,
+	          then refused to run, so the project got a full set of columns containing nothing
+	          but the error code with nothing anywhere explaining why.
+	- Change: The global three-way "Flux partitioning" combo is retired. It said nothing useful
+	          once a site could have a pairing per analyser, and it was what forced the
+	          impossible choice above. The checkbox is now a master switch.
+	- Fix: The three occupancy limits are percentages and the engine now reads them as such
+	          unconditionally. It used to pick between a percentage and a fraction by magnitude,
+	          so a box labelled [%] and set to 0.5 came back as fifty per cent.
+	- Fix: The hyperbolic threshold's tooltip describes what the engine does. It cited MREA's
+	          dimensionless H = 0.25 while the engine compared against the raw product, where no
+	          value of H means anything in particular; the engine is dimensionless now and the
+	          text says so, including that raising H also thins the octants.
+	- Fix: The Conditional Eddy Covariance checkbox has the documentation link every other
+	          checkbox in its block has, and its tooltip names the columns the engine actually
+	          writes - Reco_cec, not R_cec.
+	- Change: The "Detect time lag on raw data" control is retired, and with it the choice it
+	          offered. It never reached the engine in the first place: this wrote the setting as
+	          pwb_detect_on_raw while the engine declared pwb_detect_prewpl, and the engine matches
+	          tag labels by exact equality, so the box was inert for every project ever saved
+	          whatever it showed. Renaming it would have switched on, for everybody at once, a pass
+	          that had never run.
+	          It is gone instead, because there is no longer anything to choose. Its tooltip
+	          described a decision between raw and block-averaged data and there was never such a
+	          decision: both settings ran on rotated 20 Hz data, and the flag only ever selected
+	          whether the gas series had already been through the mixing-ratio conversion. That
+	          conversion runs before time-lag compensation, so detecting after it puts cell
+	          temperature and water into the gas series at the wrong relative lag - and the gas
+	          series is the one being cross-correlated. Detection is pre-WPL now, always.
+	          Both spellings are removed from any project this saves, so no dead key is left behind
+	          for somebody to edit in the belief that it matters
+	- Fix: The PWB smoothing width defaults to 5, as the engine does. It defaulted to 6 here,
+	       and because this writes the key unconditionally, every project it saved carried a 6
+	       while a project without the key got the engine's 5 - two defaults for one setting,
+	       with nothing anywhere to say they disagreed. A project already saved keeps whatever
+	       it states; only a new one changes
+	- New feature: A check that reads BOTH repositories: every PWB key this writes must appear
+	               in the engine's tag table, and the defaults the two share must agree.
+	               Nothing at build time connects them, so a name or a default can drift with
+	               both sides compiling and running perfectly - which is how both fixes above
+	               went unnoticed. It skips when the engine is not checked out beside this tree,
+	               like the other cross-repo checks here
+	- New feature: Every anemometer and gas analyzer carries an acquisition frequency, in the
+	               Metadata File Editor's instrument tables. It shows the station's frequency
+	               until the instrument is given one of its own - and goes on following it, so
+	               changing the station's rate changes every instrument that has not been set
+	               apart from it. Stating a lower rate is what stops the gaps a slower
+	               instrument leaves in the raw file being counted as missing data; before
+	               this, such a column was dropped and its flux was -9999
+	- New feature: Every raw column carries an error value, in the Raw File Description table -
+	               what that column writes when the instrument had no reading, in the column's own
+	               unit. -9999 by default, which the engine treats as missing whether or not a
+	               column declares it, along with NaN, an unparseable word such as NA, and an
+	               empty field; the field only has to be changed when the logger writes something
+	               else. Recognised in the raw file before any unit conversion, because a fill
+	               value is only recognisable while it still looks like itself
+	- New feature: Absolute limits are seeded per species rather than from one shared "other"
+	               pair. N2O and COS used to get the same window though they differ by three
+	               orders of magnitude. CO2, CH4, N2O and H2O keep the ceilings in force today;
+	               COS takes 0.01 and CO 5 umol/mol, well above their measured backgrounds -
+	               CO's is loose on purpose, since urban air reaches several umol/mol and a
+	               limit deletes the sample rather than flagging it;
+	               N2, O2 and Ar state their own because a generic ceiling would sit orders below
+	               their abundance; anything else takes 5000 of the unit trace gases are quoted
+	               in, so 5 umol/mol. All in the stored basis - umol/mol, mmol/mol for water -
+	               and pinned by a check that no ceiling may fall below what the atmosphere
+	               actually contains, since a limit deletes the sample rather than flagging it
+	- New feature: Every instrument carries a sampling mode beside its acquisition frequency:
+	               "Instantaneous" or "Averaged over the interval". It decides how the vertical
+	               wind is paired with that instrument's samples when its cospectrum is built,
+	               and only matters for an instrument slower than the station - so it is greyed
+	               out until one is given a rate of its own. Instantaneous is the default
+	- New feature: Basic Settings carries a missing-samples allowance per instrument, beside
+	               the project-wide one. Left at "Same as above", an instrument uses the
+	               project-wide allowance and follows it when it changes; the key is written
+	               only for the instruments that state one of their own. The rows are numbered
+	               the way the metadata numbers instruments - anemometers first, then analysers
+	               - and are rebuilt whenever the metadata is reloaded
+	- Bugfix: The spectral assessment file test reads the file's own structure instead of counting
+	          rows against the shipped sample. It assumed 14 rows per non-water gas from a fixed
+	          row 19, so it was wrong for any project with a second hygrometer - which adds an
+	          11-row humidity block - and it compared block headers whole, so every trailing
+	          token the engine added (groups=, var=, instr=, exp=) made a good file look broken.
+	          A block is now found by the word TFP in its header and sized by whether that header
+	          says "numerosity", which is how the engine itself reads it. The warning also no
+	          longer claims the engine will ignore the file
+	- Bugfix: Refreshed the sample assessment file, which still carried a preamble line the engine
+	          stopped writing and a block for the retired fourth gas slot
+	- Bugfix: Species molecular weights carry six figures, matching the engine. CO2 and N2O were
+	          both 44.01 and so appeared identical; they are 44.0095 and 44.0128. CH4 and H2O
+	          moved with them, to 16.0425 and 18.0153
+	- Bugfix: Gases preselected from the metadata file are given their species' processing settings.
+	          They were created with none, so a project wrote no sr_lim, al_min/al_max, ds_hf/ds_sf,
+	          tl_def or time-lag windows for exactly the site's main gases - and the engine reads an
+	          absent threshold as "not configured" and declines the test. The pages showed plausible
+	          defaults throughout, because a spin box falls back to the species default for an unset
+	          field, so nothing on screen said the values were never saved
+	- Bugfix: A project already saved without those settings is repaired when it is opened. The
+	          legacy migration could not do it: it only ran on files predating the gas records
+	- Bugfix: Time lag optimization file browse no longer opens a second, redundant file dialog
+	- Bugfix: The instrument tables show every row, and each label sits on its own row. The row
+	          labels are a widget of QLabels beside the table rather than the table's own header, and
+	          nothing tied the two together: the container's height was a hard-coded number sized for the
+	          row count of the day, and with the vertical scroll bar off the rows past it could not be
+	          reached - the analyzer table lost Acquisition frequency and Sampling entirely. The labels
+	          were also left to size themselves, so one taller than a row, such as the extinction
+	          coefficients' subscripts, took its extra from the rest and pushed every label below it off
+	          its row, which is how the acquisition frequency came to read against Time response. Each
+	          view now states the height it needs from its own row count, every label is pinned to one
+	          row, and the block starts where row 0 starts instead of half a row above it. The Raw File
+	          Description table had the same two faults and is fixed with them
+	- Fix: A project file written with Windows path separators can be opened without destroying its
+	       paths. QSettings reads INI values through an unescaper, and drops any escape it does not
+	       recognise together with the character after it - and every separator in a native Windows
+	       path introduces one. Measured, not supposed:
+	       "C:\Users\jonmuell\Documents\_data\CH-LAE COS\lae_biomet.csv" came back as
+	       "C:sersonmuellocumentsdataH-LAE COSae_biomet.csv". Saving then wrote that back, so a
+	       single open-and-save destroyed the path permanently and the engine was left opening a file
+	       that could not exist.
+	       Nothing can recover it afterwards - by the time QSettings hands the value over, the
+	       characters are gone - so separators are now converted before QSettings sees the file, and
+	       the project is marked modified so that saving keeps the repair. A file this interface
+	       wrote is already forward-slashed and is passed through untouched; only a hand-edited or
+	       third-party file takes the copy, and the user is told it happened
+	- Fix: The PWB smoothing width accepts either parity. A centred rolling mean of even width has
+	       no midpoint, and the engine used to widen it by a sample rather than follow R, so an
+	       even value quietly meant something other than what it said. The engine follows zoo's
+	       align="center" convention for both parities now - an odd window is symmetric, an even
+	       one puts its extra sample after the centre - which makes the paper's own value reachable:
+	       hz/2 + 1 is 6 at 10 Hz.
+	       The tooltip says what the choice costs. On the reference implementation's data, widening
+	       from 5 to 11 at 20 Hz widened the 95% interval from 0.00/0.05 s to 0.30/0.20 s, against
+	       the 0.5 s threshold that decides whether a detection is accepted at all
+	- New feature: A "Max carry" setting bounds how far a detected time lag may travel to an
+	               averaging period that detected none - all three ways a gas reaches its own
+	               lag, interpolation between reliable neighbours, carrying the last one forward
+	               and filling backward from the next, because bounding one of them alone
+	               achieves nothing. Past it the period takes the lag of another gas on the same
+	               analyser instead, and failing that the gas's median.
+	               In elapsed hours rather than in averaging periods, because the engine's table
+	               has a row only where a period was processed: counting periods would reach
+	               straight across a gap in the raw files. Twenty-four hours by default; zero is
+	               the published rule, under which one reliable half hour can supply days
+	- Change: The gap-filling note says what the engine now does, which is the reverse of what it
+	          said. A gas's OWN lag comes first in all three of its forms, and a lag borrowed
+	          from a neighbour on the same analyser only after them: two gases down one tube
+	          still have measurably different delays, so borrowing trades a stale number for a
+	          biased one. It also states the two rules a reader cannot infer from the controls -
+	          that a lag is never taken from a different instrument, nor from water, and that a
+	          gas whose record names no instrument neither donates nor borrows, since nothing
+	          then proves it shares a tube with anything
+	- Change: The block-length setting is described as what it is, a floor. The engine derives
+	          the block per gas as max(this, 2 x that gas's widest search bound), so a gas
+	          searching to 25 s resamples in 50 s blocks whatever is set here - a block shorter
+	          than the lag range cannot contain the structure the bootstrap exists to preserve
+	- Change: The "Speed options" group is gone. Both options cost accuracy and bought almost
+	          nothing, and both tooltips overstated the gain by one to two orders of magnitude.
+	          "Use approximate CCF" claimed 2-3x for skipping the CCF normalisation; that saves
+	          two passes over the series against one per lag, well under a percent, and because
+	          the divisor is constant across lags it changed nothing WITHIN a combination while
+	          deciding the winner BETWEEN them by unit scale - the four pair the scalar against
+	          vertical wind and against sonic temperature, whose covariances are not in the same
+	          units. That is a systematic bias on every period, not the "shift of +/-1 sample in
+	          rare edge cases" the tooltip described. "Cap AR model order" claimed 10-15% of
+	          total PWB time; AR fitting is about a percent of it, and capping under-fits the
+	          pre-whitener, which is the step that sharpens the peak the method exists to find.
+	          The engine gained a guard band and hoisted buffers in their place, which cost
+	          nothing scientifically and are worth appreciably more
+	- Change: The "Detect time lag on raw data" checkbox is gone, replaced by a line saying what
+	          actually happens. Its tooltip described a choice between raw and block-averaged
+	          data; there was never such a choice. Both settings ran on rotated 20 Hz data and the
+	          flag only ever chose whether the gas series had already been through the
+	          mixing-ratio conversion. Detection is pre-WPL now, with nothing left to pick
+	- Fix: The per-gas search windows show the window that will actually be searched. Both spins
+	       displayed 0.0 when a gas had no window stored while the engine searched [-10, +10], so
+	       the dialog reported a window nobody was using - and because setting a spin to the value
+	       it already displays emits nothing, a user who wanted a minimum of 0 could not say so:
+	       the record kept its sentinel and the engine went on searching from -10. The sentinel
+	       moved off -1.0 too, which is an ordinary bound a user may want to state
+	- Change: The HDI prefilter tooltip says what it does, now that it does something. Nothing in
+	          the engine had ever read that setting
+
 7.2.5 (2026-07-27)
 
     GUI:

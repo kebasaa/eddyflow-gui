@@ -77,6 +77,26 @@ inline void paintComboCell(QPainter* painter,
     style->drawControl(QStyle::CE_ComboBoxLabel, &comboOption, painter, option.widget);
 }
 
+/// Width a cell painted by paintComboCell needs, given the hint for its text.
+///
+/// The item delegate measures the text alone, which leaves the drop-down arrow
+/// sitting on top of the tail of a long label. Asked of the style rather than
+/// padded by a constant, so the arrow is whatever width the platform draws.
+inline QSize comboCellSizeHint(const QStyleOptionViewItem& option,
+                               const QSize& base)
+{
+    QStyleOptionComboBox comboOption;
+    comboOption.rect = QRect(QPoint(0, 0), base);
+
+    auto style = option.widget ? option.widget->style() : QApplication::style();
+    QSize size = style->sizeFromContents(QStyle::CT_ComboBox, &comboOption,
+                                         base, option.widget);
+    // paintComboCell insets the cell by 2px each side before it draws.
+    size.rwidth() += 4;
+    size.rheight() += 2;
+    return size;
+}
+
 inline void prepareSelectedOption(QStyleOptionViewItem* selectedOption, bool enabled)
 {
     if (!selectedOption) { return; }

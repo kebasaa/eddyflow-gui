@@ -48,8 +48,11 @@ void CustomHeader::addSection(const QString &txt,
     auto headerTextLabel = new QLabel;
     headerTextLabel->setText(txt);
     headerTextLabel->setToolTip(tooltipTxt);
+    applySectionHeight(headerTextLabel);
 
-    layout->addWidget(headerTextLabel, layout->rowCount(), 0);
+    layout->addWidget(headerTextLabel, sections, 0);
+    if (sectionHeight > 0) { layout->setRowMinimumHeight(sections, sectionHeight); }
+    ++sections;
 
     if (questionMark == QuestionMarkHint::QuestionMark)
     {
@@ -61,10 +64,11 @@ void CustomHeader::addSection(const QString &txt,
 #endif
         questionMarkLabel->setPixmap(pixmap_2x);
         questionMarkLabel->setHeaderData(headerData);
+        applySectionHeight(questionMarkLabel);
         connect(questionMarkLabel, &ClickLabel::clicked,
                 this, &CustomHeader::onlineHelpTrigger);
 
-        layout->addWidget(questionMarkLabel, layout->rowCount() - 1, 1);
+        layout->addWidget(questionMarkLabel, sections - 1, 1);
     }
 }
 
@@ -123,5 +127,34 @@ void CustomHeader::onlineHelpTrigger()
 
 int CustomHeader::sectionCount()
 {
-    return layout->rowCount();
+    return sections;
+}
+
+void CustomHeader::applySectionHeight(QWidget *w)
+{
+    if (sectionHeight > 0) { w->setFixedHeight(sectionHeight); }
+}
+
+void CustomHeader::setSectionHeight(int height)
+{
+    if (height <= 0 || height == sectionHeight) { return; }
+    sectionHeight = height;
+
+    //> Every row gets exactly one table row, and the surplus - the widget is
+    //> given a whole number of rows, which is rarely what the labels want -
+    //> collects in a stretch at the bottom instead of being shared out.
+    for (int row = 0; row < sections; ++row)
+    {
+        layout->setRowMinimumHeight(row, sectionHeight);
+        layout->setRowStretch(row, 0);
+        for (int col = 0; col < layout->columnCount(); ++col)
+        {
+            if (auto item = layout->itemAtPosition(row, col))
+            {
+                if (auto w = item->widget()) { w->setFixedHeight(sectionHeight); }
+            }
+        }
+    }
+    layout->setRowStretch(sections, 1);
+    layout->activate();
 }

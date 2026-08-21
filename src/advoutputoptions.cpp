@@ -35,8 +35,10 @@
 #include <QIcon>
 #include <QPixmap>
 #include <QSize>
+#include <QGridLayout>
 #include <QGroupBox>
 #include <QPushButton>
+#include <QStringList>
 #include <QRadioButton>
 #include <QSignalBlocker>
 #include <QVBoxLayout>
@@ -49,6 +51,7 @@
 #include "configstate.h"
 #include "customcheckbox.h"
 #include "ecproject.h"
+#include "measurement_record.h"
 #include "richtextcheckbox.h"
 #include "widget_utils.h"
 
@@ -268,18 +271,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     outFullSpectraCheckBoxTs = new RichTextCheckBox;
     outFullSpectraCheckBoxTs->setText(tr("%1 (sonic or fast ambient temperature)")
                                       .arg(Defs::TSON_STRING));
-    outFullSpectraCheckBoxCo2 = new RichTextCheckBox;
-    outFullSpectraCheckBoxCo2->setText(tr("%1 (concentration or density)")
-                                       .arg(Defs::CO2_STRING));
-    outFullSpectraCheckBoxH2o = new RichTextCheckBox;
-    outFullSpectraCheckBoxH2o->setText(tr("%1 (concentration or density)")
-                                       .arg(Defs::H2O_STRING));
-    outFullSpectraCheckBoxCh4 = new RichTextCheckBox;
-    outFullSpectraCheckBoxCh4->setText(tr("%1 (concentration or density)")
-                                       .arg(Defs::CH4_STRING));
-    outFullSpectralCheckBoxGas4 = new RichTextCheckBox;
-    outFullSpectralCheckBoxGas4->setText(tr("%1 Gas (concentration or density)")
-                                       .arg(Defs::GAS4_STRING));
+    // The per-gas spectra boxes are built in rebuildGasRows(), one per record.
 
     outFullCospectraCheckBoxU = new RichTextCheckBox;
     outFullCospectraCheckBoxU->setText(QStringLiteral("W/U"));
@@ -289,14 +281,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     outFullCospectraCheckBoxTs->setText(QStringLiteral("W/%1").arg(Defs::TSON_STRING));
     outFullCospectraTsRequiredIcon = new QLabel;
     setRequiredIcon(outFullCospectraTsRequiredIcon, false);
-    outFullCospectraCheckBoxCo2 = new RichTextCheckBox;
-    outFullCospectraCheckBoxCo2->setText(QStringLiteral("W/%1").arg(Defs::CO2_STRING));
-    outFullCospectraCheckBoxH2o = new RichTextCheckBox;
-    outFullCospectraCheckBoxH2o->setText(QStringLiteral("W/%1").arg(Defs::H2O_STRING));
-    outFullCospectraCheckBoxCh4 = new RichTextCheckBox;
-    outFullCospectraCheckBoxCh4->setText(QStringLiteral("W/%1").arg(Defs::CH4_STRING));
-    outFullCospectralCheckBoxGas4 = new RichTextCheckBox;
-    outFullCospectralCheckBoxGas4->setText(tr("W/%1 Gas").arg(Defs::GAS4_STRING));
+    // The per-gas cospectra boxes are built in rebuildGasRows() too.
 
     fluxnetBiometCheckBox = new QCheckBox;
     fluxnetBiometCheckBox->setText(tr("Use Fluxnet standard for biomet labels and units"));
@@ -445,14 +430,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     outRawWCheckBox->setText(QStringLiteral("W"));
     outRawTsCheckBox = new RichTextCheckBox;
     outRawTsCheckBox->setText(QStringLiteral("%1").arg(Defs::TSON_STRING));
-    outRawCo2CheckBox = new RichTextCheckBox;
-    outRawCo2CheckBox->setText(QStringLiteral("%1").arg(Defs::CO2_STRING));
-    outRawH2oCheckBox = new RichTextCheckBox;
-    outRawH2oCheckBox->setText(QStringLiteral("%1").arg(Defs::H2O_STRING));
-    outRawCh4CheckBox = new RichTextCheckBox;
-    outRawCh4CheckBox->setText(QStringLiteral("%1").arg(Defs::CH4_STRING));
-    outRawGas4CheckBox = new RichTextCheckBox;
-    outRawGas4CheckBox->setText(tr("%1 trace gas").arg(Defs::GAS4_STRING));
+    // The per-gas raw-output boxes are built in rebuildGasRows().
     outRawTairCheckBox = new RichTextCheckBox;
     outRawTairCheckBox->setText(tr("T<sub>air</sub>"));
     outRawPairCheckBox = new RichTextCheckBox;
@@ -652,23 +630,28 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     outputLayout->addWidget(outBinOgivesCheckBox, 20, 0);
     outputLayout->addWidget(outMeanSpectraCheckBox, 21, 0);
     outputLayout->addWidget(outMeanCospCheckBox, 22, 0);
-    outputLayout->addLayout(qBox_6, 18, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxU, 19, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxV, 20, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxW, 21, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxTs, 22, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxCo2, 23, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxH2o, 24, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectraCheckBoxCh4, 25, 1, 1, 2);
-    outputLayout->addWidget(outFullSpectralCheckBoxGas4, 26, 1, 1, 2);
-    outputLayout->addLayout(qBox_7, 18, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxU, 19, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxV, 20, 3, 1, 3);
-    outputLayout->addLayout(qBox_13, 21, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxCo2, 22, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxH2o, 23, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectraCheckBoxCh4, 24, 3, 1, 3);
-    outputLayout->addWidget(outFullCospectralCheckBoxGas4, 25, 3, 1, 3);
+    //> Each variable group gets its own grid, so a fifth gas grows the group
+    //> in place instead of pushing everything below it - which here means the
+    //> spectra description, the whole processing-level block and the raw
+    //> variables, three of which are interleaved in adjacent columns of the
+    //> same rows.
+    spectraGrid_ = new QGridLayout;
+    spectraGrid_->setContentsMargins(0, 0, 0, 0);
+    spectraGrid_->addLayout(qBox_6, 0, 0);
+    spectraGrid_->addWidget(outFullSpectraCheckBoxU, 1, 0);
+    spectraGrid_->addWidget(outFullSpectraCheckBoxV, 2, 0);
+    spectraGrid_->addWidget(outFullSpectraCheckBoxW, 3, 0);
+    spectraGrid_->addWidget(outFullSpectraCheckBoxTs, 4, 0);
+    outputLayout->addLayout(spectraGrid_, 18, 1, 9, 2);
+
+    cospectraGrid_ = new QGridLayout;
+    cospectraGrid_->setContentsMargins(0, 0, 0, 0);
+    cospectraGrid_->addLayout(qBox_7, 0, 0);
+    cospectraGrid_->addWidget(outFullCospectraCheckBoxU, 1, 0);
+    cospectraGrid_->addWidget(outFullCospectraCheckBoxV, 2, 0);
+    cospectraGrid_->addLayout(qBox_13, 3, 0);
+    outputLayout->addLayout(cospectraGrid_, 18, 3, 9, 3);
+
     outputLayout->addWidget(fullSpectraDescription, 27, 1, 1, 7);
     outputLayout->addWidget(hrLabel_3, 28, 0, 1, -1);
     outputLayout->addWidget(title_5, 29, 0);
@@ -699,16 +682,12 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     outputLayout->addWidget(outRaw6CheckBox, 37, 2, Qt::AlignCenter);
     outputLayout->addWidget(outRaw7CheckBox, 38, 2, Qt::AlignCenter);
     outputLayout->addWidget(vrLabel_2, 32, 3, 7, 1, Qt::AlignLeft);
-    outputLayout->addWidget(outRawUCheckBox, 32, 3, 1, 2);
-    outputLayout->addWidget(outRawVCheckBox, 33, 3, 1, 2);
-    outputLayout->addWidget(outRawWCheckBox, 34, 3, 1, 2);
-    outputLayout->addWidget(outRawTsCheckBox, 35, 3, 1, 2);
-    outputLayout->addWidget(outRawCo2CheckBox, 36, 3, 1, 2);
-    outputLayout->addWidget(outRawH2oCheckBox, 32, 4, 1, 2);
-    outputLayout->addWidget(outRawCh4CheckBox, 33, 4, 1, 2);
-    outputLayout->addWidget(outRawGas4CheckBox, 34, 4, 1, 2);
-    outputLayout->addWidget(outRawTairCheckBox, 35, 4, 1, 2);
-    outputLayout->addWidget(outRawPairCheckBox, 36, 4, 1, 2);
+    //> The raw variables are laid out two columns wide, filled column by
+    //> column, so the ten of a four-gas project land exactly where they
+    //> always did and a fifth simply lengthens the columns.
+    rawVarsGrid_ = new QGridLayout;
+    rawVarsGrid_->setContentsMargins(0, 0, 0, 0);
+    outputLayout->addLayout(rawVarsGrid_, 32, 3, 6, 3);
     outputLayout->addWidget(outVarsAllCheckBox, 38, 3, 1, 3);
     outputLayout->setRowStretch(39, 1);
     outputLayout->setColumnStretch(8, 1);
@@ -798,14 +777,6 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
             { ecProject_->setScreenOutFullSpectraW(checked); });
     connect(outFullSpectraCheckBoxTs, &RichTextCheckBox::toggled, [=](bool checked)
             { ecProject_->setScreenOutFullSpectraTs(checked); });
-    connect(outFullSpectraCheckBoxCo2, &RichTextCheckBox::toggled, [=](bool checked)
-            { ecProject_->setScreenOutFullSpectraCo2(checked); });
-    connect(outFullSpectraCheckBoxH2o, &RichTextCheckBox::toggled, [=](bool checked)
-            { ecProject_->setScreenOutFullSpectraH2o(checked); });
-    connect(outFullSpectraCheckBoxCh4, &RichTextCheckBox::toggled, [=](bool checked)
-            { ecProject_->setScreenOutFullSpectraCh4(checked); });
-    connect(outFullSpectralCheckBoxGas4, &RichTextCheckBox::toggled, [=](bool checked)
-            { ecProject_->setScreenOutFullSpectralGas4(checked); });
 
     connect(outFullCospectraCheckBoxU, &RichTextCheckBox::toggled, [=](bool checked)
             { ecProject_->setScreenOutFullCospectraU(checked); });
@@ -813,14 +784,6 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
             { ecProject_->setScreenOutFullCospectraV(checked); });
     connect(outFullCospectraCheckBoxTs, &RichTextCheckBox::toggled, [=](bool checked)
             { ecProject_->setScreenOutFullCospectraTs(checked); });
-    connect(outFullCospectraCheckBoxCo2, &RichTextCheckBox::toggled, [=](bool checked)
-            { ecProject_->setScreenOutFullCospectraCo2(checked); });
-    connect(outFullCospectraCheckBoxH2o, &RichTextCheckBox::toggled, [=](bool checked)
-            { ecProject_->setScreenOutFullCospectraH2o(checked); });
-    connect(outFullCospectraCheckBoxCh4, &RichTextCheckBox::toggled, [=](bool checked)
-            { ecProject_->setScreenOutFullCospectraCh4(checked); });
-    connect(outFullCospectralCheckBoxGas4, &RichTextCheckBox::toggled, [=](bool checked)
-            { ecProject_->setScreenOutFullCospectralGas4(checked); });
 
     connect(outSt1CheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setScreenOutSt1(checked); });
@@ -860,14 +823,6 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
             this, &AdvOutputOptions::updateOutputRawW);
     connect(outRawTsCheckBox, &RichTextCheckBox::toggled,
             this, &AdvOutputOptions::updateOutputRawTs);
-    connect(outRawCo2CheckBox, &RichTextCheckBox::toggled,
-            this, &AdvOutputOptions::updateOutputRawCo2);
-    connect(outRawH2oCheckBox, &RichTextCheckBox::toggled,
-            this, &AdvOutputOptions::updateOutputRawH2o);
-    connect(outRawCh4CheckBox, &RichTextCheckBox::toggled,
-            this, &AdvOutputOptions::updateOutputRawCh4);
-    connect(outRawGas4CheckBox, &RichTextCheckBox::toggled,
-            this, &AdvOutputOptions::updateOutputRawGas4);
     connect(outRawTairCheckBox, &RichTextCheckBox::toggled,
             this, &AdvOutputOptions::updateOutputRawTair);
     connect(outRawPairCheckBox, &RichTextCheckBox::toggled,
@@ -890,6 +845,10 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
             this, &AdvOutputOptions::refresh);
 
     // init
+    //> Populates the three generated groups for the first time. The raw
+    //> variables in particular are only ever placed here, so without this
+    //> even the fixed wind and temperature boxes would have no home.
+    rebuildGasRows();
     QTimer::singleShot(0, this, &AdvOutputOptions::reset);
 }
 
@@ -897,13 +856,18 @@ void AdvOutputOptions::setSmartfluxUI()
 {
     bool on = configState_->project.smartfluxMode;
 
+    //> The five run-mode controls are deliberately absent from this list.
+    //> Their enabled state belongs to updateSpectralAssessmentCreationAvailability
+    //> and updatePreprocessingAssessmentAvailability, which derive it from the
+    //> project every time they run - and the default radio has to stay enabled
+    //> while the other four go dead, which a blanket disable cannot express.
+    //>
+    //> It also keeps them clear of the restore below, which reads back by
+    //> position from a vector that is never cleared: on the second on/off
+    //> cycle it hands out the first cycle's values, and for these five that
+    //> would overwrite what the availability functions had just decided.
     QWidgetList enableableWidgets;
-    enableableWidgets << spectralAssessmentCreationRadioButton
-                      << productionRunRadioButton
-                      << defaultRunRadioButton
-                      << timelagAssessmentOnlyCheckBox
-                      << planarFitAssessmentOnlyCheckBox
-                      << outFullCheckBox
+    enableableWidgets << outFullCheckBox
                       << fullOutformatLabel
                       << fixedVarsOutputRadio
                       << variableVarsOutputRadio
@@ -921,17 +885,9 @@ void AdvOutputOptions::setSmartfluxUI()
                       << outFullSpectraCheckBoxV
                       << outFullSpectraCheckBoxW
                       << outFullSpectraCheckBoxTs
-                      << outFullSpectraCheckBoxCo2
-                      << outFullSpectraCheckBoxH2o
-                      << outFullSpectraCheckBoxCh4
-                      << outFullSpectralCheckBoxGas4
                       << outFullCospectraCheckBoxU
                       << outFullCospectraCheckBoxV
                       << outFullCospectraCheckBoxTs
-                      << outFullCospectraCheckBoxCo2
-                      << outFullCospectraCheckBoxH2o
-                      << outFullCospectraCheckBoxCh4
-                      << outFullCospectralCheckBoxGas4
                       << outSt1CheckBox
                       << outSt2CheckBox
                       << outSt3CheckBox
@@ -950,13 +906,12 @@ void AdvOutputOptions::setSmartfluxUI()
                       << outRawVCheckBox
                       << outRawWCheckBox
                       << outRawTsCheckBox
-                      << outRawCo2CheckBox
-                      << outRawH2oCheckBox
-                      << outRawCh4CheckBox
-                      << outRawGas4CheckBox
                       << outRawTairCheckBox
                       << outRawPairCheckBox
                       << outVarsAllCheckBox;
+    //> The generated per-gas boxes belong here too, or they stay live while
+    //> the rest of the page is disabled.
+    enableableWidgets << gasOutputCheckBoxes();
 
     for (auto w : enableableWidgets)
     {
@@ -1056,27 +1011,21 @@ void AdvOutputOptions::setSmartfluxUI()
                        << outFullSpectraCheckBoxV
                        << outFullSpectraCheckBoxW
                        << outFullSpectraCheckBoxTs
-                       << outFullSpectraCheckBoxCo2
-                       << outFullSpectraCheckBoxH2o
-                       << outFullSpectraCheckBoxCh4
-                       << outFullSpectralCheckBoxGas4
                        << outFullCospectraCheckBoxU
                        << outFullCospectraCheckBoxV
                        << outFullCospectraCheckBoxTs
-                       << outFullCospectraCheckBoxCo2
-                       << outFullCospectraCheckBoxH2o
-                       << outFullCospectraCheckBoxCh4
-                       << outFullCospectralCheckBoxGas4
                        << outRawUCheckBox
                        << outRawVCheckBox
                        << outRawWCheckBox
                        << outRawTsCheckBox
-                       << outRawCo2CheckBox
-                       << outRawH2oCheckBox
-                       << outRawCh4CheckBox
-                       << outRawGas4CheckBox
                        << outRawTairCheckBox
                        << outRawPairCheckBox;
+    for (const auto& row : gasRows_)
+    {
+        if (row.spectra) { uncheckableRichTextCheckbox << row.spectra; }
+        if (row.cospectra) { uncheckableRichTextCheckbox << row.cospectra; }
+        if (row.raw) { uncheckableRichTextCheckbox << row.raw; }
+    }
     for (auto w : uncheckableRichTextCheckbox)
     {
         if (on)
@@ -1098,6 +1047,10 @@ void AdvOutputOptions::setSmartfluxUI()
         ecProject_->blockSignals(false);
     }
 
+    //> Re-derives the five run-mode controls, in both directions: entering the
+    //> mode forces the default and greys the rest, leaving it hands them back
+    //> to whatever the project's own settings imply.
+    updateSpectralAssessmentCreationAvailability();
     updateGasOutputAvailability();
     setRequiredSpectralOutputState(currentSpectralMethodIndex());
 }
@@ -1152,18 +1105,13 @@ void AdvOutputOptions::refresh()
     outFullSpectraCheckBoxV->setChecked(ecProject_->screenOutFullSpectraV());
     outFullSpectraCheckBoxW->setChecked(ecProject_->screenOutFullSpectraW());
     outFullSpectraCheckBoxTs->setChecked(ecProject_->screenOutFullSpectraTs());
-    outFullSpectraCheckBoxCo2->setChecked(ecProject_->screenOutFullSpectraCo2());
-    outFullSpectraCheckBoxH2o->setChecked(ecProject_->screenOutFullSpectraH2o());
-    outFullSpectraCheckBoxCh4->setChecked(ecProject_->screenOutFullSpectraCh4());
-    outFullSpectralCheckBoxGas4->setChecked(ecProject_->screenOutFullSpectralGas4());
+    //> Rebuilt here rather than only on show: a project load can change the
+    //> gas records under the rows, and their checked state comes from them.
+    rebuildGasRows();
 
     outFullCospectraCheckBoxU->setChecked(ecProject_->screenOutFullCospectraU());
     outFullCospectraCheckBoxV->setChecked(ecProject_->screenOutFullCospectraV());
     outFullCospectraCheckBoxTs->setChecked(ecProject_->screenOutFullCospectraTs());
-    outFullCospectraCheckBoxCo2->setChecked(ecProject_->screenOutFullCospectraCo2());
-    outFullCospectraCheckBoxH2o->setChecked(ecProject_->screenOutFullCospectraH2o());
-    outFullCospectraCheckBoxCh4->setChecked(ecProject_->screenOutFullCospectraCh4());
-    outFullCospectralCheckBoxGas4->setChecked(ecProject_->screenOutFullCospectralGas4());
 
     fluxnetBiometCheckBox->setChecked(ecProject_->fluxnetStandardizeBiomet());
     fluxnetErrLabelCheckBox->setChecked(ecProject_->fluxnetErrLabel());
@@ -1234,10 +1182,6 @@ void AdvOutputOptions::refresh()
     outRawVCheckBox->setChecked(ecProject_->screenOutRawV());
     outRawWCheckBox->setChecked(ecProject_->screenOutRawW());
     outRawTsCheckBox->setChecked(ecProject_->screenOutRawTs());
-    outRawCo2CheckBox->setChecked(ecProject_->screenOutRawCo2());
-    outRawH2oCheckBox->setChecked(ecProject_->screenOutRawH2o());
-    outRawCh4CheckBox->setChecked(ecProject_->screenOutRawCh4());
-    outRawGas4CheckBox->setChecked(ecProject_->screenOutRawGas4());
     outRawTairCheckBox->setChecked(ecProject_->screenOutRawTair());
     outRawPairCheckBox->setChecked(ecProject_->screenOutRawPair());
     setVarsAvailable(areTimeSeriesChecked());
@@ -1526,6 +1470,28 @@ void AdvOutputOptions::clearRunModeRadios()
 
 void AdvOutputOptions::updateSpectralAssessmentCreationAvailability()
 {
+    //> A SmartFlux module runs the flux computation and nothing else, so none
+    //> of the assessment-file modes applies. The default is left enabled: it
+    //> is the only member of the group that can be chosen, and a radio that is
+    //> checked but greyed reads as somebody else's decision when it is in fact
+    //> the only correct one.
+    //>
+    //> Set unconditionally rather than as a fallback from one of the other two
+    //> radios. A project last saved with one of the assessment-only boxes
+    //> ticked went through clearRunModeRadios(), which leaves all three
+    //> unchecked - and that state would otherwise survive into SmartFlux mode
+    //> as a page showing no run mode at all.
+    if (configState_->project.smartfluxMode)
+    {
+        spectralAssessmentCreationRadioButton->setEnabled(false);
+        productionRunRadioButton->setEnabled(false);
+        defaultRunRadioButton->setEnabled(true);
+        ecProject_->setSpectraFluxRunMode(0);
+        defaultRunRadioButton->setChecked(true);
+        updatePreprocessingAssessmentAvailability();
+        return;
+    }
+
     auto enabled = canCreateSpectralAssessment();
     spectralAssessmentCreationRadioButton->setEnabled(enabled);
     if (!enabled && spectralAssessmentCreationRadioButton->isChecked())
@@ -1551,8 +1517,14 @@ void AdvOutputOptions::updateSpectralAssessmentCreationAvailability()
 
 void AdvOutputOptions::updatePreprocessingAssessmentAvailability()
 {
+    //> SmartFlux counts with the assessment run modes: both boxes ask for an
+    //> assessment-file run, which a module does not do. Handled here rather
+    //> than only in setSmartfluxUI because this is what refresh() and every
+    //> time-lag and rotation-method slot call - a disable applied once on
+    //> entering the mode is undone by the first of those to fire.
     const auto spectralAssessmentMode = isSpectralAssessmentCreationMode()
-                                        || isProductionRunMode();
+                                        || isProductionRunMode()
+                                        || configState_->project.smartfluxMode;
 
     auto timelagEnabled = canCreateTimelagAssessmentOnly();
     if (spectralAssessmentMode)
@@ -1648,30 +1620,6 @@ void AdvOutputOptions::updateOutputRawTs(bool b)
     updateVarsAvailable();
 }
 
-void AdvOutputOptions::updateOutputRawCo2(bool b)
-{
-    ecProject_->setScreenOutRawCo2(b);
-    updateVarsAvailable();
-}
-
-void AdvOutputOptions::updateOutputRawH2o(bool b)
-{
-    ecProject_->setScreenOutRawH2o(b);
-    updateVarsAvailable();
-}
-
-void AdvOutputOptions::updateOutputRawCh4(bool b)
-{
-    ecProject_->setScreenOutRawCh4(b);
-    updateVarsAvailable();
-}
-
-void AdvOutputOptions::updateOutputRawGas4(bool b)
-{
-    ecProject_->setScreenOutRawGas4(b);
-    updateVarsAvailable();
-}
-
 void AdvOutputOptions::updateOutputRawTair(bool b)
 {
     ecProject_->setScreenOutRawTair(b);
@@ -1690,10 +1638,13 @@ void AdvOutputOptions::checkFullSpectraAll(bool b)
     outFullSpectraCheckBoxV->setChecked(b);
     outFullSpectraCheckBoxW->setChecked(b);
     outFullSpectraCheckBoxTs->setChecked(b);
-    outFullSpectraCheckBoxCo2->setChecked(b && isCo2OutputAvailable());
-    outFullSpectraCheckBoxH2o->setChecked(b && isH2oOutputAvailable());
-    outFullSpectraCheckBoxCh4->setChecked(b && isCh4OutputAvailable());
-    outFullSpectralCheckBoxGas4->setChecked(b && isGas4OutputAvailable());
+    for (const auto& row : gasRows_)
+    {
+        if (row.spectra)
+        {
+            row.spectra->setChecked(b && isOutputAvailable(row.gasIndex));
+        }
+    }
 }
 
 bool AdvOutputOptions::areAllCheckedVars()
@@ -1702,10 +1653,7 @@ bool AdvOutputOptions::areAllCheckedVars()
             && outRawVCheckBox->isChecked()
             && outRawWCheckBox->isChecked()
             && outRawTsCheckBox->isChecked()
-            && (!isCo2OutputAvailable() || outRawCo2CheckBox->isChecked())
-            && (!isH2oOutputAvailable() || outRawH2oCheckBox->isChecked())
-            && (!isCh4OutputAvailable() || outRawCh4CheckBox->isChecked())
-            && (!isGas4OutputAvailable() || outRawGas4CheckBox->isChecked())
+            && allGasRawChecked()
             && outRawTairCheckBox->isChecked()
             && outRawPairCheckBox->isChecked());
 }
@@ -1715,10 +1663,13 @@ void AdvOutputOptions::checkFullCospectraAll(bool b)
     outFullCospectraCheckBoxU->setChecked(b);
     outFullCospectraCheckBoxV->setChecked(b);
     outFullCospectraCheckBoxTs->setChecked(b);
-    outFullCospectraCheckBoxCo2->setChecked(b && isCo2OutputAvailable());
-    outFullCospectraCheckBoxH2o->setChecked(b && isH2oOutputAvailable());
-    outFullCospectraCheckBoxCh4->setChecked(b && isCh4OutputAvailable());
-    outFullCospectralCheckBoxGas4->setChecked(b && isGas4OutputAvailable());
+    for (const auto& row : gasRows_)
+    {
+        if (row.cospectra)
+        {
+            row.cospectra->setChecked(b && isOutputAvailable(row.gasIndex));
+        }
+    }
 }
 
 void AdvOutputOptions::checkStAll(bool b)
@@ -1749,10 +1700,10 @@ void AdvOutputOptions::checkVarsAll(bool b)
     outRawVCheckBox->setChecked(b);
     outRawWCheckBox->setChecked(b);
     outRawTsCheckBox->setChecked(b);
-    outRawCo2CheckBox->setChecked(b && isCo2OutputAvailable());
-    outRawH2oCheckBox->setChecked(b && isH2oOutputAvailable());
-    outRawCh4CheckBox->setChecked(b && isCh4OutputAvailable());
-    outRawGas4CheckBox->setChecked(b && isGas4OutputAvailable());
+    for (const auto& row : gasRows_)
+    {
+        if (row.raw) { row.raw->setChecked(b && isOutputAvailable(row.gasIndex)); }
+    }
     outRawTairCheckBox->setChecked(b);
     outRawPairCheckBox->setChecked(b);
 }
@@ -1833,33 +1784,230 @@ void AdvOutputOptions::setVarsAvailable(bool ok)
     outRawVCheckBox->setEnabled(ok);
     outRawWCheckBox->setEnabled(ok);
     outRawTsCheckBox->setEnabled(ok);
-    outRawCo2CheckBox->setEnabled(ok && isCo2OutputAvailable());
-    outRawH2oCheckBox->setEnabled(ok && isH2oOutputAvailable());
-    outRawCh4CheckBox->setEnabled(ok && isCh4OutputAvailable());
-    outRawGas4CheckBox->setEnabled(ok && isGas4OutputAvailable());
+    for (const auto& row : gasRows_)
+    {
+        if (row.raw) { row.raw->setEnabled(ok && isOutputAvailable(row.gasIndex)); }
+    }
     outRawTairCheckBox->setEnabled(ok);
     outRawPairCheckBox->setEnabled(ok);
     outVarsAllCheckBox->setEnabled(ok);
 }
 
-bool AdvOutputOptions::isCo2OutputAvailable() const
+/// The record set the current rows were built from.
+QString AdvOutputOptions::gasSignature() const
 {
-    return ecProject_->generalColCo2() > 0;
+    QStringList parts;
+    for (const auto& gas : ecProject_->gasColumns())
+    {
+        parts << gas.slug + QLatin1Char('|') + gas.instrumentId
+                 + QLatin1Char('|') + QString::number(gas.rawColumn);
+    }
+    return parts.join(QLatin1Char(';'));
 }
 
-bool AdvOutputOptions::isH2oOutputAvailable() const
+/// Row label: the species, qualified by the analyser when there is one, so
+/// two CO2 records on different analysers are told apart.
+QString AdvOutputOptions::gasRowLabel(int gasIndex) const
 {
-    return ecProject_->generalColH2o() > 0;
+    return MeasurementRecords::gasLabel(ecProject_->gasColumns(), gasIndex);
 }
 
-bool AdvOutputOptions::isCh4OutputAvailable() const
+bool AdvOutputOptions::gasSpectraFor(int gasIndex) const
 {
-    return ecProject_->generalColCh4() > 0;
+    const auto& gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size()) { return false; }
+    if (gases.at(gasIndex).proc.outFullSp >= 0)
+    {
+        return gases.at(gasIndex).proc.outFullSp > 0;
+    }
+    return false;
 }
 
-bool AdvOutputOptions::isGas4OutputAvailable() const
+bool AdvOutputOptions::gasCospectraFor(int gasIndex) const
 {
-    return ecProject_->generalColGas4() > 0;
+    const auto& gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size()) { return false; }
+    if (gases.at(gasIndex).proc.outFullCospW >= 0)
+    {
+        return gases.at(gasIndex).proc.outFullCospW > 0;
+    }
+    return false;
+}
+
+bool AdvOutputOptions::gasRawFor(int gasIndex) const
+{
+    const auto& gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size()) { return false; }
+    if (gases.at(gasIndex).proc.outRaw >= 0)
+    {
+        return gases.at(gasIndex).proc.outRaw > 0;
+    }
+    return false;
+}
+
+void AdvOutputOptions::onGasSpectraToggled(int gasIndex, bool checked)
+{
+    auto gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size()) { return; }
+    gases[gasIndex].proc.outFullSp = checked ? 1 : 0;
+    ecProject_->setGasColumns(gases);
+
+}
+
+void AdvOutputOptions::onGasCospectraToggled(int gasIndex, bool checked)
+{
+    auto gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size()) { return; }
+    gases[gasIndex].proc.outFullCospW = checked ? 1 : 0;
+    ecProject_->setGasColumns(gases);
+
+}
+
+void AdvOutputOptions::onGasRawToggled(int gasIndex, bool checked)
+{
+    auto gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size()) { return; }
+    gases[gasIndex].proc.outRaw = checked ? 1 : 0;
+    ecProject_->setGasColumns(gases);
+
+    updateVarsAvailable();
+}
+
+/// The generated boxes, for the two collections that enable or disable the
+/// whole page.
+QWidgetList AdvOutputOptions::gasOutputCheckBoxes() const
+{
+    QWidgetList list;
+    for (const auto& row : gasRows_)
+    {
+        if (row.spectra) { list << row.spectra; }
+        if (row.cospectra) { list << row.cospectra; }
+        if (row.raw) { list << row.raw; }
+    }
+    return list;
+}
+
+/// One checkbox per configured gas in each of the three output groups.
+///
+/// Records with no raw column are skipped: they are slots kept so the
+/// engine's record-to-slot mapping stays put, not measurements. Checked
+/// states are set before the boxes are connected, so a rebuild never writes
+/// back into the project.
+void AdvOutputOptions::rebuildGasRows()
+{
+    if (!ecProject_ || !spectraGrid_ || !cospectraGrid_ || !rawVarsGrid_)
+    {
+        return;
+    }
+
+    const auto dropBox = [](RichTextCheckBox* box)
+    {
+        if (!box) { return; }
+        box->setParent(nullptr);
+        box->deleteLater();
+    };
+    for (const auto& row : gasRows_)
+    {
+        dropBox(row.spectra);
+        dropBox(row.cospectra);
+        dropBox(row.raw);
+    }
+    gasRows_.clear();
+
+    // The raw variables are one two-column block: the fixed wind and
+    // temperature boxes, then the gases, then air temperature and pressure.
+    // Taking them all out and re-adding them keeps that order whatever the
+    // gas count.
+    for (auto* box : { outRawUCheckBox, outRawVCheckBox, outRawWCheckBox,
+                       outRawTsCheckBox, outRawTairCheckBox, outRawPairCheckBox })
+    {
+        rawVarsGrid_->removeWidget(box);
+    }
+
+    const auto& gases = ecProject_->gasColumns();
+    QList<RichTextCheckBox*> rawOrder = { outRawUCheckBox, outRawVCheckBox,
+                                          outRawWCheckBox, outRawTsCheckBox };
+
+    int spectraRow = 5;      // after qBox_6 and the four fixed boxes
+    int cospectraRow = 4;    // after qBox_7 and the three fixed entries
+    // Alphabetical, so all three groups read the way the gases are named
+    // rather than the way they were added. The index stays the record index -
+    // that is what the three toggles write back through.
+    for (const int i : MeasurementRecords::gasDisplayOrder(gases))
+    {
+        const int idx = i;
+        const auto name = gasRowLabel(i);
+
+        GasOutputRow row;
+        row.gasIndex = i;
+
+        row.spectra = new RichTextCheckBox;
+        row.spectra->setText(tr("%1 (concentration or density)").arg(name));
+        row.spectra->setChecked(gasSpectraFor(i));
+        spectraGrid_->addWidget(row.spectra, spectraRow++, 0);
+
+        row.cospectra = new RichTextCheckBox;
+        row.cospectra->setText(QStringLiteral("W/%1").arg(name));
+        row.cospectra->setChecked(gasCospectraFor(i));
+        cospectraGrid_->addWidget(row.cospectra, cospectraRow++, 0);
+
+        row.raw = new RichTextCheckBox;
+        row.raw->setText(name);
+        row.raw->setChecked(gasRawFor(i));
+        rawOrder << row.raw;
+
+        connect(row.spectra, &RichTextCheckBox::toggled, this,
+                [=](bool checked) { onGasSpectraToggled(idx, checked); });
+        connect(row.cospectra, &RichTextCheckBox::toggled, this,
+                [=](bool checked) { onGasCospectraToggled(idx, checked); });
+        connect(row.raw, &RichTextCheckBox::toggled, this,
+                [=](bool checked) { onGasRawToggled(idx, checked); });
+
+        gasRows_.append(row);
+    }
+
+    rawOrder << outRawTairCheckBox << outRawPairCheckBox;
+    // Two columns, filled column by column, so a ten-variable project lands
+    // exactly where it always did.
+    const int perColumn = (rawOrder.size() + 1) / 2;
+    for (int i = 0; i < rawOrder.size(); ++i)
+    {
+        rawVarsGrid_->addWidget(rawOrder.at(i), i % perColumn, i / perColumn);
+    }
+
+    gasSignature_ = gasSignature();
+    updateGasOutputAvailability();
+}
+
+void AdvOutputOptions::showEvent(QShowEvent* event)
+{
+    QWidget::showEvent(event);
+
+    // The gas records can change while another page is in front:
+    // setGasColumns emits ecProjectModified, which nothing here listens to.
+    if (gasSignature() != gasSignature_) { rebuildGasRows(); }
+}
+
+/// Whether the gas record at \a gasIndex names a column, and so has anything
+/// to output. Replaces the four fixed isCo2/H2o/Ch4/Gas4 predicates, which
+/// could only ever answer for the historical slots.
+bool AdvOutputOptions::isOutputAvailable(int gasIndex) const
+{
+    const auto& gases = ecProject_->gasColumns();
+    return gasIndex >= 0 && gasIndex < gases.size()
+           && gases.at(gasIndex).rawColumn > 0;
+}
+
+/// Whether every gas that has raw output to offer has it selected. Part of
+/// the "all variables" checkbox state.
+bool AdvOutputOptions::allGasRawChecked() const
+{
+    for (const auto& row : gasRows_)
+    {
+        if (!isOutputAvailable(row.gasIndex)) { continue; }
+        if (!row.raw || !row.raw->isChecked()) { return false; }
+    }
+    return true;
 }
 
 bool AdvOutputOptions::areTimeSeriesChecked()
@@ -1885,49 +2033,25 @@ void AdvOutputOptions::updateGasOutputAvailability()
 {
     const bool smartfluxOn = configState_->project.smartfluxMode;
     const bool timeSeriesAvailable = areTimeSeriesChecked();
-    const bool co2Available = isCo2OutputAvailable();
-    const bool h2oAvailable = isH2oOutputAvailable();
-    const bool ch4Available = isCh4OutputAvailable();
-    const bool gas4Available = isGas4OutputAvailable();
 
-    outFullSpectraCheckBoxCo2->setEnabled(co2Available && !smartfluxOn);
-    outFullSpectraCheckBoxH2o->setEnabled(h2oAvailable && !smartfluxOn);
-    outFullSpectraCheckBoxCh4->setEnabled(ch4Available && !smartfluxOn);
-    outFullSpectralCheckBoxGas4->setEnabled(gas4Available && !smartfluxOn);
+    for (const auto& row : gasRows_)
+    {
+        const bool available = isOutputAvailable(row.gasIndex);
+        if (row.spectra) { row.spectra->setEnabled(available && !smartfluxOn); }
+        if (row.cospectra) { row.cospectra->setEnabled(available && !smartfluxOn); }
+        if (row.raw)
+        {
+            row.raw->setEnabled(available && timeSeriesAvailable && !smartfluxOn);
+        }
 
-    outFullCospectraCheckBoxCo2->setEnabled(co2Available && !smartfluxOn);
-    outFullCospectraCheckBoxH2o->setEnabled(h2oAvailable && !smartfluxOn);
-    outFullCospectraCheckBoxCh4->setEnabled(ch4Available && !smartfluxOn);
-    outFullCospectralCheckBoxGas4->setEnabled(gas4Available && !smartfluxOn);
-
-    outRawCo2CheckBox->setEnabled(co2Available && timeSeriesAvailable && !smartfluxOn);
-    outRawH2oCheckBox->setEnabled(h2oAvailable && timeSeriesAvailable && !smartfluxOn);
-    outRawCh4CheckBox->setEnabled(ch4Available && timeSeriesAvailable && !smartfluxOn);
-    outRawGas4CheckBox->setEnabled(gas4Available && timeSeriesAvailable && !smartfluxOn);
-
-    if (!co2Available)
-    {
-        outFullSpectraCheckBoxCo2->setChecked(false);
-        outFullCospectraCheckBoxCo2->setChecked(false);
-        outRawCo2CheckBox->setChecked(false);
-    }
-    if (!h2oAvailable)
-    {
-        outFullSpectraCheckBoxH2o->setChecked(false);
-        outFullCospectraCheckBoxH2o->setChecked(false);
-        outRawH2oCheckBox->setChecked(false);
-    }
-    if (!ch4Available)
-    {
-        outFullSpectraCheckBoxCh4->setChecked(false);
-        outFullCospectraCheckBoxCh4->setChecked(false);
-        outRawCh4CheckBox->setChecked(false);
-    }
-    if (!gas4Available)
-    {
-        outFullSpectralCheckBoxGas4->setChecked(false);
-        outFullCospectralCheckBoxGas4->setChecked(false);
-        outRawGas4CheckBox->setChecked(false);
+        //> A gas whose column has gone leaves nothing to output, so its
+        //> selections are cleared rather than left set on a dead record.
+        if (!available)
+        {
+            if (row.spectra) { row.spectra->setChecked(false); }
+            if (row.cospectra) { row.cospectra->setChecked(false); }
+            if (row.raw) { row.raw->setChecked(false); }
+        }
     }
 
     updateSelectAllCheckbox();
@@ -2029,22 +2153,29 @@ void AdvOutputOptions::setRequiredGasFullCospectraOutputState(int methodIndex)
     if (!forceGasCospectra)
     {
         const bool smartfluxOn = configState_->project.smartfluxMode;
-        outFullCospectraCheckBoxCo2->setEnabled(isCo2OutputAvailable() && !smartfluxOn);
-        outFullCospectraCheckBoxH2o->setEnabled(isH2oOutputAvailable() && !smartfluxOn);
-        outFullCospectraCheckBoxCh4->setEnabled(isCh4OutputAvailable() && !smartfluxOn);
-        outFullCospectralCheckBoxGas4->setEnabled(isGas4OutputAvailable() && !smartfluxOn);
+        for (const auto& row : gasRows_)
+        {
+            if (row.cospectra)
+            {
+                row.cospectra->setEnabled(isOutputAvailable(row.gasIndex)
+                                          && !smartfluxOn);
+            }
+        }
         return;
     }
 
-    outFullCospectraCheckBoxCo2->setChecked(ecProject_->generalColCo2() > 0);
-    outFullCospectraCheckBoxH2o->setChecked(ecProject_->generalColH2o() > 0);
-    outFullCospectraCheckBoxCh4->setChecked(ecProject_->generalColCh4() > 0);
-    outFullCospectralCheckBoxGas4->setChecked(ecProject_->generalColGas4() > 0);
+    for (const auto& row : gasRows_)
+    {
+        if (row.cospectra)
+        {
+            row.cospectra->setChecked(isOutputAvailable(row.gasIndex));
+        }
+    }
 
-    outFullCospectraCheckBoxCo2->setEnabled(false);
-    outFullCospectraCheckBoxH2o->setEnabled(false);
-    outFullCospectraCheckBoxCh4->setEnabled(false);
-    outFullCospectralCheckBoxGas4->setEnabled(false);
+    for (const auto& row : gasRows_)
+    {
+        if (row.cospectra) { row.cospectra->setEnabled(false); }
+    }
 }
 
 void AdvOutputOptions::updateFixedOuputFormat(int n)

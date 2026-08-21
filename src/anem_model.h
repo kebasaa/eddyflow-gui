@@ -33,6 +33,8 @@
 
 #include "anem_desc.h" // NOTE: for AnemDescList
 
+class DlProject;
+
 class AnemModel : public QAbstractTableModel {
     Q_OBJECT
 public:
@@ -53,10 +55,15 @@ public:
         VPATHLENGTH,
         HPATHLENGTH,
         TAU,
+        ACFREQ,
+        SAMPLING,
         ANEMNUMCOLS
     };
 
-    AnemModel(QObject *parent, AnemDescList *list);
+    //> Takes the project as well as the list, because the acquisition
+    //> frequency row shows the station's rate for any instrument that has not
+    //> been given one of its own, and the station's rate lives in the project.
+    AnemModel(QObject *parent, AnemDescList *list, DlProject *project);
     ~AnemModel();
 
     QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const;
@@ -81,7 +88,15 @@ signals:
     void modified();
 
 private:
+    //> The station's acquisition frequency, or DlProject's own 10 Hz default
+    //> when there is no project to ask.
+    qreal stationAcFreq() const;
+    //> The rate to show for an instrument: its own when it states one, the
+    //> station's while it does not.
+    qreal displayedAcFreq(const AnemDesc& anem) const;
+
     AnemDescList *list_;
+    DlProject *project_;
 };
 
 #endif // ANEM_MODEL_H

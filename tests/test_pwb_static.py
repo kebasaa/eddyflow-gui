@@ -54,10 +54,11 @@ class PwbGuiStaticIntegrationTests(unittest.TestCase):
         dialog = read("src/pwbtimelagsettingsdialog.cpp")
         for text in (
             "Time lag search windows",
-            "Defs::CO2_STRING",
-            "Defs::H2O_STRING",
-            "Defs::CH4_STRING",
-            "Defs::GAS4_STRING",
+            # The four fixed gas labels are gone: rows are generated from the
+            # project's gas records, so a site can carry the same species on
+            # more than one analyser.
+            "rebuildLagRows",
+            "ecProject_->gasColumns()",
             "Bootstrap replicates",
             "Block length",
             "Minimum valid fraction",
@@ -68,15 +69,13 @@ class PwbGuiStaticIntegrationTests(unittest.TestCase):
             "Random seed",
         ):
             self.assertIn(text, dialog)
+        # The per-gas search windows are stored on the gas records now, not on
+        # the four flat pwb_<gas>_lag keys, so setPwbCo2MinLag and its seven
+        # siblings are gone. The remaining setters are the PWB algorithm
+        # parameters, which are one per project and stay flat.
+        for gas_field in ("proc.pwbMinLag", "proc.pwbMaxLag"):
+            self.assertIn(gas_field, dialog)
         for setter in (
-            "setPwbCo2MinLag",
-            "setPwbCo2MaxLag",
-            "setPwbH2oMinLag",
-            "setPwbH2oMaxLag",
-            "setPwbCh4MinLag",
-            "setPwbCh4MaxLag",
-            "setPwbGas4MinLag",
-            "setPwbGas4MaxLag",
             "setPwbNBootstrap",
             "setPwbBlockLength",
             "setPwbMinValidFrac",

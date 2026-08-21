@@ -25,6 +25,7 @@
 
 #include "advprocessingoptions.h"
 
+#include <QApplication>
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QComboBox>
@@ -38,6 +39,7 @@
 #include <QScrollArea>
 #include <QSpinBox>
 #include <QStackedWidget>
+#include <QStyle>
 #include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -46,6 +48,7 @@
 #include "cecsettingsdialog.h"
 #include "clicklabel.h"
 #include "configstate.h"
+#include "customcombomodel.h"
 #include "customresetlineedit.h"
 #include "dlproject.h"
 #include "ecproject.h"
@@ -213,6 +216,10 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
 
     timeLagMethodLabel = new ClickLabel(tr("Time lag detection method :"));
     timeLagMethodCombo = new QComboBox;
+    //> Set before the items, because it replaces the model the combo builds
+    //> its own. It is what makes a "disabled" marker on an item actually
+    //> unselectable, which SmartFlux mode needs for the pre-whitening entry.
+    timeLagMethodCombo->setModel(new CustomComboModel(timeLagMethodCombo));
     timeLagMethodCombo->addItem(tr("Constant"));
     timeLagMethodCombo->addItem(tr("Covariance maximization with default"));
     timeLagMethodCombo->addItem(tr("Covariance maximization"));
@@ -260,18 +267,11 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     fpMethodCombo->setItemData(2, tr("<b>Hsien et al. (2000):</b> A cross-wind integrated model based based on the former model of Gash (1986) and on simulations with a Lagrangian stochastic model."), Qt::ToolTipRole);
 
     cecCheckBox = new RichTextCheckBox;
-    cecCheckBox->setToolTip(tr("<b>Conditional Eddy Covariance:</b> Partitions H\xe2\x82\x82O and/or CO\xe2\x82\x82 fluxes into stomatal and non-stomatal components using the octant-based conditional statistics method of Zahn et al. (2022). When enabled, evaporation (E), transpiration (T), respiration (R), and photosynthesis (P) columns with a <i>_cec</i> suffix are added to the full output file."));
+    cecAvailableTooltip_ = tr("<b>Conditional Eddy Covariance:</b> Partitions fluxes into stomatal and non-stomatal components using the octant-based conditional statistics method of Zahn et al. (2022). Each CO\xe2\x82\x82/H\xe2\x82\x82O pairing adds evaporation and transpiration (<i>E_cec</i>, <i>Tr_cec</i>), ecosystem respiration and net photosynthesis (<i>Reco_cec</i>, <i>P_cec</i>), the ratios and quality flags behind them, and the octant counts they were computed from. Any further species the pairing carries \xe2\x80\x93 carbonyl sulfide, for instance \xe2\x80\x93 is partitioned in the same octants. Use <i>CEC Settings</i> to choose which channels pair with which."
+                              "<p>Ticking this also switches on <b>compensation of density fluctuations (WPL)</b>, because the method sorts each air parcel by the SIGN of its water and carbon dioxide fluctuation. In an uncorrected molar density from an open-path analyser, part of that fluctuation is the air expanding rather than the gas arriving, and it is large enough to reverse the sign \xe2\x80\x93 which puts the parcel in the wrong octant.</p>");
+    cecCheckBox->setToolTip(cecAvailableTooltip_);
     cecCheckBox->setText(tr("Conditional Eddy Covariance"));
-
-    cecLabel = new ClickLabel(tr("Flux partitioning :"));
-
-    cecMethodCombo = new QComboBox;
-    cecMethodCombo->addItem(tr("H\xe2\x82\x82O and CO\xe2\x82\x82 fluxes"));
-    cecMethodCombo->addItem(tr("H\xe2\x82\x82O flux only"));
-    cecMethodCombo->addItem(tr("CO\xe2\x82\x82 flux only"));
-    cecMethodCombo->setItemData(0, tr("<b>H\xe2\x82\x82O and CO\xe2\x82\x82 fluxes:</b> Partition total ET into evaporation and transpiration, and total NEE into ecosystem respiration and gross primary production."), Qt::ToolTipRole);
-    cecMethodCombo->setItemData(1, tr("<b>H\xe2\x82\x82O flux only:</b> Partition total ET into evaporation (E) and transpiration (T) only."), Qt::ToolTipRole);
-    cecMethodCombo->setItemData(2, tr("<b>CO\xe2\x82\x82 flux only:</b> Partition total NEE into ecosystem respiration (R) and gross primary production (P) only."), Qt::ToolTipRole);
+    cecCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Conditional_Eddy_Covariance.html"));
 
     cecSettingsButton = new QPushButton(tr("CEC Settings"));
     cecSettingsButton->setProperty("mdButton", true);
@@ -283,6 +283,21 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     wplCheckBox->setToolTip(tr("<b>Compensate density fluctuations:</b> This is the so-called WPL correction (Webb et al., 1980). Choose whether to apply the compensation of density fluctuations to raw gas concentrations available as molar densities or mole fractions (moles gas per mole of wet air). The correction does not apply if raw concentrations are available as mixing ratios (mole gas per mole dry air)."));
     wplCheckBox->setText(tr("Compensate density fluctuations (WPL terms)"));
     wplCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Converting_to_Mixing_Ratio.html"));
+
+    //> Lit only in the inconsistent state - the partition on, the correction it
+    //> depends on off. A warning icon that is usually on is one nobody reads.
+    wplWarningLabel = new QLabel;
+    wplWarningLabel->setPixmap(QApplication::style()
+                               ->standardIcon(QStyle::SP_MessageBoxWarning)
+                               .pixmap(16, 16));
+    wplWarningLabel->setToolTip(tr("<b>Conditional Eddy Covariance is on and this is off.</b> "
+                                   "The partition sorts each air parcel by the SIGN of its water "
+                                   "and carbon dioxide fluctuation, and without this correction an "
+                                   "open-path molar density carries an expansion term big enough to "
+                                   "reverse that sign. Zahn et al. (2022) require the fluctuations "
+                                   "themselves to be density-corrected, separately from the totals. "
+                                   "The run will say so as well."));
+    wplWarningLabel->hide();
 
     // burba correction
     burbaCorrCheckBox = new RichTextCheckBox;
@@ -381,7 +396,14 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     settingsLayout->addWidget(tlSettingsButton, 7, 3);
     settingsLayout->addWidget(hrLabel, 8, 0, 1, 4);
     settingsLayout->addWidget(wplTitle, 9, 0);
-    settingsLayout->addWidget(wplCheckBox, 10, 0);
+    //> One cell, not two: column 0 is as wide as its widest widget, so the
+    //> icon in a neighbouring cell would sit far off to the right of the text
+    //> it belongs to. Same shape as qBox_2 above.
+    auto wplBox = new QHBoxLayout;
+    wplBox->addWidget(wplCheckBox);
+    wplBox->addWidget(wplWarningLabel);
+    wplBox->addStretch();
+    settingsLayout->addLayout(wplBox, 10, 0);
     settingsLayout->addWidget(burbaCorrCheckBox, 11, 0);
     settingsLayout->addWidget(burbaTypeLabel, 12, 0, 1, 1, Qt::AlignRight);
     settingsLayout->addWidget(burbaSimpleRadio, 12, 1);
@@ -397,8 +419,6 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     settingsLayout->addWidget(fpLabel, 24, 1, Qt::AlignRight);
     settingsLayout->addWidget(fpMethodCombo, 24, 2);
     settingsLayout->addWidget(cecCheckBox,    25, 0);
-    settingsLayout->addWidget(cecLabel,       25, 1, Qt::AlignRight);
-    settingsLayout->addWidget(cecMethodCombo, 25, 2);
     settingsLayout->addWidget(cecSettingsButton, 25, 3);
     settingsLayout->setRowStretch(27, 1);
     settingsLayout->setColumnStretch(4, 1);
@@ -523,20 +543,27 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             this, &AdvProcessingOptions::updateFpMeth_2);
 
     connect(cecCheckBox, &RichTextCheckBox::toggled,
-            cecLabel, &ClickLabel::setEnabled);
-    connect(cecCheckBox, &RichTextCheckBox::toggled,
-            cecMethodCombo, &QComboBox::setEnabled);
-    connect(cecCheckBox, &RichTextCheckBox::toggled,
             cecSettingsButton, &QPushButton::setEnabled);
-    connect(cecLabel, &ClickLabel::clicked,
-            this, &AdvProcessingOptions::onClickCecMethodLabel);
     connect(cecCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateCecMeth_1);
-    connect(cecMethodCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &AdvProcessingOptions::updateCecMeth_2);
     connect(cecSettingsButton, &QPushButton::clicked,
             this, &AdvProcessingOptions::showCecSettingsDialog);
+    //> clicked, not toggled: refresh() blocks the PROJECT's signals, not the
+    //> widgets', so a toggled connection would fire while a project is being
+    //> loaded and quietly switch WPL on in a file the user only opened.
+    //> clicked comes from a real interaction and from nothing else.
+    connect(cecCheckBox, &RichTextCheckBox::clicked, this, [=]()
+            {
+                if (cecCheckBox->isChecked() && !wplCheckBox->isChecked())
+                {
+                    wplCheckBox->setChecked(true);
+                }
+            });
 
+    connect(wplCheckBox, &RichTextCheckBox::clicked,
+            this, &AdvProcessingOptions::warnWplOffWithCec);
+    connect(wplCheckBox, &RichTextCheckBox::toggled,
+            this, &AdvProcessingOptions::updateWplCecWarning);
     connect(wplCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateWplMeth_1);
     connect(wplCheckBox, &RichTextCheckBox::toggled,
@@ -861,9 +888,6 @@ void AdvProcessingOptions::reset()
     fpMethodCombo->setCurrentIndex(0);
 
     cecCheckBox->setChecked(false);
-    cecLabel->setEnabled(false);
-    cecMethodCombo->setEnabled(false);
-    cecMethodCombo->setCurrentIndex(0);
     cecSettingsButton->setEnabled(false);
 
     wplCheckBox->setChecked(ecProject_->defaultSettings.projectGeneral.wpl_meth);
@@ -977,12 +1001,7 @@ void AdvProcessingOptions::refresh()
     }
 
     cecCheckBox->setChecked(ecProject_->generalCecMeth() > 0);
-    cecLabel->setEnabled(ecProject_->generalCecMeth() > 0);
-    cecMethodCombo->setEnabled(ecProject_->generalCecMeth() > 0);
     cecSettingsButton->setEnabled(ecProject_->generalCecMeth() > 0);
-    cecMethodCombo->setCurrentIndex(ecProject_->generalCecMeth() > 0
-                                    ? ecProject_->generalCecMeth() - 1
-                                    : 0);
     updateCecAvailability();
 
     wplCheckBox->setChecked(ecProject_->generalWplMeth());
@@ -1041,6 +1060,8 @@ void AdvProcessingOptions::refresh()
 
     // restore modified flag
     ecProject_->setModified(oldmod);
+
+    updateWplCecWarning();
     ecProject_->blockSignals(false);
 }
 
@@ -1080,7 +1101,7 @@ void AdvProcessingOptions::createCecSettingsDialog()
 {
     if (!cecDialog_)
     {
-        cecDialog_ = new CecSettingsDialog(this, ecProject_);
+        cecDialog_ = new CecSettingsDialog(this, ecProject_, dlProject_);
     }
 }
 
@@ -1162,62 +1183,161 @@ void AdvProcessingOptions::updateFpMeth_2(int n)
     ecProject_->setGeneralFpMeth(n + 1);
 }
 
-void AdvProcessingOptions::onClickCecMethodLabel()
-{
-    if (cecMethodCombo->isEnabled())
-    {
-        cecMethodCombo->showPopup();
-    }
-}
-
+/// The master switch, and only that.
+///
+/// It used to carry a three-way choice of which flux to partition, which said
+/// nothing useful once a site could have a pairing per analyser - and which
+/// was the direct cause of the interface offering "H2O flux only" to a project
+/// with no CO2 at all, where the engine cannot build an octant and every
+/// column came out empty. Which fluxes a pairing partitions is now the
+/// pairing's own setting, in the CEC Settings table beside the channels it
+/// pairs.
 void AdvProcessingOptions::updateCecMeth_1(bool b)
 {
-    if (b)
-    {
-        updateCecAvailability();
-        ecProject_->setGeneralCecMeth(cecMethodCombo->currentIndex() + 1);
-    }
-    else
-    {
-        ecProject_->setGeneralCecMeth(0);
-    }
+    ecProject_->setGeneralCecMeth(b ? 1 : 0);
+    updateCecAvailability();
+    //> After updateCecAvailability, which can force the box back off under a
+    //> QSignalBlocker - so asking the widget here is asking the settled state.
+    updateWplCecWarning();
+}
+
+/// The triangle beside the WPL checkbox: on when the partition is on and the
+/// correction it depends on is not.
+///
+/// Driven from `toggled` rather than `clicked`, unlike the dialog. This one is
+/// passive and it SHOULD light up on load: a project saved with the partition
+/// on and the correction off is exactly the case worth flagging, and it is the
+/// case that opens without a dialog.
+void AdvProcessingOptions::updateWplCecWarning()
+{
+    wplWarningLabel->setVisible(cecCheckBox->isChecked()
+                                && !wplCheckBox->isChecked());
+}
+
+/// Turning the density correction off while the partition is on.
+///
+/// Allowed - some sites read mixing ratios straight off a closed-path analyser
+/// and the correction is a no-op for them - but said out loud, because for an
+/// open-path site it silently moves parcels into the wrong octant. The engine
+/// repeats this as Warning(114) at run time.
+void AdvProcessingOptions::warnWplOffWithCec()
+{
+    if (wplCheckBox->isChecked()) { return; }
+    if (!cecCheckBox->isChecked()) { return; }
+
+    WidgetUtils::warning(this,
+        tr("Conditional Eddy Covariance Needs the Density Correction"),
+        tr("<b>Conditional Eddy Covariance is on, and you have just switched off "
+           "the compensation of density fluctuations.</b>"),
+        tr("The partition sorts each air parcel into an octant by the SIGN of its "
+           "water and carbon dioxide fluctuation. In a molar density from an "
+           "open-path analyser, part of that fluctuation is the air expanding and "
+           "contracting rather than the gas arriving, and that part is large "
+           "enough to reverse the sign - so parcels land in the wrong octant and "
+           "the ratio is drawn from the wrong points."
+           "<p>Zahn et al. (2022) require the fluctuations themselves to carry "
+           "the density correction, separately from the totals. If your analyser "
+           "already reports mixing ratios, this does not affect you.</p>"
+           "<p>The setting has been left off. The run will report this as "
+           "Warning(114).</p>"));
 }
 
 void AdvProcessingOptions::updateCecAvailability()
 {
-    const bool hasCo2 = ecProject_->generalColCo2() != -1;
-    const bool hasH2o = ecProject_->generalColH2o() != -1;
-    const bool hasAny = hasCo2 || hasH2o;
-
-    cecCheckBox->setEnabled(hasAny);
-
-    if (!hasAny)
+    //> Conditional Eddy Covariance is this program's own; a SmartFlux module
+    //> runs LI-COR's EddyPro and has never heard of it. Handled here rather
+    //> than only in setSmartfluxUI so that the two callers that re-derive
+    //> availability - refresh() and updateCecMeth_1() - cannot switch it back
+    //> on while the mode is active.
+    if (configState_->project.smartfluxMode)
     {
         QSignalBlocker blocker(cecCheckBox);
         cecCheckBox->setChecked(false);
-        cecLabel->setEnabled(false);
-        cecMethodCombo->setEnabled(false);
+        cecCheckBox->setEnabled(false);
+        cecSettingsButton->setEnabled(false);
+        return;
+    }
+
+    //> Asked of the records rather than the two legacy columns, so a site
+    //> that measures CO2 on a second analyser still counts.
+    //>
+    //> BOTH species, not either. The octants are the signs of w', q' and c'
+    //> together, so the method needs a water channel and a carbon channel
+    //> whichever of the two fluxes it is asked to report - "CO2 only" still
+    //> reads the water. This used to accept either and force the choice to
+    //> whichever was present, which the engine then refused, and the project
+    //> got a full set of columns containing nothing but the error code.
+    const bool hasCo2 = !ecProject_->gasRecordsFor(QStringLiteral("co2")).isEmpty()
+                        || ecProject_->generalColCo2() != -1;
+    const bool hasH2o = !ecProject_->gasRecordsFor(QStringLiteral("h2o")).isEmpty()
+                        || ecProject_->generalColH2o() != -1;
+    const bool hasBoth = hasCo2 && hasH2o;
+
+    cecCheckBox->setEnabled(hasBoth);
+    cecCheckBox->setToolTip(hasBoth
+        ? cecAvailableTooltip_
+        : tr("<b>Conditional Eddy Covariance:</b> Unavailable. The method sorts "
+             "air parcels by the signs of the vertical wind, the water and the "
+             "carbon dioxide together, so it needs both a CO\xe2\x82\x82 channel "
+             "and an H\xe2\x82\x82O channel \xe2\x80\x93 whichever of the two "
+             "fluxes you want partitioned."));
+
+    if (!hasBoth)
+    {
+        QSignalBlocker blocker(cecCheckBox);
+        cecCheckBox->setChecked(false);
         cecSettingsButton->setEnabled(false);
         ecProject_->setGeneralCecMeth(0);
         return;
     }
 
     cecSettingsButton->setEnabled(cecCheckBox->isChecked());
-
-    if (!hasCo2 || !hasH2o)
-    {
-        const int forcedIndex = hasH2o ? 1 : 2;
-        QSignalBlocker comboBlocker(cecMethodCombo);
-        cecMethodCombo->setCurrentIndex(forcedIndex);
-        if (cecCheckBox->isChecked())
-            ecProject_->setGeneralCecMeth(forcedIndex + 1);
-    }
 }
 
-void AdvProcessingOptions::updateCecMeth_2(int n)
+/// Neutralise the two options a SmartFlux module cannot run.
+///
+/// Conditional Eddy Covariance and the pre-whitening block-bootstrap time lag
+/// are both this program's own, and the package is an EddyPro project - so a
+/// user who configured either would get a module that silently did something
+/// else. The page had no SmartFlux handling at all before; only its two child
+/// dialogs were reached.
+void AdvProcessingOptions::setSmartfluxUI()
 {
-    if (cecCheckBox->isChecked())
-        ecProject_->setGeneralCecMeth(n + 1);
+    const bool on = configState_->project.smartfluxMode;
+
+    auto oldmod = false;
+    if (!on)
+    {
+        oldmod = ecProject_->modified();
+        ecProject_->blockSignals(true);
+    }
+
+    //> Deliberately no saved-enabled stack. The pages that keep one push onto
+    //> a vector they never clear and restore by position, so from the second
+    //> toggle they hand back the first cycle's values; updateCecAvailability
+    //> derives the right state from the records every time, so there is
+    //> nothing worth remembering.
+    if (on) { ecProject_->setGeneralCecMeth(0); }
+    updateCecAvailability();
+
+    timeLagMethodCombo->setItemData(4,
+        on ? QStringLiteral("disabled") : QStringLiteral("enabled"),
+        Qt::UserRole);
+
+    //> An unselectable item is not enough on its own: the project may already
+    //> have been saved with the method set, in which case the combo is sitting
+    //> on it and nothing would move it off.
+    if (on && timeLagMethodCombo->currentIndex() == 4)
+    {
+        timeLagMethodCombo->setCurrentIndex(1);
+        updateTlagMeth_2(1);
+    }
+
+    if (!on)
+    {
+        ecProject_->setModified(oldmod);
+        ecProject_->blockSignals(false);
+    }
 }
 
 void AdvProcessingOptions::createBurbaParamItems()

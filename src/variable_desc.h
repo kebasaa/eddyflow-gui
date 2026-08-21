@@ -73,6 +73,12 @@ public:
     static const QString getVARIABLE_VAR_STRING_32();
     static const QString getVARIABLE_VAR_STRING_33();
     static const QString getVARIABLE_VAR_STRING_34();
+    /// Analyser signal strength, the two spellings LI-COR uses. Offered here
+    /// because the engine's conditional-eddy-covariance screen looks for a
+    /// column named exactly AGC or RSSI on the gas's own analyser, and until
+    /// they appeared in this list there was no way to declare one.
+    static const QString getVARIABLE_VAR_STRING_35();
+    static const QString getVARIABLE_VAR_STRING_36();
 
     static const QString getVARIABLE_MEASURE_TYPE_STRING_0();
     static const QString getVARIABLE_MEASURE_TYPE_STRING_1();
@@ -132,7 +138,8 @@ public:
                  qreal bValue,
                  qreal nomTimelag,
                  qreal minTimelag,
-                 qreal maxTimelag
+                 qreal maxTimelag,
+                 qreal errorValue
                  );
 
     VariableDesc(const VariableDesc& fileDesc);
@@ -200,6 +207,14 @@ public:
     void setMinTimelag(qreal l);
 
     // get/set
+    //> What this column writes when it has no reading, in the units the file
+    //> is in. -9999 by default, which is also one of the values the engine
+    //> always treats as missing - along with NaN, an unparseable token and an
+    //> empty field - so a column only has to state this when its logger writes
+    //> something else.
+    qreal errorValue() const;
+    void setErrorValue(qreal v);
+
     qreal maxTimelag() const;
     void setMaxTimelag(qreal l);
 
@@ -260,9 +275,15 @@ private:
     QString outputUnit_;
     qreal aValue_;
     qreal bValue_;
+    //> Declared in the order all three constructors initialise them. They
+    //> were not, and the compiler warned about it on every build of this file
+    //> - harmlessly here, since these are plain reals that do not read each
+    //> other, but a real -Wreorder is how a member gets initialised from one
+    //> that is still garbage.
     qreal nomTimelag_;
     qreal minTimelag_;
     qreal maxTimelag_;
+    qreal errorValue_;
 };
 
 using VariableDescList = QList<VariableDesc>;
@@ -342,6 +363,12 @@ inline qreal VariableDesc::bValue() const
 
 inline void VariableDesc::setBValue(qreal v)
     { bValue_ = v; }
+
+inline qreal VariableDesc::errorValue() const
+    { return errorValue_; }
+
+inline void VariableDesc::setErrorValue(qreal v)
+    { errorValue_ = v; }
 
 inline qreal VariableDesc::nomTimelag() const
     { return nomTimelag_; }

@@ -76,6 +76,14 @@ public:
 
     AnemDesc();
 
+    //> How the instrument reports: an instant, or the mean over its own
+    //> sampling interval. Only meaningful for an instrument slower than the
+    //> station, and it decides how `w` is paired with its samples when the
+    //> cospectrum is built on that instrument's grid.
+    static const QString getANEM_SAMPLING_STRING_0();
+    static const QString getANEM_SAMPLING_STRING_1();
+    static const QStringList samplingStringList();
+
     AnemDesc(const QString& manufacturer,
              const QString& model,
              const QString& swVersion,
@@ -90,6 +98,8 @@ public:
              qreal vPathLength,
              qreal hPathLength,
              qreal tau,
+             qreal acFreq,
+             const QString& sampling,
              bool hasGoodWindComponents,
              bool hasGoodTemp);
 
@@ -154,6 +164,19 @@ public:
     qreal tau() const;
     void setTau(qreal s);
 
+    //> The rate this anemometer samples at, in Hz. 0 means "the station's
+    //> acquisition frequency": the table shows that number and the metadata is
+    //> written with 0, so an instrument nobody has touched keeps following the
+    //> station when the station's own rate changes.
+    qreal acFreq() const;
+    void setAcFreq(qreal f);
+
+    //> "Instantaneous" or "Averaged over the interval". Stored as the display
+    //> string like windFormat and northAlignment, and written to the metadata
+    //> as 0 or 1.
+    const QString& sampling() const;
+    void setSampling(const QString& s);
+
     bool hasGoodWindComponents() const;
     void setHasGoodWindComponents(bool s);
 
@@ -201,6 +224,8 @@ private:
     qreal vPathLength_;
     qreal hPathLength_;
     qreal tau_;
+    qreal acFreq_;
+    QString sampling_;
     bool hasGoodWindComponents_;
     bool hasGoodTemp_;
 };
@@ -294,6 +319,18 @@ inline qreal AnemDesc::tau() const
 
 inline void AnemDesc::setTau(qreal s)
     { tau_ = s; }
+
+inline qreal AnemDesc::acFreq() const
+    { return acFreq_; }
+
+inline const QString& AnemDesc::sampling() const
+    { return sampling_; }
+
+inline void AnemDesc::setSampling(const QString& s)
+    { sampling_ = s; }
+
+inline void AnemDesc::setAcFreq(qreal f)
+    { acFreq_ = f; }
 
 inline bool AnemDesc::hasGoodWindComponents() const
     { return hasGoodWindComponents_; }

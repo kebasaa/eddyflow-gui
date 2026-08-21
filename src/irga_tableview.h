@@ -37,12 +37,17 @@ public:
     explicit IrgaTableView(QWidget* parent = nullptr);
     ~IrgaTableView();
 
+    QSize sizeHint() const override;
+    QSize minimumSizeHint() const override;
+
 protected:
     void resizeEvent(QResizeEvent* event) override;
     void showEvent(QShowEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;
 
 private:
+    void layoutHeader();
+
     CustomHeader* m_header;
 };
 

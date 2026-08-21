@@ -197,6 +197,26 @@ public:
     static const QString getANEM_MODEL_STRING_20();
     static const QString getANEM_MODEL_STRING_21();
 
+    //> Canonical instrument id for a variable's instrument string, e.g.
+    //> "li7200_1". Exposed because the project's measurement records store
+    //> this id: pairing a gas with the H2O from its own analyser matches on
+    //> it, never on the translated label the table displays.
+    QString canonicalInstrumentId(const QString& instrument)
+        { return toIniVariableInstrument(instrument); }
+
+    //> Ini token for a variable's measurement unit, e.g. "ppb" for the label
+    //> the table shows as "nmol/mol (ppb)". Exposed because the absolute-limit
+    //> boxes are scaled from it, and matching on the label would confuse
+    //> "mmol/mol (ppt)" with "pmol/mol (ppt)".
+    QString canonicalMeasureUnit(const QString& unit)
+        { return toIniVariableMeasureUnit(unit); }
+
+    //> Current key for an instrument model, whatever spelling the file uses.
+    //> Static and public because the project file carries one model key of its
+    //> own - master_sonic - which is read straight out of the ini and never
+    //> passed through the metadata converters that normalise the rest.
+    static QString canonicalModelKey(const QString& model);
+
 signals:
     // send that a new project has been created
     void projectNew();
@@ -271,6 +291,8 @@ private:
     static const QString VARIABLE_VAR_STRING_28;
     static const QString VARIABLE_VAR_STRING_29;
     static const QString VARIABLE_VAR_STRING_30;
+    static const QString VARIABLE_VAR_STRING_35;
+    static const QString VARIABLE_VAR_STRING_36;
 
     static const QString VARIABLE_MEASURE_TYPE_STRING_0;
     static const QString VARIABLE_MEASURE_TYPE_STRING_1;

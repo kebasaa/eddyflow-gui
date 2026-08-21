@@ -8,9 +8,11 @@
 #define PWBTIMELAGSETTINGSDIALOG_H
 
 #include <QDialog>
+#include <QVector>
 
-class QCheckBox;
 class QDoubleSpinBox;
+class QGridLayout;
+class QLabel;
 class QButtonGroup;
 class QRadioButton;
 class QSpinBox;
@@ -45,14 +47,25 @@ private:
     QButtonGroup *radioGroup;
     FileBrowseWidget *fileBrowse;
     QWidget *pwbOptionsContainer;
-    QDoubleSpinBox *co2MinLagSpin;
-    QDoubleSpinBox *co2MaxLagSpin;
-    QDoubleSpinBox *h2oMinLagSpin;
-    QDoubleSpinBox *h2oMaxLagSpin;
-    QDoubleSpinBox *ch4MinLagSpin;
-    QDoubleSpinBox *ch4MaxLagSpin;
-    QDoubleSpinBox *gas4MinLagSpin;
-    QDoubleSpinBox *gas4MaxLagSpin;
+    //> One search-window row per configured gas, rather than four fixed rows.
+    //>
+    //> A site may measure the same species on several analysers, each with
+    //> its own tube and so its own plausible lag range; four fixed rows could
+    //> only describe one of them.
+    struct LagRow
+    {
+        int gasIndex = -1;              //< index into EcProject::gasColumns()
+        QLabel *label = nullptr;
+        QDoubleSpinBox *minSpin = nullptr;
+        QDoubleSpinBox *maxSpin = nullptr;
+    };
+    QVector<LagRow> lagRows_;
+    QGridLayout *lagGrid_ = nullptr;
+
+    void rebuildLagRows();
+    void onLagChanged(int gasIndex, bool isMin, double value);
+    double pwbMinLagFor(int gasIndex) const;
+    double pwbMaxLagFor(int gasIndex) const;
     QSpinBox *nBootstrapSpin;
     QDoubleSpinBox *blockLengthSpin;
     QDoubleSpinBox *minValidFracSpin;
@@ -60,11 +73,8 @@ private:
     QDoubleSpinBox *devThreshSpin;
     QDoubleSpinBox *hdiPrefilterSpin;
     QSpinBox *smoothingWidthSpin;
+    QDoubleSpinBox *maxCarrySpin;
     QSpinBox *randomSeedSpin;
-    QCheckBox *detectOnRawCheckBox;
-    QCheckBox *approxCcfCheckBox;
-    QCheckBox *maxArOrderCheckBox;
-    QSpinBox  *maxArOrderSpin;
 
     EcProject *ecProject_;
     ConfigState *configState_;

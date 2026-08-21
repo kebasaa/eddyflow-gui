@@ -1,6 +1,7 @@
 # source code files
 
 HEADERS += \
+    src/absolute_limit_units.h \
     src/globalsettings.h \
     src/widget_utils.h \
     src/aboutdialog.h \
@@ -13,6 +14,7 @@ HEADERS += \
     src/biomitem.h \
     src/biommetadatareader.h \
     src/bminidefs.h \
+    src/cecpairmodel.h \
     src/cecsettingsdialog.h \
     src/clicklabel.h \
     src/configstate.h \
@@ -31,6 +33,7 @@ HEADERS += \
     src/ecinidefs.h \
     src/ecproject.h \
     src/ecprojectstate.h \
+    src/measurement_record.h \
     src/faderwidget.h \
     src/fileutils.h \
     src/gas_metadata.h \
@@ -110,6 +113,8 @@ HEADERS += \
     src/logging.h
 
 SOURCES +=  \
+    src/absolute_limit_units.cpp \
+    src/measurement_record.cpp \
     src/globalsettings.cpp \
     src/widget_utils.cpp \
     src/aboutdialog.cpp \
@@ -120,6 +125,7 @@ SOURCES +=  \
     src/anem_view.cpp \
     src/binarysettingsdialog.cpp \
     src/biommetadatareader.cpp \
+    src/cecpairmodel.cpp \
     src/cecsettingsdialog.cpp \
     src/clicklabel.cpp \
     src/customcombomodel.cpp \

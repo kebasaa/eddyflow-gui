@@ -47,7 +47,8 @@ namespace {
 bool isComboRow(int row)
 {
     return row == IrgaModel::MANUFACTURER
-           || row == IrgaModel::MODEL;
+           || row == IrgaModel::MODEL
+           || row == IrgaModel::SAMPLING;
 }
 
 } // namespace
@@ -283,6 +284,29 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
                         this, QOverload<>::of(&IrgaDelegate::commitAndCloseEditor));
                 return dspin;
             }
+        case IrgaModel::ACFREQ:
+            //> Same validation as the station's own frequency spin
+            //> (dlsitetab.cpp): 3 decimals, 0.001-100 Hz. The value shown is
+            //> the station's until the analyser is given one of its own.
+            dspin = new QDoubleSpinBox(parent);
+            dspin->setDecimals(3);
+            dspin->setRange(0.001, 100.0);
+            dspin->setSingleStep(1.0);
+            dspin->setAccelerated(true);
+            dspin->setSuffix(QStringLiteral(" [Hz]"));
+            connect(dspin, &QDoubleSpinBox::editingFinished,
+                    this, QOverload<>::of(&IrgaDelegate::commitAndCloseEditor));
+            return dspin;
+        case IrgaModel::SAMPLING:
+            combo = new QComboBox(parent);
+            combo->setEditable(false);
+            combo->addItems(IrgaDesc::samplingStringList());
+            combo->view()->setTextElideMode(Qt::ElideNone);
+            connect(combo, QOverload<int>::of(&QComboBox::activated),
+                    this, QOverload<>::of(&IrgaDelegate::commitAndCloseEditor));
+            TableDelegateUtils::prepareComboEditor(combo, parent);
+            TableDelegateUtils::showPopupQueued(combo);
+            return combo;
           default:
               return QStyledItemDelegate::createEditor(parent, option, index);
     }
@@ -384,6 +408,16 @@ void IrgaDelegate::setEditorData(QWidget* editor,
                 if (!dspin) { return; }
                 dspin->setValue(value.toReal());
             }
+            break;
+        case IrgaModel::ACFREQ:
+            dspin = dynamic_cast<QDoubleSpinBox*>(editor);
+            if (!dspin) { return; }
+            dspin->setValue(value.toReal());
+            break;
+        case IrgaModel::SAMPLING:
+            combo = dynamic_cast<QComboBox*>(editor);
+            if (!combo) { return; }
+            combo->setCurrentIndex(combo->findText(value.toString()));
             break;
         default:
             QStyledItemDelegate::setEditorData(editor, index);
@@ -494,6 +528,18 @@ void IrgaDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
                 value = dspin->value();
                 model->setData(index, value);
             }
+            break;
+        case IrgaModel::ACFREQ:
+            dspin = dynamic_cast<QDoubleSpinBox*>(editor);
+            if (!dspin) { return; }
+            value = dspin->value();
+            model->setData(index, value);
+            break;
+        case IrgaModel::SAMPLING:
+            combo = dynamic_cast<QComboBox*>(editor);
+            if (!combo) { return; }
+            value = combo->currentText();
+            model->setData(index, value);
             break;
         default:
             QStyledItemDelegate::setModelData(editor, model, index);

@@ -212,9 +212,13 @@ private:
 
     // save application state
     bool openFile(const QString& filename);
+    /// Resolve, back up and save a project the loader migrated. See the
+    /// definition: the emit-before-save ordering is load-bearing.
+    void upgradeProjectInPlace(const QString& filename);
     void newFile();
     void loadFile(const QString& fileName);
     bool saveFile(const QString& fileName);
+    QString importedMetadataTarget(const QString& projectFile) const;
 
     void displayExitMsg(Process::ExitStatus exitReason);
     void displayExitMsg2(Process::ExitStatus exitReason);
@@ -303,6 +307,10 @@ private:
 
     EcProject *ecProject_;
     QString currEcProjectFilename_;
+    //> The metadata an EddyPro import read, canonical. Kept so that saving
+    //> the project can tell whether the name it would give the converted
+    //> metadata is that same file, and step aside if it is.
+    QString epImportSourceMetadata_;
     QString appEnvPath_;
     QLabel *currentProjectLabel;
 

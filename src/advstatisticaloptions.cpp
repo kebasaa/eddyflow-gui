@@ -38,18 +38,24 @@
 #include <QResizeEvent>
 #include <QScrollArea>
 #include <QSpinBox>
+#include <QStringList>
 #include <QTimer>
 #include <QToolBox>
 #include <QUrl>
 
 #include "clicklabel.h"
+#include "dlproject.h"
 #include "ecproject.h"
+#include "measurement_record.h"
+#include "variable_desc.h"
 #include "splitter.h"
 #include "widget_utils.h"
 
 AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
+                                             DlProject *dlProject,
                                              EcProject *ecProject) :
     QWidget(parent),
+    dlProject_(dlProject),
     ecProject_(ecProject)
 {
     selectAllCheckBox = new QCheckBox(tr("&Select all tests"));
@@ -293,14 +299,6 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
             this, &AdvStatisticalOptions::updateParamSrHfLim);
     connect(despSpin_3, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvStatisticalOptions::updateParamSrWLim);
-    connect(despSpin_4, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamSrCo2Lim);
-    connect(despSpin_5, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamSrH2oLim);
-    connect(despSpin_6, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamSrCh4Lim);
-    connect(despSpin_7, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamSrGas4Lim);
     connect(despSpin_2, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvStatisticalOptions::updateParamSrULim);
     connect(despFilterCheckBox, &QCheckBox::toggled,
@@ -312,14 +310,6 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
             this, &AdvStatisticalOptions::onClickDespLabel_2);
     connect(despLabel_3, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickDespLabel_3);
-    connect(despLabel_4, &ClickLabel::clicked,
-            this, &AdvStatisticalOptions::onClickDespLabel_4);
-    connect(despLabel_5, &ClickLabel::clicked,
-            this, &AdvStatisticalOptions::onClickDespLabel_5);
-    connect(despLabel_6, &ClickLabel::clicked,
-            this, &AdvStatisticalOptions::onClickDespLabel_6);
-    connect(despLabel_7, &ClickLabel::clicked,
-            this, &AdvStatisticalOptions::onClickDespLabel_7);
     connect(despLabel_8, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickDespLabel_8);
 
@@ -357,14 +347,6 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
             this, &AdvStatisticalOptions::onClickAbsLimLabel_2);
     connect(absLimLabel_3, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickAbsLimLabel_3);
-    connect(absLimLabel_5, &ClickLabel::clicked,
-            this, &AdvStatisticalOptions::onClickAbsLimLabel_5);
-    connect(absLimLabel_7, &ClickLabel::clicked,
-            this, &AdvStatisticalOptions::onClickAbsLimLabel_7);
-    connect(absLimLabel_9, &ClickLabel::clicked,
-            this, &AdvStatisticalOptions::onClickAbsLimLabel_9);
-    connect(absLimLabel_11, &ClickLabel::clicked,
-            this, &AdvStatisticalOptions::onClickAbsLimLabel_11);
 
     connect(absLimSpin_1, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvStatisticalOptions::updateParamAlUMax);
@@ -374,22 +356,6 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
             this, &AdvStatisticalOptions::updateParamAlTsonMin);
     connect(absLimSpin_4, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvStatisticalOptions::updateParamAlTsonMax);
-    connect(absLimSpin_5, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamAlCo2Min);
-    connect(absLimSpin_6, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamAlCo2Max);
-    connect(absLimSpin_7, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamAlH2oMin);
-    connect(absLimSpin_8, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamAlH2oMax);
-    connect(absLimSpin_9, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamAlCh4Min);
-    connect(absLimSpin_10, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamAlCh4Max);
-    connect(absLimSpin_11, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamAlGas4Min);
-    connect(absLimSpin_12, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamAlGas4Max);
     connect(absLimSpin_13, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvStatisticalOptions::updateParamAlUMin);
     connect(absLimSpin_14, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
@@ -429,14 +395,6 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
             this, &AdvStatisticalOptions::onClickDiscontLabel_2);
     connect(discontLabel_3, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickDiscontLabel_3);
-    connect(discontLabel_4, &ClickLabel::clicked,
-            this, &AdvStatisticalOptions::onClickDiscontLabel_4);
-    connect(discontLabel_5, &ClickLabel::clicked,
-            this, &AdvStatisticalOptions::onClickDiscontLabel_5);
-    connect(discontLabel_6, &ClickLabel::clicked,
-            this, &AdvStatisticalOptions::onClickDiscontLabel_6);
-    connect(discontLabel_7, &ClickLabel::clicked,
-            this, &AdvStatisticalOptions::onClickDiscontLabel_7);
     connect(discontLabel_8, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickDiscontLabel_8);
 
@@ -446,14 +404,6 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
             this, &AdvStatisticalOptions::updateParamDsHfW);
     connect(discontSpin_3, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvStatisticalOptions::updateParamDsHfT);
-    connect(discontSpin_4, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamDsHfCo2);
-    connect(discontSpin_5, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamDsHfH2o);
-    connect(discontSpin_6, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamDsHfCh4);
-    connect(discontSpin_7, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamDsHfGas4);
     connect(discontSpin_8, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvStatisticalOptions::updateParamDsHfVar);
     connect(discontSpin_9, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
@@ -462,14 +412,6 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
             this, &AdvStatisticalOptions::updateParamDsSfW);
     connect(discontSpin_11, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvStatisticalOptions::updateParamDsSfT);
-    connect(discontSpin_12, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamDsSfCo2);
-    connect(discontSpin_13, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamDsSfH2o);
-    connect(discontSpin_14, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamDsSfCh4);
-    connect(discontSpin_15, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamDsSfGas4);
     connect(discontSpin_16, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvStatisticalOptions::updateParamDsSfVar);
 
@@ -477,27 +419,11 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
             this, &AdvStatisticalOptions::onClickTimeLagLabel_1);
     connect(timeLagLabel_2, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickTimeLagLabel_2);
-    connect(timeLagLabel_3, &ClickLabel::clicked,
-            this, &AdvStatisticalOptions::onClickTimeLagLabel_3);
-    connect(timeLagLabel_4, &ClickLabel::clicked,
-            this, &AdvStatisticalOptions::onClickTimeLagLabel_4);
-    connect(timeLagLabel_5, &ClickLabel::clicked,
-            this, &AdvStatisticalOptions::onClickTimeLagLabel_5);
-    connect(timeLagLabel_6, &ClickLabel::clicked,
-            this, &AdvStatisticalOptions::onClickTimeLagLabel_6);
 
     connect(timeLagSpin_1, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvStatisticalOptions::updateParamTlHfLim);
     connect(timeLagSpin_2, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvStatisticalOptions::updateParamTlSfLim);
-    connect(timeLagSpin_3, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamTlDefCo2);
-    connect(timeLagSpin_4, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamTlDefH2o);
-    connect(timeLagSpin_5, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamTlDefCh4);
-    connect(timeLagSpin_6, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, &AdvStatisticalOptions::updateParamTlDefGas4);
 
     connect(attackAngleLabel_1, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickAttackAngleLabel_1);
@@ -520,6 +446,12 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
 
     connect(randomErrorCheckBox, &QCheckBox::toggled,
             this, &AdvStatisticalOptions::updateRandomErrorArea);
+    //> This control is not the only thing that writes ru_meth: the CEC
+    //> significance test switches it on from its own dialog, because it cannot
+    //> run without it. Without this the page would go on showing the old
+    //> answer until the project was reloaded.
+    connect(ecProject_, &EcProject::randomErrorMethodChanged,
+            this, &AdvStatisticalOptions::syncRandomErrorMethod);
 
     connect(randomMethodLabel, &ClickLabel::clicked,
             this, &AdvStatisticalOptions::onClickRandomMethodLabel);
@@ -625,47 +557,12 @@ void AdvStatisticalOptions::createTabWidget()
     despSpin_3->setSuffix(tr("  [%1]", "Sigma").arg(Defs::SIGMA));
     despSpin_3->setToolTip(despLabel_3->toolTip());
 
-    despLabel_4 = new ClickLabel(tr("%1 : ").arg(Defs::CO2_STRING));
-    despLabel_4->setToolTip(tr("<b>Plausibility range:</b> A plausibility range is defined in a window of fixed length that moves throughout the time series, to detect outliers. The plausibility range is defined as the mean value in the window, %1 <i>n</i> times the standard deviation of the window. Specify here n. Note that default values differ for different variables. Note also that wind components, as well as fast temperature measurements, are included in <b><i>All other variables</i></b>.").arg(Defs::PLUSMINUS));
-    despSpin_4 = new QDoubleSpinBox;
-    despSpin_4->setDecimals(1);
-    despSpin_4->setRange(1.0, 20.0);
-    despSpin_4->setSingleStep(0.1);
-    despSpin_4->setAccelerated(true);
-    despSpin_4->setSuffix(tr("  [%1]", "Sigma").arg(Defs::SIGMA));
-    despSpin_4->setToolTip(despLabel_4->toolTip());
-
-    despLabel_5 = new ClickLabel(tr("%1 : ").arg(Defs::H2O_STRING));
-    despLabel_5->setToolTip(tr("<b>Plausibility range:</b> A plausibility range is defined in a window of fixed length that moves throughout the time series, to detect outliers. The plausibility range is defined as the mean value in the window, %1 <i>n</i> times the standard deviation of the window. Specify here n. Note that default values differ for different variables. Note also that wind components, as well as fast temperature measurements, are included in <b><i>All other variables</i></b>.").arg(Defs::PLUSMINUS));
-    despSpin_5 = new QDoubleSpinBox;
-    despSpin_5->setDecimals(1);
-    despSpin_5->setRange(1.0, 20.0);
-    despSpin_5->setSingleStep(0.1);
-    despSpin_5->setAccelerated(true);
-    despSpin_5->setSuffix(tr("  [%1]", "Sigma").arg(Defs::SIGMA));
-    despSpin_5->setToolTip(despLabel_5->toolTip());
-
-    despLabel_6 = new ClickLabel(tr("%1 : ").arg(Defs::CH4_STRING));
-    despLabel_6->setToolTip(tr("<b>Plausibility range:</b> A plausibility range is defined in a window of fixed length that moves throughout the time series, to detect outliers. The plausibility range is defined as the mean value in the window, %1 <i>n</i> times the standard deviation of the window. Specify here n. Note that default values differ for different variables. Note also that wind components, as well as fast temperature measurements, are included in <b><i>All other variables</i></b>.").arg(Defs::PLUSMINUS));
-    despSpin_6 = new QDoubleSpinBox;
-    despSpin_6->setDecimals(1);
-    despSpin_6->setRange(1.0, 20.0);
-    despSpin_6->setSingleStep(0.1);
-    despSpin_6->setAccelerated(true);
-    despSpin_6->setSuffix(tr("  [%1]", "Sigma").arg(Defs::SIGMA));
-    despSpin_6->setToolTip(despLabel_6->toolTip());
-
-    despLabel_7 = new ClickLabel(tr("%1 Gas : ").arg(Defs::GAS4_STRING));
-    despLabel_7->setToolTip(tr("<b>Plausibility range:</b> A plausibility range is defined in a window of fixed length that moves throughout the time series, to detect outliers. The plausibility range is defined as the mean value in the window, %1 <i>n</i> times the standard deviation of the window. Specify here n. Note that default values differ for different variables. Note also that wind components, as well as fast temperature measurements, are included in <b><i>All other variables</i></b>.").arg(Defs::PLUSMINUS));
-    despSpin_7 = new QDoubleSpinBox;
-    despSpin_7->setDecimals(1);
-    despSpin_7->setRange(1.0, 20.0);
-    despSpin_7->setSingleStep(0.1);
-    despSpin_7->setAccelerated(true);
-    despSpin_7->setSuffix(tr("  [%1]", "Sigma").arg(Defs::SIGMA));
-    despSpin_7->setToolTip(despLabel_7->toolTip());
+    // The per-gas plausibility ranges are built in rebuildGasRows(), one row
+    // per gas record; despLabel_2 below them moves with the gas count.
+    despGasTip_ = despLabel_3->toolTip();
 
     auto tab0Grid = new QGridLayout;
+    tab0Grid_ = tab0Grid;
     tab0Grid->addWidget(vickersDespikingRadio, 0, 0, 1, 2);
     tab0Grid->addWidget(despLabel_8, 0, 2, Qt::AlignRight);
     tab0Grid->addWidget(despSpin_8, 0, 3);
@@ -679,17 +576,7 @@ void AdvStatisticalOptions::createTabWidget()
     tab0Grid->addWidget(plausibilityLabel, 3, 3, Qt::AlignRight);
     tab0Grid->addWidget(despLabel_3, 4, 2, Qt::AlignRight);
     tab0Grid->addWidget(despSpin_3, 4, 3);
-    tab0Grid->addWidget(despLabel_4, 5, 2, Qt::AlignRight);
-    tab0Grid->addWidget(despSpin_4, 5, 3);
-    tab0Grid->addWidget(despLabel_5, 6, 2, Qt::AlignRight);
-    tab0Grid->addWidget(despSpin_5, 6, 3);
-    tab0Grid->addWidget(despLabel_6, 7, 2, Qt::AlignRight);
-    tab0Grid->addWidget(despSpin_6, 7, 3);
-    tab0Grid->addWidget(despLabel_7, 8, 2, Qt::AlignRight);
-    tab0Grid->addWidget(despSpin_7, 8, 3);
-    tab0Grid->addWidget(despLabel_2, 9, 2, Qt::AlignRight);
-    tab0Grid->addWidget(despSpin_2, 9, 3);
-    tab0Grid->setRowStretch(10, 1);
+    // gas rows from row 5, then despLabel_2 / despSpin_2 - see rebuildGasRows()
     tab0Grid->setColumnStretch(0, 0);
     tab0Grid->setColumnStretch(1, 0);
     tab0Grid->setColumnStretch(2, 1);
@@ -845,75 +732,10 @@ void AdvStatisticalOptions::createTabWidget()
     absLimSpin_4->setSuffix(tr("  [%1]", "").arg(Defs::DEGREE_C));
     absLimSpin_4->setToolTip(maxLabel->toolTip());
 
-    absLimLabel_5 = new ClickLabel(tr("%1 : ").arg(Defs::CO2_STRING));
-    absLimSpin_5 = new QDoubleSpinBox;
-    absLimSpin_5->setDecimals(3);
-    absLimSpin_5->setRange(100.0, 10000.0);
-    absLimSpin_5->setSingleStep(50.0);
-    absLimSpin_5->setAccelerated(true);
-    absLimSpin_5->setSuffix(tr("  [%1]", "").arg(Defs::UMOL_MOL_STRING));
-    absLimSpin_5->setToolTip(minLabel->toolTip());
-
-    absLimSpin_6 = new QDoubleSpinBox;
-    absLimSpin_6->setDecimals(3);
-    absLimSpin_6->setRange(100.0, 10000.0);
-    absLimSpin_6->setSingleStep(50.0);
-    absLimSpin_6->setAccelerated(true);
-    absLimSpin_6->setSuffix(tr("  [%1]", "").arg(Defs::UMOL_MOL_STRING));
-    absLimSpin_6->setToolTip(maxLabel->toolTip());
-
-    absLimLabel_7 = new ClickLabel(tr("%1 : ").arg(Defs::H2O_STRING));
-    absLimSpin_7 = new QDoubleSpinBox;
-    absLimSpin_7->setDecimals(3);
-    absLimSpin_7->setRange(0.0, 1000.0);
-    absLimSpin_7->setSingleStep(10.0);
-    absLimSpin_7->setAccelerated(true);
-    absLimSpin_7->setSuffix(tr("  [%1]", "").arg(Defs::MMOL_MOL_STRING));
-    absLimSpin_7->setToolTip(minLabel->toolTip());
-
-    absLimSpin_8 = new QDoubleSpinBox;
-    absLimSpin_8->setDecimals(3);
-    absLimSpin_8->setRange(0.0, 1000.0);
-    absLimSpin_8->setSingleStep(10.0);
-    absLimSpin_8->setAccelerated(true);
-    absLimSpin_8->setSuffix(tr("  [%1]", "").arg(Defs::MMOL_MOL_STRING));
-    absLimSpin_8->setToolTip(maxLabel->toolTip());
-
-    absLimLabel_9 = new ClickLabel(tr("%1 : ").arg(Defs::CH4_STRING));
-    absLimSpin_9 = new QDoubleSpinBox;
-    absLimSpin_9->setDecimals(3);
-    absLimSpin_9->setRange(0.0, 1000.0);
-    absLimSpin_9->setSingleStep(10.0);
-    absLimSpin_9->setAccelerated(true);
-    absLimSpin_9->setSuffix(tr("  [%1]", "").arg(Defs::UMOL_MOL_STRING));
-    absLimSpin_9->setToolTip(minLabel->toolTip());
-
-    absLimSpin_10 = new QDoubleSpinBox;
-    absLimSpin_10->setDecimals(3);
-    absLimSpin_10->setRange(0.0, 1000.0);
-    absLimSpin_10->setSingleStep(10.0);
-    absLimSpin_10->setAccelerated(true);
-    absLimSpin_10->setSuffix(tr("  [%1]", "").arg(Defs::UMOL_MOL_STRING));
-    absLimSpin_10->setToolTip(maxLabel->toolTip());
-
-    absLimLabel_11 = new ClickLabel(tr("%1 Gas : ").arg(Defs::GAS4_STRING));
-    absLimSpin_11 = new QDoubleSpinBox;
-    absLimSpin_11->setDecimals(3);
-    absLimSpin_11->setRange(0.0, 1000.0);
-    absLimSpin_11->setSingleStep(10.0);
-    absLimSpin_11->setAccelerated(true);
-    absLimSpin_11->setSuffix(tr("  [%1]", "").arg(Defs::UMOL_MOL_STRING));
-    absLimSpin_11->setToolTip(minLabel->toolTip());
-
-    absLimSpin_12 = new QDoubleSpinBox;
-    absLimSpin_12->setDecimals(3);
-    absLimSpin_12->setRange(0.0, 1000.0);
-    absLimSpin_12->setSingleStep(10.0);
-    absLimSpin_12->setValue(40.0);
-    absLimSpin_12->setAccelerated(true);
-    absLimSpin_12->setSuffix(tr("  [%1]", "").arg(Defs::UMOL_MOL_STRING));
-    absLimSpin_12->setMinimumWidth(absLimSpin_12->sizeHint().width());
-    absLimSpin_12->setToolTip(maxLabel->toolTip());
+    // The per-gas limits are built in rebuildGasRows(), one row per gas
+    // record; absLimFilterCheckBox below them moves with the gas count.
+    absLimMinTip_ = minLabel->toolTip();
+    absLimMaxTip_ = maxLabel->toolTip();
 
     absLimSpin_13 = new QDoubleSpinBox;
     absLimSpin_13->setDecimals(1);
@@ -953,6 +775,7 @@ void AdvStatisticalOptions::createTabWidget()
     lockedIcon_2->setPixmap(pixmap_2);
 
     auto tab3Grid = new QGridLayout;
+    tab3Grid_ = tab3Grid;
     tab3Grid->addWidget(questionMark_5, 0, 0);
     tab3Grid->addWidget(absLimGraphLabel, 0, 1, -1, 1, Qt::AlignTop);
     tab3Grid->addWidget(minLabel, 0, 4, 1, 1);
@@ -968,20 +791,7 @@ void AdvStatisticalOptions::createTabWidget()
     tab3Grid->addWidget(absLimLabel_3, 3, 3, Qt::AlignRight);
     tab3Grid->addWidget(absLimSpin_3, 3, 4);
     tab3Grid->addWidget(absLimSpin_4, 3, 6);
-    tab3Grid->addWidget(absLimLabel_5, 4, 3, Qt::AlignRight);
-    tab3Grid->addWidget(absLimSpin_5, 4, 4);
-    tab3Grid->addWidget(absLimSpin_6, 4, 6);
-    tab3Grid->addWidget(absLimLabel_7, 5, 3, Qt::AlignRight);
-    tab3Grid->addWidget(absLimSpin_7, 5, 4);
-    tab3Grid->addWidget(absLimSpin_8, 5, 6);
-    tab3Grid->addWidget(absLimLabel_9, 6, 3, Qt::AlignRight);
-    tab3Grid->addWidget(absLimSpin_9, 6, 4);
-    tab3Grid->addWidget(absLimSpin_10, 6, 6);
-    tab3Grid->addWidget(absLimLabel_11, 7, 3, Qt::AlignRight);
-    tab3Grid->addWidget(absLimSpin_11, 7, 4);
-    tab3Grid->addWidget(absLimSpin_12, 7, 6);
-    tab3Grid->addWidget(absLimFilterCheckBox, 8, 3, 1, 2);
-    tab3Grid->setRowStretch(9, 1);
+    // gas rows from row 4, then absLimFilterCheckBox - see rebuildGasRows()
     tab3Grid->setColumnStretch(0, 0);
     tab3Grid->setColumnStretch(1, 0);
     tab3Grid->setColumnStretch(2, 1);
@@ -1125,37 +935,10 @@ void AdvStatisticalOptions::createTabWidget()
     discontSpin_3->setAccelerated(true);
     discontSpin_3->setToolTip(hardFlagLabel_2->toolTip());
 
-    discontLabel_4 = new ClickLabel(tr("%1 : ").arg(Defs::CO2_STRING));
-    discontSpin_4 = new QDoubleSpinBox;
-    discontSpin_4->setDecimals(2);
-    discontSpin_4->setRange(0.0, 50.0);
-    discontSpin_4->setSingleStep(1.0);
-    discontSpin_4->setAccelerated(true);
-    discontSpin_4->setToolTip(hardFlagLabel_2->toolTip());
-
-    discontLabel_5 = new ClickLabel(tr("%1 : ").arg(Defs::H2O_STRING));
-    discontSpin_5 = new QDoubleSpinBox;
-    discontSpin_5->setDecimals(2);
-    discontSpin_5->setRange(0.0, 50.0);
-    discontSpin_5->setSingleStep(1.0);
-    discontSpin_5->setAccelerated(true);
-    discontSpin_5->setToolTip(hardFlagLabel_2->toolTip());
-
-    discontLabel_6 = new ClickLabel(tr("%1 : ").arg(Defs::CH4_STRING));
-    discontSpin_6 = new QDoubleSpinBox;
-    discontSpin_6->setDecimals(2);
-    discontSpin_6->setRange(0.0, 50.0);
-    discontSpin_6->setSingleStep(1.0);
-    discontSpin_6->setAccelerated(true);
-    discontSpin_6->setToolTip(hardFlagLabel_2->toolTip());
-
-    discontLabel_7 = new ClickLabel(tr("%1 Gas : ").arg(Defs::GAS4_STRING));
-    discontSpin_7 = new QDoubleSpinBox;
-    discontSpin_7->setDecimals(2);
-    discontSpin_7->setRange(0.0, 50.0);
-    discontSpin_7->setSingleStep(1.0);
-    discontSpin_7->setAccelerated(true);
-    discontSpin_7->setToolTip(hardFlagLabel_2->toolTip());
+    // The per-gas thresholds are built in rebuildGasRows(), one row per gas
+    // record; the Variances row below them moves with the gas count.
+    dsHardTip_ = hardFlagLabel_2->toolTip();
+    dsSoftTip_ = softFlagLabel_2->toolTip();
 
     discontLabel_8 = new ClickLabel(tr("Variances : "));
     discontSpin_8 = new QDoubleSpinBox;
@@ -1186,34 +969,6 @@ void AdvStatisticalOptions::createTabWidget()
     discontSpin_11->setAccelerated(true);
     discontSpin_11->setToolTip(softFlagLabel_2->toolTip());
 
-    discontSpin_12 = new QDoubleSpinBox;
-    discontSpin_12->setDecimals(2);
-    discontSpin_12->setRange(0.0, 50.0);
-    discontSpin_12->setSingleStep(1.0);
-    discontSpin_12->setAccelerated(true);
-    discontSpin_12->setToolTip(softFlagLabel_2->toolTip());
-
-    discontSpin_13 = new QDoubleSpinBox;
-    discontSpin_13->setDecimals(2);
-    discontSpin_13->setRange(0.0, 50.0);
-    discontSpin_13->setSingleStep(1.0);
-    discontSpin_13->setAccelerated(true);
-    discontSpin_13->setToolTip(softFlagLabel_2->toolTip());
-
-    discontSpin_14 = new QDoubleSpinBox;
-    discontSpin_14->setDecimals(2);
-    discontSpin_14->setRange(0.0, 50.0);
-    discontSpin_14->setSingleStep(1.0);
-    discontSpin_14->setAccelerated(true);
-    discontSpin_14->setToolTip(softFlagLabel_2->toolTip());
-
-    discontSpin_15 = new QDoubleSpinBox;
-    discontSpin_15->setDecimals(2);
-    discontSpin_15->setRange(0.0, 50.0);
-    discontSpin_15->setSingleStep(1.0);
-    discontSpin_15->setAccelerated(true);
-    discontSpin_15->setToolTip(softFlagLabel_2->toolTip());
-
     discontSpin_16 = new QDoubleSpinBox;
     discontSpin_16->setDecimals(2);
     discontSpin_16->setRange(0.0, 50.0);
@@ -1225,6 +980,7 @@ void AdvStatisticalOptions::createTabWidget()
     discontGraphLabel->setPixmap(QPixmap(QStringLiteral(":/icons/discont")));
 
     auto tab5Grid = new QGridLayout;
+    tab5Grid_ = tab5Grid;
     tab5Grid->addWidget(questionMark_7, 0, 0);
     tab5Grid->addWidget(discontGraphLabel, 0, 1, -1, 1, Qt::AlignTop);
     tab5Grid->addWidget(hardFlagLabel_2, 0, 3, 1, 1);
@@ -1235,25 +991,10 @@ void AdvStatisticalOptions::createTabWidget()
     tab5Grid->addWidget(discontSpin_2, 2, 3);
     tab5Grid->addWidget(discontLabel_3, 3, 2, Qt::AlignRight);
     tab5Grid->addWidget(discontSpin_3, 3, 3);
-    tab5Grid->addWidget(discontLabel_4, 4, 2, Qt::AlignRight);
-    tab5Grid->addWidget(discontSpin_4, 4, 3);
-    tab5Grid->addWidget(discontLabel_5, 5, 2, Qt::AlignRight);
-    tab5Grid->addWidget(discontSpin_5, 5, 3);
-    tab5Grid->addWidget(discontLabel_6, 6, 2, Qt::AlignRight);
-    tab5Grid->addWidget(discontSpin_6, 6, 3);
-    tab5Grid->addWidget(discontLabel_7, 7, 2, Qt::AlignRight);
-    tab5Grid->addWidget(discontSpin_7, 7, 3);
-    tab5Grid->addWidget(discontLabel_8, 8, 2, Qt::AlignRight);
-    tab5Grid->addWidget(discontSpin_8, 8, 3);
     tab5Grid->addWidget(discontSpin_9, 1, 4);
     tab5Grid->addWidget(discontSpin_10, 2, 4);
     tab5Grid->addWidget(discontSpin_11, 3, 4);
-    tab5Grid->addWidget(discontSpin_12, 4, 4);
-    tab5Grid->addWidget(discontSpin_13, 5, 4);
-    tab5Grid->addWidget(discontSpin_14, 6, 4);
-    tab5Grid->addWidget(discontSpin_15, 7, 4);
-    tab5Grid->addWidget(discontSpin_16, 8, 4);
-    tab5Grid->setRowStretch(9, 1);
+    // gas rows from row 4, then the Variances row - see rebuildGasRows()
     tab5Grid->setColumnStretch(0, 0);
     tab5Grid->setColumnStretch(1, 0);
     tab5Grid->setColumnStretch(2, 1);
@@ -1286,65 +1027,22 @@ void AdvStatisticalOptions::createTabWidget()
     timeLagSpin_2->setSuffix(tr("  [%]", "Percentage"));
     timeLagSpin_2->setToolTip(timeLagLabel_2->toolTip());
 
-    timeLagLabel_3 = new ClickLabel(tr("Nominal %1 time lag : ").arg(Defs::CO2_STRING));
-    timeLagLabel_3->setToolTip(tr("<b>Nominal CO<sub>2</sub> time lag:</b> Set the nominal (best guess) time for CO<sub>2</sub>. You may want to use the same value entered in the <b><i>Metadata File Editor</i></b> or written inside your GHG files."));
-    timeLagSpin_3 = new QDoubleSpinBox;
-    timeLagSpin_3->setDecimals(2);
-    timeLagSpin_3->setRange(0.0, 100.0);
-    timeLagSpin_3->setSingleStep(1.0);
-    timeLagSpin_3->setAccelerated(true);
-    timeLagSpin_3->setSuffix(tr("  [s]", "Seconds"));
-    timeLagSpin_3->setToolTip(timeLagLabel_3->toolTip());
-
-    timeLagLabel_4 = new ClickLabel(tr("Nominal %1 time lag : ").arg(Defs::H2O_STRING));
-    timeLagLabel_4->setToolTip(tr("<b>Nominal H<sub>2</sub>O time lag:</b> Set the nominal (best guess) time for H<sub>2</sub>O. You may want to use the same value entered in the <b><i>Metadata File Editor</i></b> or written inside your GHG files. Note that the test may become highly unreliable for H<sub>2</sub>O in cases of closed path systems with unheated sampling line, due to the strong dependency of H<sub>2</sub>O time lag on relative humidity (e.g. Runkle et al. 2012, BLM)."));
-    timeLagSpin_4 = new QDoubleSpinBox;
-    timeLagSpin_4->setDecimals(2);
-    timeLagSpin_4->setRange(0.0, 100.0);
-    timeLagSpin_4->setSingleStep(1.0);
-    timeLagSpin_4->setAccelerated(true);
-    timeLagSpin_4->setSuffix(tr("  [s]", "Seconds"));
-    timeLagSpin_4->setToolTip(timeLagLabel_4->toolTip());
-
-    timeLagLabel_5 = new ClickLabel(tr("Nominal %1 time lag : ").arg(Defs::CH4_STRING));
-    timeLagLabel_5->setToolTip(tr("<b>Nominal CH<sub>4</sub> time lag:</b> Set the nominal (best guess) time for CH<sub>4</sub>. You may want to use the same value entered in the <b><i>Metadata File Editor</i></b>, or written inside your GHG files."));
-    timeLagSpin_5 = new QDoubleSpinBox;
-    timeLagSpin_5->setDecimals(2);
-    timeLagSpin_5->setRange(0.0, 100.0);
-    timeLagSpin_5->setSingleStep(1.0);
-    timeLagSpin_5->setAccelerated(true);
-    timeLagSpin_5->setSuffix(tr("  [s]", "Seconds"));
-    timeLagSpin_5->setToolTip(timeLagLabel_5->toolTip());
-
-    timeLagLabel_6 = new ClickLabel(tr("Nominal %1 Gas time lag : ").arg(Defs::GAS4_STRING));
-    timeLagLabel_6->setToolTip(tr("<b>Nominal 4<sup>th</sup> gas time lag:</b> Set the nominal (best guess) time for your customized 4<sup>th</sup> gas. You may want to use the same value entered in the <b><i>Metadata File Editor</i></b>."));
-    timeLagSpin_6 = new QDoubleSpinBox;
-    timeLagSpin_6->setDecimals(2);
-    timeLagSpin_6->setRange(0.0, 100.0);
-    timeLagSpin_6->setSingleStep(1.0);
-    timeLagSpin_6->setAccelerated(true);
-    timeLagSpin_6->setSuffix(tr("  [s]", "Seconds"));
-    timeLagSpin_6->setToolTip(timeLagLabel_6->toolTip());
+    // The nominal time lags are built in rebuildGasRows(), one row per gas
+    // record: a species measured on two analysers has two sampling lines and
+    // so two nominal lags.
 
     timelagGraphLabel = new QLabel;
     timelagGraphLabel->setPixmap(QPixmap(QStringLiteral(":/icons/timelag")));
 
     auto tab6Grid = new QGridLayout;
+    tab6Grid_ = tab6Grid;
     tab6Grid->addWidget(questionMark_8, 0, 0);
     tab6Grid->addWidget(timelagGraphLabel, 0, 1, -1, 1, Qt::AlignTop);
     tab6Grid->addWidget(timeLagLabel_1, 0, 2, Qt::AlignRight);
     tab6Grid->addWidget(timeLagSpin_1, 0, 3);
     tab6Grid->addWidget(timeLagLabel_2, 1, 2, Qt::AlignRight);
     tab6Grid->addWidget(timeLagSpin_2, 1, 3);
-    tab6Grid->addWidget(timeLagLabel_3, 2, 2, Qt::AlignRight);
-    tab6Grid->addWidget(timeLagSpin_3, 2, 3);
-    tab6Grid->addWidget(timeLagLabel_4, 3, 2, Qt::AlignRight);
-    tab6Grid->addWidget(timeLagSpin_4, 3, 3);
-    tab6Grid->addWidget(timeLagLabel_5, 4, 2, Qt::AlignRight);
-    tab6Grid->addWidget(timeLagSpin_5, 4, 3);
-    tab6Grid->addWidget(timeLagLabel_6, 5, 2, Qt::AlignRight);
-    tab6Grid->addWidget(timeLagSpin_6, 5, 3);
-    tab6Grid->setRowStretch(6, 1);
+    // gas rows from row 2 - see rebuildGasRows()
     tab6Grid->setColumnStretch(0, 0);
     tab6Grid->setColumnStretch(1, 0);
     tab6Grid->setColumnStretch(2, 1);
@@ -1486,6 +1184,497 @@ int AdvStatisticalOptions::findClosestEnabledTest(int indexDisabled)
         return i;
     else
         return 0;
+}
+
+namespace {
+
+/// Move a grid's trailing stretch to \a row, clearing where a previous
+/// rebuild put it. Left behind, an old stretch row keeps taking space that
+/// now belongs to a gas row.
+void setTrailingStretch(QGridLayout* grid, int row, int& previous)
+{
+    if (previous >= 0 && previous != row) { grid->setRowStretch(previous, 0); }
+    grid->setRowStretch(row, 1);
+    previous = row;
+}
+
+/// Take a generated widget out of its grid at once, rather than leaving it
+/// there overlapping its replacement until the event loop runs.
+void dropWidget(QWidget* w)
+{
+    if (!w) { return; }
+    w->setParent(nullptr);
+    w->deleteLater();
+}
+
+} // namespace
+
+/// The record set the current rows describe. Rebuilding is skipped while this
+/// is unchanged, so showing the page does not destroy a value being edited.
+QString AdvStatisticalOptions::gasSignature() const
+{
+    QStringList parts;
+    const auto& gases = ecProject_->gasColumns();
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        const auto& gas = gases.at(i);
+        //> The unit belongs in the signature as well as the column: the
+        //> absolute-limit boxes are scaled from it, so editing a column's unit
+        //> in the metadata editor has to rebuild the rows or they keep a scale
+        //> that no longer matches what the label says.
+        parts << gas.slug + QLatin1Char('|') + gas.instrumentId
+                 + QLatin1Char('|') + QString::number(gas.rawColumn)
+                 + QLatin1Char('|') + absLimScale(i).display;
+    }
+    return parts.join(QLatin1Char(';'));
+}
+
+/// Row label: the species, qualified by the analyser when there is one, so
+/// two CO2 records on different analysers are told apart.
+QString AdvStatisticalOptions::gasRowLabel(int gasIndex) const
+{
+    return MeasurementRecords::gasLabel(ecProject_->gasColumns(), gasIndex);
+}
+
+/// Range and unit of an absolute-limit spin box, by species. CO2 is reported
+/// as a mole fraction in umol/mol over a much higher range, H2O in mmol/mol;
+/// every other gas takes the range the fourth-gas slot used to have.
+void AdvStatisticalOptions::configureAbsLimSpin(QDoubleSpinBox* spin,
+                                                int gasIndex) const
+{
+    const auto& gases = ecProject_->gasColumns();
+    const QString slug = gasIndex >= 0 && gasIndex < gases.size()
+            ? gases.at(gasIndex).slug : QString();
+    const auto scale = absLimScale(gasIndex);
+
+    //> The range is the stored-unit one scaled into whatever the column
+    //> reports, so a gas reported in ppb gets a ppb range rather than a
+    //> umol/mol range it can only reach the bottom of.
+    double lower = 0.0;
+    double upper = 1000.0;
+    double step = 10.0;
+    if (slug == QLatin1String("co2"))
+    {
+        lower = 100.0;
+        upper = 10000.0;
+        step = 50.0;
+    }
+
+    //> Three decimals of the stored unit was the old resolution, and it is the
+    //> floor here: a ppb column keeps three decimals *of ppb*, a thousand
+    //> times finer, which is what makes an ambient COS limit expressible at
+    //> all. Capped because a spin box with fifteen decimals is unreadable.
+    int decimals = 3;
+    for (double f = scale.factor; f > 1.5 && decimals < 9; f /= 10.0)
+    {
+        ++decimals;
+    }
+
+    spin->setDecimals(decimals);
+    spin->setAccelerated(true);
+    spin->setRange(lower * scale.factor, upper * scale.factor);
+    spin->setSingleStep(step * scale.factor);
+    spin->setSuffix(tr("  [%1]", "").arg(scale.display));
+}
+
+/// Built-in default for a gas that carries no value of its own, chosen by
+/// species rather than by position: a second CO2 record deserves the CO2
+/// default, not the fourth-gas one.
+double AdvStatisticalOptions::defaultGasParam(const QString& slug,
+                                              GasParam param) const
+{
+    const auto& d = ecProject_->defaultSettings.screenParam;
+    const bool isCo2 = (slug == QLatin1String("co2"));
+    const bool isH2o = (slug == QLatin1String("h2o"));
+    const bool isCh4 = (slug == QLatin1String("ch4"));
+
+    switch (param)
+    {
+        case GasParam::SrLim:
+            if (isCo2) { return d.sr_lim_co2; }
+            if (isH2o) { return d.sr_lim_h2o; }
+            if (isCh4) { return d.sr_lim_ch4; }
+            return d.sr_lim_other;
+        case GasParam::AlMin:
+            if (isCo2) { return d.al_co2_min; }
+            if (isH2o) { return d.al_h2o_min; }
+            if (isCh4) { return d.al_ch4_min; }
+            return d.al_other_min;
+        case GasParam::AlMax:
+            if (isCo2) { return d.al_co2_max; }
+            if (isH2o) { return d.al_h2o_max; }
+            if (isCh4) { return d.al_ch4_max; }
+            return d.al_other_max;
+        case GasParam::DsHf:
+            if (isCo2) { return d.ds_hf_co2; }
+            if (isH2o) { return d.ds_hf_h2o; }
+            if (isCh4) { return d.ds_hf_ch4; }
+            return d.ds_hf_other;
+        case GasParam::DsSf:
+            if (isCo2) { return d.ds_sf_co2; }
+            if (isH2o) { return d.ds_sf_h2o; }
+            if (isCh4) { return d.ds_sf_ch4; }
+            return d.ds_sf_other;
+        case GasParam::TlDef:
+            if (isCo2) { return d.tl_def_co2; }
+            if (isH2o) { return d.tl_def_h2o; }
+            if (isCh4) { return d.tl_def_ch4; }
+            return d.tl_def_other;
+    }
+    return 0.0;
+}
+
+/// Value to show for one gas: the record's own if it has one, else the
+/// species default.
+///
+/// The flat keys are gone. A project written before records carried these
+/// per gas slot; EcProject::migrateLegacyGasSettings() moves them onto the
+/// records as the project is upgraded, so by the time this runs the record
+/// is the only place the value can be.
+/// How the absolute limits for \a gasIndex are shown.
+///
+/// The record names a raw column and the raw file description states that
+/// column's unit, so the two meet here. A record whose column the description
+/// does not cover - not read yet, or edited away - falls back to the stored
+/// unit, which is what the box always showed.
+AbsoluteLimitUnits::Scale
+AdvStatisticalOptions::absLimScale(int gasIndex) const
+{
+    const auto& gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size())
+    {
+        return AbsoluteLimitUnits::forColumn(QString(), false);
+    }
+
+    const auto& gas = gases.at(gasIndex);
+    const bool isWater = gas.slug == QLatin1String("h2o");
+
+    QString unitToken;
+    if (dlProject_ && gas.rawColumn > 0)
+    {
+        const auto variables = dlProject_->variables();
+        const int index = gas.rawColumn - 1;
+        if (variables && index >= 0 && index < variables->size())
+        {
+            unitToken = dlProject_->canonicalMeasureUnit(
+                variables->at(index).inputUnit());
+        }
+    }
+    return AbsoluteLimitUnits::forColumn(unitToken, isWater);
+}
+
+double AdvStatisticalOptions::gasParamFor(int gasIndex, GasParam param) const
+{
+    const auto& gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size()) { return 0.0; }
+    const auto& proc = gases.at(gasIndex).proc;
+
+    //> Stored in umol/mol (mmol/mol for water) whatever the column says, so
+    //> the two limits - and only those two - are scaled on the way out.
+    const auto scale = absLimScale(gasIndex);
+
+    switch (param)
+    {
+        case GasParam::SrLim: if (proc.srLim >= 0.0) { return proc.srLim; } break;
+        case GasParam::AlMin: if (proc.alMin >= 0.0) { return proc.alMin * scale.factor; } break;
+        case GasParam::AlMax: if (proc.alMax >= 0.0) { return proc.alMax * scale.factor; } break;
+        case GasParam::DsHf:  if (proc.dsHf  >= 0.0) { return proc.dsHf;  } break;
+        case GasParam::DsSf:  if (proc.dsSf  >= 0.0) { return proc.dsSf;  } break;
+        case GasParam::TlDef: if (proc.tlDef >= 0.0) { return proc.tlDef; } break;
+    }
+
+    const auto fallback = defaultGasParam(gases.at(gasIndex).slug, param);
+    if (param == GasParam::AlMin || param == GasParam::AlMax)
+    {
+        //> The species defaults are stored-unit values too, so they take the
+        //> same scaling as a value the record already holds.
+        return fallback * scale.factor;
+    }
+    return fallback;
+}
+
+/// Store one per-gas value on its record.
+///
+/// The record is the only place it goes. The flat keys the first four slots
+/// used to mirror are retired; an upgraded project has had them moved onto
+/// its records by EcProject::migrateLegacyGasSettings().
+void AdvStatisticalOptions::onGasParamChanged(int gasIndex, GasParam param,
+                                              double value)
+{
+    if (!ecProject_) { return; }
+    auto gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size()) { return; }
+
+    //> Back to the stored unit. The reciprocal of what gasParamFor applies, so
+    //> a value read out and written back unchanged stays where it was - which
+    //> is what keeps opening and saving an existing project a no-op.
+    const auto scale = absLimScale(gasIndex);
+
+    switch (param)
+    {
+        case GasParam::SrLim: gases[gasIndex].proc.srLim = value; break;
+        case GasParam::AlMin: gases[gasIndex].proc.alMin = value / scale.factor; break;
+        case GasParam::AlMax: gases[gasIndex].proc.alMax = value / scale.factor; break;
+        case GasParam::DsHf:  gases[gasIndex].proc.dsHf  = value; break;
+        case GasParam::DsSf:  gases[gasIndex].proc.dsSf  = value; break;
+        case GasParam::TlDef: gases[gasIndex].proc.tlDef = value; break;
+    }
+    ecProject_->setGasColumns(gases);
+}
+
+/// Restore Default Values, for the per-gas tables.
+///
+/// Only the records are written now. The flat keys used to be reset here too,
+/// because a project with no gas records still carried them; with those keys
+/// retired there is nothing left to reset but the records themselves.
+void AdvStatisticalOptions::resetGasParamsToDefault()
+{
+    if (!ecProject_) { return; }
+
+    const auto& gases = ecProject_->gasColumns();
+    const GasParam params[] = { GasParam::SrLim, GasParam::AlMin,
+                                GasParam::AlMax, GasParam::DsHf,
+                                GasParam::DsSf,  GasParam::TlDef };
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        const auto slug = gases.at(i).slug;
+        for (const auto param : params)
+        {
+            onGasParamChanged(i, param, defaultGasParam(slug, param));
+        }
+    }
+    rebuildGasRows();
+}
+
+/// One row per configured gas in each of the four per-gas tables.
+///
+/// Records with no raw column are skipped: they are slots kept so that the
+/// engine's record-to-slot mapping stays put, not measurements. Values are
+/// set before the spin boxes are connected, so rebuilding never writes back
+/// into the project.
+void AdvStatisticalOptions::rebuildGasRows()
+{
+    if (!ecProject_ || !tab0Grid_ || !tab3Grid_ || !tab5Grid_ || !tab6Grid_)
+    {
+        return;
+    }
+
+    for (const auto& row : srRows_) { dropWidget(row.label); dropWidget(row.spin); }
+    for (const auto& row : tlRows_) { dropWidget(row.label); dropWidget(row.spin); }
+    for (const auto& row : alRows_)
+    {
+        dropWidget(row.label); dropWidget(row.first); dropWidget(row.second);
+    }
+    for (const auto& row : dsRows_)
+    {
+        dropWidget(row.label); dropWidget(row.first); dropWidget(row.second);
+    }
+    srRows_.clear();
+    alRows_.clear();
+    dsRows_.clear();
+    tlRows_.clear();
+
+    const auto& gases = ecProject_->gasColumns();
+
+    // First free row of each grid, after the fixed rows laid out in
+    // createTabWidget().
+    int srRow = 5;
+    int alRow = 4;
+    int dsRow = 4;
+    int tlRow = 2;
+
+    // Alphabetical, so all four tables read the way the gases are named rather
+    // than the way they were added. The index stays the record index - that is
+    // what every spin writes back through.
+    for (const int i : MeasurementRecords::gasDisplayOrder(gases))
+    {
+        const int idx = i;
+        const auto name = gasRowLabel(i);
+        const auto slug = gases.at(i).slug;
+
+        // --- spike plausibility range ---------------------------------
+        {
+            GasRow row;
+            row.gasIndex = i;
+            row.label = new ClickLabel(tr("%1 : ").arg(name));
+            row.label->setToolTip(despGasTip_);
+            row.spin = new QDoubleSpinBox;
+            row.spin->setDecimals(1);
+            row.spin->setRange(1.0, 20.0);
+            row.spin->setSingleStep(0.1);
+            row.spin->setAccelerated(true);
+            row.spin->setSuffix(tr("  [%1]", "Sigma").arg(Defs::SIGMA));
+            row.spin->setToolTip(despGasTip_);
+            row.spin->setValue(gasParamFor(i, GasParam::SrLim));
+
+            tab0Grid_->addWidget(row.label, srRow, 2, Qt::AlignRight);
+            tab0Grid_->addWidget(row.spin, srRow, 3);
+            ++srRow;
+
+            auto spin = row.spin;
+            connect(row.label, &ClickLabel::clicked, this, [=]()
+                    { spin->setFocus(Qt::ShortcutFocusReason); spin->selectAll(); });
+            connect(row.spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                    this, [=](double v)
+                    { onGasParamChanged(idx, GasParam::SrLim, v); });
+            srRows_.append(row);
+        }
+
+        // --- absolute limits ------------------------------------------
+        {
+            GasPairRow row;
+            row.gasIndex = i;
+            row.label = new ClickLabel(tr("%1 : ").arg(name));
+            row.first = new QDoubleSpinBox;
+            row.second = new QDoubleSpinBox;
+            configureAbsLimSpin(row.first, i);
+            configureAbsLimSpin(row.second, i);
+            row.first->setToolTip(absLimMinTip_);
+            row.second->setToolTip(absLimMaxTip_);
+            row.first->setValue(gasParamFor(i, GasParam::AlMin));
+            row.second->setValue(gasParamFor(i, GasParam::AlMax));
+
+            tab3Grid_->addWidget(row.label, alRow, 3, Qt::AlignRight);
+            tab3Grid_->addWidget(row.first, alRow, 4);
+            tab3Grid_->addWidget(row.second, alRow, 6);
+            ++alRow;
+
+            auto minSpin = row.first;
+            auto maxSpin = row.second;
+            connect(row.label, &ClickLabel::clicked, this, [=]()
+                    { minSpin->setFocus(Qt::ShortcutFocusReason); minSpin->selectAll(); });
+            connect(minSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                    this, [=](double v)
+                    {
+                        onGasParamChanged(idx, GasParam::AlMin, v);
+                        // min/max constraint
+                        if (v >= maxSpin->value()) { maxSpin->setValue(v + 0.001); }
+                    });
+            connect(maxSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                    this, [=](double v)
+                    {
+                        onGasParamChanged(idx, GasParam::AlMax, v);
+                        // min/max constraint
+                        if (v <= minSpin->value()) { minSpin->setValue(v - 0.001); }
+                    });
+            alRows_.append(row);
+        }
+
+        // --- discontinuities, hard and soft flag ----------------------
+        {
+            GasPairRow row;
+            row.gasIndex = i;
+            row.label = new ClickLabel(tr("%1 : ").arg(name));
+            const auto makeSpin = [](const QString& tip)
+            {
+                auto spin = new QDoubleSpinBox;
+                spin->setDecimals(2);
+                spin->setRange(0.0, 50.0);
+                spin->setSingleStep(1.0);
+                spin->setAccelerated(true);
+                spin->setToolTip(tip);
+                return spin;
+            };
+            row.first = makeSpin(dsHardTip_);
+            row.second = makeSpin(dsSoftTip_);
+            row.first->setValue(gasParamFor(i, GasParam::DsHf));
+            row.second->setValue(gasParamFor(i, GasParam::DsSf));
+
+            tab5Grid_->addWidget(row.label, dsRow, 2, Qt::AlignRight);
+            tab5Grid_->addWidget(row.first, dsRow, 3);
+            tab5Grid_->addWidget(row.second, dsRow, 4);
+            ++dsRow;
+
+            auto hardSpin = row.first;
+            auto softSpin = row.second;
+            connect(row.label, &ClickLabel::clicked, this, [=]()
+                    { hardSpin->setFocus(Qt::ShortcutFocusReason); hardSpin->selectAll(); });
+            connect(hardSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                    this, [=](double v)
+                    {
+                        onGasParamChanged(idx, GasParam::DsHf, v);
+                        // min/max constraint
+                        if (v < softSpin->value()) { softSpin->setValue(v); }
+                    });
+            connect(softSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                    this, [=](double v)
+                    {
+                        onGasParamChanged(idx, GasParam::DsSf, v);
+                        // min/max constraint
+                        if (v > hardSpin->value()) { hardSpin->setValue(v); }
+                    });
+            dsRows_.append(row);
+        }
+
+        // --- nominal time lag -----------------------------------------
+        {
+            GasRow row;
+            row.gasIndex = i;
+            row.label = new ClickLabel(tr("Nominal %1 time lag : ").arg(name));
+            row.label->setToolTip(
+                tr("<b>Nominal %1 time lag:</b> Set the nominal (best guess) "
+                   "time lag for %1. You may want to use the same value "
+                   "entered in the <b><i>Metadata File Editor</i></b>, or "
+                   "written inside your GHG files.").arg(name));
+            row.spin = new QDoubleSpinBox;
+            row.spin->setDecimals(2);
+            row.spin->setRange(0.0, 100.0);
+            row.spin->setSingleStep(1.0);
+            row.spin->setAccelerated(true);
+            row.spin->setSuffix(tr("  [s]", "Seconds"));
+            row.spin->setToolTip(row.label->toolTip());
+            row.spin->setValue(gasParamFor(i, GasParam::TlDef));
+
+            tab6Grid_->addWidget(row.label, tlRow, 2, Qt::AlignRight);
+            tab6Grid_->addWidget(row.spin, tlRow, 3);
+            ++tlRow;
+
+            auto spin = row.spin;
+            connect(row.label, &ClickLabel::clicked, this, [=]()
+                    { spin->setFocus(Qt::ShortcutFocusReason); spin->selectAll(); });
+            connect(row.spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                    this, [=](double v)
+                    { onGasParamChanged(idx, GasParam::TlDef, v); });
+            tlRows_.append(row);
+        }
+    }
+
+    // The rows that sit below each table move with the gas count.
+    tab0Grid_->addWidget(despLabel_2, srRow, 2, Qt::AlignRight);
+    tab0Grid_->addWidget(despSpin_2, srRow, 3);
+    setTrailingStretch(tab0Grid_, srRow + 1, srStretchRow_);
+
+    tab3Grid_->addWidget(absLimFilterCheckBox, alRow, 3, 1, 2);
+    setTrailingStretch(tab3Grid_, alRow + 1, alStretchRow_);
+
+    tab5Grid_->addWidget(discontLabel_8, dsRow, 2, Qt::AlignRight);
+    tab5Grid_->addWidget(discontSpin_8, dsRow, 3);
+    tab5Grid_->addWidget(discontSpin_16, dsRow, 4);
+    setTrailingStretch(tab5Grid_, dsRow + 1, dsStretchRow_);
+
+    setTrailingStretch(tab6Grid_, tlRow, tlStretchRow_);
+
+    setSpikeGasRowsEnabled(!ecProject_->screenParamDespikeVm());
+    gasSignature_ = gasSignature();
+}
+
+/// The spike table's gas rows follow the despiking method, like the fixed
+/// rows around them: they are Vickers and Mahrt settings only.
+void AdvStatisticalOptions::setSpikeGasRowsEnabled(bool enabled)
+{
+    for (const auto& row : srRows_)
+    {
+        if (row.label) { row.label->setEnabled(enabled); }
+        if (row.spin) { row.spin->setEnabled(enabled); }
+    }
+}
+
+void AdvStatisticalOptions::showEvent(QShowEvent* event)
+{
+    QWidget::showEvent(event);
+
+    // The gas records can change while another page is in front.
+    if (gasSignature() != gasSignature_) { rebuildGasRows(); }
 }
 
 void AdvStatisticalOptions::on_spikeRemCheckBox_clicked(bool checked)
@@ -1676,19 +1865,11 @@ void AdvStatisticalOptions::setTestDefaultValues()
     despSpin_1->setValue(ecProject_->defaultSettings.screenParam.sr_num_spk);
     despSpin_2->setValue(ecProject_->defaultSettings.screenParam.sr_lim_u);
     despSpin_3->setValue(ecProject_->defaultSettings.screenParam.sr_lim_w);
-    despSpin_4->setValue(ecProject_->defaultSettings.screenParam.sr_lim_co2);
-    despSpin_5->setValue(ecProject_->defaultSettings.screenParam.sr_lim_h2o);
-    despSpin_6->setValue(ecProject_->defaultSettings.screenParam.sr_lim_ch4);
-    despSpin_7->setValue(ecProject_->defaultSettings.screenParam.sr_lim_gas4);
     despSpin_8->setValue(ecProject_->defaultSettings.screenParam.sr_lim_hf);
     despFilterCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.filter_sr);
     updateParamSrNumSpk(ecProject_->defaultSettings.screenParam.sr_num_spk);
     updateParamSrULim(ecProject_->defaultSettings.screenParam.sr_lim_u);
     updateParamSrWLim(ecProject_->defaultSettings.screenParam.sr_lim_w);
-    updateParamSrCo2Lim(ecProject_->defaultSettings.screenParam.sr_lim_co2);
-    updateParamSrH2oLim(ecProject_->defaultSettings.screenParam.sr_lim_h2o);
-    updateParamSrCh4Lim(ecProject_->defaultSettings.screenParam.sr_lim_ch4);
-    updateParamSrGas4Lim(ecProject_->defaultSettings.screenParam.sr_lim_gas4);
     updateParamSrHfLim(ecProject_->defaultSettings.screenParam.sr_lim_hf);
     updateDespFilter(ecProject_->defaultSettings.screenSetting.filter_sr);
     amplResSpin_1->setValue(ecProject_->defaultSettings.screenParam.ar_lim);
@@ -1709,27 +1890,11 @@ void AdvStatisticalOptions::setTestDefaultValues()
     absLimSpin_2->setValue(ecProject_->defaultSettings.screenParam.al_w_max);
     absLimSpin_3->setValue(ecProject_->defaultSettings.screenParam.al_tson_min);
     absLimSpin_4->setValue(ecProject_->defaultSettings.screenParam.al_tson_max);
-    absLimSpin_5->setValue(ecProject_->defaultSettings.screenParam.al_co2_min);
-    absLimSpin_6->setValue(ecProject_->defaultSettings.screenParam.al_co2_max);
-    absLimSpin_7->setValue(ecProject_->defaultSettings.screenParam.al_h2o_min);
-    absLimSpin_8->setValue(ecProject_->defaultSettings.screenParam.al_h2o_max);
-    absLimSpin_9->setValue(ecProject_->defaultSettings.screenParam.al_ch4_min);
-    absLimSpin_10->setValue(ecProject_->defaultSettings.screenParam.al_ch4_max);
-    absLimSpin_11->setValue(ecProject_->defaultSettings.screenParam.al_gas4_min);
-    absLimSpin_12->setValue(ecProject_->defaultSettings.screenParam.al_gas4_max);
     absLimFilterCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.filter_al);
     updateParamAlUMax(ecProject_->defaultSettings.screenParam.al_u_max);
     updateParamAlWMax(ecProject_->defaultSettings.screenParam.al_w_max);
     updateParamAlTsonMin(ecProject_->defaultSettings.screenParam.al_tson_min);
     updateParamAlTsonMax(ecProject_->defaultSettings.screenParam.al_tson_max);
-    updateParamAlCo2Min(ecProject_->defaultSettings.screenParam.al_co2_min);
-    updateParamAlCo2Max(ecProject_->defaultSettings.screenParam.al_co2_max);
-    updateParamAlH2oMin(ecProject_->defaultSettings.screenParam.al_h2o_min);
-    updateParamAlH2oMax(ecProject_->defaultSettings.screenParam.al_h2o_max);
-    updateParamAlCh4Min(ecProject_->defaultSettings.screenParam.al_ch4_min);
-    updateParamAlCh4Max(ecProject_->defaultSettings.screenParam.al_ch4_max);
-    updateParamAlGas4Min(ecProject_->defaultSettings.screenParam.al_gas4_min);
-    updateParamAlGas4Max(ecProject_->defaultSettings.screenParam.al_gas4_max);
     updateAbsLimFilter(ecProject_->defaultSettings.screenSetting.filter_al);
 
     skewnessSpin_1->setValue(ecProject_->defaultSettings.screenParam.sk_hf_skmin);
@@ -1752,48 +1917,28 @@ void AdvStatisticalOptions::setTestDefaultValues()
     discontSpin_1->setValue(ecProject_->defaultSettings.screenParam.ds_hf_uv);
     discontSpin_2->setValue(ecProject_->defaultSettings.screenParam.ds_hf_w);
     discontSpin_3->setValue(ecProject_->defaultSettings.screenParam.ds_hf_t);
-    discontSpin_4->setValue(ecProject_->defaultSettings.screenParam.ds_hf_co2);
-    discontSpin_5->setValue(ecProject_->defaultSettings.screenParam.ds_hf_h2o);
-    discontSpin_6->setValue(ecProject_->defaultSettings.screenParam.ds_hf_ch4);
-    discontSpin_7->setValue(ecProject_->defaultSettings.screenParam.ds_hf_gas4);
     discontSpin_8->setValue(ecProject_->defaultSettings.screenParam.ds_hf_var);
     discontSpin_9->setValue(ecProject_->defaultSettings.screenParam.ds_sf_uv);
     discontSpin_10->setValue(ecProject_->defaultSettings.screenParam.ds_sf_w);
     discontSpin_11->setValue(ecProject_->defaultSettings.screenParam.ds_sf_t);
-    discontSpin_12->setValue(ecProject_->defaultSettings.screenParam.ds_sf_co2);
-    discontSpin_13->setValue(ecProject_->defaultSettings.screenParam.ds_sf_h2o);
-    discontSpin_14->setValue(ecProject_->defaultSettings.screenParam.ds_sf_ch4);
-    discontSpin_15->setValue(ecProject_->defaultSettings.screenParam.ds_sf_gas4);
     discontSpin_16->setValue(ecProject_->defaultSettings.screenParam.ds_sf_var);
     updateParamDsHfUV(ecProject_->defaultSettings.screenParam.ds_hf_uv);
     updateParamDsHfW(ecProject_->defaultSettings.screenParam.ds_hf_w);
     updateParamDsHfT(ecProject_->defaultSettings.screenParam.ds_hf_t);
-    updateParamDsHfCo2(ecProject_->defaultSettings.screenParam.ds_hf_co2);
-    updateParamDsHfH2o(ecProject_->defaultSettings.screenParam.ds_hf_h2o);
-    updateParamDsHfCh4(ecProject_->defaultSettings.screenParam.ds_hf_ch4);
-    updateParamDsHfGas4(ecProject_->defaultSettings.screenParam.ds_hf_gas4);
     updateParamDsHfVar(ecProject_->defaultSettings.screenParam.ds_hf_var);
     updateParamDsSfUV(ecProject_->defaultSettings.screenParam.ds_sf_uv);
     updateParamDsSfW(ecProject_->defaultSettings.screenParam.ds_sf_w);
     updateParamDsSfT(ecProject_->defaultSettings.screenParam.ds_sf_t);
-    updateParamDsSfCo2(ecProject_->defaultSettings.screenParam.ds_sf_co2);
-    updateParamDsSfH2o(ecProject_->defaultSettings.screenParam.ds_sf_h2o);
-    updateParamDsSfCh4(ecProject_->defaultSettings.screenParam.ds_sf_ch4);
-    updateParamDsSfGas4(ecProject_->defaultSettings.screenParam.ds_sf_gas4);
     updateParamDsSfVar(ecProject_->defaultSettings.screenParam.ds_sf_var);
 
     timeLagSpin_1->setValue(ecProject_->defaultSettings.screenParam.tl_hf_lim);
     timeLagSpin_2->setValue(ecProject_->defaultSettings.screenParam.tl_sf_lim);
-    timeLagSpin_3->setValue(ecProject_->defaultSettings.screenParam.tl_def_co2);
-    timeLagSpin_4->setValue(ecProject_->defaultSettings.screenParam.tl_def_h2o);
-    timeLagSpin_5->setValue(ecProject_->defaultSettings.screenParam.tl_def_ch4);
-    timeLagSpin_6->setValue(ecProject_->defaultSettings.screenParam.tl_def_gas4);
     updateParamTlHfLim(ecProject_->defaultSettings.screenParam.tl_hf_lim);
     updateParamTlSfLim(ecProject_->defaultSettings.screenParam.tl_sf_lim);
-    updateParamTlDefCo2(ecProject_->defaultSettings.screenParam.tl_def_co2);
-    updateParamTlDefH2o(ecProject_->defaultSettings.screenParam.tl_def_h2o);
-    updateParamTlDefCh4(ecProject_->defaultSettings.screenParam.tl_def_ch4);
-    updateParamTlDefGas4(ecProject_->defaultSettings.screenParam.tl_def_gas4);
+
+    // Every per-gas value goes back to the built-in default for its species,
+    // on its record.
+    resetGasParamsToDefault();
 
     attackAngleSpin_1->setValue(ecProject_->defaultSettings.screenParam.aa_min);
     attackAngleSpin_2->setValue(ecProject_->defaultSettings.screenParam.aa_max);
@@ -1874,26 +2019,6 @@ void AdvStatisticalOptions::updateParamSrWLim(double n)
     ecProject_->setScreenParamSrWLim(n);
 }
 
-void AdvStatisticalOptions::updateParamSrCo2Lim(double n)
-{
-    ecProject_->setScreenParamSrCo2Lim(n);
-}
-
-void AdvStatisticalOptions::updateParamSrH2oLim(double n)
-{
-    ecProject_->setScreenParamSrH2oLim(n);
-}
-
-void AdvStatisticalOptions::updateParamSrCh4Lim(double n)
-{
-    ecProject_->setScreenParamSrCh4Lim(n);
-}
-
-void AdvStatisticalOptions::updateParamSrGas4Lim(double n)
-{
-    ecProject_->setScreenParamSrGas4Lim(n);
-}
-
 void AdvStatisticalOptions::updateParamSrHfLim(double n)
 {
     ecProject_->setScreenParamSrHfLim(n);
@@ -1970,94 +2095,6 @@ void AdvStatisticalOptions::updateParamAlTsonMax(double n)
     if (n <= absLimSpin_3->value())
     {
         absLimSpin_3->setValue(n - 0.1);
-    }
-}
-
-void AdvStatisticalOptions::updateParamAlCo2Min(double n)
-{
-    ecProject_->setScreenParamAlCo2Min(n);
-
-    // min/max constraint
-    if (n >= absLimSpin_6->value())
-    {
-        absLimSpin_6->setValue(n + 0.001);
-    }
-}
-
-void AdvStatisticalOptions::updateParamAlCo2Max(double n)
-{
-    ecProject_->setScreenParamAlCo2Max(n);
-
-    // min/max constraint
-    if (n <= absLimSpin_5->value())
-    {
-        absLimSpin_5->setValue(n - 0.001);
-    }
-}
-
-void AdvStatisticalOptions::updateParamAlH2oMin(double n)
-{
-    ecProject_->setScreenParamAlH2oMin(n);
-
-    // min/max constraint
-    if (n >= absLimSpin_8->value())
-    {
-        absLimSpin_8->setValue(n + 0.001);
-    }
-}
-
-void AdvStatisticalOptions::updateParamAlH2oMax(double n)
-{
-    ecProject_->setScreenParamAlH2oMax(n);
-
-    // min/max constraint
-    if (n <= absLimSpin_7->value())
-    {
-        absLimSpin_7->setValue(n - 0.001);
-    }
-}
-
-void AdvStatisticalOptions::updateParamAlCh4Min(double n)
-{
-    ecProject_->setScreenParamAlCh4Min(n);
-
-    // min/max constraint
-    if (n >= absLimSpin_10->value())
-    {
-        absLimSpin_10->setValue(n + 0.001);
-    }
-}
-
-void AdvStatisticalOptions::updateParamAlCh4Max(double n)
-{
-    ecProject_->setScreenParamAlCh4Max(n);
-
-    // min/max constraint
-    if (n <= absLimSpin_9->value())
-    {
-        absLimSpin_9->setValue(n - 0.001);
-    }
-}
-
-void AdvStatisticalOptions::updateParamAlGas4Min(double n)
-{
-    ecProject_->setScreenParamAlGas4Min(n);
-
-    // min/max constraint
-    if (n >= absLimSpin_12->value())
-    {
-        absLimSpin_12->setValue(n + 0.001);
-    }
-}
-
-void AdvStatisticalOptions::updateParamAlGas4Max(double n)
-{
-    ecProject_->setScreenParamAlGas4Max(n);
-
-    // min/max constraint
-    if (n <= absLimSpin_11->value())
-    {
-        absLimSpin_11->setValue(n - 0.001);
     }
 }
 
@@ -2182,50 +2219,6 @@ void AdvStatisticalOptions::updateParamDsHfT(double n)
     }
 }
 
-void AdvStatisticalOptions::updateParamDsHfCo2(double n)
-{
-    ecProject_->setScreenParamDsHfCo2(n);
-
-    // min/max constraint
-    if (n < discontSpin_12->value())
-    {
-        discontSpin_12->setValue(n);
-    }
-}
-
-void AdvStatisticalOptions::updateParamDsHfH2o(double n)
-{
-    ecProject_->setScreenParamDsHfH2o(n);
-
-    // min/max constraint
-    if (n < discontSpin_13->value())
-    {
-        discontSpin_13->setValue(n);
-    }
-}
-
-void AdvStatisticalOptions::updateParamDsHfCh4(double n)
-{
-    ecProject_->setScreenParamDsHfCh4(n);
-
-    // min/max constraint
-    if (n < discontSpin_14->value())
-    {
-        discontSpin_14->setValue(n);
-    }
-}
-
-void AdvStatisticalOptions::updateParamDsHfGas4(double n)
-{
-    ecProject_->setScreenParamDsHfGas4(n);
-
-    // min/max constraint
-    if (n < discontSpin_15->value())
-    {
-        discontSpin_15->setValue(n);
-    }
-}
-
 void AdvStatisticalOptions::updateParamDsHfVar(double n)
 {
     ecProject_->setScreenParamDsHfVar(n);
@@ -2270,50 +2263,6 @@ void AdvStatisticalOptions::updateParamDsSfT(double n)
     }
 }
 
-void AdvStatisticalOptions::updateParamDsSfCo2(double n)
-{
-    ecProject_->setScreenParamDsSfCo2(n);
-
-    // min/max constraint
-    if (n > discontSpin_4->value())
-    {
-        discontSpin_4->setValue(n);
-    }
-}
-
-void AdvStatisticalOptions::updateParamDsSfH2o(double n)
-{
-    ecProject_->setScreenParamDsSfH2o(n);
-
-    // min/max constraint
-    if (n > discontSpin_5->value())
-    {
-        discontSpin_5->setValue(n);
-    }
-}
-
-void AdvStatisticalOptions::updateParamDsSfCh4(double n)
-{
-    ecProject_->setScreenParamDsSfCh4(n);
-
-    // min/max constraint
-    if (n > discontSpin_6->value())
-    {
-        discontSpin_6->setValue(n);
-    }
-}
-
-void AdvStatisticalOptions::updateParamDsSfGas4(double n)
-{
-    ecProject_->setScreenParamDsSfGas4(n);
-
-    // min/max constraint
-    if (n > discontSpin_7->value())
-    {
-        discontSpin_7->setValue(n);
-    }
-}
-
 void AdvStatisticalOptions::updateParamDsSfVar(double n)
 {
     ecProject_->setScreenParamDsSfVar(n);
@@ -2345,26 +2294,6 @@ void AdvStatisticalOptions::updateParamTlSfLim(double n)
     {
         timeLagSpin_1->setValue(n);
     }
-}
-
-void AdvStatisticalOptions::updateParamTlDefCo2(double n)
-{
-    ecProject_->setScreenParamTlDefCo2(n);
-}
-
-void AdvStatisticalOptions::updateParamTlDefH2o(double n)
-{
-    ecProject_->setScreenParamTlDefH2o(n);
-}
-
-void AdvStatisticalOptions::updateParamTlDefCh4(double n)
-{
-    ecProject_->setScreenParamTlDefCh4(n);
-}
-
-void AdvStatisticalOptions::updateParamTlDefGas4(double n)
-{
-    ecProject_->setScreenParamTlDefGas4(n);
 }
 
 void AdvStatisticalOptions::updateParamAaMin(double n)
@@ -2453,12 +2382,12 @@ void AdvStatisticalOptions::refresh()
     despSpin_1->setValue(ecProject_->screenParamSrNumSpk());
     despSpin_8->setValue(ecProject_->screenParamSrHfLim());
     despSpin_3->setValue(ecProject_->screenParamSrWLim());
-    despSpin_4->setValue(ecProject_->screenParamSrCo2Lim());
-    despSpin_5->setValue(ecProject_->screenParamSrH2oLim());
-    despSpin_6->setValue(ecProject_->screenParamSrCh4Lim());
-    despSpin_7->setValue(ecProject_->screenParamSrGas4Lim());
     despSpin_2->setValue(ecProject_->screenParamSrULim());
     despFilterCheckBox->setChecked(ecProject_->screenFilterSr());
+
+    // Rebuilt here rather than only on show: a project load can change the
+    // gas records under the rows, and the values below come from them.
+    rebuildGasRows();
 
     if (ecProject_->screenParamDespikeVm())
     {
@@ -2482,14 +2411,6 @@ void AdvStatisticalOptions::refresh()
     absLimSpin_2->setValue(ecProject_->screenParamAlWMax());
     absLimSpin_3->setValue(ecProject_->screenParamAlTsonMin());
     absLimSpin_4->setValue(ecProject_->screenParamAlTsonMax());
-    absLimSpin_5->setValue(ecProject_->screenParamAlCo2Min());
-    absLimSpin_6->setValue(ecProject_->screenParamAlCo2Max());
-    absLimSpin_7->setValue(ecProject_->screenParamAlH2oMin());
-    absLimSpin_8->setValue(ecProject_->screenParamAlH2oMax());
-    absLimSpin_9->setValue(ecProject_->screenParamAlCh4Min());
-    absLimSpin_10->setValue(ecProject_->screenParamAlCh4Max());
-    absLimSpin_11->setValue(ecProject_->screenParamAlGas4Min());
-    absLimSpin_12->setValue(ecProject_->screenParamAlGas4Max());
     absLimFilterCheckBox->setChecked(ecProject_->screenFilterAl());
 
     skewnessSpin_1->setValue(ecProject_->screenParamSkHfSkmin());
@@ -2504,26 +2425,14 @@ void AdvStatisticalOptions::refresh()
     discontSpin_1->setValue(ecProject_->screenParamDsHfUV());
     discontSpin_2->setValue(ecProject_->screenParamDsHfW());
     discontSpin_3->setValue(ecProject_->screenParamDsHfT());
-    discontSpin_4->setValue(ecProject_->screenParamDsHfCo2());
-    discontSpin_5->setValue(ecProject_->screenParamDsHfH2o());
-    discontSpin_6->setValue(ecProject_->screenParamDsHfCh4());
-    discontSpin_7->setValue(ecProject_->screenParamDsHfGas4());
     discontSpin_8->setValue(ecProject_->screenParamDsHfVar());
     discontSpin_9->setValue(ecProject_->screenParamDsSfUV());
     discontSpin_10->setValue(ecProject_->screenParamDsSfW());
     discontSpin_11->setValue(ecProject_->screenParamDsSfT());
-    discontSpin_12->setValue(ecProject_->screenParamDsSfCo2());
-    discontSpin_13->setValue(ecProject_->screenParamDsSfH2o());
-    discontSpin_14->setValue(ecProject_->screenParamDsSfCh4());
-    discontSpin_15->setValue(ecProject_->screenParamDsSfGas4());
     discontSpin_16->setValue(ecProject_->screenParamDsSfVar());
 
     timeLagSpin_1->setValue(ecProject_->screenParamTlHfLim());
     timeLagSpin_2->setValue(ecProject_->screenParamTlSfLim());
-    timeLagSpin_3->setValue(ecProject_->screenParamTlDefCo2());
-    timeLagSpin_4->setValue(ecProject_->screenParamTlDefH2o());
-    timeLagSpin_5->setValue(ecProject_->screenParamTlDefCh4());
-    timeLagSpin_6->setValue(ecProject_->screenParamTlDefGas4());
 
     attackAngleSpin_1->setValue(ecProject_->screenParamAaMin());
     attackAngleSpin_2->setValue(ecProject_->screenParamAaMax());
@@ -2881,6 +2790,38 @@ void AdvStatisticalOptions::onlineHelpTrigger_10()
     WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
 }
 
+/// The estimator's own settings follow its switch, wherever the switch came
+/// from.
+void AdvStatisticalOptions::setRandomErrorControlsEnabled(bool b)
+{
+    randomMethodLabel->setEnabled(b);
+    randomMethodCombo->setEnabled(b);
+    itsDefinitionLabel->setEnabled(b);
+    itsDefinitionCombo->setEnabled(b);
+    timelagMaxLabel->setEnabled(b);
+    timelagMaxSpin->setEnabled(b);
+    securityCoeffLabel->setEnabled(b);
+    securityCoeffSpin->setEnabled(b);
+}
+
+/// Re-read ru_meth after something outside this page wrote it.
+///
+/// Blocked, or the checkbox would write the value straight back and fight
+/// whatever just set it - the CEC significance test asks for Finkelstein and
+/// Sims, and an unblocked round trip through updateRandomErrorArea would
+/// replace that with whatever the combo happens to be showing.
+void AdvStatisticalOptions::syncRandomErrorMethod()
+{
+    const auto method = ecProject_->randErrorMethod();
+
+    const QSignalBlocker checkBoxBlocker(randomErrorCheckBox);
+    const QSignalBlocker comboBlocker(randomMethodCombo);
+    randomErrorCheckBox->setChecked(method != 0);
+    if (method != 0) { randomMethodCombo->setCurrentIndex(method - 1); }
+
+    setRandomErrorControlsEnabled(method != 0);
+}
+
 void AdvStatisticalOptions::onlineHelpTrigger_11()
 {
     WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Random_Uncertainty_Estimation.html")));
@@ -2897,14 +2838,7 @@ void AdvStatisticalOptions::updateRandomErrorArea(bool b)
         ecProject_->setRandomErrorMethod(0);
     }
 
-    randomMethodLabel->setEnabled(b);
-    randomMethodCombo->setEnabled(b);
-    itsDefinitionLabel->setEnabled(b);
-    itsDefinitionCombo->setEnabled(b);
-    timelagMaxLabel->setEnabled(b);
-    timelagMaxSpin->setEnabled(b);
-    securityCoeffLabel->setEnabled(b);
-    securityCoeffSpin->setEnabled(b);
+    setRandomErrorControlsEnabled(b);
 }
 
 void AdvStatisticalOptions::onClickRandomMethodLabel()
@@ -2973,31 +2907,6 @@ void AdvStatisticalOptions::onClickDespLabel_3()
     despSpin_3->selectAll();
 }
 
-void AdvStatisticalOptions::onClickDespLabel_4()
-{
-    despSpin_4->setFocus(Qt::ShortcutFocusReason);
-    despSpin_4->selectAll();
-}
-
-
-void AdvStatisticalOptions::onClickDespLabel_5()
-{
-    despSpin_5->setFocus(Qt::ShortcutFocusReason);
-    despSpin_5->selectAll();
-}
-
-void AdvStatisticalOptions::onClickDespLabel_6()
-{
-    despSpin_6->setFocus(Qt::ShortcutFocusReason);
-    despSpin_6->selectAll();
-}
-
-void AdvStatisticalOptions::onClickDespLabel_7()
-{
-    despSpin_7->setFocus(Qt::ShortcutFocusReason);
-    despSpin_7->selectAll();
-}
-
 void AdvStatisticalOptions::onClickDespLabel_8()
 {
     despSpin_8->setFocus(Qt::ShortcutFocusReason);
@@ -3058,30 +2967,6 @@ void AdvStatisticalOptions::onClickAbsLimLabel_3()
     absLimSpin_3->selectAll();
 }
 
-void AdvStatisticalOptions::onClickAbsLimLabel_5()
-{
-    absLimSpin_5->setFocus(Qt::ShortcutFocusReason);
-    absLimSpin_5->selectAll();
-}
-
-void AdvStatisticalOptions::onClickAbsLimLabel_7()
-{
-    absLimSpin_7->setFocus(Qt::ShortcutFocusReason);
-    absLimSpin_7->selectAll();
-}
-
-void AdvStatisticalOptions::onClickAbsLimLabel_9()
-{
-    absLimSpin_9->setFocus(Qt::ShortcutFocusReason);
-    absLimSpin_9->selectAll();
-}
-
-void AdvStatisticalOptions::onClickAbsLimLabel_11()
-{
-    absLimSpin_11->setFocus(Qt::ShortcutFocusReason);
-    absLimSpin_11->selectAll();
-}
-
 void AdvStatisticalOptions::onClickSkewnessLabel_1()
 {
     skewnessSpin_1->setFocus(Qt::ShortcutFocusReason);
@@ -3124,30 +3009,6 @@ void AdvStatisticalOptions::onClickDiscontLabel_3()
     discontSpin_3->selectAll();
 }
 
-void AdvStatisticalOptions::onClickDiscontLabel_4()
-{
-    discontSpin_4->setFocus(Qt::ShortcutFocusReason);
-    discontSpin_4->selectAll();
-}
-
-void AdvStatisticalOptions::onClickDiscontLabel_5()
-{
-    discontSpin_5->setFocus(Qt::ShortcutFocusReason);
-    discontSpin_5->selectAll();
-}
-
-void AdvStatisticalOptions::onClickDiscontLabel_6()
-{
-    discontSpin_6->setFocus(Qt::ShortcutFocusReason);
-    discontSpin_6->selectAll();
-}
-
-void AdvStatisticalOptions::onClickDiscontLabel_7()
-{
-    discontSpin_7->setFocus(Qt::ShortcutFocusReason);
-    discontSpin_7->selectAll();
-}
-
 void AdvStatisticalOptions::onClickDiscontLabel_8()
 {
     discontSpin_8->setFocus(Qt::ShortcutFocusReason);
@@ -3164,30 +3025,6 @@ void AdvStatisticalOptions::onClickTimeLagLabel_2()
 {
     timeLagSpin_2->setFocus(Qt::ShortcutFocusReason);
     timeLagSpin_2->selectAll();
-}
-
-void AdvStatisticalOptions::onClickTimeLagLabel_3()
-{
-    timeLagSpin_3->setFocus(Qt::ShortcutFocusReason);
-    timeLagSpin_3->selectAll();
-}
-
-void AdvStatisticalOptions::onClickTimeLagLabel_4()
-{
-    timeLagSpin_4->setFocus(Qt::ShortcutFocusReason);
-    timeLagSpin_4->selectAll();
-}
-
-void AdvStatisticalOptions::onClickTimeLagLabel_5()
-{
-    timeLagSpin_5->setFocus(Qt::ShortcutFocusReason);
-    timeLagSpin_5->selectAll();
-}
-
-void AdvStatisticalOptions::onClickTimeLagLabel_6()
-{
-    timeLagSpin_6->setFocus(Qt::ShortcutFocusReason);
-    timeLagSpin_6->selectAll();
 }
 
 void AdvStatisticalOptions::onClickAttackAngleLabel_1()
@@ -3238,17 +3075,10 @@ void AdvStatisticalOptions::despikingRadioClicked(int b)
     despLabel_1->setEnabled(vickersSelected);
     despLabel_2->setEnabled(vickersSelected);
     despLabel_3->setEnabled(vickersSelected);
-    despLabel_4->setEnabled(vickersSelected);
-    despLabel_5->setEnabled(vickersSelected);
-    despLabel_6->setEnabled(vickersSelected);
-    despLabel_7->setEnabled(vickersSelected);
     despSpin_1->setEnabled(vickersSelected);
     despSpin_2->setEnabled(vickersSelected);
     despSpin_3->setEnabled(vickersSelected);
-    despSpin_4->setEnabled(vickersSelected);
-    despSpin_5->setEnabled(vickersSelected);
-    despSpin_6->setEnabled(vickersSelected);
-    despSpin_7->setEnabled(vickersSelected);
+    setSpikeGasRowsEnabled(vickersSelected);
 }
 
 void AdvStatisticalOptions::updateDespikingMethod(int b)

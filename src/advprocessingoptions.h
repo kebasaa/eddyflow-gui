@@ -82,6 +82,11 @@ public:
     PlanarFitSettingsDialog* getPlanarFitSettingsDialog() { return pfDialog_; }
     TimeLagSettingsDialog* getTimeLagSettingsDialog() { return tlDialog_; }
 
+    //> Neutralise the options a SmartFlux module cannot run - Conditional Eddy
+    //> Covariance and the pre-whitening block-bootstrap time lag, both of
+    //> which are this program's own.
+    void setSmartfluxUI();
+
 public slots:
     void reset();
 
@@ -118,10 +123,13 @@ private slots:
     void updateFpMeth_1(bool b);
     void updateFpMeth_2(int n);
 
-    void onClickCecMethodLabel();
     void updateCecMeth_1(bool b);
-    void updateCecMeth_2(int n);
     void updateCecAvailability();
+    /// The partition reads the SIGN of each fluctuation, so it needs the
+    /// density correction. Ticking it on switches WPL on; turning WPL back off
+    /// warns and leaves the triangle beside it lit.
+    void warnWplOffWithCec();
+    void updateWplCecWarning();
 
     void updateWplMeth_1(bool b);
     void updateBurbaGroup(bool b);
@@ -191,11 +199,14 @@ private:
     QComboBox* fpMethodCombo;
 
     RichTextCheckBox* cecCheckBox;
-    ClickLabel* cecLabel;
-    QComboBox* cecMethodCombo;
     QPushButton* cecSettingsButton;
+    //> Kept because updateCecAvailability() swaps the tooltip for an
+    //> "unavailable" one and has to be able to put this back. It used to
+    //> restore cecCheckBox->toolTip(), which by then WAS the unavailable text.
+    QString cecAvailableTooltip_;
 
     RichTextCheckBox* wplCheckBox;
+    QLabel* wplWarningLabel;
     RichTextCheckBox* burbaCorrCheckBox;
     ClickLabel* burbaTypeLabel;
     QRadioButton* burbaSimpleRadio;

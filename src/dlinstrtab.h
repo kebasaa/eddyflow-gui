@@ -66,6 +66,9 @@ private:
     IrgaDelegate *irgaDelegate_;
 
     DlProject *dlProject_;
+
+    //> True and warns when the site is already at MAX_INSTRUMENTS devices.
+    bool instrumentLimitReached();
 };
 
 #endif // DLINSTRTAB_H

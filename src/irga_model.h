@@ -32,6 +32,8 @@
 
 #include "irga_desc.h" // NOTE: for IrgaDescList
 
+class DlProject;
+
 class IrgaModel : public QAbstractTableModel {
     Q_OBJECT
 public:
@@ -53,10 +55,13 @@ public:
         TAU,
         KWATER,
         KOXYGEN,
+        ACFREQ,
+        SAMPLING,
         IRGANUMCOLS
     };
 
-    IrgaModel(QObject *parent, IrgaDescList *list);
+    //> Takes the project too - see AnemModel.
+    IrgaModel(QObject *parent, IrgaDescList *list, DlProject *project);
     ~IrgaModel();
 
     QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const;
@@ -81,7 +86,12 @@ signals:
     void modified();
 
 private:
+    //> See AnemModel.
+    qreal stationAcFreq() const;
+    qreal displayedAcFreq(const IrgaDesc& irga) const;
+
     IrgaDescList *list_;
+    DlProject *project_;
 };
 
 #endif // IRGA_MODEL_H

@@ -25,6 +25,9 @@
 
 #include "basicsettingspage.h"
 
+#include "measurement_record.h"
+#include "table_delegate_utils.h"
+
 #include <QAbstractItemView>
 #include <QAbstractScrollArea>
 #include <QAbstractTableModel>
@@ -55,6 +58,7 @@
 #include <QVector>
 #include <QIcon>
 #include <QPixmap>
+#include <QPointer>
 #include <QSize>
 #include <QToolButton>
 #include <QHeaderView>
@@ -109,33 +113,9 @@ namespace {
 
 enum class VariableTableRowKind
 {
-    GasCo2,
-    GasH2o,
-    GasCh4,
-    Gas4,
+    Gas,
     Cell,
     Ambient
-};
-
-enum class VariableTableRole
-{
-    Co2,
-    H2o,
-    Ch4,
-    Gas4,
-    IntTc,
-    IntT1,
-    IntT2,
-    IntP,
-    Diag7500,
-    Diag7200,
-    Diag7700,
-    AmbientT,
-    AmbientP,
-    Rh,
-    Rg,
-    Lwin,
-    Ppfd
 };
 
 struct VariableTableRow
@@ -145,6 +125,11 @@ struct VariableTableRow
     VariableTableRowKind kind = VariableTableRowKind::Cell;
     VariableTableRole role = VariableTableRole::Co2;
     QString tooltip;
+    //> Species this row is pinned to, empty when the row takes whatever the
+    //> site measured. The first three gas rows are pinned; the fourth is the
+    //> open slot, which is why its molecular weight and diffusivity are
+    //> editable and the others' are not.
+    QString species;
 };
 
 struct VariableTableCandidate
@@ -154,31 +139,12 @@ struct VariableTableCandidate
     int rawColumn = -1;
     QString variableText;
     QString sourceText;
+    //> Species of this particular candidate, for a row that is not pinned.
+    //> Resolved once when the rows are built: the candidate text is the only
+    //> place it appears, and the row no longer owns a combo to re-read it
+    //> from.
+    QString candidateSpecies;
 };
-
-double builtInMolecularWeight(VariableTableRowKind kind)
-{
-    switch (kind)
-    {
-        case VariableTableRowKind::GasCo2: return 44.01;
-        case VariableTableRowKind::GasH2o: return 18.02;
-        case VariableTableRowKind::GasCh4: return 16.04;
-        case VariableTableRowKind::Gas4: return 44.01;
-        default: return 0.0;
-    }
-}
-
-double builtInDiffusivity(VariableTableRowKind kind)
-{
-    switch (kind)
-    {
-        case VariableTableRowKind::GasCo2: return 0.1381;
-        case VariableTableRowKind::GasH2o: return 0.2178;
-        case VariableTableRowKind::GasCh4: return 0.1952;
-        case VariableTableRowKind::Gas4: return 0.1436;
-        default: return 0.0;
-    }
-}
 
 QString variableCandidateName(const QString& text, VariableTableRowKind kind)
 {
@@ -190,14 +156,24 @@ QString variableCandidateName(const QString& text, VariableTableRowKind kind)
         variableText = variableText.left(fromIndex).trimmed();
     }
 
-    if (kind == VariableTableRowKind::GasCo2
-        || kind == VariableTableRowKind::GasH2o
-        || kind == VariableTableRowKind::GasCh4
-        || kind == VariableTableRowKind::Gas4)
+    if (kind == VariableTableRowKind::Gas)
     {
         return variableText.section(QLatin1Char(' '), 0, 0).trimmed();
     }
     return variableText.trimmed();
+}
+
+/// Whether a candidate is a placeholder rather than a measured column.
+///
+/// "None" and the 1000 sentinel. At file scope because the page asks it too:
+/// the moisture dropdown offers candidates as well as records, and a
+/// placeholder must not become a selectable H2O.
+bool isNoneCandidateColumn(const VariableCandidateItem& item)
+{
+    if (item.rawColumn == 0 || item.rawColumn == 1000) { return true; }
+    const QString text = item.text.trimmed();
+    return text.isEmpty()
+        || text.compare(QObject::tr("None"), Qt::CaseInsensitive) == 0;
 }
 
 QString variableCandidateSource(const QString& text)
@@ -225,6 +201,9 @@ public:
         Active = 0,
         Variable,
         Selection,
+        //> Which H2O measurement corrects this gas. Blank and not editable on
+        //> the H2O row itself and on anything that is not a gas.
+        Moisture,
         MolecularWeight,
         Diffusivity,
         ColumnCount
@@ -268,6 +247,8 @@ public:
                 case Active: return tr("Check the rows to include in flux computation.");
                 case Variable: return tr("Available variable candidates from the raw file description.");
                 case Selection: return selectionHeader_;
+                case Moisture: return tr("Water vapour measurement used to correct this gas. "
+                                         "Defaults to the H2O from the same instrument.");
                 case MolecularWeight: return tr("Molecular weight used for gas calculations.");
                 case Diffusivity: return tr("Molecular diffusivity in air used for gas calculations.");
                 default: return QVariant();
@@ -280,6 +261,7 @@ public:
             case Active: return tr("Active");
             case Variable: return tr("Variable");
             case Selection: return selectionHeader_;
+            case Moisture: return tr("Moisture data");
             case MolecularWeight: return tr("Molecular weight");
             case Diffusivity: return tr("Molecular diffusivity in air");
             default: return QVariant();
@@ -296,13 +278,38 @@ public:
         const auto& row = rowAt(index.row());
         if (role == Qt::TextAlignmentRole)
         {
-            return index.column() >= MolecularWeight
+            return (index.column() == MolecularWeight || index.column() == Diffusivity)
                     ? static_cast<int>(Qt::AlignRight | Qt::AlignVCenter)
                     : static_cast<int>(Qt::AlignLeft | Qt::AlignVCenter);
         }
         if (index.column() == Active && role == Qt::CheckStateRole)
         {
             return isActive(row) ? Qt::Checked : Qt::Unchecked;
+        }
+        //> Before the role filter below, which drops everything but display,
+        //> edit and tooltip.
+        //>
+        //> On the Variable column, never on Moisture: paintComboCell fills
+        //> that cell and draws a combo box from DisplayRole alone, so a
+        //> decoration there is discarded and the mark would be dead code that
+        //> reads as working. Variable falls through to the default painter,
+        //> which honours it - and it is the gas the mark is about.
+        if (role == Qt::DecorationRole)
+        {
+            if (index.column() == Variable && !crossAnalyserWater(row).isEmpty())
+            {
+                return crossAnalyserIcon();
+            }
+            //> The RH row of the ambient table, when a biomet humidity is
+            //> standing in for what the hygrometers measured. Same column and
+            //> the same reasoning as above: that table is built without the
+            //> molecular columns, so Variable is present and painted by the
+            //> default painter, which honours a decoration.
+            if (index.column() == Variable && biometRhOverride(row))
+            {
+                return crossAnalyserIcon();
+            }
+            return QVariant();
         }
         if (role != Qt::DisplayRole && role != Qt::EditRole && role != Qt::ToolTipRole)
         {
@@ -315,19 +322,41 @@ public:
                 return role == Qt::ToolTipRole ? row.row.tooltip : QVariant();
             case Variable:
                 if (role == Qt::ToolTipRole
-                    && (row.row.kind == VariableTableRowKind::GasCo2
-                        || row.row.kind == VariableTableRowKind::GasH2o
-                        || row.row.kind == VariableTableRowKind::GasCh4
-                        || row.row.kind == VariableTableRowKind::Gas4))
+                    && row.row.kind == VariableTableRowKind::Gas)
                 {
                     QString tooltip = row.row.tooltip;
                     tooltip += QStringLiteral("\n\n");
-                    tooltip += tr("Only one measurement per gas can be selected in this version. "
-                                  "Multiple gas measurements will be supported in a future project format.");
+                    tooltip += tr("A gas may be measured more than once. Each column becomes its own record, and its columns are numbered - h2o_1, h2o_2 - so the two never share a name.");
+                    //> What the triangle beside this row means, in the one
+                    //> place a user is likely to look for it.
+                    const auto waterInstrument = crossAnalyserWater(row);
+                    if (!waterInstrument.isEmpty())
+                    {
+                        tooltip += QStringLiteral("\n\n");
+                        tooltip += tr("This gas is corrected with the H2O measured by %1, "
+                                      "a different analyser. The water vapour flux term and "
+                                      "the mixing ratio conversion both use that analyser's "
+                                      "cell, so both are approximations.")
+                                       .arg(waterInstrument);
+                    }
                     return tooltip;
                 }
                 if (role == Qt::ToolTipRole)
                 {
+                    //> What the triangle on the RH row means. Same placement
+                    //> rule as the gas one above: beside the mark, where
+                    //> someone puzzled by it will point.
+                    if (biometRhOverride(row))
+                    {
+                        QString tooltip = row.row.tooltip;
+                        if (!tooltip.isEmpty()) { tooltip += QStringLiteral("\n\n"); }
+                        tooltip += tr("This biomet humidity replaces what every "
+                                      "hygrometer measured: their mole fraction, "
+                                      "mixing ratio and molar density are reported "
+                                      "from it, and every gas is WPL-corrected with "
+                                      "it. The fluxes themselves are unaffected.");
+                        return tooltip;
+                    }
                     return row.row.tooltip;
                 }
                 return row.variableText;
@@ -337,6 +366,14 @@ public:
                     return row.row.tooltip;
                 }
                 return row.sourceText.isEmpty() ? tr("raw data files") : row.sourceText;
+            case Moisture:
+                if (role == Qt::ToolTipRole)
+                {
+                    return moistureAvailable(row)
+                            ? tr("Water vapour measurement used to correct this gas.")
+                            : QVariant();
+                }
+                return moistureText(row);
             case MolecularWeight:
                 if (role == Qt::ToolTipRole)
                 {
@@ -361,23 +398,73 @@ public:
             return false;
         }
 
-        auto& row = mutableRowAt(index.row());
+        // By value, not by reference: rebuildVisibleRows() clears the vector
+        // this would otherwise point into. It survived only because clear()
+        // keeps its capacity and the rebuild happened to reproduce the same
+        // rows - which stops being true as soon as selection changes them.
+        const auto row = rowAt(index.row());
         if (index.column() == Active && role == Qt::CheckStateRole)
         {
             const bool checked = value.toInt() == Qt::Checked;
-            const int comboIndex = checked ? row.comboIndex : noneIndex(row);
+            const auto slug = gasSlug(row);
+
+            if (!slug.isEmpty() && page_)
+            {
+                if (checked)
+                {
+                    // Blocked here rather than at save: the engine reads only
+                    // the first N records and drops the rest silently, so a
+                    // project that exceeds the limit would process without
+                    // the gases the user thought they had selected.
+                    const auto blocked = page_->gasLimitBlockReason(row.rawColumn);
+                    if (!blocked.isEmpty())
+                    {
+                        WidgetUtils::warning(QApplication::activeWindow(),
+                            tr("Gas limit reached"), blocked);
+                        return false;
+                    }
+                    page_->addGasRecord(slug, row.rawColumn);
+                }
+                else { page_->removeGasRecord(slug, row.rawColumn); }
+
+                // Keep the hidden combo on the first measurement of this
+                // species: the legacy col_* fields and everything downstream
+                // still read it, and they can only express one.
+                const int firstCol = page_->firstGasColumn(slug);
+                auto& mutableRow = mutableRowAt(index.row());
+                const int comboIndex = firstCol > 0
+                        ? comboIndexForColumn(mutableRow, firstCol)
+                        : noneIndex(mutableRow);
+                if (comboIndex >= 0) { applyComboIndex(mutableRow, comboIndex); }
+
+                beginResetModel();
+                rebuildVisibleRows();
+                endResetModel();
+                return true;
+            }
+
+            //> Cell temperatures, cell pressures and diagnostics are records
+            //> too. They used to be written only as col_int_t_1 and friends,
+            //> which are retired - without this the selection would be lost
+            //> on save.
+            const auto nonGasSlug = BasicSettingsPage::nonGasSlugForRole(
+                static_cast<int>(row.row.role));
+            if (!nonGasSlug.isEmpty() && page_)
+            {
+                if (checked) { page_->addNonGasRecord(nonGasSlug, row.rawColumn); }
+                else { page_->removeNonGasRecord(nonGasSlug, row.rawColumn); }
+            }
+
+            auto& mutableRow = mutableRowAt(index.row());
+            const int comboIndex = checked ? mutableRow.comboIndex : noneIndex(mutableRow);
             if (comboIndex < 0)
             {
                 return false;
             }
-            applyComboIndex(row, comboIndex);
+            applyComboIndex(mutableRow, comboIndex);
+            beginResetModel();
             rebuildVisibleRows();
-            if (rowCount() > 0)
-            {
-                emit dataChanged(this->index(0, 0),
-                                 this->index(rowCount() - 1, columnCount() - 1),
-                                 { Qt::DisplayRole, Qt::EditRole, Qt::CheckStateRole });
-            }
+            endResetModel();
             return true;
         }
 
@@ -386,24 +473,65 @@ public:
             return false;
         }
 
-        if (row.row.kind == VariableTableRowKind::Gas4
-            && index.column() == MolecularWeight
-            && isActive(row)
-            && gasMw_
-            && gasMw_->isEnabled())
+        if (index.column() == Moisture && moistureAvailable(row) && page_)
         {
-            gasMw_->setValue(value.toDouble());
-            emit dataChanged(index, index, { Qt::DisplayRole, Qt::EditRole });
+            //> The value is a raw column, not a record index: the dropdown
+            //> offers H2O columns the project has not activated, and those
+            //> have no index until they are.
+            const int gasIdx = gasRecordIndex(row);
+            const bool recordsChanged =
+                page_->setMoistureColumnForGas(gasIdx, value.toInt());
+            if (!recordsChanged)
+            {
+                emit dataChanged(index, index, { Qt::DisplayRole, Qt::EditRole });
+            }
+
+            //> Everything after the edit waits for the next turn of the event
+            //> loop, because this runs inside the delegate's setModelData -
+            //> which QAbstractItemView calls from commitData(), with the combo
+            //> editor still open and still in the view's editor map.
+            //>
+            //> Resetting there makes the view release its editors from within
+            //> the call that is committing one. The data was right immediately
+            //> either way - isActive() reads the records live - but the
+            //> pending relayout was dropped, so a column switched on by this
+            //> selection only appeared ticked at the next external repaint,
+            //> such as minimising the window and coming back. The Active
+            //> column gets away with the same reset because a click on the
+            //> check indicator has no editor open.
+            //>
+            //> One queued call, not two, so the order is fixed: the table
+            //> redraws first, and the dialog then appears over a table that
+            //> already tells the truth. Raised from inside commitData it would
+            //> spin a nested event loop in that same place.
+            //>
+            //> gasIdx survives the reset: addGasRecord appends, so no existing
+            //> record moves.
+            QPointer<BasicVariableSelectionModel> model(this);
+            QPointer<BasicSettingsPage> page(page_);
+            QTimer::singleShot(0, this, [model, page, gasIdx, recordsChanged]()
+            {
+                if (model && recordsChanged) { model->refresh(); }
+                if (page) { page->warnOnCrossAnalyserMoisture(gasIdx); }
+            });
             return true;
         }
 
-        if (row.row.kind == VariableTableRowKind::Gas4
-            && index.column() == Diffusivity
-            && isActive(row)
-            && gasDiff_
-            && gasDiff_->isEnabled())
+        //> Straight onto the record, for any active gas. Both used to set one
+        //> of two shared spin boxes, whose value went to the project-wide
+        //> gas_mw / gas_diff - keys the writer deletes - so the edit was lost
+        //> on save and the engine used its own default instead.
+        if (isActive(row) && page_
+            && (index.column() == MolecularWeight || index.column() == Diffusivity))
         {
-            gasDiff_->setValue(value.toDouble());
+            if (index.column() == MolecularWeight)
+            {
+                page_->setGasMolecularWeight(gasRecordIndex(row), value.toDouble());
+            }
+            else
+            {
+                page_->setGasDiffusivity(gasRecordIndex(row), value.toDouble());
+            }
             emit dataChanged(index, index, { Qt::DisplayRole, Qt::EditRole });
             return true;
         }
@@ -418,12 +546,25 @@ public:
         const auto& row = rowAt(index.row());
         if (index.column() == Active)
         {
+            // A row that cannot be checked should look that way, rather than
+            // taking a click and refusing it.
+            const auto slug = gasSlug(row);
+            if (!slug.isEmpty() && page_ && !isActive(row)
+                && !page_->gasLimitBlockReason(row.rawColumn).isEmpty())
+            {
+                return Qt::ItemIsSelectable;
+            }
             return itemFlags | Qt::ItemIsUserCheckable;
         }
-        if (row.row.kind == VariableTableRowKind::Gas4
-            && isActive(row)
-            && ((index.column() == MolecularWeight && gasMw_ && gasMw_->isEnabled())
-                || (index.column() == Diffusivity && gasDiff_ && gasDiff_->isEnabled())))
+        if (index.column() == Moisture && moistureAvailable(row))
+        {
+            itemFlags |= Qt::ItemIsEditable;
+        }
+        //> Editable on any active gas, not only the open slot: a species the
+        //> tables carry no diffusivity for needs its own value whichever row
+        //> it sits in, and two such gases need two different ones.
+        if (isActive(row)
+            && (index.column() == MolecularWeight || index.column() == Diffusivity))
         {
             itemFlags |= Qt::ItemIsEditable;
         }
@@ -448,60 +589,204 @@ private:
         return visibleRows_[row];
     }
 
-    static bool isNoneCandidate(const QComboBox* combo, int index)
+    //> "None" and the 1000 sentinel are placeholders, not measurements.
+    static bool isNoneCandidate(const VariableCandidateItem& item)
     {
-        if (!combo || index < 0 || index >= combo->count())
-        {
-            return true;
-        }
-
-        const auto data = combo->itemData(index);
-        if (data.isValid())
-        {
-            bool ok = false;
-            const int value = data.toInt(&ok);
-            if (ok && (value == 0 || value == 1000))
-            {
-                return true;
-            }
-        }
-
-        const QString text = combo->itemText(index).trimmed();
-        return text.isEmpty() || text.compare(QObject::tr("None"), Qt::CaseInsensitive) == 0;
+        return isNoneCandidateColumn(item);
     }
 
-    static int noneIndex(const VariableTableCandidate& row)
+    int noneIndex(const VariableTableCandidate& row) const
     {
-        if (!row.row.combo) { return -1; }
-        for (int i = 0; i < row.row.combo->count(); ++i)
+        const auto items = candidatesFor(row.row);
+        for (int i = 0; i < items.size(); ++i)
         {
-            if (isNoneCandidate(row.row.combo, i))
-            {
-                return i;
-            }
+            if (isNoneCandidate(items.at(i))) { return i; }
         }
         return -1;
     }
 
-    static bool isActive(const VariableTableCandidate& row)
+    //> The candidate list for a row. Ambient roles still keep theirs in a
+    //> combo, because col_air_t, col_air_p and the biomet columns are live
+    //> keys; every other role reads the page's list.
+    QVector<VariableCandidateItem> candidatesFor(const VariableTableRow& row) const
     {
-        return row.row.combo
-                && row.row.combo->currentIndex() >= 0
+        if (row.combo)
+        {
+            QVector<VariableCandidateItem> items;
+            items.reserve(row.combo->count());
+            for (int i = 0; i < row.combo->count(); ++i)
+            {
+                items.append({ row.combo->itemData(i).toInt(),
+                               row.combo->itemText(i) });
+            }
+            return items;
+        }
+        return page_ ? page_->candidatesForRole(static_cast<int>(row.role))
+                     : QVector<VariableCandidateItem>{};
+    }
+
+    //> Index into the project's gas record list for this row, or -1.
+    //>
+    //> Looked up by what the row measures, not by where the row sits. The four
+    //> species rows used to carry a fixed index each, which worked only while
+    //> the record list reserved a position for every one of them - including
+    //> the gases the site does not have. It no longer does, so a row that
+    //> named its index would edit whichever gas had moved into it.
+    int gasRecordIndex(const VariableTableCandidate& row) const
+    {
+        const auto slug = gasSlug(row);
+        if (slug.isEmpty() || !page_) { return -1; }
+        return page_->gasRecordIndexFor(slug, row.rawColumn);
+    }
+
+    //> Whether this row gets a moisture choice at all.
+    //>
+    //> Blank and not editable on the H2O row - water is not corrected with
+    //> itself - on inactive gases, and on everything that is not a gas.
+    bool moistureAvailable(const VariableTableCandidate& row) const
+    {
+        if (!molecularColumns_) { return false; }
+        if (gasSlug(row) == QLatin1String("h2o")) { return false; }
+        if (gasRecordIndex(row) < 0) { return false; }
+        if (!isActive(row)) { return false; }
+        return !page_ || page_->hasMoistureCandidates();
+    }
+
+    //> Analyser of the hygrometer correcting this row's gas, when it is not
+    //> the one measuring it. Empty for every other row, which is what decides
+    //> whether the row is marked.
+    QString crossAnalyserWater(const VariableTableCandidate& row) const
+    {
+        if (!page_ || !isActive(row)) { return QString(); }
+        const int idx = gasRecordIndex(row);
+        if (idx < 0) { return QString(); }
+        return page_->crossAnalyserWaterInstrument(idx);
+    }
+
+    //> Whether this row is the RH row while a biomet humidity is standing in
+    //> for the hygrometers. The condition itself belongs to the page, shared
+    //> with the dialog and the tooltip; only "is this the RH row" is local.
+    bool biometRhOverride(const VariableTableCandidate& row) const
+    {
+        if (!page_) { return false; }
+        if (row.row.role != VariableTableRole::Rh) { return false; }
+        return page_->biometRhOverrideActive();
+    }
+
+    //> The mark itself, built once.
+    //>
+    //> data() is called for every visible cell on every repaint, so scaling a
+    //> pixmap in it would do that work continuously. Twelve pixels and the
+    //> mac device-pixel-ratio branch follow AdvOutputOptions::setRequiredIcon,
+    //> which is the existing inline warning in this interface.
+    static QIcon crossAnalyserIcon()
+    {
+        static QIcon icon = []
+        {
+            QPixmap pixmap(QStringLiteral(":/icons/msg-warning"));
+#if defined(Q_OS_MACOS)
+            pixmap.setDevicePixelRatio(2.0);
+#endif
+            return QIcon(pixmap.scaled(QSize(12, 12),
+                                       Qt::KeepAspectRatio,
+                                       Qt::SmoothTransformation));
+        }();
+        return icon;
+    }
+
+    //> Label of the H2O currently correcting this gas.
+    QVariant moistureText(const VariableTableCandidate& row) const
+    {
+        if (!moistureAvailable(row)) { return QVariant(); }
+        if (!page_) { return QVariant(); }
+        return page_->moistureLabelForGas(gasRecordIndex(row));
+    }
+
+    //> Engine slug for a gas row, empty for anything that is not a gas.
+    //>
+    //> A pinned row answers with its own species; the open slot answers with
+    //> whatever the site measured, resolved when the rows were built.
+    QString gasSlug(const VariableTableCandidate& row) const
+    {
+        if (row.row.kind != VariableTableRowKind::Gas) { return QString(); }
+        return row.row.species.isEmpty() ? row.candidateSpecies : row.row.species;
+    }
+
+    //> Whether this row takes its species from the data rather than being
+    //> pinned to one. Only such a row gets editable molecular weight and
+    //> diffusivity, and only it can raise a diffusivity-provenance warning.
+    static bool speciesIsOpen(const VariableTableCandidate& row)
+    {
+        return row.row.kind == VariableTableRowKind::Gas
+               && row.row.species.isEmpty();
+    }
+
+    //> Whether this candidate is selected.
+    //>
+    //> Gases answer from the project's records, which is what allows more than
+    //> one measurement of a species; everything else still answers from its
+    //> combo, since those roles remain single-valued.
+    bool isActive(const VariableTableCandidate& row) const
+    {
+        const auto slug = gasSlug(row);
+        if (!slug.isEmpty() && page_)
+        {
+            return page_->gasRecordExists(slug, row.rawColumn);
+        }
+        //> Cell and diagnostic rows answer from their records for the same
+        //> reason gas rows do: the column they used to be written to is
+        //> retired, and a record can name the analyser as well as the column.
+        const auto nonGasSlug = BasicSettingsPage::nonGasSlugForRole(
+            static_cast<int>(row.row.role));
+        if (!nonGasSlug.isEmpty() && page_)
+        {
+            return page_->nonGasRecordExists(nonGasSlug, row.rawColumn);
+        }
+        return isComboActive(row);
+    }
+
+    //> Only the ambient rows still answer from a combo; everything else is
+    //> record-driven and never reaches here.
+    bool isComboActive(const VariableTableCandidate& row) const
+    {
+        if (!row.row.combo) { return false; }
+        const auto items = candidatesFor(row.row);
+        return row.row.combo->currentIndex() >= 0
                 && row.row.combo->currentIndex() == row.comboIndex
-                && !isNoneCandidate(row.row.combo, row.comboIndex);
+                && row.comboIndex >= 0 && row.comboIndex < items.size()
+                && !isNoneCandidate(items.at(row.comboIndex));
+    }
+
+    int comboIndexForColumn(const VariableTableCandidate& row, int rawColumn) const
+    {
+        const auto items = candidatesFor(row.row);
+        for (int i = 0; i < items.size(); ++i)
+        {
+            if (items.at(i).rawColumn == rawColumn) { return i; }
+        }
+        return -1;
     }
 
     void applyComboIndex(VariableTableCandidate& row, int comboIndex)
     {
-        row.row.combo->setCurrentIndex(comboIndex);
+        //> A flux row has no combo: its selection lives in the record that
+        //> setData has already written.
+        if (row.row.combo) { row.row.combo->setCurrentIndex(comboIndex); }
         if (row.row.updateSlot)
         {
             QMetaObject::invokeMethod(page_, row.row.updateSlot, Qt::DirectConnection, Q_ARG(int, comboIndex));
         }
-        if (row.row.kind == VariableTableRowKind::Gas4)
+        //> Both of these are species questions, not slot questions: they fire
+        //> for whichever row takes its species from the data.
+        if (speciesIsOpen(row))
         {
-            QMetaObject::invokeMethod(page_, "showFourthGasDiffWarning", Qt::DirectConnection, Q_ARG(int, comboIndex));
-            QMetaObject::invokeMethod(page_, "updateFourthGasMinLimit", Qt::DirectConnection, Q_ARG(int, comboIndex));
+            const QString species = gasSlug(row);
+            QMetaObject::invokeMethod(page_, "showGasDiffusivityWarning",
+                                      Qt::DirectConnection, Q_ARG(QString, species));
+            QMetaObject::invokeMethod(page_, "applyGasAbsoluteLimitMin",
+                                      Qt::DirectConnection,
+                                      Q_ARG(int, gasRecordIndex(row)),
+                                      Q_ARG(QString, species));
         }
     }
 
@@ -510,24 +795,22 @@ private:
         visibleRows_.clear();
         for (const auto& row : rows_)
         {
-            if (!row.combo)
+            const auto items = candidatesFor(row);
+            for (int i = 0; i < items.size(); ++i)
             {
-                continue;
-            }
-            for (int i = 0; i < row.combo->count(); ++i)
-            {
-                if (isNoneCandidate(row.combo, i))
-                {
-                    continue;
-                }
+                if (isNoneCandidate(items.at(i))) { continue; }
 
                 VariableTableCandidate candidate;
                 candidate.row = row;
                 candidate.comboIndex = i;
-                candidate.rawColumn = row.combo->itemData(i).toInt();
-                candidate.variableText = variableCandidateName(row.combo->itemText(i), row.kind)
-                                         + tr(" (col %1)").arg(candidate.rawColumn);
-                candidate.sourceText = variableCandidateSource(row.combo->itemText(i));
+                candidate.rawColumn = items.at(i).rawColumn;
+                const QString name = variableCandidateName(items.at(i).text, row.kind);
+                candidate.variableText = name + tr(" (col %1)").arg(candidate.rawColumn);
+                candidate.sourceText = variableCandidateSource(items.at(i).text);
+                if (row.kind == VariableTableRowKind::Gas && row.species.isEmpty())
+                {
+                    candidate.candidateSpecies = GasMetadata::normaliseFormula(name);
+                }
                 visibleRows_.append(candidate);
             }
         }
@@ -536,22 +819,28 @@ private:
     QVariant molecularText(const VariableTableCandidate& row, bool weight) const
     {
         if (!molecularColumns_) { return QVariant(); }
-        if (row.row.kind == VariableTableRowKind::Cell || row.row.kind == VariableTableRowKind::Ambient)
+        if (row.row.kind != VariableTableRowKind::Gas) { return QVariant(); }
+
+        //> An active gas shows its record's value, which is what the file
+        //> carries and what the engine reads. It used to show the two shared
+        //> spin boxes for the open slot and a species constant otherwise -
+        //> so a second non-standard gas could not have its own constants at
+        //> all, and what the spin boxes held was discarded on save.
+        if (isActive(row) && page_)
         {
-            return QVariant();
+            const int idx = gasRecordIndex(row);
+            const qreal v = weight ? page_->gasMolecularWeight(idx)
+                                   : page_->gasDiffusivity(idx);
+            if (v > 0.0) { return QString::number(v, 'f', weight ? 4 : 5); }
         }
 
-        if (row.row.kind == VariableTableRowKind::Gas4)
-        {
-            if (!isActive(row)) { return QVariant(); }
-            const double value = weight
-                    ? (gasMw_ ? gasMw_->value() : builtInMolecularWeight(row.row.kind))
-                    : (gasDiff_ ? gasDiff_->value() : builtInDiffusivity(row.row.kind));
-            return QString::number(value, 'f', weight ? 4 : 5);
-        }
-
-        const double value = weight ? builtInMolecularWeight(row.row.kind) : builtInDiffusivity(row.row.kind);
-        return QString::number(value, 'f', weight ? 4 : 5);
+        //> An inactive row has no record yet, so it previews the species
+        //> constant it would be given.
+        const GasMetadata::GasEntry* gas = GasMetadata::findSpecies(gasSlug(row));
+        if (!gas) { return QVariant(); }
+        const qreal v = weight ? gas->molecularWeight : gas->diffusivity;
+        if (v <= 0.0) { return QVariant(); }
+        return QString::number(v, 'f', weight ? 4 : 5);
     }
 
     BasicSettingsPage* page_;
@@ -566,8 +855,9 @@ private:
 class BasicVariableSelectionDelegate final : public QStyledItemDelegate
 {
 public:
-    explicit BasicVariableSelectionDelegate(QObject* parent = nullptr)
-        : QStyledItemDelegate(parent)
+    explicit BasicVariableSelectionDelegate(QObject* parent = nullptr,
+                                            BasicSettingsPage* page = nullptr)
+        : QStyledItemDelegate(parent), page_(page)
     {}
 
     QWidget* createEditor(QWidget* parent,
@@ -577,6 +867,52 @@ public:
         Q_UNUSED(option)
         const auto model = dynamic_cast<const BasicVariableSelectionModel*>(index.model());
         if (!model) { return nullptr; }
+
+        if (index.column() == BasicVariableSelectionModel::Moisture)
+        {
+            if (!page_) { return nullptr; }
+            auto editor = new QComboBox(parent);
+            for (const auto& choice : page_->moistureChoices())
+            {
+                //> The raw column travels as the item's data, never the label.
+                //> Not the record index: the list offers H2O columns the
+                //> project has not activated, and those have no record to
+                //> index until the selection creates one.
+                editor->addItem(choice.second, choice.first);
+            }
+            TableDelegateUtils::prepareComboEditor(editor, parent);
+            //> Commit as soon as the user picks, rather than whenever the view
+            //> next decides editing has ended.
+            //>
+            //> A QComboBox editor with no such connection commits on focus-out
+            //> alone. Choosing from the popup closed the popup and updated the
+            //> combo, and nothing reached the model - so the H2O column this
+            //> selection switches on stayed unticked until the user clicked
+            //> away or, as reported, minimised the window and came back. The
+            //> value did save, eventually, which is what made it look like a
+            //> repaint problem rather than a commit that had not happened.
+            //>
+            //> The three sibling delegates - variable, irga and anem - all
+            //> connect activated to the same commitData/closeEditor pair. This
+            //> is that pattern; a lambda rather than a slot because this class
+            //> is declared in the .cpp with no Q_OBJECT.
+            //>
+            //> Cast away the constness createEditor is declared with, because
+            //> the two signals are non-const members. The siblings avoid it
+            //> only by naming a slot, which needs the moc this class does not
+            //> have; the emit happens later, from the event loop, when nothing
+            //> is treating the delegate as const.
+            auto* self = const_cast<BasicVariableSelectionDelegate*>(this);
+            connect(editor, QOverload<int>::of(&QComboBox::activated), self,
+                    [self, editor](int)
+                    {
+                        emit self->commitData(editor);
+                        emit self->closeEditor(editor,
+                                               QAbstractItemDelegate::NoHint);
+                    });
+            TableDelegateUtils::showPopupQueued(editor);
+            return editor;
+        }
 
         if (index.column() == BasicVariableSelectionModel::MolecularWeight
             || index.column() == BasicVariableSelectionModel::Diffusivity)
@@ -593,6 +929,15 @@ public:
 
     void setEditorData(QWidget* editor, const QModelIndex& index) const override
     {
+        if (auto combo = qobject_cast<QComboBox*>(editor))
+        {
+            // Preselect what the row currently resolves to, so opening the
+            // list and closing it again cannot change anything.
+            const auto text = index.data(Qt::DisplayRole).toString();
+            const int at = combo->findText(text);
+            if (at >= 0) { combo->setCurrentIndex(at); }
+            return;
+        }
         if (auto spin = qobject_cast<QDoubleSpinBox*>(editor))
         {
             spin->setValue(index.data(Qt::EditRole).toDouble());
@@ -601,11 +946,47 @@ public:
 
     void setModelData(QWidget* editor, QAbstractItemModel* model, const QModelIndex& index) const override
     {
+        if (auto combo = qobject_cast<QComboBox*>(editor))
+        {
+            model->setData(index, combo->currentData().toInt(), Qt::EditRole);
+            return;
+        }
         if (auto spin = qobject_cast<QDoubleSpinBox*>(editor))
         {
             model->setData(index, spin->value(), Qt::EditRole);
         }
     }
+
+    void paint(QPainter* painter,
+               const QStyleOptionViewItem& option,
+               const QModelIndex& index) const override
+    {
+        if (index.column() == BasicVariableSelectionModel::Moisture
+            && (index.flags() & Qt::ItemIsEditable))
+        {
+            TableDelegateUtils::paintComboCell(painter, option, index);
+            return;
+        }
+        QStyledItemDelegate::paint(painter, option, index);
+    }
+
+    //> Wide enough for the label and the arrow drawn over it. Without this the
+    //> column sizes to the text alone and elides the instrument, which is the
+    //> part that tells one analyser's water from another's.
+    QSize sizeHint(const QStyleOptionViewItem& option,
+                   const QModelIndex& index) const override
+    {
+        const QSize base = QStyledItemDelegate::sizeHint(option, index);
+        if (index.column() == BasicVariableSelectionModel::Moisture
+            && (index.flags() & Qt::ItemIsEditable))
+        {
+            return TableDelegateUtils::comboCellSizeHint(option, base);
+        }
+        return base;
+    }
+
+private:
+    BasicSettingsPage* page_ = nullptr;
 };
 
 void configureBasicVariablesTable(QTableView* table)
@@ -623,6 +1004,9 @@ void configureBasicVariablesTable(QTableView* table)
     table->horizontalHeader()->setSectionResizeMode(BasicVariableSelectionModel::Selection, QHeaderView::Stretch);
     if (table->model() && table->model()->columnCount() > BasicVariableSelectionModel::MolecularWeight)
     {
+        // Guarded with the molecular columns: the ambient table stops at
+        // Selection, so these sections do not exist there.
+        table->horizontalHeader()->setSectionResizeMode(BasicVariableSelectionModel::Moisture, QHeaderView::ResizeToContents);
         table->horizontalHeader()->setSectionResizeMode(BasicVariableSelectionModel::MolecularWeight, QHeaderView::ResizeToContents);
         table->horizontalHeader()->setSectionResizeMode(BasicVariableSelectionModel::Diffusivity, QHeaderView::ResizeToContents);
     }
@@ -631,6 +1015,742 @@ void configureBasicVariablesTable(QTableView* table)
 
 } // namespace
 
+
+
+namespace {
+const QString kH2oSlug = QStringLiteral("h2o");
+
+//> There is deliberately no table of reserved record positions here any more.
+//> CO2, H2O and CH4 used to own the first three, so that a record's index was
+//> the engine's gas slot - which meant carrying an empty record for every gas
+//> the site did not measure. Records name their own species, so a position
+//> means nothing and the list holds only what is measured. EddyPro's fixed
+//> four-slot layout still exists, but it is rebuilt where it is needed, in
+//> EcProject::writeEddyProCompatibleKeys().
+} // namespace
+
+/// Whether the project has any H2O to offer.
+
+/// Canonical instrument id of the analyser measuring  rawColumn.
+///
+/// Read from the metadata rather than parsed out of the table's display text:
+/// the label is translated and formatted for reading, while the id is what
+/// both the project file and the same-analyser rule match on.
+/// Species of the gas in the open slot, as a slug.
+///
+/// Read from the record rather than from a combo's current text, which is
+/// what this used to be: the fourth-gas combo is gone with the rest, and the
+/// record is where the species has lived since Phase 5. GasMetadata::findGas
+/// normalises both sides, so a slug matches a display formula.
+///
+/// Named for the slot's role rather than its position, but still that
+/// position: migration pins CO2, H2O and CH4 to records 0..2, so the fourth is
+/// the open one. Deliberately does *not* gate on the record having a column -
+/// a gas can be named before its column is chosen, and the species is what the
+/// absolute-limit floor and the diffusivity warning key on.
+QString BasicSettingsPage::openGasSpecies() const
+{
+    if (!ecProject_) { return QString(); }
+    const int slot = openGasRecordIndex();
+    if (slot < 0) { return QString(); }
+    return ecProject_->gasColumns().at(slot).slug;
+}
+
+QString BasicSettingsPage::canonicalInstrumentForColumn(int rawColumn) const
+{
+    if (!dlProject_ || rawColumn <= 0) { return QString(); }
+    const auto vars = dlProject_->variables();
+    if (!vars || rawColumn > vars->size()) { return QString(); }
+    const auto instrument = vars->at(rawColumn - 1).instrument();
+    if (instrument.isEmpty()) { return MeasurementRecords::noneInstrument(); }
+    return dlProject_->canonicalInstrumentId(instrument);
+}
+
+bool BasicSettingsPage::gasRecordExists(const QString& slug, int rawColumn) const
+{
+    if (!ecProject_) { return false; }
+    for (const auto& rec : ecProject_->gasColumns())
+    {
+        if (rec.slug == slug && rec.rawColumn == rawColumn) { return true; }
+    }
+    return false;
+}
+
+int BasicSettingsPage::firstGasColumn(const QString& slug) const
+{
+    if (!ecProject_) { return -1; }
+    for (const auto& rec : ecProject_->gasColumns())
+    {
+        if (rec.slug == slug && rec.rawColumn > 0) { return rec.rawColumn; }
+    }
+    return -1;
+}
+
+/// Add a measurement of  slug at  rawColumn.
+///
+/// The first four record positions are the historical slots and stay put even
+/// when empty, because the engine maps record i to gas slot firstGas+i-1;
+/// reordering them would move each gas's settings onto a different species.
+/// Additional measurements are appended after those four.
+/// Why a gas measured on  rawColumn cannot be added, empty if it can.
+///
+/// Checked before the record is created rather than after: the engine reads
+/// only the first MaxNumGases records and the first MaxGasesPerInstrument per
+/// instrument, and drops the rest without saying so.
+QString BasicSettingsPage::gasLimitBlockReason(int rawColumn) const
+{
+    if (!ecProject_) { return QString(); }
+    const auto& gases = ecProject_->gasColumns();
+
+    int configured = 0;
+    for (const auto& rec : gases)
+    {
+        if (rec.rawColumn > 0) { ++configured; }
+    }
+    if (configured >= Defs::MAX_GASES)
+    {
+        return tr("This project already uses the maximum of %1 gas "
+                  "measurements.").arg(Defs::MAX_GASES);
+    }
+
+    const auto instrument = canonicalInstrumentForColumn(rawColumn);
+    if (!MeasurementRecords::isRealInstrument(instrument))
+    {
+        return QString();
+    }
+    int onInstrument = 0;
+    for (const auto& rec : gases)
+    {
+        if (rec.rawColumn > 0 && rec.instrumentId == instrument)
+        {
+            ++onInstrument;
+        }
+    }
+    if (onInstrument >= Defs::MAX_GASES_PER_INSTRUMENT)
+    {
+        return tr("%1 already provides the maximum of %2 gas measurements. "
+                  "Deselect one of its gases to add another.")
+                .arg(instrument).arg(Defs::MAX_GASES_PER_INSTRUMENT);
+    }
+    return QString();
+}
+
+void BasicSettingsPage::addGasRecord(const QString& slug, int rawColumn)
+{
+    if (!ecProject_ || slug.isEmpty() || rawColumn <= 0) { return; }
+    if (gasRecordExists(slug, rawColumn)) { return; }
+    if (!gasLimitBlockReason(rawColumn).isEmpty()) { return; }
+
+    //> Appended, whatever the species. CO2, H2O and CH4 used to be filled into
+    //> reserved positions so that record order stayed the engine's slot order,
+    //> and a gas the site did not measure held its place with an empty record.
+    //> Nothing reads a species from a position any more - the record says what
+    //> it is - so there is no slot to reserve and no reason to keep a record
+    //> for a gas that is not there.
+    auto gases = ecProject_->gasColumns();
+    GasRecord rec;
+    rec.slug = slug;
+    rec.rawColumn = rawColumn;
+    rec.instrumentId = canonicalInstrumentForColumn(rawColumn);
+    //> Seeded with this species' processing settings rather than left at the
+    //> -1 sentinel. An unset setting is written as no key at all, and the
+    //> engine reads an absent al_min/al_max as "not configured" and declines
+    //> the absolute-limits test - silently, with a 9 in a packed flag string
+    //> as the only trace. The spike limit, the discontinuity limits and both
+    //> time-lag windows go the same way.
+    //>
+    //> migrateLegacyGasSettings fills these once, on a legacy upgrade, so
+    //> until now only the records that survived that upgrade had any. Moving
+    //> a gas to a different column creates a *new* record, which is how a
+    //> project ended up carrying a full settings block for one gas and none
+    //> for the others.
+    rec.proc = ecProject_->defaultGasProcessing(slug);
+    gases.append(rec);
+    ecProject_->setGasColumns(gases);
+}
+
+/// Slug for a non-gas row, or empty when the row is not one.
+///
+/// Cell temperatures and pressures and the instrument diagnostics are
+/// records too. They used to be written only as col_int_t_1 and friends,
+/// which could name one column each and said nothing about which analyser
+/// it came from - the same limitation the gas records were introduced to
+/// remove, and it applies just as much to a site with two closed-path
+/// analysers, each with its own cell.
+QString BasicSettingsPage::nonGasSlugForRole(int role)
+{
+    switch (static_cast<VariableTableRole>(role))
+    {
+        case VariableTableRole::IntTc: return QStringLiteral("cell_t");
+        case VariableTableRole::IntT1: return QStringLiteral("int_t_1");
+        case VariableTableRole::IntT2: return QStringLiteral("int_t_2");
+        case VariableTableRole::IntP: return QStringLiteral("int_p");
+        case VariableTableRole::Diag7500: return QStringLiteral("diag_75");
+        case VariableTableRole::Diag7200: return QStringLiteral("diag_72");
+        case VariableTableRole::Diag7700: return QStringLiteral("diag_77");
+        default: return QString();
+    }
+}
+
+/// Whether \a slug names a diagnostic rather than a cell measurement.
+static bool isDiagnosticSlug(const QString& slug)
+{
+    return slug.startsWith(QLatin1String("diag_"));
+}
+
+void BasicSettingsPage::addNonGasRecord(const QString& slug, int rawColumn)
+{
+    if (!ecProject_ || slug.isEmpty() || rawColumn <= 0) { return; }
+
+    auto records = isDiagnosticSlug(slug) ? ecProject_->diagColumns()
+                                          : ecProject_->cellColumns();
+    for (const auto& rec : records)
+    {
+        if (rec.slug == slug && rec.rawColumn == rawColumn) { return; }
+    }
+
+    MeasurementRecord rec;
+    rec.slug = slug;
+    rec.rawColumn = rawColumn;
+    rec.instrumentId = canonicalInstrumentForColumn(rawColumn);
+    records.append(rec);
+
+    if (isDiagnosticSlug(slug)) { ecProject_->setDiagColumns(records); }
+    else { ecProject_->setCellColumns(records); }
+}
+
+void BasicSettingsPage::removeNonGasRecord(const QString& slug, int rawColumn)
+{
+    if (!ecProject_ || slug.isEmpty()) { return; }
+
+    const bool isDiag = isDiagnosticSlug(slug);
+    auto records = isDiag ? ecProject_->diagColumns() : ecProject_->cellColumns();
+    auto gases = ecProject_->gasColumns();
+    bool gasesChanged = false;
+
+    for (int i = records.size() - 1; i >= 0; --i)
+    {
+        if (records.at(i).slug != slug || records.at(i).rawColumn != rawColumn)
+        {
+            continue;
+        }
+        records.removeAt(i);
+
+        //> The same shift the gas records take: cellRef is a 1-based index
+        //> into the cell list, so removing one moves every later cell block
+        //> under the gases that named it. Only the cell list is referenced -
+        //> nothing points at a diagnostic - but the loop is written once and
+        //> guarded rather than duplicated.
+        if (isDiag) { continue; }
+        for (auto& gas : gases)
+        {
+            if (gas.cellRef == i + 1) { gas.cellRef = 0; }
+            else if (gas.cellRef > i + 1) { --gas.cellRef; }
+            else { continue; }
+            gasesChanged = true;
+        }
+    }
+
+    if (isDiag) { ecProject_->setDiagColumns(records); }
+    else { ecProject_->setCellColumns(records); }
+    if (gasesChanged) { ecProject_->setGasColumns(gases); }
+}
+
+/// Position of the record for \a slug at \a rawColumn, or -1.
+///
+/// The variable table's rows resolve their record through this. A row knows
+/// what it measures and which column it came from, which together name exactly
+/// one record - the same pair gasRecordExists() matches on.
+int BasicSettingsPage::gasRecordIndexFor(const QString& slug,
+                                         int rawColumn) const
+{
+    if (!ecProject_ || slug.isEmpty()) { return -1; }
+    const auto& gases = ecProject_->gasColumns();
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        if (gases.at(i).slug == slug && gases.at(i).rawColumn == rawColumn)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/// Whether a non-gas record for \a slug at \a rawColumn exists.
+bool BasicSettingsPage::nonGasRecordExists(const QString& slug,
+                                           int rawColumn) const
+{
+    if (!ecProject_ || slug.isEmpty()) { return false; }
+    const auto& records = isDiagnosticSlug(slug) ? ecProject_->diagColumns()
+                                                 : ecProject_->cellColumns();
+    for (const auto& rec : records)
+    {
+        if (rec.slug == slug && rec.rawColumn == rawColumn) { return true; }
+    }
+    return false;
+}
+
+void BasicSettingsPage::removeGasRecord(const QString& slug, int rawColumn)
+{
+    if (!ecProject_) { return; }
+    auto gases = ecProject_->gasColumns();
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        if (gases.at(i).slug != slug || gases.at(i).rawColumn != rawColumn)
+        {
+            continue;
+        }
+        //> Erased, whichever position it held. CO2, H2O and CH4 used to be
+        //> emptied in place instead, so that the records after them kept their
+        //> index - which is also how a project ended up naming a gas it does
+        //> not measure and shipping a column of error codes for it.
+        gases.remove(i);
+
+        //> Everything that pointed past the hole moves down with it. These are
+        //> 1-based indices into this same list, and validateReferences() below
+        //> only clears the ones that now point nowhere - it cannot tell that a
+        //> still-valid index means a different gas than it did a moment ago.
+        for (auto& gas : gases)
+        {
+            if (gas.moistureRef == i + 1) { gas.moistureRef = 0; }
+            else if (gas.moistureRef > i + 1) { --gas.moistureRef; }
+        }
+        break;
+    }
+    // References are 1-based indices into this list, so anything pointing at a
+    // record that just went away has to be reset before it is read again.
+    auto cells = ecProject_->cellColumns();
+    MeasurementRecords::validateReferences(gases, cells);
+    ecProject_->setGasColumns(gases);
+}
+
+bool BasicSettingsPage::hasMoistureCandidates() const
+{
+    if (!ecProject_) { return false; }
+    for (const auto& rec : ecProject_->gasColumns())
+    {
+        if (rec.slug == kH2oSlug && rec.rawColumn > 0) { return true; }
+    }
+    //> A column the raw file description names counts, whether or not it has
+    //> been switched on. Asking only about records hid the moisture combo
+    //> entirely on a project whose H2O columns are all inactive - which is
+    //> exactly the project where the choice matters, since the gas is being
+    //> corrected with another analyser's water for want of it.
+    for (const auto& item : candidatesForRole(static_cast<int>(VariableTableRole::H2o)))
+    {
+        if (item.rawColumn > 0 && !isNoneCandidateColumn(item)) { return true; }
+    }
+    return false;
+}
+
+/// The H2O measurements a gas may be corrected with, as (raw column, label).
+///
+/// Keyed on the raw column, not on the 1-based record index it used to carry.
+/// The list holds columns that have no record yet, and an index into the record
+/// list cannot name one of those - there is nothing to point at until it is
+/// activated. The column names both kinds, and `moistureRef` goes on storing an
+/// index internally.
+///
+/// Every H2O the raw file description knows about, not only the ones checked in
+/// the variable table. A site whose gas sits on an analyser with its own
+/// hygrometer should be able to say so without first hunting down that row; the
+/// selection switches the column on.
+QVector<QPair<int, QString>> BasicSettingsPage::moistureChoices() const
+{
+    QVector<QPair<int, QString>> out;
+    if (!ecProject_) { return out; }
+
+    const auto labelFor = [this](int rawColumn, bool active)
+    {
+        auto label = tr("H%1O (col %2)").arg(QChar(0x2082)).arg(rawColumn);
+        //> Both kinds take the analyser from the metadata, so an active and an
+        //> inactive entry for the same instrument read alike.
+        const auto instrument = canonicalInstrumentForColumn(rawColumn);
+        if (MeasurementRecords::isRealInstrument(instrument))
+        {
+            label += QStringLiteral(" — ") + instrument;
+        }
+        //> Choosing this one also switches the column on. Said here, because a
+        //> selection that quietly adds a measured gas to the project is the
+        //> kind of side effect a user should see coming.
+        if (!active) { label += QStringLiteral(" ") + tr("(not yet selected)"); }
+        return label;
+    };
+
+    QVector<int> seen;
+    const auto& gases = ecProject_->gasColumns();
+    for (const auto& rec : gases)
+    {
+        if (rec.slug != kH2oSlug || rec.rawColumn <= 0) { continue; }
+        if (seen.contains(rec.rawColumn)) { continue; }
+        seen.append(rec.rawColumn);
+        out.append(qMakePair(rec.rawColumn, labelFor(rec.rawColumn, true)));
+    }
+
+    for (const auto& item : candidatesForRole(static_cast<int>(VariableTableRole::H2o)))
+    {
+        if (item.rawColumn <= 0 || isNoneCandidateColumn(item)) { continue; }
+        if (seen.contains(item.rawColumn)) { continue; }
+        seen.append(item.rawColumn);
+        out.append(qMakePair(item.rawColumn, labelFor(item.rawColumn, false)));
+    }
+
+    //> The biomet relative humidity, last, because it is the fallback rather
+    //> than a measurement in the sample stream. Keyed on the ambient combos'
+    //> own numbering, where a biomet column is col + 1000 - so it cannot
+    //> collide with a raw column, and setMoistureColumnForGas can tell the two
+    //> apart without a second parameter.
+    if (biometRhAvailable())
+    {
+        out.append(qMakePair(ecProject_->biomParamColRh(), biometMoistureLabel()));
+    }
+    return out;
+}
+
+/// What the biomet reads as in the Moisture column.
+///
+/// One spelling, shared by the dropdown entry and the cell that shows the
+/// current choice: moistureLabelForGas finds the selected entry by matching
+/// this text, so two spellings would leave the cell blank and the delegate
+/// would read that as nothing selected.
+QString BasicSettingsPage::biometMoistureLabel()
+{
+    return tr("Biomet RH (site humidity)");
+}
+
+int BasicSettingsPage::moistureRefForGas(int gasRecordIndex) const
+{
+    if (!ecProject_) { return 0; }
+    // Resolved, not raw: a stored 0 means "auto", and what the user needs to
+    // see is which H2O that actually lands on.
+    return MeasurementRecords::resolveMoistureRef(ecProject_->gasColumns(),
+                                                  gasRecordIndex,
+                                                  biometRhAvailable());
+}
+
+QString BasicSettingsPage::moistureLabelForGas(int gasRecordIndex) const
+{
+    if (!ecProject_) { return QString(); }
+    const int ref = moistureRefForGas(gasRecordIndex);
+    const auto& gases = ecProject_->gasColumns();
+    //> The biomet is not a record, so it has no raw column to match on below.
+    if (ref == MeasurementRecords::biometMoistureRef) { return biometMoistureLabel(); }
+    if (ref <= 0 || ref > gases.size()) { return QString(); }
+
+    //> Matched on the record's raw column, which is what the choices are keyed
+    //> on now. This compared the reference index against choice.first while
+    //> that was also an index; keeping it that way once the key changed would
+    //> have matched a column number against a record position and shown the
+    //> wrong water - or none, which the delegate reads as "no preselection".
+    const int rawColumn = gases.at(ref - 1).rawColumn;
+    for (const auto& choice : moistureChoices())
+    {
+        if (choice.first == rawColumn) { return choice.second; }
+    }
+    return QString();
+}
+
+/// Correct \a gasRecordIndex with the H2O measured at \a rawColumn, switching
+/// that column on if it is not a record yet.
+///
+/// Returns whether the record list changed, which the caller needs: activating
+/// a column alters a *different* row of the variable table, and a cell-scoped
+/// dataChanged would leave that row's checkbox stale.
+///
+/// The dropdown offers every H2O the raw file description names, so a user can
+/// pair a gas with the hygrometer on its own analyser without first finding
+/// that row and checking it. Choosing an inactive one is taken as asking for it.
+bool BasicSettingsPage::setMoistureColumnForGas(int gasRecordIndex, int rawColumn)
+{
+    if (!ecProject_ || rawColumn <= 0) { return false; }
+    {
+        const auto& gases = ecProject_->gasColumns();
+        if (gasRecordIndex < 0 || gasRecordIndex >= gases.size()) { return false; }
+    }
+
+    //> The biomet relative humidity, which is not an analyser channel and so
+    //> has no gas record to point at. Biomet columns carry col + 1000 through
+    //> this interface already - the ambient combos build their item data that
+    //> way - so the dropdown can offer it without a numbering of its own.
+    //> The engine's -1 says the same thing on its side.
+    if (rawColumn > 1000)
+    {
+        auto gases = ecProject_->gasColumns();
+        if (gases.at(gasRecordIndex).moistureRef != MeasurementRecords::biometMoistureRef)
+        {
+            gases[gasRecordIndex].moistureRef =
+                MeasurementRecords::biometMoistureRef;
+            ecProject_->setGasColumns(gases);
+        }
+        return false;
+    }
+
+    bool recordsChanged = false;
+    int waterIndex = gasRecordIndexFor(kH2oSlug, rawColumn);
+    if (waterIndex < 0)
+    {
+        //> Asked before adding, not after. addGasRecord declines silently when
+        //> an instrument is at its limit, which would leave the dropdown
+        //> showing a choice that did nothing at all.
+        const auto blocked = gasLimitBlockReason(rawColumn);
+        if (!blocked.isEmpty())
+        {
+            //> Queued, like every other dialog this selection can raise: the
+            //> caller is the delegate's setModelData, and a modal dialog there
+            //> spins a nested event loop inside QAbstractItemView::commitData
+            //> while the combo editor is still open.
+            QPointer<BasicSettingsPage> self(this);
+            QTimer::singleShot(0, this, [self, blocked]()
+            {
+                if (!self) { return; }
+                WidgetUtils::warning(QApplication::activeWindow(),
+                                     tr("Cannot Add This Water Vapour Measurement"),
+                                     blocked);
+            });
+            return false;
+        }
+        //> Through addGasRecord, which seeds the new record's per-gas
+        //> processing settings from its species. A GasRecord built here would
+        //> arrive with every setting at the -1 sentinel, and the writer emits
+        //> no key for those - which the engine reads as "not configured" and
+        //> answers by declining the test. That is the defect that cost CO2 and
+        //> H2O their absolute limits, and it must not come back through a
+        //> second door.
+        addGasRecord(kH2oSlug, rawColumn);
+        waterIndex = gasRecordIndexFor(kH2oSlug, rawColumn);
+        if (waterIndex < 0) { return false; }
+        recordsChanged = true;
+    }
+
+    //> Appended, so no existing 1-based reference moves. Re-read after the add.
+    auto gases = ecProject_->gasColumns();
+    if (gasRecordIndex < 0 || gasRecordIndex >= gases.size()) { return recordsChanged; }
+    if (gases.at(gasRecordIndex).moistureRef != waterIndex + 1)
+    {
+        gases[gasRecordIndex].moistureRef = waterIndex + 1;
+        ecProject_->setGasColumns(gases);
+    }
+    //> The cross-analyser dialog is the caller's to raise, after it has
+    //> redrawn the table. Raised here it would open from inside the delegate's
+    //> setModelData, over a table still showing the state before the choice.
+    return recordsChanged;
+}
+
+/// The analyser of the hygrometer correcting \a gasRecordIndex, when that is
+/// not the analyser measuring the gas. Empty when the two agree.
+///
+/// A legitimate configuration - it is what a site with one hygrometer and two
+/// analysers has - and a compromise. The engine honours it: the water vapour
+/// flux term is taken at that hygrometer's own time lag, and the dilution to a
+/// mixing ratio uses the humidity in its cell. Both were silently declined
+/// until recently, while the mean WPL terms used the borrowed water anyway, so
+/// a gas came out corrected by a water the rest of the code held it did not
+/// share.
+///
+/// One predicate, because three things ask it: the dialog raised when the user
+/// chooses such a pairing, the warning triangle marking one that already
+/// exists, and that triangle's tooltip. Three copies of the test would be three
+/// chances for the table to disagree with the message.
+QString BasicSettingsPage::crossAnalyserWaterInstrument(int gasRecordIndex) const
+{
+    if (!ecProject_) { return QString(); }
+    const auto& gases = ecProject_->gasColumns();
+    if (gasRecordIndex < 0 || gasRecordIndex >= gases.size()) { return QString(); }
+
+    const auto& gas = gases.at(gasRecordIndex);
+    //> Water is not corrected with itself.
+    if (gas.slug == kH2oSlug) { return QString(); }
+
+    //> Resolved, not the stored reference: 0 means "auto", and what matters is
+    //> the hygrometer the engine will actually use. Mirrors ResolveGasRef.
+    const int ref = MeasurementRecords::resolveMoistureRef(
+        gases, gasRecordIndex, biometRhAvailable());
+    if (ref <= 0 || ref > gases.size()) { return QString(); }
+    const auto& water = gases.at(ref - 1);
+
+    //> `other` and `none` are not identities - many unrelated variables carry
+    //> them - so a pairing involving one says nothing about analysers.
+    if (!MeasurementRecords::isRealInstrument(gas.instrumentId)
+        || !MeasurementRecords::isRealInstrument(water.instrumentId)
+        || gas.instrumentId == water.instrumentId)
+    {
+        return QString();
+    }
+    return water.instrumentId;
+}
+
+/// Tell the user their choice of hygrometer crosses analysers.
+///
+/// Raised from setMoistureColumnForGas alone, so it answers an explicit
+/// selection. It used to run from the resolution step as well, which meant
+/// opening an already-configured project raised a dialog about a decision
+/// nobody had just made. A pairing that is merely *already* the case is marked
+/// by the triangle in the variable table instead.
+///
+/// The text describes the choice and no more. It used to state that the gas's
+/// own analyser carried no H2O column - true of the inherited case, and not of
+/// a user picking another analyser's water while their own has one.
+void BasicSettingsPage::warnOnCrossAnalyserMoisture(int gasRecordIndex)
+{
+    const QString waterInstrument = crossAnalyserWaterInstrument(gasRecordIndex);
+    if (waterInstrument.isEmpty()) { return; }
+
+    const auto& gases = ecProject_->gasColumns();
+    const auto& gas = gases.at(gasRecordIndex);
+
+    QString species = gas.slug.toUpper();
+    if (species.isEmpty()) { species = tr("This gas"); }
+
+    WidgetUtils::information(
+        QApplication::activeWindow(),
+        tr("Water Vapour From a Different Analyser"),
+        tr("<b>%1</b> is measured by <b>%2</b>, but the H<sub>2</sub>O you "
+           "selected is measured by <b>%3</b>."
+           "<p>EddyFlow will use that hygrometer's own time lag for the water "
+           "vapour flux term, and the humidity in its cell to convert "
+           "<b>%1</b> to a mixing ratio. Both describe the air inside a "
+           "different analyser, so both are approximations.</p>"
+           "<p>If <b>%2</b> also measures H<sub>2</sub>O, selecting that "
+           "column instead will give a more accurate correction.</p>")
+            .arg(species, gas.instrumentId, waterInstrument));
+}
+
+/// Whether a biomet relative humidity column is overriding the hygrometers.
+///
+/// One predicate for the dialog, the triangle and the tooltip. Three copies of
+/// a condition is how the three come to disagree about when to appear.
+///
+/// Both halves matter. A biomet RH column alone is not the case being warned
+/// about - with no hygrometer it is the *cure*, and showNoHumidityWarning says
+/// so. The two warnings are opposites and must never both fire, which is why
+/// they test the same two things and reach opposite conclusions.
+bool BasicSettingsPage::biometRhAvailable() const
+{
+    return ecProject_ && ecProject_->biomParamColRh() > 0;
+}
+
+bool BasicSettingsPage::biometRhOverrideActive() const
+{
+    if (!ecProject_) { return false; }
+    if (!biometRhAvailable()) { return false; }
+    return ecProject_->biometRhOverride();
+}
+
+/// Tell the user their biomet RH replaces what the hygrometers measured.
+///
+/// Raised from updateRhCombo alone, so it answers a selection the user just
+/// made. Opening a project that already has both is marked by the triangle on
+/// the RH row instead - the rule established for the cross-analyser water
+/// warning above, for the same reason: a dialog about a decision nobody just
+/// took is noise.
+///
+/// No once-per-session flag, also as above. It fires on an action, and an
+/// action repeated deserves the same answer.
+void BasicSettingsPage::warnOnBiometRhOverride()
+{
+    WidgetUtils::information(
+        QApplication::activeWindow(),
+        tr("Every Gas Will Use the Biomet Humidity"),
+        tr("<p>Every gas's moisture source has been set to the biomet "
+           "relative humidity sensor. That is the humidity EddyFlow will use "
+           "to correct all of them &mdash; the WPL density term, the drift "
+           "correction, and the LI-7700 multipliers where they apply.</p>"
+           "<p>The hygrometers still report what they measured. Their "
+           "<i>mole fraction</i>, <i>mixing ratio</i> and <i>molar density</i> "
+           "columns are unaffected, and the biomet humidity appears beside "
+           "them as <i>h2o_biomet_*</i> so the two can be compared.</p>"
+           "<p>Unticking returns every gas to <b>Automatic</b>. It cannot "
+           "restore what each gas named before, because that is not kept.</p>"));
+}
+
+/// Enable and check the box from the project.
+///
+/// Enabled only while a biomet RH column is selected: without one there is
+/// nothing to override, and a tickable box that did nothing would be worse
+/// than an absent one.
+void BasicSettingsPage::refreshBiometRhOverrideBox()
+{
+    if (!ecProject_ || !biometRhOverrideBox) { return; }
+    QSignalBlocker blocker(biometRhOverrideBox);
+    biometRhOverrideBox->setEnabled(biometRhAvailable());
+    biometRhOverrideBox->setChecked(biometRhOverrideActive());
+}
+
+/// Point every gas at the biomet, or return them all to automatic.
+void BasicSettingsPage::onBiometRhOverrideToggled(bool on)
+{
+    if (!ecProject_) { return; }
+    if (!ecProject_->setBiometRhOverride(on)) { return; }
+
+    //> Every Moisture cell just changed, and the RH row's triangle with them.
+    refreshVariableTables();
+    //> Only on the way in. Unticking is a return to the default and says so on
+    //> the box itself; a dialog for it would be noise.
+    if (on) { warnOnBiometRhOverride(); }
+}
+
+/// Molecular weight of a gas record, or its species default.
+///
+/// The record is the authority; the species table supplies the value the
+/// record does not carry. Only an override reaches the file, so a project
+/// whose gas is later given better constants picks them up.
+qreal BasicSettingsPage::gasMolecularWeight(int gasRecordIndex) const
+{
+    if (!ecProject_) { return -1.0; }
+    const auto& gases = ecProject_->gasColumns();
+    if (gasRecordIndex < 0 || gasRecordIndex >= gases.size()) { return -1.0; }
+    if (gases.at(gasRecordIndex).mw > 0.0) { return gases.at(gasRecordIndex).mw; }
+    const auto* gas = GasMetadata::findSpecies(gases.at(gasRecordIndex).slug);
+    return gas ? gas->molecularWeight : -1.0;
+}
+
+qreal BasicSettingsPage::gasDiffusivity(int gasRecordIndex) const
+{
+    if (!ecProject_) { return -1.0; }
+    const auto& gases = ecProject_->gasColumns();
+    if (gasRecordIndex < 0 || gasRecordIndex >= gases.size()) { return -1.0; }
+    if (gases.at(gasRecordIndex).diff > 0.0) { return gases.at(gasRecordIndex).diff; }
+    const auto* gas = GasMetadata::findSpecies(gases.at(gasRecordIndex).slug);
+    return gas ? gas->diffusivity : -1.0;
+}
+
+/// Store a molecular weight on the record, or clear it back to the default.
+///
+/// This used to be setGeneralColGasMw, which writes the project-wide gas_mw -
+/// a key writeMeasurementRecords deletes before saving, so every value the
+/// user typed was discarded and the engine fell back to its own default. For
+/// any species but CO2, H2O, CH4 and N2O that default was nitrous oxide's.
+///
+/// A value matching the species default is stored as "no override", so the
+/// file stays free of redundant keys and fuzzyCompare does not see a change
+/// where the user made none.
+void BasicSettingsPage::setGasMolecularWeight(int gasRecordIndex, qreal value)
+{
+    if (!ecProject_) { return; }
+    auto gases = ecProject_->gasColumns();
+    if (gasRecordIndex < 0 || gasRecordIndex >= gases.size()) { return; }
+
+    const auto* gas = GasMetadata::findSpecies(gases.at(gasRecordIndex).slug);
+    const qreal stored =
+        (gas && qFuzzyCompare(value, gas->molecularWeight)) ? -1.0 : value;
+    if (qFuzzyCompare(gases.at(gasRecordIndex).mw, stored)) { return; }
+    gases[gasRecordIndex].mw = stored;
+    ecProject_->setGasColumns(gases);
+}
+
+void BasicSettingsPage::setGasDiffusivity(int gasRecordIndex, qreal value)
+{
+    if (!ecProject_) { return; }
+    auto gases = ecProject_->gasColumns();
+    if (gasRecordIndex < 0 || gasRecordIndex >= gases.size()) { return; }
+
+    const auto* gas = GasMetadata::findSpecies(gases.at(gasRecordIndex).slug);
+    const qreal stored =
+        (gas && qFuzzyCompare(value, gas->diffusivity)) ? -1.0 : value;
+    if (qFuzzyCompare(gases.at(gasRecordIndex).diff, stored)) { return; }
+    gases[gasRecordIndex].diff = stored;
+    ecProject_->setGasColumns(gases);
+}
 
 BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcProject *ecProject, ConfigState* config) :
     QWidget(parent),
@@ -738,7 +1858,11 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
                                 "be computed. Data can be 'missing' either "
                                 "because absent in the raw data files, or "
                                 "because eliminated during one of the raw "
-                                "data screening procedures, e.g. de-spiking."));
+                                "data screening procedures, e.g. de-spiking. "
+                                "This is also the file's own completeness "
+                                "threshold, and the allowance for every "
+                                "instrument that is not given one of its own "
+                                "below."));
     maxLackSpin = new QSpinBox;
     maxLackSpin->setRange(0, 99);
     maxLackSpin->setSingleStep(1);
@@ -748,6 +1872,16 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     maxLackSpin->setToolTip(maxLackLabel->toolTip());
     maxLackSpin->setMinimumWidth(110);
     maxLackSpin->setMaximumWidth(125);
+
+    //> Filled by refreshInstrMaxLackRows once a metadata file is loaded. It
+    //> starts empty and hidden, because a project with no metadata has no
+    //> instruments to state an allowance for.
+    instrLackLayout_ = new QGridLayout;
+    instrLackLayout_->setContentsMargins(0, 0, 0, 0);
+    instrLackLayout_->setVerticalSpacing(3);
+    instrLackContainer_ = new QWidget(this);
+    instrLackContainer_->setLayout(instrLackLayout_);
+    instrLackContainer_->hide();
 
     lockedIcon = new QLabel;
     auto pixmap_2x = QPixmap(QStringLiteral(":/icons/vlink-locked"));
@@ -906,6 +2040,7 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     filesInfoLayout->addWidget(questionMark_4, 6, 10, Qt::AlignLeft);
     filesInfoLayout->addWidget(decChangingLabel, 7, 7, 1, -1);
     filesInfoLayout->addWidget(magneticDeclinationFetchProgress, 8, 7);
+    filesInfoLayout->addWidget(instrLackContainer_, 9, 0, 1, 11);
     filesInfoLayout->setRowStretch(10, 1);
     filesInfoLayout->setRowMinimumHeight(1, 21);
     filesInfoLayout->setRowMinimumHeight(2, 21);
@@ -950,17 +2085,9 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     const QString fluxVariableTooltip = tr("Select the variables to be used for calculating fluxes, among those available.");
     const QString diagnosticVariableTooltip = tr("Select the variables to be used for diagnostics of this gas analyzer.");
 
-    co2RefCombo = new QComboBox;
-    co2RefCombo->setToolTip(fluxVariableTooltip);
 
-    h2oRefCombo = new QComboBox;
-    h2oRefCombo->setToolTip(fluxVariableTooltip);
 
-    ch4RefCombo = new QComboBox;
-    ch4RefCombo->setToolTip(fluxVariableTooltip);
 
-    fourthGasRefCombo = new QComboBox;
-    fourthGasRefCombo->setToolTip(fluxVariableTooltip);
 
     gasMwLabel = new ClickLabel(tr("Molecular weight :"), this);
     gasMw = new QDoubleSpinBox;
@@ -998,17 +2125,9 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     gasExtension->setLayout(extensionLayout);
     gasExtension->hide();
 
-    intTcRefCombo = new QComboBox;
-    intTcRefCombo->setToolTip(fluxVariableTooltip);
 
-    intT1RefCombo = new QComboBox;
-    intT1RefCombo->setToolTip(fluxVariableTooltip);
 
-    intT2RefCombo = new QComboBox;
-    intT2RefCombo->setToolTip(fluxVariableTooltip);
 
-    intPRefCombo = new QComboBox;
-    intPRefCombo->setToolTip(fluxVariableTooltip);
 
     airTRefCombo = new QComboBox;
     airTRefCombo->setToolTip(fluxVariableTooltip);
@@ -1028,14 +2147,8 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     ppfdCombo = new QComboBox;
     ppfdCombo->setToolTip(fluxVariableTooltip);
 
-    diag7500Combo = new QComboBox;
-    diag7500Combo->setToolTip(diagnosticVariableTooltip);
 
-    diag7200Combo = new QComboBox;
-    diag7200Combo->setToolTip(diagnosticVariableTooltip);
 
-    diag7700Combo = new QComboBox;
-    diag7700Combo->setToolTip(diagnosticVariableTooltip);
 
     flag1Label = new ClickLabel(tr("Flag 1 :"), this);
     flag1Label->setObjectName(QStringLiteral("flag1Label"));
@@ -1241,29 +2354,77 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
 
     auto varTitle_1 = new QLabel(tr("Gas, cell, and diagnostic measurements (eddy data)"));
     varTitle_1->setProperty("groupLabel", true);
+
+    primaryInstrumentCombo = new QComboBox;
+    primaryInstrumentCombo->setToolTip(
+        tr("<b>Primary analyser:</b> the instrument whose gases are listed "
+           "first in the output.<br><br>"
+           "This changes column names and order only — no flux value "
+           "depends on it. A species measured on two analysers is numbered by "
+           "this order, so the primary's carbon dioxide is "
+           "<i>co2_1_flux</i> and the other analyser's is <i>co2_2_flux</i>. "
+           "In the FLUXNET file the primary also takes the unsuffixed "
+           "standard names (<i>CO2</i>, <i>H2O</i>), and its hygrometer "
+           "supplies the unsuffixed <i>H</i>, <i>LE</i> and <i>ET</i> while "
+           "the others become <i>H_2</i>, <i>LE_2</i>, <i>ET_2</i>.<br><br>"
+           "The mapping is written out in the <i>column_legend</i> file "
+           "beside the results."));
+    auto primaryInstrumentLabel = new QLabel(tr("Primary analyser:"));
+    primaryInstrumentLabel->setToolTip(primaryInstrumentCombo->toolTip());
+    biometRhOverrideBox = new QCheckBox(tr("Override instrument H2O measurements"));
+    biometRhOverrideBox->setToolTip(
+        tr("<b>Use the biomet relative humidity for every gas.</b>"
+           "<p>Sets each gas's moisture source to the biomet sensor, in one "
+           "step, instead of picking it per gas in the Moisture column.</p>"
+           "<p>Unticking returns every gas to <i>Automatic</i>. It cannot put "
+           "back what each gas named before &mdash; that is not kept &mdash; "
+           "so set them again afterwards if they were not all automatic.</p>"
+           "<p>The hygrometers still report what they measured. Only which "
+           "humidity <i>corrects</i> each gas changes.</p>"));
+
+    auto primaryInstrumentLayout = new QHBoxLayout;
+    primaryInstrumentLayout->setContentsMargins(0, 0, 0, 0);
+    primaryInstrumentLayout->setSpacing(6);
+    primaryInstrumentLayout->addWidget(primaryInstrumentLabel);
+    primaryInstrumentLayout->addWidget(primaryInstrumentCombo);
+    primaryInstrumentLayout->addSpacing(18);
+    primaryInstrumentLayout->addWidget(biometRhOverrideBox);
+    primaryInstrumentLayout->addStretch();
     auto varTitle_2 = new QLabel(tr("Ambient measurements (eddy or biomet data, used for flux correction and calculation of other parameters)"));
     varTitle_2->setProperty("groupLabel", true);
 
     const QVector<VariableTableRow> fluxRows = {
-        { co2RefCombo, "updateCo2RefCombo", VariableTableRowKind::GasCo2, VariableTableRole::Co2, fluxVariableTooltip },
-        { h2oRefCombo, "updateH2oRefCombo", VariableTableRowKind::GasH2o, VariableTableRole::H2o, fluxVariableTooltip },
-        { ch4RefCombo, "updateCh4RefCombo", VariableTableRowKind::GasCh4, VariableTableRole::Ch4, fluxVariableTooltip },
-        { fourthGasRefCombo, "updateFourthGasRefCombo", VariableTableRowKind::Gas4, VariableTableRole::Gas4, fluxVariableTooltip },
-        { intTcRefCombo, "updateIntTcRefCombo", VariableTableRowKind::Cell, VariableTableRole::IntTc, fluxVariableTooltip },
-        { intT1RefCombo, "updateIntT1RefCombo", VariableTableRowKind::Cell, VariableTableRole::IntT1, fluxVariableTooltip },
-        { intT2RefCombo, "updateIntT2RefCombo", VariableTableRowKind::Cell, VariableTableRole::IntT2, fluxVariableTooltip },
-        { intPRefCombo, "updateIntPRefCombo", VariableTableRowKind::Cell, VariableTableRole::IntP, fluxVariableTooltip },
-        { diag7500Combo, "updateDiag7500Combo", VariableTableRowKind::Cell, VariableTableRole::Diag7500, diagnosticVariableTooltip },
-        { diag7200Combo, "updateDiag7200Combo", VariableTableRowKind::Cell, VariableTableRole::Diag7200, diagnosticVariableTooltip },
-        { diag7700Combo, "updateDiag7700Combo", VariableTableRowKind::Cell, VariableTableRole::Diag7700, diagnosticVariableTooltip }
+        //> No update slot: every row in this table is driven by records now.
+        //> The slots that used to sit here wrote col_co2 .. col_diag_77,
+        //> which are retired - invoking them would set state nothing saves.
+        //> The combo remains only as the candidate list the model reads.
+        //> The first three rows are pinned to a species; the fourth takes
+        //> whatever the site measured. That is the only difference between
+        //> them - there is no "fourth gas" kind any more, and nothing here
+        //> assumes the open slot holds N2O.
+        { nullptr, nullptr, VariableTableRowKind::Gas, VariableTableRole::Co2, fluxVariableTooltip,
+          QStringLiteral("co2") },
+        { nullptr, nullptr, VariableTableRowKind::Gas, VariableTableRole::H2o, fluxVariableTooltip,
+          QStringLiteral("h2o") },
+        { nullptr, nullptr, VariableTableRowKind::Gas, VariableTableRole::Ch4, fluxVariableTooltip,
+          QStringLiteral("ch4") },
+        { nullptr, nullptr, VariableTableRowKind::Gas, VariableTableRole::Gas4, fluxVariableTooltip,
+          QString() },
+        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::IntTc, fluxVariableTooltip, QString() },
+        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::IntT1, fluxVariableTooltip, QString() },
+        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::IntT2, fluxVariableTooltip, QString() },
+        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::IntP, fluxVariableTooltip, QString() },
+        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::Diag7500, diagnosticVariableTooltip, QString() },
+        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::Diag7200, diagnosticVariableTooltip, QString() },
+        { nullptr, nullptr, VariableTableRowKind::Cell, VariableTableRole::Diag7700, diagnosticVariableTooltip, QString() }
     };
     const QVector<VariableTableRow> ambientRows = {
-        { airTRefCombo, "updateAirTRefCombo", VariableTableRowKind::Ambient, VariableTableRole::AmbientT, fluxVariableTooltip },
-        { airPRefCombo, "updateAirPRefCombo", VariableTableRowKind::Ambient, VariableTableRole::AmbientP, fluxVariableTooltip },
-        { rhCombo, "updateRhCombo", VariableTableRowKind::Ambient, VariableTableRole::Rh, fluxVariableTooltip },
-        { rgCombo, "updateRgCombo", VariableTableRowKind::Ambient, VariableTableRole::Rg, fluxVariableTooltip },
-        { lwinCombo, "updateLwinCombo", VariableTableRowKind::Ambient, VariableTableRole::Lwin, fluxVariableTooltip },
-        { ppfdCombo, "updatePpfdCombo", VariableTableRowKind::Ambient, VariableTableRole::Ppfd, fluxVariableTooltip }
+        { airTRefCombo, "updateAirTRefCombo", VariableTableRowKind::Ambient, VariableTableRole::AmbientT, fluxVariableTooltip, QString() },
+        { airPRefCombo, "updateAirPRefCombo", VariableTableRowKind::Ambient, VariableTableRole::AmbientP, fluxVariableTooltip, QString() },
+        { rhCombo, "updateRhCombo", VariableTableRowKind::Ambient, VariableTableRole::Rh, fluxVariableTooltip, QString() },
+        { rgCombo, "updateRgCombo", VariableTableRowKind::Ambient, VariableTableRole::Rg, fluxVariableTooltip, QString() },
+        { lwinCombo, "updateLwinCombo", VariableTableRowKind::Ambient, VariableTableRole::Lwin, fluxVariableTooltip, QString() },
+        { ppfdCombo, "updatePpfdCombo", VariableTableRowKind::Ambient, VariableTableRole::Ppfd, fluxVariableTooltip, QString() }
     };
 
     fluxVariablesModel_ = new BasicVariableSelectionModel(this,
@@ -1278,7 +2439,7 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
                                                              ambientRows,
                                                              false,
                                                              tr("Source"));
-    auto variableDelegate = new BasicVariableSelectionDelegate(this);
+    auto variableDelegate = new BasicVariableSelectionDelegate(this, this);
     fluxVariablesTable_ = new QTableView;
     fluxVariablesTable_->setModel(fluxVariablesModel_);
     fluxVariablesTable_->setItemDelegate(variableDelegate);
@@ -1291,10 +2452,7 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     ambientVariablesTable_->setMinimumHeight(165);
 
     const QList<QWidget*> hiddenVariableControls = {
-        co2RefCombo, h2oRefCombo, ch4RefCombo, fourthGasRefCombo,
-        intTcRefCombo, intT1RefCombo, intT2RefCombo, intPRefCombo,
         airTRefCombo, airPRefCombo, rhCombo, rgCombo, lwinCombo, ppfdCombo,
-        diag7500Combo, diag7200Combo, diag7700Combo,
         moreButton, gasExtension
     };
     for (auto widget : hiddenVariableControls)
@@ -1307,6 +2465,7 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     varLayout->setContentsMargins(15, 0, 0, 0);
     varLayout->setSpacing(6);
     varLayout->addWidget(varTitle_1);
+    varLayout->addLayout(primaryInstrumentLayout);
     varLayout->addWidget(fluxVariablesTable_);
     varLayout->addSpacing(6);
     varLayout->addWidget(varTitle_2);
@@ -1558,46 +2717,34 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     connect(anemFlagCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateAnemFlagCombo);
 
-    connect(co2RefCombo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateCo2RefCombo);
 
-    connect(h2oRefCombo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateH2oRefCombo);
 
-    connect(ch4RefCombo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateCh4RefCombo);
 
     connect(gasMw, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &BasicSettingsPage::updateGasMw);
     connect(gasDiff, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &BasicSettingsPage::updateGasDiff);
 
-    connect(fourthGasRefCombo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateFourthGasRefCombo);
-    connect(fourthGasRefCombo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::showFourthGasDiffWarning);
-    connect(fourthGasRefCombo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateFourthGasMinLimit);
-    connect(fourthGasRefCombo, &QComboBox::currentTextChanged,
-            this, &BasicSettingsPage::updateFourthGasSettings);
 
-    connect(intTcRefCombo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateIntTcRefCombo);
 
-    connect(intT1RefCombo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateIntT1RefCombo);
 
-    connect(intT2RefCombo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateIntT2RefCombo);
 
-    connect(intPRefCombo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateIntPRefCombo);
 
     connect(airTRefCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateAirTRefCombo);
 
     connect(airPRefCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateAirPRefCombo);
+
+    //> activated, not currentIndexChanged: refreshPrimaryInstrumentCombo sets
+    //> the index programmatically whenever the records change, and that must
+    //> not be mistaken for the user choosing a new primary and reordering the
+    //> list underneath them.
+    connect(primaryInstrumentCombo, QOverload<int>::of(&QComboBox::activated),
+            this, &BasicSettingsPage::onPrimaryInstrumentChanged);
+
+    connect(biometRhOverrideBox, &QCheckBox::toggled,
+            this, &BasicSettingsPage::onBiometRhOverrideToggled);
 
     connect(rhCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updateRhCombo);
@@ -1611,14 +2758,8 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     connect(ppfdCombo, QOverload<int>::of(&QComboBox::activated),
             this, &BasicSettingsPage::updatePpfdCombo);
 
-    connect(diag7500Combo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateDiag7500Combo);
 
-    connect(diag7200Combo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateDiag7200Combo);
 
-    connect(diag7700Combo, QOverload<int>::of(&QComboBox::activated),
-            this, &BasicSettingsPage::updateDiag7700Combo);
 
     connect(tsRefLabel, &ClickLabel::clicked,
             this, &BasicSettingsPage::onClickTsRefLabel);
@@ -2251,7 +3392,14 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                              && (varName != VariableDesc::getVARIABLE_VAR_STRING_27())
                              && (varName != VariableDesc::getVARIABLE_VAR_STRING_28())
                              && (varName != VariableDesc::getVARIABLE_VAR_STRING_29())
-                             && (varName != VariableDesc::getVARIABLE_VAR_STRING_30());
+                             && (varName != VariableDesc::getVARIABLE_VAR_STRING_30())
+                             //> Signal strength is not a custom label either.
+                             //> Left out of this list, an AGC column reached
+                             //> the isGoodGas branch below and was offered as
+                             //> a custom fourth gas - a percentage selectable
+                             //> as a species to compute a flux of.
+                             && (varName != VariableDesc::getVARIABLE_VAR_STRING_35())
+                             && (varName != VariableDesc::getVARIABLE_VAR_STRING_36());
 
         if (ignoreFlag == QLatin1String("no")
             && numericFlag == QLatin1String("yes"))
@@ -2348,31 +3496,27 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                     if (varName == VariableDesc::getVARIABLE_VAR_STRING_5()
                             && VariableDesc::isGoodGas(var, isCustomLabel))
                     {
-                        co2RefCombo->setEnabled(true);
-                        co2RefCombo->addItem(varString, k);
+                                                addCandidate(VariableTableRole::Co2, k, varString);
                     }
 
                     // H2O
                     else if (varName == VariableDesc::getVARIABLE_VAR_STRING_6()
                              && VariableDesc::isGoodGas(var, isCustomLabel))
                     {
-                        h2oRefCombo->setEnabled(true);
-                        h2oRefCombo->addItem(varString, k);
+                                                addCandidate(VariableTableRole::H2o, k, varString);
                     }
 
                     // CH4
                     else if (varName == VariableDesc::getVARIABLE_VAR_STRING_7()
                              && VariableDesc::isGoodGas(var, isCustomLabel))
                     {
-                        ch4RefCombo->setEnabled(true);
-                        ch4RefCombo->addItem(varString, k);
+                                                addCandidate(VariableTableRole::Ch4, k, varString);
                     }
 
                     // 4th gas o custom gas
                     else if (VariableDesc::isGoodGas(var, isCustomLabel))
                     {
-                        fourthGasRefCombo->setEnabled(true);
-                        fourthGasRefCombo->addItem(varString, k);
+                                                addCandidate(VariableTableRole::Gas4, k, varString);
 
                         gasMwLabel->setEnabled(true);
                         gasDiffLabel->setEnabled(true);
@@ -2380,41 +3524,42 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                         moreButton->setChecked(true);
                         updateGeometry();
 
-                        updateFourthGasSettings(fourthGasRefCombo->currentText());
-                        gas4WasN2o_ = fourthGasRefCombo->currentText().split(QLatin1Char(' ')).first()
-                                      == VariableDesc::getVARIABLE_VAR_STRING_8();
+                        updateFourthGasSettings(openGasSpecies());
+                        //> Seed the "last species" so that merely reloading a
+                        //> project does not overwrite a custom absolute-limit
+                        //> minimum with the species default. Against the record
+                        //> the species came from, since the seed is per record.
+                        lastAbsLimitSpecies_.insert(
+                            openGasRecordIndex(),
+                            openGasSpecies().split(QLatin1Char(' ')).first());
                     }
 
                     // cell temp in
                     else if (varName == VariableDesc::getVARIABLE_VAR_STRING_9()
                         && VariableDesc::isGoodTemperature(var))
                     {
-                        intT1RefCombo->setEnabled(true);
-                        intT1RefCombo->addItem(varString, k);
+                                                addCandidate(VariableTableRole::IntT1, k, varString);
                     }
 
                     // cell temp out
                     else if (varName == VariableDesc::getVARIABLE_VAR_STRING_10()
                         && VariableDesc::isGoodTemperature(var))
                     {
-                        intT2RefCombo->setEnabled(true);
-                        intT2RefCombo->addItem(varString, k);
+                                                addCandidate(VariableTableRole::IntT2, k, varString);
                     }
 
                     // cell press 1
                     else if (varName == VariableDesc::getVARIABLE_VAR_STRING_11()
                         && VariableDesc::isGoodPressure(var))
                     {
-                        intPRefCombo->setEnabled(true);
-                        intPRefCombo->addItem(varString, k);
+                                                addCandidate(VariableTableRole::IntP, k, varString);
                     }
 
                     // avg cell temp
                     else if (varName == VariableDesc::getVARIABLE_VAR_STRING_15()
                         && VariableDesc::isGoodTemperature(var))
                     {
-                        intTcRefCombo->setEnabled(true);
-                        intTcRefCombo->addItem(varString, k);
+                                                addCandidate(VariableTableRole::IntTc, k, varString);
                     } // if
                 } // if
             } // if
@@ -2454,22 +3599,19 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                 else if (varName == VariableDesc::getVARIABLE_VAR_STRING_25()
                     && instrType != QLatin1String("Other"))
                 {
-                    diag7500Combo->setEnabled(true);
-                    diag7500Combo->addItem(varString, k);
+                                        addCandidate(VariableTableRole::Diag7500, k, varString);
                 }
                 // 7200 diagnostics
                 else if (varName == VariableDesc::getVARIABLE_VAR_STRING_26()
                     && instrType != QLatin1String("Other"))
                 {
-                    diag7200Combo->setEnabled(true);
-                    diag7200Combo->addItem(varString, k);
+                                        addCandidate(VariableTableRole::Diag7200, k, varString);
                 }
                 // 7700 diagnostics
                 else if (varName == VariableDesc::getVARIABLE_VAR_STRING_27()
                     && instrType != tr("Other"))
                 {
-                    diag7700Combo->setEnabled(true);
-                    diag7700Combo->addItem(varString, k);
+                                        addCandidate(VariableTableRole::Diag7700, k, varString);
                 }
                 // Anem diagnostics
                 else if (varName == VariableDesc::getVARIABLE_VAR_STRING_30()
@@ -2555,6 +3697,11 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
 
     addNoneStr_1();
     filterVariables();
+    //> The instrument set has just been re-read, and the allowance rows are
+    //> keyed by position in it. Rebuilt here rather than patched, so a
+    //> reordered or shortened list cannot leave a row writing to a slot that
+    //> now belongs to a different device.
+    refreshInstrMaxLackRows();
     emit updateMetadataReadResult(true);
 }
 
@@ -2618,17 +3765,6 @@ void BasicSettingsPage::addNoneStr_1()
     auto combo_list = QWidgetList()
             << anemFlagCombo
             << tsRefCombo
-            << co2RefCombo
-            << h2oRefCombo
-            << ch4RefCombo
-            << fourthGasRefCombo
-            << intTcRefCombo
-            << intT1RefCombo
-            << intT2RefCombo
-            << intPRefCombo
-            << diag7500Combo
-            << diag7200Combo
-            << diag7700Combo
             << flag1VarCombo
             << flag2VarCombo
             << flag3VarCombo
@@ -2734,23 +3870,12 @@ void BasicSettingsPage::clearVarsCombo()
     auto combo_list = QWidgetList()
                         << anemRefCombo
                         << anemFlagCombo
-                        << co2RefCombo
-                        << h2oRefCombo
-                        << ch4RefCombo
-                        << fourthGasRefCombo
-                        << intTcRefCombo
-                        << intT1RefCombo
-                        << intT2RefCombo
-                        << intPRefCombo
                         << airTRefCombo
                         << airPRefCombo
                         << rhCombo
                         << rgCombo
                         << lwinCombo
                         << ppfdCombo
-                        << diag7500Combo
-                        << diag7200Combo
-                        << diag7700Combo
                         << tsRefCombo;
     for (auto widget : combo_list)
     {
@@ -2758,6 +3883,10 @@ void BasicSettingsPage::clearVarsCombo()
         combo->clear();
         combo->setEnabled(false);
     }
+
+    //> The flux-table roles keep their candidates here rather than in a
+    //> combo, so they are cleared alongside.
+    clearCandidates();
 
     gasMw->setEnabled(false);
     gasDiff->setEnabled(false);
@@ -2879,9 +4008,16 @@ void BasicSettingsPage::clearFlagThresholdsAndPolicies()
     }
 }
 
-/// \fn void BasicSettingsPage::filterVariables()
-/// \brief Show only molar density gas variables if 7500/A/RS/DS, 7700
-/// For 7200/RS order will be: molar density, mixing ratio, mole fraction
+/// \fn /// Drop candidates an instrument cannot actually produce.
+///
+/// The rules are physics, not presentation: an open-path analyser measures a
+/// molar density and cannot report a mole fraction or a mixing ratio, and a
+/// cell temperature or pressure only exists on a closed-path instrument.
+/// Offering those combinations would let a user build a project the engine
+/// cannot compute.
+///
+/// Matching is on the candidate label, which carries the instrument model -
+/// the same text the combos used to be filtered by.
 void BasicSettingsPage::filterVariables()
 {
     const auto li6262Str = QStringLiteral("LI-6262");
@@ -2893,221 +4029,132 @@ void BasicSettingsPage::filterVariables()
     const auto li7500RSStr = QStringLiteral("LI-7500RS");
     const auto li7500DSStr = QStringLiteral("LI-7500DS");
     const auto li7700Str = QStringLiteral("LI-7700");
-//    const auto densityStr = QStringLiteral("density");
     const auto fractionStr = QStringLiteral("fraction");
     const auto ratioStr = QStringLiteral("ratio");
-    const auto noneStr = tr("None");
     const auto genericStr = tr("Generic");
     const auto openPathStr1 = QStringLiteral("open");
     const auto openPathStr2 = QStringLiteral("OP");
     const auto anemStr = QStringLiteral("Anemometer");
 
-    // filter vars (always possible)
-    for (int i = 0; i < co2RefCombo->count(); ++i)
+    const auto any = [](const QString& text, std::initializer_list<QString> needles)
     {
-        if (!co2RefCombo->itemText(i).contains(noneStr))
+        for (const auto& needle : needles)
         {
-            // open path
-            if (co2RefCombo->itemText(i).contains(li7500Str)
-                || co2RefCombo->itemText(i).contains(li7500AStr)
-                || co2RefCombo->itemText(i).contains(li7500RSStr)
-                || co2RefCombo->itemText(i).contains(li7500DSStr)
-                || co2RefCombo->itemText(i).contains(li7700Str)
-                || co2RefCombo->itemText(i).contains(openPathStr1)
-                || co2RefCombo->itemText(i).contains(openPathStr2))
-            {
-                // filter if not molar density
-                if (co2RefCombo->itemText(i).contains(fractionStr)
-                    || co2RefCombo->itemText(i).contains(ratioStr))
-                {
-                    co2RefCombo->removeItem(i);
-                }
-            }
+            if (text.contains(needle)) { return true; }
         }
-    }
+        return false;
+    };
+    //> The LI-7500 family and the LI-7700 are open path, as is anything
+    //> whose label says so.
+    const auto isOpenPath = [&](const QString& t)
+    {
+        return any(t, { li7500Str, li7500AStr, li7500RSStr, li7500DSStr,
+                        li7700Str, openPathStr1, openPathStr2 });
+    };
+    const auto isNotDensity = [&](const QString& t)
+    {
+        return any(t, { fractionStr, ratioStr });
+    };
 
-    // filter vars (always possible)
-    for (int i = 0; i < h2oRefCombo->count(); ++i)
-    {
-        if (!h2oRefCombo->itemText(i).contains(noneStr))
-        {
-            if (h2oRefCombo->itemText(i).contains(li7500Str)
-                || h2oRefCombo->itemText(i).contains(li7500AStr)
-                || h2oRefCombo->itemText(i).contains(li7500RSStr)
-                || h2oRefCombo->itemText(i).contains(li7500DSStr)
-                || h2oRefCombo->itemText(i).contains(li7700Str)
-                || h2oRefCombo->itemText(i).contains(openPathStr1)
-                || h2oRefCombo->itemText(i).contains(openPathStr2))
-            {
-                if (h2oRefCombo->itemText(i).contains(fractionStr)
-                    || h2oRefCombo->itemText(i).contains(ratioStr))
-                {
-                    h2oRefCombo->removeItem(i);
-                }
-            }
-        }
-    }
+    //> An open-path analyser reports a molar density; a mole fraction or
+    //> mixing ratio from one is not a measurement it can make.
+    pruneCandidates(VariableTableRole::Co2, [&](const QString& t)
+        { return isOpenPath(t) && isNotDensity(t); });
+    pruneCandidates(VariableTableRole::H2o, [&](const QString& t)
+        { return isOpenPath(t) && isNotDensity(t); });
 
-    // filter vars (always possible)
-    for (int i = 0; i < ch4RefCombo->count(); ++i)
-    {
-        if (!ch4RefCombo->itemText(i).contains(noneStr))
-        {
-            if (ch4RefCombo->itemText(i).contains(li7700Str)
-                || ch4RefCombo->itemText(i).contains(openPathStr1)
-                || ch4RefCombo->itemText(i).contains(openPathStr2))
-            {
-                if (ch4RefCombo->itemText(i).contains(fractionStr)
-                    || ch4RefCombo->itemText(i).contains(ratioStr))
-                {
-                    ch4RefCombo->removeItem(i);
-                }
-            }
-            else if (!ch4RefCombo->itemText(i).contains(genericStr))
-            {
-                ch4RefCombo->removeItem(i);
-            }
-        }
-    }
+    //> CH4 follows the same rule as CO2 and H2O: an open-path analyser
+    //> reports a molar density, so a mole fraction or mixing ratio from one
+    //> is not a measurement it can make. Everything else is allowed.
+    //>
+    //> This used to keep CH4 only from the LI-7700, an open path, or an
+    //> instrument whose label said "Generic". The engine has never agreed:
+    //> MetadataFileValidation accepts CH4 from the MIRO MGA series, the
+    //> Aerodyne TILDAS and the Campbell EC155 and TGA200A, and this interface
+    //> offers all of them as instruments. Their display strings contain none
+    //> of those three words, so every CH4 column from a QCL or OA-ICOS
+    //> analyser was dropped from the row - and could not be rescued through
+    //> the open row either, which is reached only after CH4 has already
+    //> claimed the column. A site could not build here a project the engine
+    //> processes perfectly well, and this project's own regression fixtures
+    //> are such a site.
+    pruneCandidates(VariableTableRole::Ch4, [&](const QString& t)
+        { return isOpenPath(t) && isNotDensity(t); });
 
-    // filter vars (always possible)
-    for (int i = 0; i < fourthGasRefCombo->count(); ++i)
+    //> The fourth slot is for a gas no LI-COR analyser measures.
+    pruneCandidates(VariableTableRole::Gas4, [&](const QString& t)
     {
-        if (!fourthGasRefCombo->itemText(i).contains(noneStr))
-        {
-            if (fourthGasRefCombo->itemText(i).contains(li6262Str)
-                || fourthGasRefCombo->itemText(i).contains(li7000Str)
-                || fourthGasRefCombo->itemText(i).contains(li7200Str)
-                || fourthGasRefCombo->itemText(i).contains(li7200RSStr)
-                || fourthGasRefCombo->itemText(i).contains(li7500Str)
-                || fourthGasRefCombo->itemText(i).contains(li7500AStr)
-                || fourthGasRefCombo->itemText(i).contains(li7500RSStr)
-                || fourthGasRefCombo->itemText(i).contains(li7500DSStr)
-                || fourthGasRefCombo->itemText(i).contains(li7700Str))
-            {
-                fourthGasRefCombo->removeItem(i);
-            }
-        }
-    }
+        return any(t, { li6262Str, li7000Str, li7200Str, li7200RSStr,
+                        li7500Str, li7500AStr, li7500RSStr, li7500DSStr,
+                        li7700Str });
+    });
 
-    // filter vars (always possible)
-    for (int i = 0; i < intT1RefCombo->count(); ++i)
+    //> Cell temperatures and pressures exist only on a closed-path
+    //> instrument, and not on the two oldest closed-path models.
+    pruneCandidates(VariableTableRole::IntT1, [&](const QString& t)
     {
-        if (!intT1RefCombo->itemText(i).contains(noneStr))
-        {
-            if (intT1RefCombo->itemText(i).contains(li6262Str)
-                || intT1RefCombo->itemText(i).contains(li7000Str)
-                || intT1RefCombo->itemText(i).contains(li7500Str)
-                || intT1RefCombo->itemText(i).contains(li7500AStr)
-                || intT1RefCombo->itemText(i).contains(li7500RSStr)
-                || intT1RefCombo->itemText(i).contains(li7500DSStr)
-                || intT1RefCombo->itemText(i).contains(li7700Str))
-            {
-                intT1RefCombo->removeItem(i);
-            }
-        }
-    }
+        return any(t, { li6262Str, li7000Str, li7500Str, li7500AStr,
+                        li7500RSStr, li7500DSStr, li7700Str });
+    });
+    pruneCandidates(VariableTableRole::IntT2, [&](const QString& t)
+    {
+        return any(t, { li6262Str, li7000Str, li7500Str, li7500AStr,
+                        li7500RSStr, li7500DSStr, li7700Str });
+    });
+    pruneCandidates(VariableTableRole::IntTc, [&](const QString& t)
+    {
+        return any(t, { li7500Str, li7500AStr, li7500RSStr, li7500DSStr,
+                        li7700Str });
+    });
+    pruneCandidates(VariableTableRole::IntP, [&](const QString& t)
+    {
+        return any(t, { li7500Str, li7500AStr, li7500RSStr, li7500DSStr,
+                        li7700Str });
+    });
 
-    // filter vars (always possible)
-    for (int i = 0; i < intT2RefCombo->count(); ++i)
+    //> A diagnostic belongs to the analyser that emits it - these keep only
+    //> their own, where the others discard theirs.
+    pruneCandidates(VariableTableRole::Diag7500, [&](const QString& t)
     {
-        if (!intT2RefCombo->itemText(i).contains(noneStr))
-        {
-            if (intT2RefCombo->itemText(i).contains(li6262Str)
-                || intT2RefCombo->itemText(i).contains(li7000Str)
-                || intT2RefCombo->itemText(i).contains(li7500Str)
-                || intT2RefCombo->itemText(i).contains(li7500AStr)
-                || intT2RefCombo->itemText(i).contains(li7500RSStr)
-                || intT2RefCombo->itemText(i).contains(li7500DSStr)
-                || intT2RefCombo->itemText(i).contains(li7700Str))
-            {
-                intT2RefCombo->removeItem(i);
-            }
-        }
-    }
+        return !any(t, { li7500Str, li7500AStr, li7500RSStr, li7500DSStr });
+    });
+    pruneCandidates(VariableTableRole::Diag7200, [&](const QString& t)
+    {
+        return !any(t, { li7200Str, li7200RSStr });
+    });
+    pruneCandidates(VariableTableRole::Diag7700, [&](const QString& t)
+    {
+        return !t.contains(li7700Str);
+    });
 
-    // filter vars (always possible)
-    for (int i = 0; i < intTcRefCombo->count(); ++i)
+    //> The anemometer diagnostic keeps a visible combo of its own.
+    //>
+    //> Iterated backwards, like pruneCandidates: removing while stepping
+    //> forwards skips the element after each removal, so two adjacent
+    //> filterable entries left the second one in place. That was true of
+    //> every one of these loops before they were converted.
+    const auto noneStr = tr("None");
+    for (int i = anemFlagCombo->count() - 1; i >= 0; --i)
     {
-        if (!intTcRefCombo->itemText(i).contains(noneStr))
-        {
-            if (intTcRefCombo->itemText(i).contains(li7500Str)
-                || intTcRefCombo->itemText(i).contains(li7500AStr)
-                || intTcRefCombo->itemText(i).contains(li7500RSStr)
-                || intTcRefCombo->itemText(i).contains(li7500DSStr)
-                || intTcRefCombo->itemText(i).contains(li7700Str))
-            {
-                intTcRefCombo->removeItem(i);
-            }
-        }
+        const auto text = anemFlagCombo->itemText(i);
+        if (text.contains(noneStr)) { continue; }
+        if (!text.contains(anemStr)) { anemFlagCombo->removeItem(i); }
     }
+}
 
-    // filter vars (always possible)
-    for (int i = 0; i < intPRefCombo->count(); ++i)
+/// Remove every candidate for  role whose label satisfies  drop.
+///
+/// "None" placeholders are never removed, and the list is walked backwards so
+/// that a removal cannot skip the entry after it.
+void BasicSettingsPage::pruneCandidates(
+    VariableTableRole role, const std::function<bool(const QString&)>& drop)
+{
+    auto& items = fluxCandidates_[static_cast<int>(role)];
+    const auto noneStr = tr("None");
+    for (int i = items.size() - 1; i >= 0; --i)
     {
-        if (!intPRefCombo->itemText(i).contains(noneStr))
-        {
-            if (intPRefCombo->itemText(i).contains(li7500Str)
-                || intPRefCombo->itemText(i).contains(li7500AStr)
-                || intPRefCombo->itemText(i).contains(li7500RSStr)
-                || intPRefCombo->itemText(i).contains(li7500DSStr)
-                || intPRefCombo->itemText(i).contains(li7700Str))
-            {
-                intPRefCombo->removeItem(i);
-            }
-        }
-    }
-
-    // filter vars (always possible)
-    for (int i = 0; i < diag7500Combo->count(); ++i)
-    {
-        if (!diag7500Combo->itemText(i).contains(noneStr))
-        {
-            if (!diag7500Combo->itemText(i).contains(li7500Str)
-                && !diag7500Combo->itemText(i).contains(li7500AStr)
-                && !diag7500Combo->itemText(i).contains(li7500RSStr)
-                && !diag7500Combo->itemText(i).contains(li7500DSStr))
-            {
-                diag7500Combo->removeItem(i);
-            }
-        }
-    }
-
-    // filter vars (always possible)
-    for (int i = 0; i < diag7200Combo->count(); ++i)
-    {
-        if (!diag7200Combo->itemText(i).contains(noneStr))
-        {
-            if (!diag7200Combo->itemText(i).contains(li7200Str)
-                && !diag7200Combo->itemText(i).contains(li7200RSStr))
-            {
-                diag7200Combo->removeItem(i);
-            }
-        }
-    }
-
-    // filter vars (always possible)
-    for (int i = 0; i < diag7700Combo->count(); ++i)
-    {
-        if (!diag7700Combo->itemText(i).contains(noneStr))
-        {
-            if (!diag7700Combo->itemText(i).contains(li7700Str))
-            {
-                diag7700Combo->removeItem(i);
-            }
-        }
-    }
-
-    // filter vars (always possible)
-    for (int i = 0; i < anemFlagCombo->count(); ++i)
-    {
-        if (!anemFlagCombo->itemText(i).contains(noneStr))
-        {
-            if (!anemFlagCombo->itemText(i).contains(anemStr))
-            {
-                anemFlagCombo->removeItem(i);
-            }
-        }
+        if (items.at(i).text.contains(noneStr)) { continue; }
+        if (drop(items.at(i).text)) { items.removeAt(i); }
     }
 }
 
@@ -3318,6 +4365,9 @@ void BasicSettingsPage::refresh()
     }
 
     maxLackSpin->setValue(ecProject_->screenMaxLack());
+    //> After the spin above, so the per-instrument rows are seeded from a
+    //> project that has already been read.
+    refreshInstrMaxLackRows();
     avgIntervalSpin->setValue(ecProject_->screenAvrgLen());
 
     subsetCheckBox->setChecked(ecProject_->generalSubset());
@@ -3399,9 +4449,18 @@ void BasicSettingsPage::refresh()
     flag10PolicyCombo->setCurrentIndex(ecProject_->screenFlag10Upper());
 
     moreButton->setChecked(false);
-    updateFourthGasSettings(fourthGasRefCombo->currentText());
-    gasMw->setValue(ecProject_->generalGasMw());
-    gasDiff->setValue(ecProject_->generalGasDiff());
+    updateFourthGasSettings(openGasSpecies());
+    //> From the record, which is what the file carries. These used to read
+    //> generalGasMw / generalGasDiff - the project-wide keys the writer
+    //> deletes - so the spin boxes came back empty after every save and the
+    //> round trip was broken at both ends.
+    {
+        const int open = openGasRecordIndex();
+        const qreal mw = gasMolecularWeight(open);
+        const qreal diff = gasDiffusivity(open);
+        if (mw > 0.0) { gasMw->setValue(mw); }
+        if (diff > 0.0) { gasDiff->setValue(diff); }
+    }
 
     windFilterApplyCheckbox->setChecked(ecProject_->windFilterApply());
     updateWindFilterModel();
@@ -3535,29 +4594,70 @@ void BasicSettingsPage::updateAnemRefCombo(const QString& s)
     }
 }
 
+/// The anemometer diagnostic keeps a visible combo of its own, so unlike the
+/// other diagnostics it is not driven by the variable table. It still stores
+/// a record: col_diag_anem is retired, and writing only there would lose the
+/// selection on save.
+///
+/// Single-valued, because a combo can name one column - any previous
+/// diag_anem record is replaced rather than added to.
 void BasicSettingsPage::updateAnemFlagCombo(int i)
 {
-    ecProject_->setGeneralColDiagAnem(anemFlagCombo->itemData(i).toInt());
+    if (!ecProject_) { return; }
+    const int column = anemFlagCombo->itemData(i).toInt();
+
+    auto records = ecProject_->diagColumns();
+    for (int k = records.size() - 1; k >= 0; --k)
+    {
+        if (records.at(k).slug == QLatin1String("diag_anem"))
+        {
+            records.removeAt(k);
+        }
+    }
+    if (column > 0)
+    {
+        MeasurementRecord rec;
+        rec.slug = QStringLiteral("diag_anem");
+        rec.rawColumn = column;
+        rec.instrumentId = canonicalInstrumentForColumn(column);
+        records.append(rec);
+    }
+    ecProject_->setDiagColumns(records);
 }
 
-void BasicSettingsPage::updateCo2RefCombo(int i)
+/// Put the anemometer diagnostic combo back on whatever its record names.
+QVector<VariableCandidateItem> BasicSettingsPage::candidatesForRole(int role) const
 {
-    ecProject_->setGeneralColCo2(co2RefCombo->itemData(i).toInt());
+    return fluxCandidates_.value(role);
 }
 
-void BasicSettingsPage::updateH2oRefCombo(int i)
+void BasicSettingsPage::addCandidate(VariableTableRole role, int rawColumn,
+                                     const QString& text)
 {
-    ecProject_->setGeneralColH2o(h2oRefCombo->itemData(i).toInt());
+    fluxCandidates_[static_cast<int>(role)].append({ rawColumn, text });
 }
 
-void BasicSettingsPage::updateCh4RefCombo(int i)
+void BasicSettingsPage::clearCandidates()
 {
-    ecProject_->setGeneralColCh4(ch4RefCombo->itemData(i).toInt());
+    fluxCandidates_.clear();
 }
 
-void BasicSettingsPage::updateFourthGasRefCombo(int i)
+void BasicSettingsPage::restoreAnemFlagFromRecord()
 {
-    ecProject_->setGeneralColGas4(fourthGasRefCombo->itemData(i).toInt());
+    if (!ecProject_ || !anemFlagCombo) { return; }
+
+    int column = 0;
+    for (const auto& rec : ecProject_->diagColumns())
+    {
+        if (rec.slug == QLatin1String("diag_anem") && rec.rawColumn > 0)
+        {
+            column = rec.rawColumn;
+            break;
+        }
+    }
+
+    const int index = anemFlagCombo->findData(column);
+    anemFlagCombo->setCurrentIndex(index >= 0 ? index : 0);
 }
 
 void BasicSettingsPage::updateFourthGasSettings(const QString& s)
@@ -3594,29 +4694,49 @@ void BasicSettingsPage::updateFourthGasSettings(const QString& s)
     }
 }
 
-void BasicSettingsPage::updateFourthGasMinLimit(int /*index*/)
+void BasicSettingsPage::applyGasAbsoluteLimitMin(int gasIndex,
+                                                 const QString& species)
 {
-    const QString s = fourthGasRefCombo->currentText();
-    if (s.isEmpty()) { return; }
-    const QString gasStr = s.split(QLatin1Char(' ')).first();
-    const bool isN2o = (gasStr == VariableDesc::getVARIABLE_VAR_STRING_8());
+    if (!ecProject_) { return; }
+    if (species.isEmpty()) { return; }
+    const QString gasStr = species.split(QLatin1Char(' ')).first();
 
-    // Only apply the default when the gas *type* changes (N2O ↔ other).
-    // If the user has manually set a custom value and re-selects the same
-    // gas type, the value is left unchanged.
-    if (isN2o != gas4WasN2o_)
-    {
-        ecProject_->setScreenParamAlGas4Min(isN2o ? 0.032 : 0.0);
-    }
-    gas4WasN2o_ = isN2o;
+    //> Only apply the default when the species actually changes. If the user
+    //> has set a custom value and then re-selects the same gas, the value is
+    //> left alone. This used to track a single bool for "is it N2O", which
+    //> could only ever distinguish two cases; the species itself is what the
+    //> floor belongs to.
+    //>
+    //> Kept per record, not as one string: with more than one open-species row
+    //> a single "last species" cannot tell which record changed, so the second
+    //> row to be edited would be treated as a repeat and skipped.
+    if (lastAbsLimitSpecies_.value(gasIndex) == gasStr) { return; }
+    lastAbsLimitSpecies_.insert(gasIndex, gasStr);
+
+    //> Onto the record. This used to write setScreenParamAlGas4Min() - the
+    //> retired fourth-slot flat key, which the engine reads only as a legacy
+    //> fallback and then overrides from gas_N_al_min. The floor was derived
+    //> from the species correctly and then discarded.
+    //>
+    //> The whole block, not the floor alone. Every threshold in it belongs to
+    //> a species, so once the species changes the rest are the previous gas's
+    //> and describe nothing about this one. Setting only alMin left a record
+    //> stating N2O's floor beside CO2's ceiling, discontinuity limits and
+    //> time-lag window - a mixture that was never any gas's.
+    //>
+    //> defaultGasProcessing carries the species floor itself, so it is not
+    //> applied separately here.
+    auto gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size()) { return; }
+    gases[gasIndex].proc = ecProject_->defaultGasProcessing(gasStr);
+    ecProject_->setGasColumns(gases);
 }
 
-void BasicSettingsPage::showFourthGasDiffWarning(int /*index*/)
+void BasicSettingsPage::showGasDiffusivityWarning(const QString& species)
 {
-    const QString s = fourthGasRefCombo->currentText();
-    if (s.isEmpty()) { return; }
+    if (species.isEmpty()) { return; }
 
-    const QString gasStr = s.split(QLatin1Char(' ')).first();
+    const QString gasStr = species.split(QLatin1Char(' ')).first();
     const GasMetadata::GasEntry* gas = GasMetadata::findGas(gasStr);
     if (!gas) { return; }
 
@@ -3650,24 +4770,50 @@ void BasicSettingsPage::showFourthGasDiffWarning(int /*index*/)
     WidgetUtils::information(QApplication::activeWindow(), title, msg);
 }
 
-void BasicSettingsPage::updateIntTcRefCombo(int i)
+/// Say, once, when a project measures gases but has no humidity at all.
+///
+/// The engine raises the same thing as warning 104, and will keep doing so for
+/// anyone running it from the command line. This exists because the console
+/// output is read after a run, and this is knowable before one starts.
+///
+/// The two conditions cannot be identical, and that is deliberate rather than
+/// an oversight. The engine tests whether biomet RH is *in range for a given
+/// averaging period*, which only the data can answer. All that is visible here
+/// is whether an RH column has been selected at all. So a project that selects
+/// one whose data turns out to be missing is a case only the engine can
+/// report - which is why its warning stays regardless.
+void BasicSettingsPage::showNoHumidityWarning()
 {
-    ecProject_->setGeneralColIntTc(intTcRefCombo->itemData(i).toInt());
-}
+    if (ecProject_->gasColumns().isEmpty()) { return; }
 
-void BasicSettingsPage::updateIntT1RefCombo(int i)
-{
-    ecProject_->setGeneralColIntT1(intT1RefCombo->itemData(i).toInt());
-}
+    for (const auto& gas : ecProject_->gasColumns())
+    {
+        if (gas.slug.compare(QLatin1String("h2o"), Qt::CaseInsensitive) == 0)
+        {
+            return;
+        }
+    }
+    //> A biomet relative humidity column is enough: the engine computes the
+    //> moist-air correction from it, so this is not the case being warned about.
+    if (ecProject_->biomParamColRh() > 0) { return; }
 
-void BasicSettingsPage::updateIntT2RefCombo(int i)
-{
-    ecProject_->setGeneralColIntT2(intT2RefCombo->itemData(i).toInt());
-}
+    if (noHumidityWarned_) { return; }
+    noHumidityWarned_ = true;
 
-void BasicSettingsPage::updateIntPRefCombo(int i)
-{
-    ecProject_->setGeneralColIntP(intPRefCombo->itemData(i).toInt());
+    WidgetUtils::information(
+        QApplication::activeWindow(),
+        tr("No Humidity Measurement"),
+        tr("<p>This project measures gases but has no humidity: no gas record "
+           "is water, and no biomet relative humidity column is selected. "
+           "Two things follow, and neither is visible in the output.</p>"
+           "<p>Air density and heat capacity are computed for <b>dry air</b>, "
+           "so density is overestimated and every density-based correction "
+           "carries that bias.</p>"
+           "<p>And the humidity correction to sensible heat flux cannot be "
+           "applied, so the reported H is the uncorrected <b>buoyancy "
+           "flux</b>, not a true sensible heat flux. Over a wet surface the "
+           "two differ by several percent.</p>"
+           "<p>A biomet relative humidity sensor is enough to remove both.</p>"));
 }
 
 void BasicSettingsPage::updateAirTRefCombo(int i)
@@ -3722,6 +4868,16 @@ void BasicSettingsPage::updateRhCombo(int i)
 {
     auto colNum = rhCombo->itemData(i).toInt();
     ecProject_->setBiomParamColRh(colNum);
+
+    //> No dialog here. Selecting a biomet RH column overrides nothing on its
+    //> own now - it makes the biomet *available*, as a choice in the Moisture
+    //> column and as the automatic fallback. The tickbox is the action with a
+    //> consequence, and it carries the warning.
+    //>
+    //> The tables are rebuilt because the Moisture dropdown gains or loses its
+    //> biomet entry with this, and the tickbox is enabled by the same test.
+    refreshVariableTables();
+    refreshBiometRhOverrideBox();
 }
 
 void BasicSettingsPage::updateRgCombo(int i)
@@ -3737,21 +4893,6 @@ void BasicSettingsPage::updateLwinCombo(int i)
 void BasicSettingsPage::updatePpfdCombo(int i)
 {
     ecProject_->setBiomParamColPpfd(ppfdCombo->itemData(i).toInt());
-}
-
-void BasicSettingsPage::updateDiag7500Combo(int i)
-{
-    ecProject_->setGeneralColDiag75(diag7500Combo->itemData(i).toInt());
-}
-
-void BasicSettingsPage::updateDiag7200Combo(int i)
-{
-    ecProject_->setGeneralColDiag72(diag7200Combo->itemData(i).toInt());
-}
-
-void BasicSettingsPage::updateDiag7700Combo(int i)
-{
-    ecProject_->setGeneralColDiag77(diag7700Combo->itemData(i).toInt());
 }
 
 void BasicSettingsPage::updateTsRefCombo(int i)
@@ -4145,114 +5286,15 @@ void BasicSettingsPage::reloadSelectedItems_1()
         ecProject_->setGeneralColTs(WidgetUtils::currentComboItemData(tsRefCombo).toInt());
     }
 //
-    currData = ecProject_->generalColCo2();
-    currItemIndex = co2RefCombo->findData(currData);
-
-    if (currItemIndex >= 0)
-    {
-        co2RefCombo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColCo2(currData);
-    }
-    else
-    {
-        // preselect something better
-        preselectDensityVariables(co2RefCombo);
-        ecProject_->setGeneralColCo2(WidgetUtils::currentComboItemData(co2RefCombo).toInt());
-    }
-//
-    currData = ecProject_->generalColH2o();
-    currItemIndex = h2oRefCombo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        h2oRefCombo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColH2o(currData);
-    }
-    else
-    {
-        preselectDensityVariables(h2oRefCombo);
-        ecProject_->setGeneralColH2o(WidgetUtils::currentComboItemData(h2oRefCombo).toInt());
-    }
-//
-    currData = ecProject_->generalColCh4();
-    currItemIndex = ch4RefCombo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        ch4RefCombo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColCh4(currData);
-    }
-    else
-    {
-        preselectDensityVariables(ch4RefCombo);
-        ecProject_->setGeneralColCh4(WidgetUtils::currentComboItemData(ch4RefCombo).toInt());
-    }
-//
-    currData = ecProject_->generalColGas4();
-    currItemIndex = fourthGasRefCombo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        fourthGasRefCombo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColGas4(currData);
-    }
-    else
-    {
-        preselectDensityVariables(fourthGasRefCombo);
-        ecProject_->setGeneralColGas4(WidgetUtils::currentComboItemData(fourthGasRefCombo).toInt());
-    }
-
-    gasMw->setValue(ecProject_->generalGasMw());
-    gasDiff->setValue(ecProject_->generalGasDiff());
-//
-    currData = ecProject_->generalColIntTc();
-    currItemIndex = intTcRefCombo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        intTcRefCombo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColIntTc(currData);
-    }
-    else
-    {
-        intTcRefCombo->setCurrentIndex(0);
-        ecProject_->setGeneralColIntTc(intTcRefCombo->itemData(0).toInt());
-    }
-//
-    currData = ecProject_->generalColIntT1();
-    currItemIndex = intT1RefCombo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        intT1RefCombo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColIntT1(currData);
-    }
-    else
-    {
-        intT1RefCombo->setCurrentIndex(0);
-        ecProject_->setGeneralColIntT1(intT1RefCombo->itemData(0).toInt());
-    }
-//
-    currData = ecProject_->generalColIntT2();
-    currItemIndex = intT2RefCombo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        intT2RefCombo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColIntT2(currData);
-    }
-    else
-    {
-        intT2RefCombo->setCurrentIndex(0);
-        ecProject_->setGeneralColIntT2(intT2RefCombo->itemData(0).toInt());
-    }
-//
-    currData = ecProject_->generalColIntP();
-    currItemIndex = intPRefCombo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        intPRefCombo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColIntP(currData);
-    }
-    else
-    {
-        intPRefCombo->setCurrentIndex(0);
-        ecProject_->setGeneralColIntP(intPRefCombo->itemData(0).toInt());
-    }
+    //> The stanzas that used to sit here read col_co2 .. col_diag_anem back
+    //> out of the project and wrote them into the hidden combos, which is
+    //> how those keys were kept alive. All of it is retired: the variable
+    //> table drives records directly, and reloadSelectedItems_1 no longer
+    //> has anything to reload for these roles.
+    //>
+    //> The anemometer diagnostic keeps its own visible combo, so it is
+    //> restored from its record rather than from col_diag_anem.
+    restoreAnemFlagFromRecord();
 //
     if (ecProject_->generalUseBiomet() == 0)
     {
@@ -4284,58 +5326,6 @@ void BasicSettingsPage::reloadSelectedItems_1()
             preselect7700Variables(airPRefCombo);
             updateAirPRefCombo(airPRefCombo->currentIndex());
         }
-    }
-//
-    currData = ecProject_->generalColDiag75();
-    currItemIndex = diag7500Combo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        diag7500Combo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColDiag75(currData);
-    }
-    else
-    {
-        diag7500Combo->setCurrentIndex(0);
-        ecProject_->setGeneralColDiag75(diag7500Combo->itemData(0).toInt());
-    }
-//
-    currData = ecProject_->generalColDiag72();
-    currItemIndex = diag7200Combo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        diag7200Combo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColDiag72(currData);
-    }
-    else
-    {
-        diag7200Combo->setCurrentIndex(0);
-        ecProject_->setGeneralColDiag72(diag7200Combo->itemData(0).toInt());
-    }
-//
-    currData = ecProject_->generalColDiag77();
-    currItemIndex = diag7700Combo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        diag7700Combo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColDiag77(currData);
-    }
-    else
-    {
-        diag7700Combo->setCurrentIndex(0);
-        ecProject_->setGeneralColDiag77(diag7700Combo->itemData(0).toInt());
-    }
-//
-    currData = ecProject_->generalColDiagAnem();
-    currItemIndex = anemFlagCombo->findData(currData);
-    if (currItemIndex >= 0)
-    {
-        anemFlagCombo->setCurrentIndex(currItemIndex);
-        ecProject_->setGeneralColDiagAnem(currData);
-    }
-    else
-    {
-        anemFlagCombo->setCurrentIndex(0);
-        ecProject_->setGeneralColDiagAnem(anemFlagCombo->itemData(0).toInt());
     }
     //
     currData = ecProject_->screenFlag1Col();
@@ -4500,7 +5490,199 @@ void BasicSettingsPage::reloadSelectedItems_1()
     flag10ThresholdSpin->setValue(ecProject_->screenFlag10Threshold());
     flag10PolicyCombo->setCurrentIndex(ecProject_->screenFlag10Upper());
 
+    //> Seed before resolving: a project that has never had records gets its
+    //> auto-selection here, and one that was migrated gets its species and
+    //> instrument filled in there. Neither touches the other's work.
+    seedGasRecordsFromMetadata();
+    resolveMigratedGasRecords();
+    //> Before the instruments are synced, so a record that is about to be
+    //> dropped is not first given an analyser, and before the variable tables
+    //> are built, so a row cannot be drawn from a record that is going.
+    pruneStaleNonGasRecords();
+    syncSignalStrengthRecords();
+    //> Third of the same kind, and here for the reason the other two are:
+    //> updateMetadataRead is invoked through a synchronous request before
+    //> anything is written - see MainWindow::upgradeProjectInPlace - so a
+    //> record resolved here is resolved whether or not the user opens this
+    //> page. That guarantee is the point. The comment there records what
+    //> happened the last time something in this family ran only when the user
+    //> happened to visit Basic Settings first.
+    syncNonGasRecordInstruments();
+
     refreshVariableTables();
+
+    //> After the records are settled: the list of analysers to choose from is
+    //> exactly the set the gas records name, and that is only known now.
+    refreshPrimaryInstrumentCombo();
+    refreshInstrMaxLackRows();
+    refreshBiometRhOverrideBox();
+
+    //> After the records are settled, so the check sees the project
+    //> as it will be processed rather than mid-selection.
+    showNoHumidityWarning();
+}
+
+/// Auto-select plausible measurements the first time a metadata file is read.
+///
+/// This is what preselectDensityVariables() used to do, moved onto the
+/// records. The old version wrote its choice into col_co2 and friends while
+/// the variable table's checkboxes read the records - so **the preselection
+/// was invisible**: a freshly parsed metadata file preselected CO2 and H2O
+/// into state the user could not see and had not asked for. Seeding records
+/// preserves the behaviour and finally shows it.
+///
+/// Only runs on an empty record list, so it can never overwrite a user's
+/// selection or a migrated project's.
+void BasicSettingsPage::seedGasRecordsFromMetadata()
+{
+    if (!ecProject_ || !dlProject_) { return; }
+    if (!ecProject_->gasColumns().isEmpty()) { return; }
+
+    const auto* variables = dlProject_->variables();
+    if (!variables || variables->isEmpty()) { return; }
+
+    //> A mixing ratio is preferred over a mole fraction, and either over a
+    //> density - the same order the combo-text match ("ratio", then
+    //> "density") produced, stated against the measure type rather than
+    //> against a translated label.
+    const auto rank = [](const VariableDesc& var)
+    {
+        const auto type = var.measureType();
+        if (type == VariableDesc::getVARIABLE_MEASURE_TYPE_STRING_2()) { return 0; }
+        if (type == VariableDesc::getVARIABLE_MEASURE_TYPE_STRING_1()) { return 1; }
+        if (type == VariableDesc::getVARIABLE_MEASURE_TYPE_STRING_0()) { return 2; }
+        return 3;
+    };
+
+    //> The best candidate for one species, as a 1-based raw column.
+    const auto bestColumn = [&](const QString& speciesName, bool anyGas)
+    {
+        int column = -1;
+        int best = 100;
+        for (int i = 0; i < variables->size(); ++i)
+        {
+            const auto& var = variables->at(i);
+            const auto name = var.variable();
+            const bool custom = VariableDesc::isCustomVariable(name);
+            if (!VariableDesc::isGoodGas(var, custom)) { continue; }
+            if (anyGas)
+            {
+                //> The fourth slot took whatever gas was left over - any
+                //> good gas that is not one of the first three.
+                if (name == VariableDesc::getVARIABLE_VAR_STRING_5()
+                    || name == VariableDesc::getVARIABLE_VAR_STRING_6()
+                    || name == VariableDesc::getVARIABLE_VAR_STRING_7())
+                {
+                    continue;
+                }
+            }
+            else if (name != speciesName)
+            {
+                continue;
+            }
+            if (rank(var) < best) { best = rank(var); column = i + 1; }
+        }
+        return column;
+    };
+
+    QVector<GasRecord> gases;
+    const struct { QString name; bool anyGas; QString slug; } roles[] = {
+        { VariableDesc::getVARIABLE_VAR_STRING_5(), false, QStringLiteral("co2") },
+        { VariableDesc::getVARIABLE_VAR_STRING_6(), false, QStringLiteral("h2o") },
+        { VariableDesc::getVARIABLE_VAR_STRING_7(), false, QStringLiteral("ch4") },
+        { QString(),                                true,  QString() },
+    };
+    bool anyFound = false;
+    for (const auto& role : roles)
+    {
+        //> Only the gases the site actually has. All four used to be appended
+        //> whatever the metadata said, so that record i stayed the engine's
+        //> slot firstGas+i-1 - and an absent one still reached every output as
+        //> a column of error codes. Records name their own species now, so a
+        //> gas that is not measured simply has no record.
+        GasRecord rec;
+        rec.rawColumn = bestColumn(role.name, role.anyGas);
+        if (rec.rawColumn <= 0) { continue; }
+
+        anyFound = true;
+        const auto& var = variables->at(rec.rawColumn - 1);
+        rec.slug = role.anyGas
+            ? GasMetadata::normaliseFormula(var.variable())
+            : role.slug;
+        rec.instrumentId = canonicalInstrumentForColumn(rec.rawColumn);
+        //> The same seeding addGasRecord does, for the same reason. This is the
+        //> other way a record comes into existence - the preselection that runs
+        //> when a metadata file is read - and it left proc at the -1 sentinel.
+        //> An unset setting is written as no key at all, so those records
+        //> reached the engine with no absolute limits, no spike limit, no
+        //> discontinuity limits and no time-lag windows, and the engine
+        //> declined every test that needs them.
+        //>
+        //> The roles table above is co2, h2o, ch4 and one other, so it was
+        //> exactly the site's main gases that lost their settings while the
+        //> ones the user ticked by hand kept theirs. The pages show species
+        //> defaults for a sentinel field, so nothing on screen said so.
+        rec.proc = ecProject_->defaultGasProcessing(rec.slug);
+        gases.append(rec);
+    }
+
+    if (!anyFound) { return; }
+    ecProject_->setGasColumns(gases);
+}
+
+/// Fill in what the project file alone could not say about a migrated project.
+///
+/// A pre-record file names a raw column number and nothing else, so
+/// migrateLegacyColumnsToRecords leaves every species and instrument blank -
+/// most damagingly for the fourth slot, whose species was never written down
+/// anywhere but the metadata. This runs after every parseMetadataProject()
+/// and every project load, which is the only point where both files are in
+/// hand, and must run before the upgraded project is saved.
+void BasicSettingsPage::resolveMigratedGasRecords()
+{
+    if (!ecProject_ || !dlProject_) { return; }
+
+    const auto* variables = dlProject_->variables();
+    if (!variables) { return; }
+
+    auto gases = ecProject_->gasColumns();
+    bool changed = false;
+
+    for (auto& gas : gases)
+    {
+        if (gas.rawColumn <= 0) { continue; }
+        if (!gas.slug.isEmpty() && !gas.instrumentId.isEmpty()) { continue; }
+
+        const int index = gas.rawColumn - 1;
+        if (index < 0 || index >= variables->size()) { continue; }
+        const auto& variable = variables->at(index);
+
+        if (gas.slug.isEmpty())
+        {
+            // The engine matches on the ASCII slug, so it has to come through
+            // normaliseFormula: several species carry Unicode subscripts in
+            // their display strings.
+            const auto slug =
+                GasMetadata::normaliseFormula(variable.variable());
+            if (!slug.isEmpty())
+            {
+                gas.slug = slug;
+                changed = true;
+            }
+        }
+        if (gas.instrumentId.isEmpty())
+        {
+            const auto id =
+                dlProject_->canonicalInstrumentId(variable.instrument());
+            if (!id.isEmpty())
+            {
+                gas.instrumentId = id;
+                changed = true;
+            }
+        }
+    }
+
+    if (changed) { ecProject_->setGasColumns(gases); }
 }
 
 void BasicSettingsPage::reloadSelectedItems_2()
@@ -4645,6 +5827,372 @@ void BasicSettingsPage::refreshVariableTables()
     }
 }
 
+/// Re-read the analyser of every cell and diagnostic record from the metadata.
+///
+/// `addNonGasRecord` resolves the instrument once, when the record is created,
+/// and the answer was then never revisited. A cell column selected before its
+/// metadata row named an instrument kept the empty answer for the life of the
+/// project, and the engine reads an empty `cell_N_instr` as "belongs to no
+/// analyser in particular".
+///
+/// That is not a cosmetic gap. Cell records are matched to gases by analyser,
+/// so an untagged cell temperature is shared by every gas while a tagged cell
+/// pressure reaches only its own - and a gas left without one falls back to
+/// *ambient* pressure. On a site with two analysers that silently computed one
+/// of them against the other's cell, or against the open air.
+///
+/// Refill the primary-analyser list and point it at the one leading now.
+///
+/// The choices are the analysers the gas records actually name, so the list
+/// tracks the Variables table: select a gas on a second analyser and it
+/// appears here, deselect the last one and it goes. `none` and `other` are
+/// excluded — many unrelated variables carry "Other", so it identifies no
+/// instrument, which is the same carve-out the moisture pairing makes.
+///
+/// The current entry is derived from record order rather than stored, so a
+/// project edited outside this interface still shows the analyser whose
+/// columns it will actually produce.
+///
+/// Rebuild the per-instrument missing-samples allowance rows.
+///
+/// The engine keys the allowance by the instrument's position in the
+/// .metadata - anemometers first, then analysers, one shared counter - which is
+/// exactly the order DlProject::saveProject writes instr_<K>_* in. Walking the
+/// two lists in that order here is what keeps the two files agreeing; deriving
+/// the number any other way would hand one instrument's allowance to another.
+///
+/// Rebuilt wholesale rather than patched, for the same reason as the primary
+/// instrument list: the set can change in any way when the metadata is
+/// reloaded, and a stale row would go on writing to a slot that now belongs to
+/// a different device.
+///
+/// The known weakness, worth stating: the key is positional, so reordering the
+/// instruments in the Metadata File Editor remaps the allowances. Only
+/// rewriting the whole block on every metadata load - which is what this does -
+/// keeps that from going unnoticed.
+void BasicSettingsPage::refreshInstrMaxLackRows()
+{
+    if (!ecProject_ || !dlProject_ || !instrLackLayout_) { return; }
+
+    while (auto item = instrLackLayout_->takeAt(0))
+    {
+        delete item->widget();
+        delete item;
+    }
+
+    struct Row { QString label; };
+    QList<Row> rows;
+    for (const auto& anem : *dlProject_->anems())
+    {
+        auto name = anem.id().trimmed();
+        if (name.isEmpty()) { name = anem.model().trimmed(); }
+        if (name.isEmpty()) { name = tr("Anemometer"); }
+        rows.append({name});
+    }
+    for (const auto& irga : *dlProject_->irgas())
+    {
+        auto name = irga.id().trimmed();
+        if (name.isEmpty()) { name = irga.model().trimmed(); }
+        if (name.isEmpty()) { name = tr("Gas analyzer"); }
+        rows.append({name});
+    }
+
+    //> Nothing to show without a metadata file.
+    if (rows.isEmpty())
+    {
+        instrLackContainer_->hide();
+        return;
+    }
+
+    //> The engine holds instr_1..MAX_INSTRUMENTS and matches its keys by name,
+    //> so a row past that would write an allowance nothing reads - and
+    //> EcProject would not even read it back. The metadata file itself already
+    //> warns when it describes more instruments than that.
+    if (rows.size() > Defs::MAX_INSTRUMENTS)
+    {
+        rows = rows.mid(0, Defs::MAX_INSTRUMENTS);
+    }
+
+    const auto tip = tr("<b>Per-instrument missing sample allowance:</b> How "
+                        "much of its own expected data this instrument may be "
+                        "missing. An instrument that samples slower than the "
+                        "station cannot fill every row of the raw file, and "
+                        "what it does record is judged against what it should "
+                        "have produced at its own acquisition frequency - "
+                        "which you state in the Metadata File Editor, on the "
+                        "instrument itself. Left at <i>Same as above</i>, an "
+                        "instrument uses the allowance above and follows it "
+                        "when it changes.");
+
+    auto title = new QLabel(tr("Missing samples allowance, per instrument :"),
+                            instrLackContainer_);
+    title->setToolTip(tip);
+    instrLackLayout_->addWidget(title, 0, 0, 1, 2);
+
+    int row = 1;
+    int slot = 1;
+    for (const auto& r : rows)
+    {
+        auto label = new QLabel(r.label, instrLackContainer_);
+        label->setToolTip(tip);
+
+        auto spin = new QSpinBox(instrLackContainer_);
+        //> -1 is "states nothing"; the project drops the key entirely for it,
+        //> which is what makes the instrument follow the global allowance
+        //> rather than freeze today's value.
+        spin->setRange(-1, 99);
+        spin->setSpecialValueText(tr("Same as above"));
+        spin->setSuffix(tr("  [%]", "Percentage"));
+        spin->setAccelerated(true);
+        spin->setMinimumWidth(130);
+        spin->setMaximumWidth(145);
+        spin->setToolTip(tip);
+        spin->setValue(ecProject_->screenInstrMaxLack(slot));
+
+        const int thisSlot = slot;
+        connect(spin, QOverload<int>::of(&QSpinBox::valueChanged),
+                this, [=](int value)
+                {
+                    ecProject_->setScreenInstrMaxLack(thisSlot, value);
+                });
+
+        instrLackLayout_->addWidget(label, row, 0, Qt::AlignRight);
+        instrLackLayout_->addWidget(spin, row, 1);
+        ++row;
+        ++slot;
+    }
+    instrLackLayout_->setColumnStretch(2, 1);
+    instrLackContainer_->show();
+}
+
+/// There is no "automatic" entry, and that is a consequence of the design
+/// rather than an omission. Record order *is* the setting: no flag is written
+/// alongside it, so "nobody has chosen" and "this analyser happens to be
+/// first" are the same file and the same output. An entry for the first would
+/// be indistinguishable from the second after a reload and would do nothing
+/// when selected. The box instead always names the analyser that leads, which
+/// for an untouched project is exactly the automatic answer - said out loud.
+void BasicSettingsPage::refreshPrimaryInstrumentCombo()
+{
+    if (!ecProject_ || !primaryInstrumentCombo) { return; }
+
+    QStringList instruments;
+    for (const auto& rec : ecProject_->gasColumns())
+    {
+        if (!MeasurementRecords::isRealInstrument(rec.instrumentId)) { continue; }
+        if (instruments.contains(rec.instrumentId)) { continue; }
+        instruments.append(rec.instrumentId);
+    }
+
+    const auto leading = ecProject_->primaryGasInstrument();
+
+    //> Rebuilt wholesale rather than patched: the set can change in any way
+    //> when records change, and a stale entry here would silently reorder the
+    //> records the next time the user opened the list.
+    QSignalBlocker blocker(primaryInstrumentCombo);
+    primaryInstrumentCombo->clear();
+    if (instruments.isEmpty())
+    {
+        primaryInstrumentCombo->addItem(tr("(no gas selected)"), QString());
+    }
+    for (const auto& id : instruments)
+    {
+        primaryInstrumentCombo->addItem(id, id);
+    }
+
+    //> Fewer than two analysers is no choice at all - the only one there is
+    //> already leads, whatever the user might click.
+    primaryInstrumentCombo->setEnabled(instruments.size() > 1);
+
+    const int idx = primaryInstrumentCombo->findData(leading);
+    primaryInstrumentCombo->setCurrentIndex(idx >= 0 ? idx : 0);
+}
+
+/// Reorder the gas records so the chosen analyser leads.
+///
+/// Everything the choice controls follows from that order, so there is nothing
+/// else to write - see EcProject::setPrimaryGasInstrument. The tables are
+/// rebuilt afterwards because the rows are drawn from the record list and half
+/// of them have just moved.
+void BasicSettingsPage::onPrimaryInstrumentChanged()
+{
+    if (!ecProject_ || !primaryInstrumentCombo) { return; }
+
+    const auto chosen =
+        primaryInstrumentCombo->currentData().toString();
+    if (!ecProject_->setPrimaryGasInstrument(chosen)) { return; }
+
+    refreshVariableTables();
+    //> The list itself does not change, but the entry that is current does:
+    //> "Automatic" now resolves to whichever analyser was just moved to the
+    //> front, and leaving the box reading "Automatic" would misdescribe it.
+    refreshPrimaryInstrumentCombo();
+    refreshInstrMaxLackRows();
+}
+
+/// The metadata variable a non-gas record's column must carry to still be that
+/// record, or empty for a slug this does not police.
+///
+/// The names are the display strings, which is what VariableDesc::variable()
+/// holds; the ini tokens are DlProject's business.
+QString BasicSettingsPage::variableForNonGasSlug(const QString& slug)
+{
+    if (slug == QLatin1String("cell_t"))
+        { return VariableDesc::getVARIABLE_VAR_STRING_15(); }
+    if (slug == QLatin1String("int_t_1"))
+        { return VariableDesc::getVARIABLE_VAR_STRING_9(); }
+    if (slug == QLatin1String("int_t_2"))
+        { return VariableDesc::getVARIABLE_VAR_STRING_10(); }
+    if (slug == QLatin1String("int_p"))
+        { return VariableDesc::getVARIABLE_VAR_STRING_11(); }
+    if (slug == QLatin1String("diag_75"))
+        { return VariableDesc::getVARIABLE_VAR_STRING_25(); }
+    if (slug == QLatin1String("diag_72"))
+        { return VariableDesc::getVARIABLE_VAR_STRING_26(); }
+    if (slug == QLatin1String("diag_77"))
+        { return VariableDesc::getVARIABLE_VAR_STRING_27(); }
+    if (slug == QLatin1String("diag_anem"))
+        { return VariableDesc::getVARIABLE_VAR_STRING_30(); }
+    return QString();
+}
+
+/// Drop cell and diagnostic records whose column no longer measures what the
+/// record says it does.
+///
+/// A record is a pair - a raw column and what that column is - and only the
+/// first half is stored. Re-declare that column in the Raw File Description
+/// and the record survives the edit, still claiming the old measurement. The
+/// column then leaves the variable table, so the row that would show the
+/// record is gone and the record cannot be un-ticked: it is invisible here and
+/// visible only in the project file.
+///
+/// Left there, the engine refused the project. A diagnostic column re-declared
+/// as AGC kept its diag_72 record, so a real diagnostic elsewhere on the same
+/// analyser made two records competing for the one diagnostic slot, and
+/// MetadataFileValidation aborted the run over a record the user had no way to
+/// find. The engine now treats such a record as inert; this stops the file
+/// carrying it in the first place.
+///
+/// Gas records are deliberately not touched. The same staleness is possible
+/// there, but a gas record carries a block of per-species processing settings
+/// and dropping one silently discards them - a separate decision from this.
+void BasicSettingsPage::pruneStaleNonGasRecords()
+{
+    if (!ecProject_ || !dlProject_) { return; }
+
+    const auto vars = dlProject_->variables();
+    if (!vars) { return; }
+
+    const auto prune = [&](QVector<MeasurementRecord>& records)
+    {
+        bool changed = false;
+        for (int i = records.size() - 1; i >= 0; --i)
+        {
+            const auto& rec = records.at(i);
+            const auto expected = variableForNonGasSlug(rec.slug);
+            //> A slug this does not know is left alone rather than dropped.
+            if (expected.isEmpty()) { continue; }
+            //> A column number past the end of the metadata says nothing
+            //> about the record: no metadata is loaded, or a shorter file is
+            //> open for the moment. Only an actual contradiction removes it.
+            if (rec.rawColumn <= 0 || rec.rawColumn > vars->size()) { continue; }
+            if (vars->at(rec.rawColumn - 1).variable() == expected) { continue; }
+            records.removeAt(i);
+            changed = true;
+        }
+        return changed;
+    };
+
+    auto cells = ecProject_->cellColumns();
+    if (prune(cells)) { ecProject_->setCellColumns(cells); }
+
+    auto diags = ecProject_->diagColumns();
+    if (prune(diags)) { ecProject_->setDiagColumns(diags); }
+}
+
+/// Rebuild the signal-strength records from the raw file description.
+///
+/// Wholesale, on every metadata read, for the same reason refreshInstrMaxLackRows
+/// rebuilds rather than patches: these are derived facts, not choices. There is
+/// nothing for the user to select - a column either is declared AGC or RSSI or
+/// it is not - so deriving them is what keeps them from going stale the way the
+/// diagnostic records could.
+///
+/// The engine reads them to find the signal strength of a gas's OWN analyser
+/// for the conditional eddy covariance screen. Before they existed the only
+/// statement of that was the metadata variable name, matched case-sensitively,
+/// with the analyser inferred.
+void BasicSettingsPage::syncSignalStrengthRecords()
+{
+    if (!ecProject_ || !dlProject_) { return; }
+
+    const auto vars = dlProject_->variables();
+    if (!vars) { return; }
+
+    QVector<MeasurementRecord> records;
+    for (int k = 0; k < vars->size(); ++k)
+    {
+        const auto& var = vars->at(k);
+        const auto name = var.variable();
+        if (name != VariableDesc::getVARIABLE_VAR_STRING_35()
+            && name != VariableDesc::getVARIABLE_VAR_STRING_36())
+        {
+            continue;
+        }
+        //> A column the description ignores, or declares non-numeric, holds
+        //> nothing the engine can read.
+        if (var.ignore() == QLatin1String("yes")) { continue; }
+        if (var.numeric() == QLatin1String("no")) { continue; }
+
+        MeasurementRecord rec;
+        //> Lower case, unlike the display name. The record is what the engine
+        //> compares now, and comparing it case-insensitively is the point of
+        //> having it: a metadata file from another tool saying `agc` used to
+        //> go unscreened with nothing said.
+        rec.slug = name.toLower();
+        rec.rawColumn = k + 1;
+        rec.instrumentId = canonicalInstrumentForColumn(k + 1);
+        records.append(rec);
+    }
+
+    if (records != ecProject_->agcColumns())
+    {
+        ecProject_->setAgcColumns(records);
+    }
+}
+
+/// A record whose instrument the user set by hand is left alone: `other` and
+/// `none` are deliberate answers, not missing ones.
+void BasicSettingsPage::syncNonGasRecordInstruments()
+{
+    if (!ecProject_ || !dlProject_) { return; }
+
+    const auto sync = [this](QVector<MeasurementRecord>& records)
+    {
+        bool changed = false;
+        for (auto& rec : records)
+        {
+            if (rec.rawColumn <= 0) { continue; }
+            const auto resolved = canonicalInstrumentForColumn(rec.rawColumn);
+            //> Empty means "cannot tell" - no metadata loaded, or the column
+            //> is past its end - which is the one case a stored answer is
+            //> worth more than a fresh one. Everything else is mirrored,
+            //> including `none` and `other`: the raw file description is the
+            //> authority here, and there is no competing answer to protect.
+            if (resolved.isEmpty() || resolved == rec.instrumentId) { continue; }
+            rec.instrumentId = resolved;
+            changed = true;
+        }
+        return changed;
+    };
+
+    auto cells = ecProject_->cellColumns();
+    if (sync(cells)) { ecProject_->setCellColumns(cells); }
+
+    auto diags = ecProject_->diagColumns();
+    if (sync(diags)) { ecProject_->setDiagColumns(diags); }
+}
+
 void BasicSettingsPage::onIdLabelClicked()
 {
     idEdit->setFocus();
@@ -4765,14 +6313,59 @@ void BasicSettingsPage::onClickFlagLabel()
     flagCombo->showPopup();
 }
 
+/// The two spin boxes describe the open gas slot, and now write its record.
+///
+/// They used to call setGeneralColGasMw / setGeneralColGasDiff, which set the
+/// project-wide gas_mw and gas_diff. writeMeasurementRecords deletes both keys
+/// before saving, so nothing the user typed here survived - and the engine
+/// then fell back to its own default, which for any species outside CO2, H2O,
+/// CH4 and N2O is nitrous oxide's 44.01 g/mol.
+///
+/// The table's Molecular weight and Molecular diffusivity cells write the same
+/// records, so the two controls agree by construction.
 void BasicSettingsPage::updateGasMw(double value)
 {
-    ecProject_->setGeneralColGasMw(value);
+    setGasMolecularWeight(openGasRecordIndex(), value);
 }
 
 void BasicSettingsPage::updateGasDiff(double value)
 {
-    ecProject_->setGeneralColGasDiff(value);
+    setGasDiffusivity(openGasRecordIndex(), value);
+}
+
+/// Record index of the gas in the open slot, or -1 when there is none.
+///
+/// The open slot is the fourth table row - the one not pinned to CO2, H2O or
+/// CH4 - and the two spin boxes have always described it.
+/// The record the open-species controls edit.
+///
+/// This returned record three unconditionally - the fourth legacy slot - so
+/// on a project with, say, COS at record three, NH3 at four and a second N2O
+/// at five, the molecular-weight and diffusivity spin boxes edited COS while
+/// appearing to describe whichever gas the user was looking at. It finds the
+/// first open species now.
+///
+/// It still names only the FIRST, which is the honest limit of a single pair
+/// of spin boxes standing in for a list. The per-row Molecular Weight and
+/// Diffusivity cells address gasRecordIndex(row) correctly and are the path
+/// to use for the others; these controls are a convenience for the common
+/// single-open-gas case.
+int BasicSettingsPage::openGasRecordIndex() const
+{
+    if (!ecProject_) { return -1; }
+    const auto& gases = ecProject_->gasColumns();
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        if (gases.at(i).rawColumn <= 0) { continue; }
+        const QString slug = gases.at(i).slug.toLower();
+        if (slug == QLatin1String("co2") || slug == QLatin1String("h2o")
+            || slug == QLatin1String("ch4"))
+        {
+            continue;
+        }
+        return i;
+    }
+    return -1;
 }
 
 // enforce (start date&time) <= (end date&time)
@@ -5304,10 +6897,16 @@ void BasicSettingsPage::clearDataSelection()
 
 int BasicSettingsPage::handleVariableReset()
 {
+    //> "Has the user configured anything yet?" - asked of the gas list rather
+    //> than of CO2 alone, so a site that measures only CH4 is not treated as
+    //> a blank project whose variables can be reset without asking.
+    const bool hasGas = !ecProject_->gasColumns().isEmpty()
+                        || ecProject_->generalColCo2() != -1;
+
     // if not new project
     if (!ecProject_->screenDataPath().isEmpty()
         && !ecProject_->generalColMasterSonic().isEmpty()
-        && ecProject_->generalColCo2() != -1)
+        && hasGas)
     {
         return acceptVariableReset();
     }
@@ -5383,8 +6982,11 @@ void BasicSettingsPage::clearSelectedItems()
     ecProject_->setBiomParamColLwin(-1);
     ecProject_->setBiomParamColPpfd(-1);
 
-    ecProject_->setGeneralColGasMw(-1.0);
-    ecProject_->setGeneralColGasDiff(-1.0);
+    //> The project-wide gas_mw / gas_diff are retired: writeMeasurementRecords
+    //> deletes both keys, so resetting them here did nothing. Molecular weight
+    //> and diffusivity now live on the gas records, and clearing those is part
+    //> of clearing the records themselves - which this routine still does not
+    //> do for any record kind.
     ecProject_->setGeneralColTs(-1);
     ecProject_->setGeneralColDiag72(-1);
     ecProject_->setGeneralColDiag75(-1);

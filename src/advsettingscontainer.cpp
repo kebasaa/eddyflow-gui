@@ -45,7 +45,7 @@ AdvSettingsContainer::AdvSettingsContainer(QWidget *parent,
 {
     processingOptions_ = new AdvProcessingOptions(this, dlProject_, ecProject_, configState_);
     spectralOptions_ = new AdvSpectralOptions(this, dlProject_, ecProject_, configState_);
-    statisticalOptions_ = new AdvStatisticalOptions(this, ecProject_);
+    statisticalOptions_ = new AdvStatisticalOptions(this, dlProject_, ecProject_);
     outputOptions_ = new AdvOutputOptions(this, ecProject_, configState_);
 
     mainLayout_ = new QStackedLayout(this);
