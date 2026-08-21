@@ -408,6 +408,15 @@ private:
     void reloadSelectedItems_1();
     void reloadSelectedItems_2();
     void refreshVariableTables();
+    //> The metadata variable a non-gas record's column must still carry.
+    static QString variableForNonGasSlug(const QString& slug);
+    //> Drop cell and diagnostic records whose column no longer measures what
+    //> the record says. An edit in the Raw File Description leaves them
+    //> behind, invisible in the table and fatal to the engine.
+    void pruneStaleNonGasRecords();
+    //> Rebuild the AGC/RSSI records from the raw file description. Derived,
+    //> not selected, so they are rebuilt wholesale rather than patched.
+    void syncSignalStrengthRecords();
     //> Re-read the analyser of every cell and diagnostic record from the
     //> metadata. It was resolved once, when the record was created, and never
     //> revisited - so a column selected before its metadata row named an

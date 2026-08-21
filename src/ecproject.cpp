@@ -269,6 +269,11 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
                                previousProject.ec_project_state_.projectGeneral.cellColumns)
         && plainRecordsCompare(ec_project_state_.projectGeneral.diagColumns,
                                previousProject.ec_project_state_.projectGeneral.diagColumns)
+        //> Signal strength too: it screens samples out of the conditional
+        //> eddy covariance partition, so a project that gained or moved one
+        //> does not produce what the previous run produced.
+        && plainRecordsCompare(ec_project_state_.projectGeneral.agcColumns,
+                               previousProject.ec_project_state_.projectGeneral.agcColumns)
         && (ec_project_state_.projectGeneral.col_air_t == previousProject.ec_project_state_.projectGeneral.col_air_t)
         && (ec_project_state_.projectGeneral.col_air_p == previousProject.ec_project_state_.projectGeneral.col_air_p);
 
@@ -1390,7 +1395,7 @@ void EcProject::writeMeasurementRecords(QSettings& project_ini)
     const auto& g = ec_project_state_.projectGeneral;
 
     const auto stale = project_ini.childKeys().filter(
-        QRegularExpression(QStringLiteral("^(gas|cell|diag)_")));
+        QRegularExpression(QStringLiteral("^(gas|cell|diag|agc)_")));
     for (const auto& key : stale) { project_ini.remove(key); }
 
     //> The retired legacy keys go too, not just the record keys. QSettings
@@ -1413,7 +1418,7 @@ void EcProject::writeMeasurementRecords(QSettings& project_ini)
     }
 
     if (g.gasColumns.isEmpty() && g.cellColumns.isEmpty()
-        && g.diagColumns.isEmpty())
+        && g.diagColumns.isEmpty() && g.agcColumns.isEmpty())
     {
         return;
     }
@@ -1458,6 +1463,12 @@ void EcProject::writeMeasurementRecords(QSettings& project_ini)
     };
     writePlain(QStringLiteral("cell"), g.cellColumns);
     writePlain(QStringLiteral("diag"), g.diagColumns);
+    //> Always stated, even as agc_num=0. Absent means "this file predates the
+    //> records", and the engine then falls back to matching a column named
+    //> AGC or RSSI by name; zero means "this site declares no signal
+    //> strength", which is a different thing and the file should be able to
+    //> say it.
+    writePlain(QStringLiteral("agc"), g.agcColumns);
 }
 
 /// Read the records back. Absent gas_num means a project written before
@@ -1468,6 +1479,7 @@ bool EcProject::readMeasurementRecords(QSettings& project_ini)
     g.gasColumns.clear();
     g.cellColumns.clear();
     g.diagColumns.clear();
+    g.agcColumns.clear();
 
     const int gasNum = project_ini.value(QStringLiteral("gas_num"), 0).toInt();
     if (gasNum <= 0) { return false; }
@@ -1511,6 +1523,7 @@ bool EcProject::readMeasurementRecords(QSettings& project_ini)
     };
     readPlain(QStringLiteral("cell"), g.cellColumns);
     readPlain(QStringLiteral("diag"), g.diagColumns);
+    readPlain(QStringLiteral("agc"), g.agcColumns);
 
     MeasurementRecords::validateReferences(g.gasColumns, g.cellColumns);
     return true;

@@ -3392,7 +3392,14 @@ void BasicSettingsPage::parseMetadataProject(bool isEmbedded)
                              && (varName != VariableDesc::getVARIABLE_VAR_STRING_27())
                              && (varName != VariableDesc::getVARIABLE_VAR_STRING_28())
                              && (varName != VariableDesc::getVARIABLE_VAR_STRING_29())
-                             && (varName != VariableDesc::getVARIABLE_VAR_STRING_30());
+                             && (varName != VariableDesc::getVARIABLE_VAR_STRING_30())
+                             //> Signal strength is not a custom label either.
+                             //> Left out of this list, an AGC column reached
+                             //> the isGoodGas branch below and was offered as
+                             //> a custom fourth gas - a percentage selectable
+                             //> as a species to compute a flux of.
+                             && (varName != VariableDesc::getVARIABLE_VAR_STRING_35())
+                             && (varName != VariableDesc::getVARIABLE_VAR_STRING_36());
 
         if (ignoreFlag == QLatin1String("no")
             && numericFlag == QLatin1String("yes"))
@@ -5488,6 +5495,11 @@ void BasicSettingsPage::reloadSelectedItems_1()
     //> instrument filled in there. Neither touches the other's work.
     seedGasRecordsFromMetadata();
     resolveMigratedGasRecords();
+    //> Before the instruments are synced, so a record that is about to be
+    //> dropped is not first given an analyser, and before the variable tables
+    //> are built, so a row cannot be drawn from a record that is going.
+    pruneStaleNonGasRecords();
+    syncSignalStrengthRecords();
     //> Third of the same kind, and here for the reason the other two are:
     //> updateMetadataRead is invoked through a synchronous request before
     //> anything is written - see MainWindow::upgradeProjectInPlace - so a
@@ -6016,6 +6028,137 @@ void BasicSettingsPage::onPrimaryInstrumentChanged()
     //> front, and leaving the box reading "Automatic" would misdescribe it.
     refreshPrimaryInstrumentCombo();
     refreshInstrMaxLackRows();
+}
+
+/// The metadata variable a non-gas record's column must carry to still be that
+/// record, or empty for a slug this does not police.
+///
+/// The names are the display strings, which is what VariableDesc::variable()
+/// holds; the ini tokens are DlProject's business.
+QString BasicSettingsPage::variableForNonGasSlug(const QString& slug)
+{
+    if (slug == QLatin1String("cell_t"))
+        { return VariableDesc::getVARIABLE_VAR_STRING_15(); }
+    if (slug == QLatin1String("int_t_1"))
+        { return VariableDesc::getVARIABLE_VAR_STRING_9(); }
+    if (slug == QLatin1String("int_t_2"))
+        { return VariableDesc::getVARIABLE_VAR_STRING_10(); }
+    if (slug == QLatin1String("int_p"))
+        { return VariableDesc::getVARIABLE_VAR_STRING_11(); }
+    if (slug == QLatin1String("diag_75"))
+        { return VariableDesc::getVARIABLE_VAR_STRING_25(); }
+    if (slug == QLatin1String("diag_72"))
+        { return VariableDesc::getVARIABLE_VAR_STRING_26(); }
+    if (slug == QLatin1String("diag_77"))
+        { return VariableDesc::getVARIABLE_VAR_STRING_27(); }
+    if (slug == QLatin1String("diag_anem"))
+        { return VariableDesc::getVARIABLE_VAR_STRING_30(); }
+    return QString();
+}
+
+/// Drop cell and diagnostic records whose column no longer measures what the
+/// record says it does.
+///
+/// A record is a pair - a raw column and what that column is - and only the
+/// first half is stored. Re-declare that column in the Raw File Description
+/// and the record survives the edit, still claiming the old measurement. The
+/// column then leaves the variable table, so the row that would show the
+/// record is gone and the record cannot be un-ticked: it is invisible here and
+/// visible only in the project file.
+///
+/// Left there, the engine refused the project. A diagnostic column re-declared
+/// as AGC kept its diag_72 record, so a real diagnostic elsewhere on the same
+/// analyser made two records competing for the one diagnostic slot, and
+/// MetadataFileValidation aborted the run over a record the user had no way to
+/// find. The engine now treats such a record as inert; this stops the file
+/// carrying it in the first place.
+///
+/// Gas records are deliberately not touched. The same staleness is possible
+/// there, but a gas record carries a block of per-species processing settings
+/// and dropping one silently discards them - a separate decision from this.
+void BasicSettingsPage::pruneStaleNonGasRecords()
+{
+    if (!ecProject_ || !dlProject_) { return; }
+
+    const auto vars = dlProject_->variables();
+    if (!vars) { return; }
+
+    const auto prune = [&](QVector<MeasurementRecord>& records)
+    {
+        bool changed = false;
+        for (int i = records.size() - 1; i >= 0; --i)
+        {
+            const auto& rec = records.at(i);
+            const auto expected = variableForNonGasSlug(rec.slug);
+            //> A slug this does not know is left alone rather than dropped.
+            if (expected.isEmpty()) { continue; }
+            //> A column number past the end of the metadata says nothing
+            //> about the record: no metadata is loaded, or a shorter file is
+            //> open for the moment. Only an actual contradiction removes it.
+            if (rec.rawColumn <= 0 || rec.rawColumn > vars->size()) { continue; }
+            if (vars->at(rec.rawColumn - 1).variable() == expected) { continue; }
+            records.removeAt(i);
+            changed = true;
+        }
+        return changed;
+    };
+
+    auto cells = ecProject_->cellColumns();
+    if (prune(cells)) { ecProject_->setCellColumns(cells); }
+
+    auto diags = ecProject_->diagColumns();
+    if (prune(diags)) { ecProject_->setDiagColumns(diags); }
+}
+
+/// Rebuild the signal-strength records from the raw file description.
+///
+/// Wholesale, on every metadata read, for the same reason refreshInstrMaxLackRows
+/// rebuilds rather than patches: these are derived facts, not choices. There is
+/// nothing for the user to select - a column either is declared AGC or RSSI or
+/// it is not - so deriving them is what keeps them from going stale the way the
+/// diagnostic records could.
+///
+/// The engine reads them to find the signal strength of a gas's OWN analyser
+/// for the conditional eddy covariance screen. Before they existed the only
+/// statement of that was the metadata variable name, matched case-sensitively,
+/// with the analyser inferred.
+void BasicSettingsPage::syncSignalStrengthRecords()
+{
+    if (!ecProject_ || !dlProject_) { return; }
+
+    const auto vars = dlProject_->variables();
+    if (!vars) { return; }
+
+    QVector<MeasurementRecord> records;
+    for (int k = 0; k < vars->size(); ++k)
+    {
+        const auto& var = vars->at(k);
+        const auto name = var.variable();
+        if (name != VariableDesc::getVARIABLE_VAR_STRING_35()
+            && name != VariableDesc::getVARIABLE_VAR_STRING_36())
+        {
+            continue;
+        }
+        //> A column the description ignores, or declares non-numeric, holds
+        //> nothing the engine can read.
+        if (var.ignore() == QLatin1String("yes")) { continue; }
+        if (var.numeric() == QLatin1String("no")) { continue; }
+
+        MeasurementRecord rec;
+        //> Lower case, unlike the display name. The record is what the engine
+        //> compares now, and comparing it case-insensitively is the point of
+        //> having it: a metadata file from another tool saying `agc` used to
+        //> go unscreened with nothing said.
+        rec.slug = name.toLower();
+        rec.rawColumn = k + 1;
+        rec.instrumentId = canonicalInstrumentForColumn(k + 1);
+        records.append(rec);
+    }
+
+    if (records != ecProject_->agcColumns())
+    {
+        ecProject_->setAgcColumns(records);
+    }
 }
 
 /// A record whose instrument the user set by hand is left alone: `other` and

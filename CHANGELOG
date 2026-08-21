@@ -15,6 +15,29 @@
 	       200, so the two criteria can be compared on one run. Leave it
 	       unchecked to reproduce the published method; Restore Default Values
 	       puts it back.
+	- Fix: A measurement record whose column has since been re-declared is dropped instead
+	       of being left behind. Pick a column as an analyser's diagnostic, then
+	       change that column in the Raw File Description to something else, and the
+	       record naming it survived the edit. The column left the Variables table
+	       with it, so the row that would show the record was gone and the record
+	       could not be un-ticked: invisible here, and fatal in the engine, which
+	       found two records claiming its one diagnostic slot and refused to
+	       process the project. Cell and diagnostic records are checked against the
+	       Raw File Description on every metadata read now, and one that
+	       contradicts it is removed. Gas records are deliberately untouched: they
+	       carry per-species processing settings that dropping one would discard.
+	- Fix: An AGC or RSSI column is no longer offered as a gas. It reached the custom-species
+	       branch of the Variables table, so a signal-strength percentage could be
+	       selected as something to compute a flux of.
+	- Change: A declared AGC or RSSI column is written into the project file as a record of
+	       its own - agc_<i>_var, agc_<i>_instr, agc_<i>_col - beside the gas, cell
+	       and diagnostic records. The engine had nothing but the metadata variable
+	       name to go on, matched case-sensitively, with the analyser inferred; the
+	       record says which column and which analyser outright, so the conditional
+	       eddy covariance screen can be aimed at the right one. The records are
+	       derived from the Raw File Description rather than selected, and rebuilt
+	       on every metadata read, so there is nothing to tick and nothing that can
+	       go stale.
 	- New feature: AGC and RSSI can be chosen in the Raw File Description. Neither was
 	       in the variable list, so a signal-strength column could not be declared
 	       from here at all - and the engine's conditional eddy covariance screen

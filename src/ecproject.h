@@ -550,12 +550,16 @@ public:
         { return ec_project_state_.projectGeneral.cellColumns; }
     const QVector<MeasurementRecord>& diagColumns() const
         { return ec_project_state_.projectGeneral.diagColumns; }
+    const QVector<MeasurementRecord>& agcColumns() const
+        { return ec_project_state_.projectGeneral.agcColumns; }
     void setGasColumns(const QVector<GasRecord>& recs)
         { ec_project_state_.projectGeneral.gasColumns = recs; setModified(true); }
     void setCellColumns(const QVector<MeasurementRecord>& recs)
         { ec_project_state_.projectGeneral.cellColumns = recs; setModified(true); }
     void setDiagColumns(const QVector<MeasurementRecord>& recs)
         { ec_project_state_.projectGeneral.diagColumns = recs; setModified(true); }
+    void setAgcColumns(const QVector<MeasurementRecord>& recs)
+        { ec_project_state_.projectGeneral.agcColumns = recs; setModified(true); }
 
     //> Records of one species, in list order.
     QVector<const GasRecord*> gasRecordsFor(const QString& slug) const

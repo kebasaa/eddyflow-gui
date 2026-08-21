@@ -38,6 +38,18 @@ struct MeasurementRecord
     int rawColumn = -1;
 
     bool isValid() const { return !slug.isEmpty() && rawColumn > 0; }
+
+    //> Compared as a whole, so a derived list can be rebuilt and only stored
+    //> when it actually differs - storing it unconditionally would mark the
+    //> project modified on every metadata read.
+    bool operator==(const MeasurementRecord& other) const
+    {
+        return slug == other.slug
+               && instrumentId == other.instrumentId
+               && rawColumn == other.rawColumn;
+    }
+    bool operator!=(const MeasurementRecord& other) const
+        { return !(*this == other); }
 };
 
 /// The 20 per-gas processing settings that used to exist once per fixed slot.

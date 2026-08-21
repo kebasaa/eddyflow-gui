@@ -83,6 +83,13 @@ struct ProjectGeneralState
     QVector<GasRecord> gasColumns;
     QVector<MeasurementRecord> cellColumns;
     QVector<MeasurementRecord> diagColumns;
+    //> Analyser signal strength - AGC or RSSI - one record per declared
+    //> column, derived from the raw file description rather than selected.
+    //> The engine's conditional-eddy-covariance screen needs to know which
+    //> analyser a signal column belongs to, and until these records existed
+    //> the only statement of that was the metadata variable name, matched
+    //> case-sensitively and attributed by inference.
+    QVector<MeasurementRecord> agcColumns;
     int out_rich = 1;
     int fluxnet_standardize_biomet = 1;
     int fluxnet_err_label = 1;

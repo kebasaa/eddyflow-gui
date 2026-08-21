@@ -16,11 +16,17 @@ projects never ran. On the site this was written for, no analyser declared a
 diagnostic and the 70% setting did nothing whatever. The control is now greyed
 when nothing can be screened, and flagged when only some channels can.
 
-The load-bearing detail throughout is the exact spelling. The engine compares
-case-sensitively, in `gas_slot_resolution.f90` and four places in
-`set_licor_diagnostics.f90`, so a column stored as `agc` is classified as a
-diagnostic by one part of the engine and never found by the other. The
-interface must write what the engine reads, byte for byte.
+The spelling used to be load-bearing throughout: the engine compared
+case-sensitively, so a column stored as `agc` was never found. That is now the
+fallback path only - the project file carries `agc_<i>_*` records naming the
+column and its analyser, and the engine reads those first and lower-cased. The
+names still have to round-trip exactly, because a project written before the
+records existed has nothing else, and because the fallback is what a
+hand-written metadata file gets.
+
+The record path itself, and the three engine faults that made the whole screen
+unreachable, are pinned in the engine's
+static_checks/test_signal_strength_records_static.py.
 """
 
 from pathlib import Path
@@ -98,11 +104,11 @@ class TheTokenIsWhatTheEngineReads(unittest.TestCase):
     @unittest.skipUnless((ENGINE / "src/src_common/gas_slot_resolution.f90").exists(),
                          "eddyflow-engine not checked out beside this repository")
     def test_the_engine_matches_the_same_two_strings(self):
-        """The whole feature turns on these agreeing, case included.
+        """The fallback path turns on these agreeing, case included.
 
         A change on either side - lowercasing here, a rename there - would
-        leave the interface offering a column the engine never looks at, and
-        nothing at runtime would say so.
+        leave the interface offering a column the engine never looks at on a
+        project that predates the records, and nothing at runtime would say so.
         """
         engine = read("src/src_common/gas_slot_resolution.f90", ENGINE)
         self.assertIn("UserCol(j)%var /= 'AGC' .and. UserCol(j)%var /= 'RSSI'", engine)
