@@ -1101,7 +1101,7 @@ void AdvProcessingOptions::createCecSettingsDialog()
 {
     if (!cecDialog_)
     {
-        cecDialog_ = new CecSettingsDialog(this, ecProject_);
+        cecDialog_ = new CecSettingsDialog(this, ecProject_, dlProject_);
     }
 }
 

@@ -73,6 +73,12 @@ public:
     static const QString getVARIABLE_VAR_STRING_32();
     static const QString getVARIABLE_VAR_STRING_33();
     static const QString getVARIABLE_VAR_STRING_34();
+    /// Analyser signal strength, the two spellings LI-COR uses. Offered here
+    /// because the engine's conditional-eddy-covariance screen looks for a
+    /// column named exactly AGC or RSSI on the gas's own analyser, and until
+    /// they appeared in this list there was no way to declare one.
+    static const QString getVARIABLE_VAR_STRING_35();
+    static const QString getVARIABLE_VAR_STRING_36();
 
     static const QString getVARIABLE_MEASURE_TYPE_STRING_0();
     static const QString getVARIABLE_MEASURE_TYPE_STRING_1();
@@ -269,10 +275,15 @@ private:
     QString outputUnit_;
     qreal aValue_;
     qreal bValue_;
+    //> Declared in the order all three constructors initialise them. They
+    //> were not, and the compiler warned about it on every build of this file
+    //> - harmlessly here, since these are plain reals that do not read each
+    //> other, but a real -Wreorder is how a member gets initialised from one
+    //> that is still garbage.
     qreal nomTimelag_;
-    qreal errorValue_;
     qreal minTimelag_;
     qreal maxTimelag_;
+    qreal errorValue_;
 };
 
 using VariableDescList = QList<VariableDesc>;

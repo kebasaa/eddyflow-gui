@@ -164,6 +164,12 @@ const QString DlProject::VARIABLE_VAR_STRING_27 = QStringLiteral("diag_77");
 const QString DlProject::VARIABLE_VAR_STRING_28 = QStringLiteral("fast_t");
 const QString DlProject::VARIABLE_VAR_STRING_29 = QStringLiteral("flowrate");
 const QString DlProject::VARIABLE_VAR_STRING_30 = QStringLiteral("anemometer_diagnostic");
+//> Stated rather than left to the fall-through at the end of the two mapping
+//> functions, which would write whatever the display name happens to be. These
+//> are the exact strings the engine compares against, so they are pinned here
+//> and a later rename of the display name cannot silently change them.
+const QString DlProject::VARIABLE_VAR_STRING_35 = QStringLiteral("AGC");
+const QString DlProject::VARIABLE_VAR_STRING_36 = QStringLiteral("RSSI");
 
 const QString DlProject::VARIABLE_MEASURE_TYPE_STRING_0 = QStringLiteral("molar_density");
 const QString DlProject::VARIABLE_MEASURE_TYPE_STRING_1 = QStringLiteral("mole_fraction");
@@ -1709,6 +1715,14 @@ QString DlProject::toIniVariableVar(const QString& s)
     {
         return DlProject::VARIABLE_VAR_STRING_30;
     }
+    else if (s == VariableDesc::getVARIABLE_VAR_STRING_35())
+    {
+        return DlProject::VARIABLE_VAR_STRING_35;
+    }
+    else if (s == VariableDesc::getVARIABLE_VAR_STRING_36())
+    {
+        return DlProject::VARIABLE_VAR_STRING_36;
+    }
     else
     {
         return s;
@@ -2264,6 +2278,14 @@ QString DlProject::fromIniVariableVar(const QString& s)
     else if (s == DlProject::VARIABLE_VAR_STRING_30)
     {
         return VariableDesc::getVARIABLE_VAR_STRING_30();
+    }
+    else if (s == DlProject::VARIABLE_VAR_STRING_35)
+    {
+        return VariableDesc::getVARIABLE_VAR_STRING_35();
+    }
+    else if (s == DlProject::VARIABLE_VAR_STRING_36)
+    {
+        return VariableDesc::getVARIABLE_VAR_STRING_36();
     }
     else
     {

@@ -1,6 +1,28 @@
 7.3.0 (2026-08-20)
 
     GUI:
+	- New feature: AGC and RSSI can be chosen in the Raw File Description. Neither was
+	       in the variable list, so a signal-strength column could not be declared
+	       from here at all - and the engine's conditional eddy covariance screen
+	       looks for exactly those two names on the gas's own analyser, so on most
+	       projects it silently had nothing to screen by. They are written verbatim
+	       and are not translated, because the engine's comparison is
+	       case-sensitive; a localised name would be stored and then never matched.
+	       They take the same cell treatment as the diagnostic words: dimensionless,
+	       no measure type, no conversion.
+	- Change: The signal-strength cutoff in CEC Settings says when it cannot do anything.
+	       It is greyed, with a warning triangle, when no analyser in the Raw File
+	       Description declares an AGC or RSSI column - previously it sat there
+	       offering a threshold that was never applied. Where only some analysers
+	       declare one it stays enabled, because the screen genuinely runs for
+	       those, and the triangle names the ones whose gases go unscreened. Both
+	       tooltips say that the partition itself still runs and only this screening
+	       step is skipped, so a greyed box is not read as CEC being broken.
+	- Fix: variable_desc builds without warnings. Four members were declared in a
+	       different order from the one all three constructors initialise them in,
+	       and the compiler said so on every build of the file. Harmless as it stood
+	       - they are plain reals that do not read each other - but a real -Wreorder
+	       is how a member gets initialised from one that is still garbage.
 	- Change: Switching Conditional Eddy Covariance on also switches on the compensation
 	       of density fluctuations. The partition sorts each air parcel into an
 	       octant by the SIGN of its water and carbon dioxide fluctuation, and the

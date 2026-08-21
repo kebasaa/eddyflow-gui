@@ -15,6 +15,7 @@ class QPushButton;
 class QSpinBox;
 class QTableView;
 class CecPairModel;
+class DlProject;
 class EcProject;
 
 class CecSettingsDialog : public QDialog
@@ -22,7 +23,8 @@ class CecSettingsDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit CecSettingsDialog(QWidget *parent, EcProject *ecProject);
+    explicit CecSettingsDialog(QWidget *parent, EcProject *ecProject,
+                               DlProject *dlProject);
 
 public slots:
     void refresh();
@@ -35,6 +37,9 @@ private slots:
 
 private:
     QDoubleSpinBox *createPercentSpin();
+    /// Grey the signal-strength cutoff, and flag it, when the metadata
+    /// declares no diagnostic for the analysers CEC will read.
+    void updateSignalStrengthAvailability();
 
     QDoubleSpinBox *hSpin;
     QDoubleSpinBox *singularBandSpin;
@@ -42,6 +47,7 @@ private:
     QDoubleSpinBox *minOctantSpin;
     QDoubleSpinBox *minValidSpin;
     QDoubleSpinBox *signalStrengthSpin;
+    QLabel *signalStrengthWarningLabel;
     QDoubleSpinBox *maxStationaritySpin;
     QSpinBox *maxGapFillSpin;
 
@@ -61,6 +67,9 @@ private:
     QPushButton *resetPairsButton;
 
     EcProject *ecProject_;
+    /// The Raw File Description. Only read, and only to ask whether a
+    /// signal-strength column is declared for each analyser.
+    DlProject *dlProject_;
 };
 
 #endif // CECSETTINGSDIALOG_H

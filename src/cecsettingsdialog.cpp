@@ -6,6 +6,7 @@
 
 #include "cecsettingsdialog.h"
 
+#include <QApplication>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
 #include <QGridLayout>
@@ -15,12 +16,16 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QSignalBlocker>
+#include <QSet>
 #include <QSpinBox>
+#include <QStyle>
 #include <QTableView>
 #include <QVBoxLayout>
 
 #include "cecpairmodel.h"
+#include "dlproject.h"
 #include "ecproject.h"
+#include "variable_desc.h"
 
 namespace
 {
@@ -34,9 +39,11 @@ constexpr double DefaultMaxStationarity = 25.0;
 constexpr int DefaultMaxGapFill = 4;
 }
 
-CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject) :
+CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject,
+                                     DlProject *dlProject) :
     QDialog(parent),
-    ecProject_(ecProject)
+    ecProject_(ecProject),
+    dlProject_(dlProject)
 {
     setWindowTitle(tr("CEC Settings"));
     setWindowModality(Qt::WindowModal);
@@ -61,6 +68,12 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject) :
     minOctantSpin = createPercentSpin();
     minValidSpin = createPercentSpin();
     signalStrengthSpin = createPercentSpin();
+    //> Lit when a channel CEC will read has no diagnostic to screen it by.
+    signalStrengthWarningLabel = new QLabel(this);
+    signalStrengthWarningLabel->setPixmap(QApplication::style()
+                                          ->standardIcon(QStyle::SP_MessageBoxWarning)
+                                          .pixmap(16, 16));
+    signalStrengthWarningLabel->hide();
     maxStationaritySpin = createPercentSpin();
     maxStationaritySpin->setRange(0.0, 1000.0);
 
@@ -122,6 +135,7 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject) :
     qcLayout->addWidget(minValidSpin, 0, 1);
     qcLayout->addWidget(signalStrengthLabel, 1, 0, Qt::AlignRight);
     qcLayout->addWidget(signalStrengthSpin, 1, 1);
+    qcLayout->addWidget(signalStrengthWarningLabel, 1, 2, Qt::AlignLeft);
     qcLayout->addWidget(maxStationarityLabel, 2, 0, Qt::AlignRight);
     qcLayout->addWidget(maxStationaritySpin, 2, 1);
     qcLayout->addWidget(maxGapFillLabel, 3, 0, Qt::AlignRight);
@@ -247,6 +261,78 @@ void CecSettingsDialog::refresh()
     //> can invalidate one. Re-read rather than trust what the table holds.
     pairModel->reload();
     updatePairButtons();
+    updateSignalStrengthAvailability();
+}
+
+/// The screen needs a diagnostic, and most analysers do not report one.
+///
+/// The engine looks for a column named exactly AGC or RSSI **on the gas's own
+/// analyser** and, finding none, skips that channel's screen and partitions
+/// anyway. That is the right behaviour and it is silent, so the cutoff sat
+/// here promising a screen that in many projects never ran - on the site this
+/// was written for, no analyser declared one and the setting did nothing at
+/// all.
+///
+/// Asked of the metadata, which is where the column is declared, and matched
+/// the way the engine matches it: same two names, same instrument, same case.
+void CecSettingsDialog::updateSignalStrengthAvailability()
+{
+    QSet<QString> withDiagnostic;
+    if (dlProject_ && dlProject_->variables())
+    {
+        for (const auto &var : *dlProject_->variables())
+        {
+            if (var.variable() != VariableDesc::getVARIABLE_VAR_STRING_35()
+                && var.variable() != VariableDesc::getVARIABLE_VAR_STRING_36())
+            {
+                continue;
+            }
+            //> The canonical id, never var.instrument(): that holds the
+            //> translated label the table shows - "Irga 1: LI-7200" - while
+            //> the gas records store "li7200_1". Comparing the two matches
+            //> nothing, and the failure is silent: every analyser would look
+            //> unscreened.
+            withDiagnostic.insert(
+                dlProject_->canonicalInstrumentId(var.instrument()));
+        }
+    }
+
+    QStringList unscreened;
+    for (const auto &gas : ecProject_->gasColumns())
+    {
+        if (gas.rawColumn <= 0) { continue; }
+        if (withDiagnostic.contains(gas.instrumentId)) { continue; }
+        if (unscreened.contains(gas.instrumentId)) { continue; }
+        unscreened.append(gas.instrumentId);
+    }
+
+    const bool anyAtAll = !withDiagnostic.isEmpty();
+    signalStrengthLabel->setEnabled(anyAtAll);
+    signalStrengthSpin->setEnabled(anyAtAll);
+    signalStrengthWarningLabel->setVisible(!anyAtAll || !unscreened.isEmpty());
+
+    if (!anyAtAll)
+    {
+        signalStrengthWarningLabel->setToolTip(
+            tr("<b>No signal strength is declared, so this screen cannot run.</b>"
+               "<p>It needs a column named <b>AGC</b> or <b>RSSI</b> on the same "
+               "analyser as the gas. Add one in the Raw File Description if your "
+               "instrument reports it.</p>"
+               "<p>The partition itself is unaffected and still runs \xe2\x80\x93 only "
+               "this one screening step is skipped.</p>"));
+    }
+    else
+    {
+        //> Enabled, not greyed: the screen genuinely runs for the analysers
+        //> that do declare one, and greying the box would say otherwise.
+        signalStrengthWarningLabel->setToolTip(
+            tr("<b>Some channels cannot be screened.</b>"
+               "<p>These analysers declare no AGC or RSSI column, so their gases "
+               "are read unscreened while the others are screened normally: "
+               "<b>%1</b>.</p>"
+               "<p>The partition itself is unaffected.</p>").arg(unscreened.join(
+                   QStringLiteral(", "))));
+    }
 }
 
 void CecSettingsDialog::addPair()
