@@ -1,6 +1,24 @@
 7.3.0 (2026-08-20)
 
     GUI:
+	- Change: Switching Conditional Eddy Covariance on also switches on the compensation
+	       of density fluctuations. The partition sorts each air parcel into an
+	       octant by the SIGN of its water and carbon dioxide fluctuation, and the
+	       engine converts the raw series to mixing ratios only when WPL is on; in an
+	       uncorrected molar density from an open-path analyser, part of that
+	       fluctuation is the air expanding rather than the gas arriving, and it is
+	       large enough to reverse the sign and put the parcel in the wrong octant.
+	       The correction can still be switched back off - a closed-path analyser
+	       reporting mixing ratios is unaffected - but doing so while the partition
+	       is on now says why that is a bad idea, and leaves a warning triangle
+	       beside the setting for as long as the project stays in that state. A
+	       project saved that way opens unchanged and without a dialog, but with the
+	       triangle already showing. The run reports the same thing as Warning(114).
+	- Fix: The Conditional Eddy Covariance tooltip comes back after the checkbox has
+	       been unavailable. The restore read the tooltip it was about to overwrite,
+	       so once a site without both channels had put the "unavailable" text there,
+	       that was what got restored and the real tooltip was gone for the rest of
+	       the session.
 	- Fix: The minus signs in the singularity-band tooltip are the characters they were
 	       meant to be. Written as a UTF-8 escape immediately before a digit -
 	       \xe2\x88\x92 then 1 - the escape swallowed the digit, because a C++ hex

@@ -125,6 +125,11 @@ private slots:
 
     void updateCecMeth_1(bool b);
     void updateCecAvailability();
+    /// The partition reads the SIGN of each fluctuation, so it needs the
+    /// density correction. Ticking it on switches WPL on; turning WPL back off
+    /// warns and leaves the triangle beside it lit.
+    void warnWplOffWithCec();
+    void updateWplCecWarning();
 
     void updateWplMeth_1(bool b);
     void updateBurbaGroup(bool b);
@@ -195,8 +200,13 @@ private:
 
     RichTextCheckBox* cecCheckBox;
     QPushButton* cecSettingsButton;
+    //> Kept because updateCecAvailability() swaps the tooltip for an
+    //> "unavailable" one and has to be able to put this back. It used to
+    //> restore cecCheckBox->toolTip(), which by then WAS the unavailable text.
+    QString cecAvailableTooltip_;
 
     RichTextCheckBox* wplCheckBox;
+    QLabel* wplWarningLabel;
     RichTextCheckBox* burbaCorrCheckBox;
     ClickLabel* burbaTypeLabel;
     QRadioButton* burbaSimpleRadio;

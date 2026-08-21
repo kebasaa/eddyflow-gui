@@ -25,6 +25,7 @@
 
 #include "advprocessingoptions.h"
 
+#include <QApplication>
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QComboBox>
@@ -38,6 +39,7 @@
 #include <QScrollArea>
 #include <QSpinBox>
 #include <QStackedWidget>
+#include <QStyle>
 #include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -265,7 +267,9 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     fpMethodCombo->setItemData(2, tr("<b>Hsien et al. (2000):</b> A cross-wind integrated model based based on the former model of Gash (1986) and on simulations with a Lagrangian stochastic model."), Qt::ToolTipRole);
 
     cecCheckBox = new RichTextCheckBox;
-    cecCheckBox->setToolTip(tr("<b>Conditional Eddy Covariance:</b> Partitions fluxes into stomatal and non-stomatal components using the octant-based conditional statistics method of Zahn et al. (2022). Each CO\xe2\x82\x82/H\xe2\x82\x82O pairing adds evaporation and transpiration (<i>E_cec</i>, <i>Tr_cec</i>), ecosystem respiration and net photosynthesis (<i>Reco_cec</i>, <i>P_cec</i>), the ratios and quality flags behind them, and the octant counts they were computed from. Any further species the pairing carries \xe2\x80\x93 carbonyl sulfide, for instance \xe2\x80\x93 is partitioned in the same octants. Use <i>CEC Settings</i> to choose which channels pair with which."));
+    cecAvailableTooltip_ = tr("<b>Conditional Eddy Covariance:</b> Partitions fluxes into stomatal and non-stomatal components using the octant-based conditional statistics method of Zahn et al. (2022). Each CO\xe2\x82\x82/H\xe2\x82\x82O pairing adds evaporation and transpiration (<i>E_cec</i>, <i>Tr_cec</i>), ecosystem respiration and net photosynthesis (<i>Reco_cec</i>, <i>P_cec</i>), the ratios and quality flags behind them, and the octant counts they were computed from. Any further species the pairing carries \xe2\x80\x93 carbonyl sulfide, for instance \xe2\x80\x93 is partitioned in the same octants. Use <i>CEC Settings</i> to choose which channels pair with which."
+                              "<p>Ticking this also switches on <b>compensation of density fluctuations (WPL)</b>, because the method sorts each air parcel by the SIGN of its water and carbon dioxide fluctuation. In an uncorrected molar density from an open-path analyser, part of that fluctuation is the air expanding rather than the gas arriving, and it is large enough to reverse the sign \xe2\x80\x93 which puts the parcel in the wrong octant.</p>");
+    cecCheckBox->setToolTip(cecAvailableTooltip_);
     cecCheckBox->setText(tr("Conditional Eddy Covariance"));
     cecCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Conditional_Eddy_Covariance.html"));
 
@@ -279,6 +283,21 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     wplCheckBox->setToolTip(tr("<b>Compensate density fluctuations:</b> This is the so-called WPL correction (Webb et al., 1980). Choose whether to apply the compensation of density fluctuations to raw gas concentrations available as molar densities or mole fractions (moles gas per mole of wet air). The correction does not apply if raw concentrations are available as mixing ratios (mole gas per mole dry air)."));
     wplCheckBox->setText(tr("Compensate density fluctuations (WPL terms)"));
     wplCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Converting_to_Mixing_Ratio.html"));
+
+    //> Lit only in the inconsistent state - the partition on, the correction it
+    //> depends on off. A warning icon that is usually on is one nobody reads.
+    wplWarningLabel = new QLabel;
+    wplWarningLabel->setPixmap(QApplication::style()
+                               ->standardIcon(QStyle::SP_MessageBoxWarning)
+                               .pixmap(16, 16));
+    wplWarningLabel->setToolTip(tr("<b>Conditional Eddy Covariance is on and this is off.</b> "
+                                   "The partition sorts each air parcel by the SIGN of its water "
+                                   "and carbon dioxide fluctuation, and without this correction an "
+                                   "open-path molar density carries an expansion term big enough to "
+                                   "reverse that sign. Zahn et al. (2022) require the fluctuations "
+                                   "themselves to be density-corrected, separately from the totals. "
+                                   "The run will say so as well."));
+    wplWarningLabel->hide();
 
     // burba correction
     burbaCorrCheckBox = new RichTextCheckBox;
@@ -377,7 +396,14 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     settingsLayout->addWidget(tlSettingsButton, 7, 3);
     settingsLayout->addWidget(hrLabel, 8, 0, 1, 4);
     settingsLayout->addWidget(wplTitle, 9, 0);
-    settingsLayout->addWidget(wplCheckBox, 10, 0);
+    //> One cell, not two: column 0 is as wide as its widest widget, so the
+    //> icon in a neighbouring cell would sit far off to the right of the text
+    //> it belongs to. Same shape as qBox_2 above.
+    auto wplBox = new QHBoxLayout;
+    wplBox->addWidget(wplCheckBox);
+    wplBox->addWidget(wplWarningLabel);
+    wplBox->addStretch();
+    settingsLayout->addLayout(wplBox, 10, 0);
     settingsLayout->addWidget(burbaCorrCheckBox, 11, 0);
     settingsLayout->addWidget(burbaTypeLabel, 12, 0, 1, 1, Qt::AlignRight);
     settingsLayout->addWidget(burbaSimpleRadio, 12, 1);
@@ -522,7 +548,22 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             this, &AdvProcessingOptions::updateCecMeth_1);
     connect(cecSettingsButton, &QPushButton::clicked,
             this, &AdvProcessingOptions::showCecSettingsDialog);
+    //> clicked, not toggled: refresh() blocks the PROJECT's signals, not the
+    //> widgets', so a toggled connection would fire while a project is being
+    //> loaded and quietly switch WPL on in a file the user only opened.
+    //> clicked comes from a real interaction and from nothing else.
+    connect(cecCheckBox, &RichTextCheckBox::clicked, this, [=]()
+            {
+                if (cecCheckBox->isChecked() && !wplCheckBox->isChecked())
+                {
+                    wplCheckBox->setChecked(true);
+                }
+            });
 
+    connect(wplCheckBox, &RichTextCheckBox::clicked,
+            this, &AdvProcessingOptions::warnWplOffWithCec);
+    connect(wplCheckBox, &RichTextCheckBox::toggled,
+            this, &AdvProcessingOptions::updateWplCecWarning);
     connect(wplCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateWplMeth_1);
     connect(wplCheckBox, &RichTextCheckBox::toggled,
@@ -1019,6 +1060,8 @@ void AdvProcessingOptions::refresh()
 
     // restore modified flag
     ecProject_->setModified(oldmod);
+
+    updateWplCecWarning();
     ecProject_->blockSignals(false);
 }
 
@@ -1153,6 +1196,50 @@ void AdvProcessingOptions::updateCecMeth_1(bool b)
 {
     ecProject_->setGeneralCecMeth(b ? 1 : 0);
     updateCecAvailability();
+    //> After updateCecAvailability, which can force the box back off under a
+    //> QSignalBlocker - so asking the widget here is asking the settled state.
+    updateWplCecWarning();
+}
+
+/// The triangle beside the WPL checkbox: on when the partition is on and the
+/// correction it depends on is not.
+///
+/// Driven from `toggled` rather than `clicked`, unlike the dialog. This one is
+/// passive and it SHOULD light up on load: a project saved with the partition
+/// on and the correction off is exactly the case worth flagging, and it is the
+/// case that opens without a dialog.
+void AdvProcessingOptions::updateWplCecWarning()
+{
+    wplWarningLabel->setVisible(cecCheckBox->isChecked()
+                                && !wplCheckBox->isChecked());
+}
+
+/// Turning the density correction off while the partition is on.
+///
+/// Allowed - some sites read mixing ratios straight off a closed-path analyser
+/// and the correction is a no-op for them - but said out loud, because for an
+/// open-path site it silently moves parcels into the wrong octant. The engine
+/// repeats this as Warning(114) at run time.
+void AdvProcessingOptions::warnWplOffWithCec()
+{
+    if (wplCheckBox->isChecked()) { return; }
+    if (!cecCheckBox->isChecked()) { return; }
+
+    WidgetUtils::warning(this,
+        tr("Conditional Eddy Covariance Needs the Density Correction"),
+        tr("<b>Conditional Eddy Covariance is on, and you have just switched off "
+           "the compensation of density fluctuations.</b>"),
+        tr("The partition sorts each air parcel into an octant by the SIGN of its "
+           "water and carbon dioxide fluctuation. In a molar density from an "
+           "open-path analyser, part of that fluctuation is the air expanding and "
+           "contracting rather than the gas arriving, and that part is large "
+           "enough to reverse the sign - so parcels land in the wrong octant and "
+           "the ratio is drawn from the wrong points."
+           "<p>Zahn et al. (2022) require the fluctuations themselves to carry "
+           "the density correction, separately from the totals. If your analyser "
+           "already reports mixing ratios, this does not affect you.</p>"
+           "<p>The setting has been left off. The run will report this as "
+           "Warning(114).</p>"));
 }
 
 void AdvProcessingOptions::updateCecAvailability()
@@ -1188,7 +1275,7 @@ void AdvProcessingOptions::updateCecAvailability()
 
     cecCheckBox->setEnabled(hasBoth);
     cecCheckBox->setToolTip(hasBoth
-        ? cecCheckBox->toolTip()
+        ? cecAvailableTooltip_
         : tr("<b>Conditional Eddy Covariance:</b> Unavailable. The method sorts "
              "air parcels by the signs of the vertical wind, the water and the "
              "carbon dioxide together, so it needs both a CO\xe2\x82\x82 channel "
