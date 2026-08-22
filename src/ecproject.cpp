@@ -923,6 +923,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.projectGeneral.end_time = QTime(23, 59).toString(QStringLiteral("hh:mm"));
     ec_project_state_.projectGeneral.hf_meth = defaultEcProjectState.projectGeneral.hf_meth;
     ec_project_state_.projectGeneral.lf_meth = defaultEcProjectState.projectGeneral.lf_meth;
+    ec_project_state_.projectGeneral.cosp_model = defaultEcProjectState.projectGeneral.cosp_model;
     ec_project_state_.projectGeneral.wpl_meth = defaultEcProjectState.projectGeneral.wpl_meth;
     ec_project_state_.projectGeneral.foot_meth = defaultEcProjectState.projectGeneral.foot_meth;
     ec_project_state_.projectGeneral.cec_meth = defaultEcProjectState.projectGeneral.cec_meth;
@@ -1646,6 +1647,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_PROJECT_45, ec_project_state_.projectGeneral.end_time);
         project_ini.setValue(EcIni::INI_PROJECT_46, ec_project_state_.projectGeneral.hf_meth);
         project_ini.setValue(EcIni::INI_PROJECT_47, ec_project_state_.projectGeneral.lf_meth);
+        project_ini.setValue(EcIni::INI_PROJECT_83, ec_project_state_.projectGeneral.cosp_model);
         project_ini.setValue(EcIni::INI_PROJECT_48, ec_project_state_.projectGeneral.wpl_meth);
         project_ini.setValue(EcIni::INI_PROJECT_49, ec_project_state_.projectGeneral.foot_meth);
         project_ini.setValue(EcIni::INI_PROJECT_72, ec_project_state_.projectGeneral.cec_meth);
@@ -2655,6 +2657,17 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.projectGeneral.lf_meth
                 = project_ini.value(EcIni::INI_PROJECT_47,
                                     defaultEcProjectState.projectGeneral.lf_meth).toInt();
+        ec_project_state_.projectGeneral.cosp_model
+                = project_ini.value(EcIni::INI_PROJECT_83,
+                                    defaultEcProjectState.projectGeneral.cosp_model).toInt();
+        //> A value from some later version would land on no combo row and
+        //> silently show the first. The engine falls back the same way.
+        if (ec_project_state_.projectGeneral.cosp_model < 0
+            || ec_project_state_.projectGeneral.cosp_model > 5)
+        {
+            ec_project_state_.projectGeneral.cosp_model
+                    = defaultEcProjectState.projectGeneral.cosp_model;
+        }
         ec_project_state_.projectGeneral.wpl_meth
                 = project_ini.value(EcIni::INI_PROJECT_48,
                                     defaultEcProjectState.projectGeneral.wpl_meth).toInt();
@@ -6576,6 +6589,16 @@ void EcProject::setGeneralHfMethod(int n)
     ec_project_state_.projectGeneral.hf_meth = n;
     setModified(true);
     emit updateInfo();
+}
+
+//> Which analytic cospectrum the spectral corrections are integrated
+//> against. Deliberately NOT in fuzzyCompare, for the same reason hf_meth is
+//> not: it is read at correction time, not while the raw data are processed,
+//> so it cannot make a computed dataset stale.
+void EcProject::setGeneralCospModel(int n)
+{
+    ec_project_state_.projectGeneral.cosp_model = n;
+    setModified(true);
 }
 
 void EcProject::setGeneralLfMethod(int n)

@@ -202,6 +202,11 @@ private:
     QCheckBox* horstCheck;
     ClickLabel* horstMethodLabel;
     QComboBox* horstCombo;
+    //> The analytic cospectral shape every low-pass correction is
+    //> integrated against - a modifier on all the methods above, not a
+    //> method of its own, so it has no enabling checkbox of its own.
+    ClickLabel* cospModelLabel;
+    QComboBox* cospModelCombo;
     QCheckBox* hfCorrectGhgBaCheck;
     QCheckBox* hfCorrectGhgZohCheck;
     ClickLabel* sonicFrequencyLabel;

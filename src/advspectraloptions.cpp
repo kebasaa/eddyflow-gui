@@ -596,6 +596,71 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     horstCombo->setItemData(0, tr("<b>Horst and Lenschow (2009), along-wind, crosswind and vertical:</b> Select this option to account for sensor separations in any direction. Note that correcting for along-wind separations may result in overcorrection, if any time lag compensation method was also selected."), Qt::ToolTipRole);
     horstCombo->setItemData(1, tr("<b>Horst and Lenschow (2009), only crosswind and vertical:</b> Select this option to account for sensor separations only in the crosswind and vertical directions. Recommended when a time lag compensation method is selected."), Qt::ToolTipRole);
 
+    //> The analytic cospectral SHAPE, not a correction method. Every method
+    //> above weights a transfer function by it, so it is a modifier on all of
+    //> them rather than a sixth entry in their list.
+    cospModelLabel = new ClickLabel(tr("Cospectral model :"));
+    cospModelCombo = new QComboBox;
+    cospModelCombo->addItem(tr("Moncrieff et al. (1997) - the default"));
+    cospModelCombo->addItem(tr("Kaimal et al. (1972)"));
+    cospModelCombo->addItem(tr("Sakai et al. (2001) - rough surfaces"));
+    cospModelCombo->addItem(tr("Su et al. (2003) - forest, non-flat terrain"));
+    cospModelCombo->addItem(tr("Moraes et al. (2008)"));
+    cospModelCombo->addItem(tr("Kristensen et al. (1997)"));
+    const QString cospShared = tr("<br><br>Only the SHAPE matters: the correction "
+        "is a ratio of two integrals of this same curve, so any constant "
+        "scaling it divides out. The Reynolds stress keeps Moncrieff's "
+        "momentum cospectrum whichever option is chosen - the four "
+        "single-form models below are scalar cospectra and have no momentum "
+        "counterpart.");
+    const QString cospNeutral = tr("<br><br><b>No stability dependence.</b> This "
+        "is a single form applied at any z/L. Under stable stratification the "
+        "cospectral peak moves to higher frequency, so a neutral-form model "
+        "puts too little flux there and will understate the high-frequency "
+        "loss.");
+    cospModelCombo->setItemData(0, QString(tr("<b>Moncrieff et al. (1997):</b> The "
+        "curve this program has always integrated against, with separate "
+        "stable and unstable branches. Identical, term for term, to the "
+        "cospectrum Moore (1986) gives and that EddyUH calls CMoore.")
+        + cospShared),
+        Qt::ToolTipRole);
+    cospModelCombo->setItemData(1, QString(tr("<b>Kaimal et al. (1972):</b> The Kansas "
+        "cospectrum, with stable and unstable branches of its own. A "
+        "genuinely different curve from Moncrieff's, though the two agree "
+        "closely - Moncrieff's is a fit to this data.") + cospShared),
+        Qt::ToolTipRole);
+    cospModelCombo->setItemData(2, QString(tr("<b>Sakai et al. (2001):</b> Fitted over "
+        "rough surfaces, where more of the flux sits at low frequency than "
+        "Kaimal's curve allows.") + cospNeutral + cospShared),
+        Qt::ToolTipRole);
+    cospModelCombo->setItemData(3, QString(tr("<b>Su et al. (2003):</b> Fitted over "
+        "two mixed hardwood forests in non-flat terrain.") + cospNeutral
+        + cospShared),
+        Qt::ToolTipRole);
+    cospModelCombo->setItemData(4, QString(tr("<b>Moraes et al. (2008):</b> Fitted "
+        "across differing surface boundary conditions.") + cospNeutral
+        + cospShared),
+        Qt::ToolTipRole);
+    cospModelCombo->setItemData(5, QString(tr("<b>Kristensen et al. (1997):</b> A "
+        "broader curve than the others, with a long low-frequency tail. On "
+        "the test dataset it gives the largest correction of the six.")
+        + cospNeutral + cospShared),
+        Qt::ToolTipRole);
+    const QString cospTip = tr("<b>Cospectral model:</b> The analytic cospectrum "
+        "that every low-pass correction is integrated against. It decides how "
+        "much of the flux is assumed to sit at the frequencies the instrument "
+        "attenuates, and so how large the correction comes out - on the test "
+        "dataset the six models spread the gas correction factors over about "
+        "four percent. It is a modifier on whichever method is selected "
+        "above, not a method of its own, and it has no effect where the "
+        "correction is taken from measured cospectra instead."
+        "<br><br>The library is EddyUH's, from its diagnostic plots; EddyUH "
+        "corrects against measured and fitted cospectra rather than these. "
+        "<b>Moncrieff et al. (1997) is the default</b> and is what this "
+        "program has always used.");
+    cospModelLabel->setToolTip(cospTip);
+    cospModelCombo->setToolTip(cospTip);
+
     ////////////////////////////////////////////////////////////////////////////////
     // NOTE: explicitely disabled
     ghgSystemCorrectionTitle = new QLabel(tr("Data acquisition system correction (only GHG files collected with LI-7550 software 7.6.0 or earlier)"));
@@ -838,21 +903,24 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     settingsLayout->addWidget(horstMethodLabel, 22, 1, Qt::AlignRight);
     settingsLayout->addWidget(horstCombo, 22, 2, 1, 3);
 
-    settingsLayout->addWidget(ghgSystemCorrectionTitle, 23, 0, 1, -1);
-    settingsLayout->addWidget(hfCorrectGhgBaCheck, 24, 0, 1, 2);
-    settingsLayout->addWidget(hfCorrectGhgZohCheck, 25, 0, 1, 2);
-    settingsLayout->addWidget(sonicFrequencyLabel, 25, 1, Qt::AlignRight);
-    settingsLayout->addWidget(sonicFrequency, 25, 2, 1, 1);
+    settingsLayout->addWidget(cospModelLabel, 23, 1, Qt::AlignRight);
+    settingsLayout->addWidget(cospModelCombo, 23, 2, 1, 3);
 
-    settingsLayout->addWidget(spectraExistingRadio, 26, 0, 1, 2);
-    settingsLayout->addWidget(spectraFileBrowse, 26, 1, 1, 4);
-    settingsLayout->addWidget(spectraNonExistingRadio, 27, 0, 1, 2);
+    settingsLayout->addWidget(ghgSystemCorrectionTitle, 24, 0, 1, -1);
+    settingsLayout->addWidget(hfCorrectGhgBaCheck, 25, 0, 1, 2);
+    settingsLayout->addWidget(hfCorrectGhgZohCheck, 26, 0, 1, 2);
+    settingsLayout->addWidget(sonicFrequencyLabel, 26, 1, Qt::AlignRight);
+    settingsLayout->addWidget(sonicFrequency, 26, 2, 1, 1);
 
-    settingsLayout->addWidget(fratiniTitle, 28, 0, 1, -1);
-    settingsLayout->addWidget(fullSpectraNonExistingRadio, 29, 0, 1, 2);
-    settingsLayout->addWidget(fullSpectraExistingRadio, 30, 0, 1, 2);
-    settingsLayout->addWidget(fullSpectraDirBrowse, 30, 1, 1, 4);
-    settingsLayout->addWidget(addSonicCheck, 31, 0, 1, -1);
+    settingsLayout->addWidget(spectraExistingRadio, 27, 0, 1, 2);
+    settingsLayout->addWidget(spectraFileBrowse, 27, 1, 1, 4);
+    settingsLayout->addWidget(spectraNonExistingRadio, 28, 0, 1, 2);
+
+    settingsLayout->addWidget(fratiniTitle, 29, 0, 1, -1);
+    settingsLayout->addWidget(fullSpectraNonExistingRadio, 30, 0, 1, 2);
+    settingsLayout->addWidget(fullSpectraExistingRadio, 31, 0, 1, 2);
+    settingsLayout->addWidget(fullSpectraDirBrowse, 31, 1, 1, 4);
+    settingsLayout->addWidget(addSonicCheck, 32, 0, 1, -1);
     settingsLayout->setColumnStretch(7, 1);
 
     auto settingsGroupLayout = new QHBoxLayout;
@@ -959,6 +1027,10 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             this, &AdvSpectralOptions::onClickHorstLabel);
     connect(horstCheck, &QCheckBox::toggled,
             this, &AdvSpectralOptions::updateHorst_1);
+    connect(cospModelCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [=](int n){ ecProject_->setGeneralCospModel(n); });
+    connect(cospModelLabel, &ClickLabel::clicked,
+            this, [=](){ cospModelCombo->showPopup(); });
     connect(horstCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &AdvSpectralOptions::updateHorst_2);
 
@@ -1092,6 +1164,7 @@ void AdvSpectralOptions::reset()
     lfMethodCheck->setChecked(ecProject_->defaultSettings.projectGeneral.lf_meth);
     hfMethodCheck->setChecked(ecProject_->defaultSettings.projectGeneral.hf_meth);
     WidgetUtils::resetComboToItem(hfMethCombo, 0);
+    WidgetUtils::resetComboToItem(cospModelCombo, ecProject_->defaultSettings.projectGeneral.cosp_model);
     horstMethodLabel->setEnabled(false);
     horstCheck->setEnabled(false);
     horstCheck->setChecked(false);
@@ -1200,6 +1273,7 @@ void AdvSpectralOptions::refresh()
 
     lfMethodCheck->setChecked(ecProject_->generalLfMethod());
     hfMethodCheck->setChecked(ecProject_->generalHfMethod());
+    cospModelCombo->setCurrentIndex(ecProject_->generalCospModel());
 
     int hfMethod = ecProject_->generalHfMethod();
     switch(hfMethod)

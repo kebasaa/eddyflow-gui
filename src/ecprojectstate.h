@@ -100,6 +100,7 @@ struct ProjectGeneralState
     QString start_time = QString();
     QString end_time = QString();
     int hf_meth = 1;
+    int cosp_model = 0;
     int lf_meth = 1;
     int wpl_meth = 1;
     int foot_meth = 1;

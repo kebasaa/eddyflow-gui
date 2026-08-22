@@ -119,6 +119,13 @@ namespace EcIni
     //> The pairing list is written as cec_num plus cec_<i>_meth / _co2 /
     //> _h2o / _extra, composed like the gas records rather than named here.
     const auto INI_PROJECT_CEC_NUM = QStringLiteral("cec_num");
+    //> The analytic cospectrum every spectral correction is integrated
+    //> against. 0 = Moncrieff et al. (1997), which is what this program has
+    //> always used; 1 Kaimal et al. (1972), 2 Sakai et al. (2001), 3 Su et al.
+    //> (2003), 4 Moraes et al. (2008), 5 Kristensen et al. (1997).
+    //> [Project] because BOTH applications read it - RP runs the analytic
+    //> methods itself, and FCC never sweeps the RawProcess groups.
+    const auto INI_PROJECT_83   = QStringLiteral("cosp_model");
 
     const auto INIGROUP_SPEC_SETTINGS = QStringLiteral("FluxCorrection_SpectralAnalysis_General");
     const auto INI_SPEC_SETTINGS_0    = QStringLiteral("sa_start_date");

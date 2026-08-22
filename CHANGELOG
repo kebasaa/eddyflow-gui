@@ -1,6 +1,30 @@
 8.1.0 (2026-08-22)
 
     GUI:
+	- New feature: A "Cospectral model" choice under the low-pass correction methods on
+	       the Spectral Corrections page, writing the engine's new cosp_model.
+	       Six curves: Moncrieff et al. (1997) - the default, and what this
+	       program has always used - plus Kaimal et al. (1972), Sakai et al.
+	       (2001), Su et al. (2003), Moraes et al. (2008) and Kristensen et al.
+	       (1997). Each row carries its own citation tooltip.
+	       It sits directly under a list of correction METHODS, which is exactly
+	       why the tooltip opens by saying it is a modifier on whichever of them
+	       is selected and not a seventh entry: it changes the shape they are all
+	       integrated against, and on the test fixture that moves the gas
+	       correction factors by about four percent between the extremes.
+	       The tooltips carry the three things a reader could not get from the
+	       names. That the Reynolds stress keeps Moncrieff's momentum cospectrum
+	       whichever is chosen, because four of the six are scalar cospectra with
+	       no momentum form. That those four have no stability branch either, so
+	       under stable stratification they understate the high-frequency loss.
+	       And that the library is EddyUH's diagnostic curves rather than
+	       EddyUH's method - EddyUH corrects against measured and fitted
+	       cospectra - so picking one is not reproducing EddyUH.
+	       The combo row IS the ini value, with no mapping in between, so the
+	       engine's decode table is not duplicated here. An out-of-range value
+	       from a later version falls back to the default on load rather than
+	       leaving the combo showing Moncrieff while the file says otherwise.
+	       Pinned by tests/test_cosp_model_contract_static.py.
 	- New feature: "Borrow a tube-mate's lag below the detection limit" and its "Detection
 	       limits to clear" threshold, beside the baseline checkbox, writing the
 	       engine's new tlag_borrow_meth and tlag_borrow_snr. A species whose

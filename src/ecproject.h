@@ -143,6 +143,7 @@ public:
     void setGeneralStartTime(const QString &t);
     void setGeneralEndTime(const QString &t);
     void setGeneralHfMethod(int n);
+    void setGeneralCospModel(int n);
     void setGeneralLfMethod(int n);
     void setGeneralWplMeth( int n);
     void setGeneralFpMeth(int n);
@@ -607,6 +608,7 @@ public:
     const QString& generalStartTime() const { return ec_project_state_.projectGeneral.start_time; }
     const QString& generalEndTime() const { return ec_project_state_.projectGeneral.end_time; }
     int generalHfMethod() const { return ec_project_state_.projectGeneral.hf_meth; }
+    int generalCospModel() const { return ec_project_state_.projectGeneral.cosp_model; }
     int generalLfMethod() const { return ec_project_state_.projectGeneral.lf_meth; }
     int generalWplMeth() const { return ec_project_state_.projectGeneral.wpl_meth; }
     int generalFpMeth() const { return ec_project_state_.projectGeneral.foot_meth; }
