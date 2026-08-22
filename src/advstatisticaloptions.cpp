@@ -159,6 +159,7 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     randomMethodCombo->addItem(tr("Finkelstein and Sims (2001)"));
     randomMethodCombo->addItem(tr("Mann and Lenschow (1994)"));
     randomMethodCombo->addItem(tr("Billesbach (2011)"));
+    randomMethodCombo->addItem(tr("Lenschow et al. (2000) - instrument noise"));
     randomMethodCombo->setItemData(0, tr("<b>Finkelstein and Sims (2001):</b> Based on a mathematically rigorous expression for the variance of a covariance, which includes the auto- and cross-covariance terms for atmospheric fluxes. The uncertainty estimate is based on Eqs. 8-10 of the referenced paper."), Qt::ToolTipRole);
     randomMethodCombo->setItemData(1, tr("<b>Mann and Lenschow (1994):</b> Define the error variance of the central moment of the time series. The uncertainty estimate is based on, e.g. Eqs. 5 of Finkelstein and Sims (2001)."), Qt::ToolTipRole);
     randomMethodCombo->setItemData(2, tr("<b>Billesbach (2011):</b> The \"random shuffle\" method. Reordering a scalar at random destroys every real correlation with vertical wind, so whatever covariance survives the shuffle was produced by noise alone; the mean of twenty such covariances is a floor below which a flux cannot be told from zero. This is a <b>noise floor, not a sampling error</b>: it answers whether a flux is resolvable, not how uncertain it is, and it is systematically smaller than the two methods above. Most useful for weak-flux species such as carbonyl sulfide or nitrous oxide."), Qt::ToolTipRole);
@@ -167,9 +168,24 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     //> stopped working the moment a third was added: ru_meth 3 is Mahrt
     //> (computed elsewhere and not offered here), so Billesbach is 4 and the
     //> row it sits on says nothing about it.
+    randomMethodCombo->setItemData(3, tr("<b>Lenschow et al. (2000), as applied by Mauder et al. (2013):</b> White instrument noise is uncorrelated between samples, so it lands "
+        "entirely in the autocovariance at zero lag and nowhere else. Fit a line through the first five lags, read it back at zero, and the "
+        "gap between that line and the measured value is the noise variance."
+        "<br><br>This estimates the <b>analyser's own noise</b>, and is the smallest of the four: it says nothing about whether the "
+        "atmosphere was sampled long enough, which is what the two sampling errors above measure, and nothing about whether a flux is "
+        "resolvable, which is what Billesbach measures. The three are not interchangeable."
+        "<br><br>It <b>declines periods</b> rather than guessing: if either intercept comes out non-positive the assumption the method "
+        "rests on does not hold for that period, and the estimate is reported as missing. On a low-noise analyser that can be most of "
+        "them - which is itself the useful answer."
+        "<br><br>The five-lag window is fixed in samples, as EddyUH has it, so it spans half as long at 20 Hz as at 10."), Qt::ToolTipRole);
+
+    //> The stored value IS ru_meth. Five, not four, because four is
+    //> already Billesbach - the row and the method number have not run
+    //> in step since three became Mahrt.
     randomMethodCombo->setItemData(0, 1);
     randomMethodCombo->setItemData(1, 2);
     randomMethodCombo->setItemData(2, 4);
+    randomMethodCombo->setItemData(3, 5);
 
     auto itsLabel = WidgetUtils::createBlueLabel(this, tr("Integral turbulence scale (ITS)"));
     itsLabel->setToolTip(tr(""));

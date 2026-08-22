@@ -1,6 +1,21 @@
 8.1.0 (2026-08-22)
 
     GUI:
+	- New feature: Lenschow et al. (2000) joins the random uncertainty menu as a fourth
+	       entry, writing the engine's ru_meth = 5. It estimates the analyser's own
+	       white noise from the step in the autocovariance at zero lag.
+	       Its tooltip carries the three things the menu itself cannot show. That
+	       this is the INSTRUMENT's noise, not a sampling error like the two above
+	       it and not a resolvability floor like Billesbach - four entries all
+	       producing a number in the same units, answering three different
+	       questions. That it DECLINES a period when its assumption fails, so a
+	       column of missing values is the method working rather than the run
+	       failing. And that its five-lag window is fixed in samples, so it spans
+	       half as long at 20 Hz as at 10.
+	       The stored value is 5 on row 3: the row and the method number have not
+	       run in step since 3 became Mahrt, and nothing here derives one from the
+	       other.
+	       Pinned by tests/test_lenschow_noise_contract_static.py.
 	- New feature: A third despiking method on the Statistical Analysis page,
 	       "Consecutive difference (EddyUH)", writing despike_vm = 2. It replaces a
 	       sample that steps further from the one before it than a stated limit, and
