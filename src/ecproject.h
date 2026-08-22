@@ -242,6 +242,8 @@ public:
     void setScreenCovmaxDebaseline(int n);
     void setScreenTlagBorrowMethod(int n);
     void setScreenTlagBorrowSnr(double d);
+    void setScreenTlagBorrowNoise(int n);
+    void setScreenTlagBorrowDonor(int n);
     void setScreenDetlimOffset(double d);
     void setScreenDetlimWindow(double d);
     void setScreenFlowDistortion(int n);
@@ -713,6 +715,8 @@ public:
     int screenCovmaxDebaseline() const { return ec_project_state_.screenSetting.covmax_debaseline; }
     int screenTlagBorrowMethod() const { return ec_project_state_.screenSetting.tlag_borrow_meth; }
     double screenTlagBorrowSnr() const { return ec_project_state_.screenSetting.tlag_borrow_snr; }
+    int screenTlagBorrowNoise() const { return ec_project_state_.screenSetting.tlag_borrow_noise; }
+    int screenTlagBorrowDonor() const { return ec_project_state_.screenSetting.tlag_borrow_donor; }
     double screenDetlimOffset() const { return ec_project_state_.screenSetting.detlim_offset_s; }
     double screenDetlimWindow() const { return ec_project_state_.screenSetting.detlim_window_s; }
     int screenFlowDistortion() const { return ec_project_state_.screenSetting.flow_distortion; }

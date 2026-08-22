@@ -338,6 +338,8 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.covmax_debaseline == previousProject.ec_project_state_.screenSetting.covmax_debaseline);
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.tlag_borrow_meth == previousProject.ec_project_state_.screenSetting.tlag_borrow_meth);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.tlag_borrow_snr, previousProject.ec_project_state_.screenSetting.tlag_borrow_snr);
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.tlag_borrow_noise == previousProject.ec_project_state_.screenSetting.tlag_borrow_noise);
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.tlag_borrow_donor == previousProject.ec_project_state_.screenSetting.tlag_borrow_donor);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.u_offset, previousProject.ec_project_state_.screenSetting.u_offset);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.v_offset, previousProject.ec_project_state_.screenSetting.v_offset);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.w_offset, previousProject.ec_project_state_.screenSetting.w_offset);
@@ -1019,6 +1021,8 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenSetting.covmax_debaseline = defaultEcProjectState.screenSetting.covmax_debaseline;
     ec_project_state_.screenSetting.tlag_borrow_meth = defaultEcProjectState.screenSetting.tlag_borrow_meth;
     ec_project_state_.screenSetting.tlag_borrow_snr = defaultEcProjectState.screenSetting.tlag_borrow_snr;
+    ec_project_state_.screenSetting.tlag_borrow_noise = defaultEcProjectState.screenSetting.tlag_borrow_noise;
+    ec_project_state_.screenSetting.tlag_borrow_donor = defaultEcProjectState.screenSetting.tlag_borrow_donor;
     ec_project_state_.screenSetting.flow_distortion = defaultEcProjectState.screenSetting.flow_distortion;
     ec_project_state_.screenSetting.rot_meth = defaultEcProjectState.screenSetting.rot_meth;
     ec_project_state_.screenSetting.detrend_meth = defaultEcProjectState.screenSetting.detrend_meth;
@@ -1863,6 +1867,8 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_107, ec_project_state_.screenSetting.covmax_debaseline);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_108, ec_project_state_.screenSetting.tlag_borrow_meth);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_109, ec_project_state_.screenSetting.tlag_borrow_snr);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_110, ec_project_state_.screenSetting.tlag_borrow_noise);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_111, ec_project_state_.screenSetting.tlag_borrow_donor);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_2, ec_project_state_.screenSetting.cross_wind);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_3, ec_project_state_.screenSetting.flow_distortion);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_4, ec_project_state_.screenSetting.rot_meth);
@@ -3257,7 +3263,22 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
             ec_project_state_.screenSetting.tlag_borrow_snr = (snrOk && borrowSnr > 0.0)
                     ? borrowSnr
                     : defaultEcProjectState.screenSetting.tlag_borrow_snr;
-        }
+        }
+        //> Two-valued, so anything outside {0,1} is a project from a
+        //> version this one does not know. Falling back to our own choice
+        //> keeps the behaviour the file was computed with rather than
+        //> silently switching to EddyUH's.
+        const auto readChoice = [&](const QString& key, int fallback)
+        {
+            const auto v = project_ini.value(key, fallback).toInt();
+            return (v == 0 || v == 1) ? v : fallback;
+        };
+        ec_project_state_.screenSetting.tlag_borrow_noise = readChoice(
+            EcIni::INI_SCREEN_SETTINGS_110,
+            defaultEcProjectState.screenSetting.tlag_borrow_noise);
+        ec_project_state_.screenSetting.tlag_borrow_donor = readChoice(
+            EcIni::INI_SCREEN_SETTINGS_111,
+            defaultEcProjectState.screenSetting.tlag_borrow_donor);
         ec_project_state_.screenSetting.flow_distortion
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_3,
                                     defaultEcProjectState.screenSetting.flow_distortion).toInt();
@@ -5715,6 +5736,18 @@ void EcProject::setScreenTlagBorrowMethod(int n)
 void EcProject::setScreenTlagBorrowSnr(double d)
 {
     ec_project_state_.screenSetting.tlag_borrow_snr = d;
+    setModified(true);
+}
+
+void EcProject::setScreenTlagBorrowNoise(int n)
+{
+    ec_project_state_.screenSetting.tlag_borrow_noise = n;
+    setModified(true);
+}
+
+void EcProject::setScreenTlagBorrowDonor(int n)
+{
+    ec_project_state_.screenSetting.tlag_borrow_donor = n;
     setModified(true);
 }
 

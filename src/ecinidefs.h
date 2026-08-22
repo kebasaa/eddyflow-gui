@@ -339,6 +339,11 @@ namespace EcIni
     //> since there is nothing to compare a covariance against otherwise.
     const auto INI_SCREEN_SETTINGS_108  = QStringLiteral("tlag_borrow_meth");
     const auto INI_SCREEN_SETTINGS_109  = QStringLiteral("tlag_borrow_snr");
+    //> Which noise floor a covariance is judged against, and who a gas that
+    //> fails borrows from. 0 on either is this engine's own choice, which is
+    //> the default; 1 is EddyUH's.
+    const auto INI_SCREEN_SETTINGS_110  = QStringLiteral("tlag_borrow_noise");
+    const auto INI_SCREEN_SETTINGS_111  = QStringLiteral("tlag_borrow_donor");
 
     const auto INIGROUP_SCREEN_TESTS = QStringLiteral("RawProcess_Tests");
     const auto INI_SCREEN_TESTS_0    = QStringLiteral("test_sr");

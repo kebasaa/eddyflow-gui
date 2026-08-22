@@ -1,6 +1,33 @@
 8.1.0 (2026-08-22)
 
     GUI:
+	- Fix: Two combos under the lag-borrowing checkbox: "Judged against" chooses
+	       the noise floor, "Borrow from" chooses the donor. Both default to this
+	       program's own choice, and the second entry on each says "(EddyUH)",
+	       because being EddyUH's is the reason anyone would pick it.
+	       It corrects a fidelity error: EddyUH judges a covariance against the
+	       Lenschow instrument noise and borrows from the analyser's carbon
+	       dioxide, where the original port used the Wienhold detection limit and
+	       the best-resolved tube-mate.
+	       The detection-limit dependency is conditional now. Only that floor is
+	       computed elsewhere, so only that floor needs the setting on the
+	       Statistical Analysis page switched on; the Lenschow floor is measured
+	       from the series in hand. The noise combo itself stays enabled whenever
+	       borrowing is ticked, even when the current choice is the unavailable
+	       one - greying it along with everything else would strand a user whose
+	       detection limit is off, because the control that fixes it is the one
+	       they could not reach.
+	       The carbon-dioxide tooltip states the two consequences the label
+	       cannot: carbon dioxide can then never borrow, since it would be
+	       borrowing from itself, and an analyser that measures none borrows
+	       nothing at all.
+	       An out-of-range value from a later version falls back to our own choice
+	       rather than silently switching to EddyUH's. Both settings join the
+	       comparison that marks a computed dataset stale.
+	       The Processing Options grid grew two rows, so everything below the
+	       borrowing block moved down two - including the quality-control block,
+	       which would otherwise have collided with the rule above it.
+	       Pinned by tests/test_tlag_borrow_contract_static.py.
 	- New feature: Lenschow et al. (2000) joins the random uncertainty menu as a fourth
 	       entry, writing the engine's ru_meth = 5. It estimates the analyser's own
 	       white noise from the step in the autocovariance at zero lag.

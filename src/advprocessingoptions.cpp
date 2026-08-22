@@ -331,6 +331,51 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     tlagBorrowSnrSpin->setAccelerated(true);
     tlagBorrowSnrSpin->setToolTip(tlagBorrowSnrLabel->toolTip());
 
+    //> Which noise floor, and which donor. Both default to this program's
+    //> own choice; the second entry on each is what EddyUH does, and both
+    //> say so, because "EddyUH's" is the reason anyone would pick it.
+    tlagBorrowNoiseLabel = new ClickLabel(tr("Judged against :"));
+    tlagBorrowNoiseCombo = new QComboBox;
+    tlagBorrowNoiseCombo->addItem(tr("The flux detection limit"));
+    tlagBorrowNoiseCombo->addItem(tr("Lenschow instrument noise (EddyUH)"));
+    tlagBorrowNoiseCombo->setItemData(0, tr("<b>The flux detection limit:</b> "
+        "The scatter of the cross-covariance far from its peak, where there "
+        "is no flux - so it measures what the covariance itself does with "
+        "nothing in it. Requires the detection limit to be switched on, under "
+        "<i>Statistical Analysis</i>."), Qt::ToolTipRole);
+    tlagBorrowNoiseCombo->setItemData(1, tr("<b>Lenschow instrument noise:</b> "
+        "The step in the autocovariance at zero lag, which is the analyser's "
+        "own white noise. This is what EddyUH actually divides by "
+        "(EddyUH_SC_Flux2.m:325), although its own comment there calls it a "
+        "detection limit."
+        "<br><br>Measured from the series in hand, so it needs nothing else "
+        "switched on - and being a smaller floor than the detection limit, it "
+        "lets more gases keep their own lag."), Qt::ToolTipRole);
+    tlagBorrowNoiseLabel->setToolTip(tlagBorrowNoiseCombo->itemData(0, Qt::ToolTipRole).toString());
+
+    tlagBorrowDonorLabel = new ClickLabel(tr("Borrow from :"));
+    tlagBorrowDonorCombo = new QComboBox;
+    tlagBorrowDonorCombo->addItem(tr("The best-resolved gas on the analyser"));
+    tlagBorrowDonorCombo->addItem(tr("The analyser's carbon dioxide (EddyUH)"));
+    tlagBorrowDonorCombo->setItemData(0, tr("<b>The best-resolved gas on the "
+        "analyser:</b> Ranks the eligible tube-mates by how far each stands "
+        "above the noise and takes the strongest. Taking the first in metadata "
+        "order instead produces pairings that read backwards - carbon dioxide, "
+        "the strongest flux on the analyser, taking its lag from nitrous "
+        "oxide."), Qt::ToolTipRole);
+    tlagBorrowDonorCombo->setItemData(1, tr("<b>The analyser's carbon "
+        "dioxide:</b> What EddyUH does, hard-coded by variable name with no "
+        "user switch. Usually the best-resolved channel on a trace-gas "
+        "analyser anyway, with the merit of being the same donor in every "
+        "period - a lag population that does not change donor halfway through "
+        "the day is easier to defend."
+        "<br><br>Carbon dioxide can then never borrow, since it would be "
+        "borrowing from itself. If the analyser measures no carbon dioxide, or "
+        "its carbon dioxide did not clear the threshold either, nothing is "
+        "borrowed - another instrument's gas shares no tube with this one and "
+        "is not a substitute."), Qt::ToolTipRole);
+    tlagBorrowDonorLabel->setToolTip(tlagBorrowDonorCombo->itemData(1, Qt::ToolTipRole).toString());
+
     spectroCheckBox = new RichTextCheckBox;
     spectroCheckBox->setText(tr("Remove the spectroscopic effect of water vapour"));
     spectroCheckBox->setToolTip(tr("<b>Remove the spectroscopic effect of water vapour:</b> "
@@ -478,8 +523,12 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     settingsLayout->addWidget(tlagBorrowCheckBox, 9, 2, 1, 2);
     settingsLayout->addWidget(tlagBorrowSnrLabel, 10, 1, Qt::AlignRight);
     settingsLayout->addWidget(tlagBorrowSnrSpin, 10, 2);
-    settingsLayout->addWidget(hrLabel, 11, 0, 1, 4);
-    settingsLayout->addWidget(wplTitle, 12, 0);
+    settingsLayout->addWidget(tlagBorrowNoiseLabel, 11, 1, Qt::AlignRight);
+    settingsLayout->addWidget(tlagBorrowNoiseCombo, 11, 2, 1, 2);
+    settingsLayout->addWidget(tlagBorrowDonorLabel, 12, 1, Qt::AlignRight);
+    settingsLayout->addWidget(tlagBorrowDonorCombo, 12, 2, 1, 2);
+    settingsLayout->addWidget(hrLabel, 13, 0, 1, 4);
+    settingsLayout->addWidget(wplTitle, 14, 0);
     //> One cell, not two: column 0 is as wide as its widest widget, so the
     //> icon in a neighbouring cell would sit far off to the right of the text
     //> it belongs to. Same shape as qBox_2 above.
@@ -487,33 +536,33 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     wplBox->addWidget(wplCheckBox);
     wplBox->addWidget(wplWarningLabel);
     wplBox->addStretch();
-    settingsLayout->addLayout(wplBox, 13, 0);
+    settingsLayout->addLayout(wplBox, 15, 0);
     //> Beside WPL because both are about what the analyser really saw, but
     //> deliberately not gated on it: WPL is a density correction and this is
     //> an optical one, and the bias is there whether or not densities are
     //> being compensated.
-    settingsLayout->addWidget(spectroCheckBox, 14, 0);
-    settingsLayout->addWidget(spectroWaterCheckBox, 15, 0);
-    settingsLayout->addWidget(burbaCorrCheckBox, 16, 0);
-    settingsLayout->addWidget(burbaTypeLabel, 17, 0, 1, 1, Qt::AlignRight);
-    settingsLayout->addWidget(burbaSimpleRadio, 17, 1);
-    settingsLayout->addWidget(burbaMultiRadio, 18, 1);
-    settingsLayout->addWidget(burbaParamWidget, 19, 0, 1, 4);
-    settingsLayout->addWidget(defaultContainer, 20, 0, 1, 4);
+    settingsLayout->addWidget(spectroCheckBox, 16, 0);
+    settingsLayout->addWidget(spectroWaterCheckBox, 17, 0);
+    settingsLayout->addWidget(burbaCorrCheckBox, 18, 0);
+    settingsLayout->addWidget(burbaTypeLabel, 19, 0, 1, 1, Qt::AlignRight);
+    settingsLayout->addWidget(burbaSimpleRadio, 19, 1);
+    settingsLayout->addWidget(burbaMultiRadio, 20, 1);
+    settingsLayout->addWidget(burbaParamWidget, 21, 0, 1, 4);
+    settingsLayout->addWidget(defaultContainer, 22, 0, 1, 4);
     //> Between the corrections block and the quality-control one. It sat at
     //> row 16, with slack rows between it and the quality-control block
     //> below; the controls inserted above have taken that slack up, and a
     //> rule drawn across an occupied row overlays the widget there.
-    settingsLayout->addWidget(hrLabel_2, 21, 0, 1, 4);
-    settingsLayout->addWidget(qcTitle, 22, 0);
-    settingsLayout->addWidget(qcCheckBox, 23, 0);
-    settingsLayout->addWidget(qcLabel, 23, 1, Qt::AlignRight);
-    settingsLayout->addWidget(qcMethodCombo, 23, 2);
-    settingsLayout->addWidget(fpCheckBox, 24, 0);
-    settingsLayout->addWidget(fpLabel, 24, 1, Qt::AlignRight);
-    settingsLayout->addWidget(fpMethodCombo, 24, 2);
-    settingsLayout->addWidget(cecCheckBox,    25, 0);
-    settingsLayout->addWidget(cecSettingsButton, 25, 3);
+    settingsLayout->addWidget(hrLabel_2, 23, 0, 1, 4);
+    settingsLayout->addWidget(qcTitle, 24, 0);
+    settingsLayout->addWidget(qcCheckBox, 25, 0);
+    settingsLayout->addWidget(qcLabel, 25, 1, Qt::AlignRight);
+    settingsLayout->addWidget(qcMethodCombo, 25, 2);
+    settingsLayout->addWidget(fpCheckBox, 26, 0);
+    settingsLayout->addWidget(fpLabel, 26, 1, Qt::AlignRight);
+    settingsLayout->addWidget(fpMethodCombo, 26, 2);
+    settingsLayout->addWidget(cecCheckBox,    27, 0);
+    settingsLayout->addWidget(cecSettingsButton, 27, 3);
     settingsLayout->setRowStretch(27, 1);
     settingsLayout->setColumnStretch(4, 1);
 
@@ -684,6 +733,14 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             });
     connect(tlagBorrowSnrSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, [=](double d) { ecProject_->setScreenTlagBorrowSnr(d); });
+    connect(tlagBorrowNoiseCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [=](int n)
+            {
+                ecProject_->setScreenTlagBorrowNoise(n);
+                updateTlagBorrowAvailability();
+            });
+    connect(tlagBorrowDonorCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [=](int n) { ecProject_->setScreenTlagBorrowDonor(n); });
     connect(spectroCheckBox, &RichTextCheckBox::clicked,
             this, [=]()
             {
@@ -876,11 +933,29 @@ void AdvProcessingOptions::updateTlagMeth_2(int n)
 /// names where to switch it on.
 void AdvProcessingOptions::updateTlagBorrowAvailability()
 {
+    //> Only ONE of the two floors needs something else switched on. The
+    //> detection limit is computed elsewhere and read back, so asking for it
+    //> without it would divide by a number nothing produced; the Lenschow
+    //> noise is measured from the series in hand. The engine draws the same
+    //> distinction, which is what lets EddyUH's combination stand alone.
+    const bool needsLimit = ecProject_->screenTlagBorrowNoise() == 0;
     const bool haveLimit = ecProject_->screenDetlimMethod() > 0;
-    tlagBorrowCheckBox->setEnabled(haveLimit);
-    const bool on = haveLimit && tlagBorrowCheckBox->isChecked();
+    const bool usable = haveLimit || !needsLimit;
+
+    tlagBorrowCheckBox->setEnabled(usable);
+    const bool on = usable && tlagBorrowCheckBox->isChecked();
     tlagBorrowSnrLabel->setEnabled(on);
     tlagBorrowSnrSpin->setEnabled(on);
+    tlagBorrowDonorLabel->setEnabled(on);
+    tlagBorrowDonorCombo->setEnabled(on);
+
+    //> The floor itself stays reachable whenever borrowing is ticked, even
+    //> when the current choice is the unavailable one - otherwise a user
+    //> whose detection limit is off would find the control that fixes it
+    //> greyed out along with everything else.
+    const bool ticked = tlagBorrowCheckBox->isChecked();
+    tlagBorrowNoiseLabel->setEnabled(ticked);
+    tlagBorrowNoiseCombo->setEnabled(ticked);
 }
 
 /// The baseline subtraction only means anything to a method that maximises a
@@ -1048,6 +1123,10 @@ void AdvProcessingOptions::reset()
     wplCheckBox->setChecked(ecProject_->defaultSettings.projectGeneral.wpl_meth);
     tlagBorrowCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.tlag_borrow_meth);
     tlagBorrowSnrSpin->setValue(ecProject_->defaultSettings.screenSetting.tlag_borrow_snr);
+    WidgetUtils::resetComboToItem(tlagBorrowNoiseCombo,
+        ecProject_->defaultSettings.screenSetting.tlag_borrow_noise);
+    WidgetUtils::resetComboToItem(tlagBorrowDonorCombo,
+        ecProject_->defaultSettings.screenSetting.tlag_borrow_donor);
     updateTlagBorrowAvailability();
     spectroCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.spectro_meth);
     spectroWaterCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.spectro_water);
@@ -1143,6 +1222,8 @@ void AdvProcessingOptions::refresh()
     covmaxDebaselineCheckBox->setChecked(ecProject_->screenCovmaxDebaseline());
     tlagBorrowCheckBox->setChecked(ecProject_->screenTlagBorrowMethod());
     tlagBorrowSnrSpin->setValue(ecProject_->screenTlagBorrowSnr());
+    tlagBorrowNoiseCombo->setCurrentIndex(ecProject_->screenTlagBorrowNoise());
+    tlagBorrowDonorCombo->setCurrentIndex(ecProject_->screenTlagBorrowDonor());
     updateTlagBorrowAvailability();
     updateCovmaxDebaselineAvailability();
 

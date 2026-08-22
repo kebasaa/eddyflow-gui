@@ -218,6 +218,13 @@ private:
     RichTextCheckBox* tlagBorrowCheckBox;
     ClickLabel* tlagBorrowSnrLabel;
     QDoubleSpinBox* tlagBorrowSnrSpin;
+    //> Which noise floor a covariance is judged against, and who a gas that
+    //> fails borrows from. Both default to this program's own choice; the
+    //> second entry on each is what EddyUH does.
+    ClickLabel* tlagBorrowNoiseLabel;
+    QComboBox* tlagBorrowNoiseCombo;
+    ClickLabel* tlagBorrowDonorLabel;
+    QComboBox* tlagBorrowDonorCombo;
     RichTextCheckBox* wplCheckBox;
     //> Closed-path spectroscopic correction, and its water-channel opt-in.
     //> The second is meaningless without the first and is greyed with it.

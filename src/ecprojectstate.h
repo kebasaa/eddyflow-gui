@@ -380,6 +380,10 @@ struct ScreenSettingState
     //> must clear to keep its own lag. Three is Nemitz et al.
     int tlag_borrow_meth = 0;
     qreal tlag_borrow_snr = 3.0;
+    //> 0 the flux detection limit, 1 the Lenschow instrument noise.
+    int tlag_borrow_noise = 0;
+    //> 0 the best-resolved tube-mate, 1 the analyser's carbon dioxide.
+    int tlag_borrow_donor = 0;
 };
 
 /// \struct ScreenTestState
