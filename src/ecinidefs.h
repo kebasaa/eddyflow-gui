@@ -126,6 +126,13 @@ namespace EcIni
     //> [Project] because BOTH applications read it - RP runs the analytic
     //> methods itself, and FCC never sweeps the RawProcess groups.
     const auto INI_PROJECT_83   = QStringLiteral("cosp_model");
+    //> Iterative correction. The spectral correction is evaluated at z/L,
+    //> which the corrected heat flux determines, which the correction
+    //> produces. Repeating closes that circle. [Project] because both
+    //> applications run the loop.
+    const auto INI_PROJECT_84   = QStringLiteral("corr_iter_meth");
+    const auto INI_PROJECT_85   = QStringLiteral("corr_iter_max");
+    const auto INI_PROJECT_86   = QStringLiteral("corr_iter_tol");
 
     const auto INIGROUP_SPEC_SETTINGS = QStringLiteral("FluxCorrection_SpectralAnalysis_General");
     const auto INI_SPEC_SETTINGS_0    = QStringLiteral("sa_start_date");

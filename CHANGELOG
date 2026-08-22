@@ -1,6 +1,23 @@
 8.1.0 (2026-08-22)
 
     GUI:
+	- New feature: "Iterate the correction" on the Spectral Corrections page, under the
+	       cospectral model, with a passes spin and a tolerance spin greyed with it.
+	       Writes the engine's new corr_iter_meth, corr_iter_max and corr_iter_tol.
+	       The checkbox label cannot explain why anything needs iterating, so the
+	       tooltip does: the cospectrum is evaluated at z/L, z/L comes from the
+	       corrected heat flux, and that flux is what the correction produces. It
+	       also says that nothing compounds between passes - the obvious worry
+	       about repeating a correction - where the effect is largest, and that the
+	       corr_iter_dev column reports the outcome per period.
+	       A tolerance of zero shows as "run every pass" rather than a bare 0,
+	       because in a box labelled "stop below" a zero reads as "stop at once".
+	       Zero is the default and it is what EddyUH does; the tolerance tooltip
+	       says plainly that setting one departs from EddyUH and changes the
+	       answer, since stopping at pass two is not stopping at pass four.
+	       The loader keeps a zero tolerance and refuses only a negative one, and
+	       refuses a pass count below one - which is what "off" already means.
+	       Pinned by tests/test_corr_iteration_contract_static.py.
 	- Fix: Two combos under the lag-borrowing checkbox: "Judged against" chooses
 	       the noise floor, "Borrow from" chooses the donor. Both default to this
 	       program's own choice, and the second entry on each says "(EddyUH)",

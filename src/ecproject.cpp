@@ -932,6 +932,9 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.projectGeneral.hf_meth = defaultEcProjectState.projectGeneral.hf_meth;
     ec_project_state_.projectGeneral.lf_meth = defaultEcProjectState.projectGeneral.lf_meth;
     ec_project_state_.projectGeneral.cosp_model = defaultEcProjectState.projectGeneral.cosp_model;
+    ec_project_state_.projectGeneral.corr_iter_meth = defaultEcProjectState.projectGeneral.corr_iter_meth;
+    ec_project_state_.projectGeneral.corr_iter_max = defaultEcProjectState.projectGeneral.corr_iter_max;
+    ec_project_state_.projectGeneral.corr_iter_tol = defaultEcProjectState.projectGeneral.corr_iter_tol;
     ec_project_state_.projectGeneral.wpl_meth = defaultEcProjectState.projectGeneral.wpl_meth;
     ec_project_state_.projectGeneral.foot_meth = defaultEcProjectState.projectGeneral.foot_meth;
     ec_project_state_.projectGeneral.cec_meth = defaultEcProjectState.projectGeneral.cec_meth;
@@ -1662,6 +1665,9 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_PROJECT_46, ec_project_state_.projectGeneral.hf_meth);
         project_ini.setValue(EcIni::INI_PROJECT_47, ec_project_state_.projectGeneral.lf_meth);
         project_ini.setValue(EcIni::INI_PROJECT_83, ec_project_state_.projectGeneral.cosp_model);
+        project_ini.setValue(EcIni::INI_PROJECT_84, ec_project_state_.projectGeneral.corr_iter_meth);
+        project_ini.setValue(EcIni::INI_PROJECT_85, ec_project_state_.projectGeneral.corr_iter_max);
+        project_ini.setValue(EcIni::INI_PROJECT_86, ec_project_state_.projectGeneral.corr_iter_tol);
         project_ini.setValue(EcIni::INI_PROJECT_48, ec_project_state_.projectGeneral.wpl_meth);
         project_ini.setValue(EcIni::INI_PROJECT_49, ec_project_state_.projectGeneral.foot_meth);
         project_ini.setValue(EcIni::INI_PROJECT_72, ec_project_state_.projectGeneral.cec_meth);
@@ -2698,6 +2704,28 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         {
             ec_project_state_.projectGeneral.cosp_model
                     = defaultEcProjectState.projectGeneral.cosp_model;
+        }
+        ec_project_state_.projectGeneral.corr_iter_meth
+                = project_ini.value(EcIni::INI_PROJECT_84,
+                                    defaultEcProjectState.projectGeneral.corr_iter_meth).toInt();
+        //> One pass is the un-iterated case and is what "off" already means,
+        //> so anything below it is a typed-in mistake. The engine falls back
+        //> the same way.
+        {
+            const auto n = project_ini.value(
+                EcIni::INI_PROJECT_85,
+                defaultEcProjectState.projectGeneral.corr_iter_max).toInt();
+            ec_project_state_.projectGeneral.corr_iter_max = n >= 1
+                    ? n
+                    : defaultEcProjectState.projectGeneral.corr_iter_max;
+            //> Zero is legitimate here - it means "run every pass", which is
+            //> EddyUH's behaviour - so only a negative one is refused.
+            const auto t = project_ini.value(
+                EcIni::INI_PROJECT_86,
+                defaultEcProjectState.projectGeneral.corr_iter_tol).toDouble();
+            ec_project_state_.projectGeneral.corr_iter_tol = t >= 0.0
+                    ? t
+                    : defaultEcProjectState.projectGeneral.corr_iter_tol;
         }
         ec_project_state_.projectGeneral.wpl_meth
                 = project_ini.value(EcIni::INI_PROJECT_48,
@@ -6697,6 +6725,24 @@ void EcProject::setGeneralHfMethod(int n)
 void EcProject::setGeneralCospModel(int n)
 {
     ec_project_state_.projectGeneral.cosp_model = n;
+    setModified(true);
+}
+
+void EcProject::setGeneralCorrIterMethod(int n)
+{
+    ec_project_state_.projectGeneral.corr_iter_meth = n;
+    setModified(true);
+}
+
+void EcProject::setGeneralCorrIterMax(int n)
+{
+    ec_project_state_.projectGeneral.corr_iter_max = n;
+    setModified(true);
+}
+
+void EcProject::setGeneralCorrIterTol(double d)
+{
+    ec_project_state_.projectGeneral.corr_iter_tol = d;
     setModified(true);
 }
 

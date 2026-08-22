@@ -76,6 +76,8 @@ public slots:
     void refreshSpectralAssessmentCreationMode();
 
 private slots:
+    /// Grey the two iteration numbers unless the loop is switched on.
+    void updateCorrIterAvailability();
     void refresh();
     void updateSpectraFile(const QString& fp);
     void updateBinnedSpectraFile(const QString& fp);
@@ -205,6 +207,14 @@ private:
     //> The analytic cospectral shape every low-pass correction is
     //> integrated against - a modifier on all the methods above, not a
     //> method of its own, so it has no enabling checkbox of its own.
+    //> Iterative correction: repeat the spectral correction and the two
+    //> flux levels until the stability they assume and the stability they
+    //> produce agree. Its two numbers are greyed with the checkbox.
+    QCheckBox* corrIterCheckBox;
+    ClickLabel* corrIterMaxLabel;
+    QSpinBox* corrIterMaxSpin;
+    ClickLabel* corrIterTolLabel;
+    QDoubleSpinBox* corrIterTolSpin;
     ClickLabel* cospModelLabel;
     QComboBox* cospModelCombo;
     QCheckBox* hfCorrectGhgBaCheck;

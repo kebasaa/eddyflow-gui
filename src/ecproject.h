@@ -144,6 +144,9 @@ public:
     void setGeneralEndTime(const QString &t);
     void setGeneralHfMethod(int n);
     void setGeneralCospModel(int n);
+    void setGeneralCorrIterMethod(int n);
+    void setGeneralCorrIterMax(int n);
+    void setGeneralCorrIterTol(double d);
     void setGeneralLfMethod(int n);
     void setGeneralWplMeth( int n);
     void setGeneralFpMeth(int n);
@@ -615,6 +618,9 @@ public:
     const QString& generalEndTime() const { return ec_project_state_.projectGeneral.end_time; }
     int generalHfMethod() const { return ec_project_state_.projectGeneral.hf_meth; }
     int generalCospModel() const { return ec_project_state_.projectGeneral.cosp_model; }
+    int generalCorrIterMethod() const { return ec_project_state_.projectGeneral.corr_iter_meth; }
+    int generalCorrIterMax() const { return ec_project_state_.projectGeneral.corr_iter_max; }
+    double generalCorrIterTol() const { return ec_project_state_.projectGeneral.corr_iter_tol; }
     int generalLfMethod() const { return ec_project_state_.projectGeneral.lf_meth; }
     int generalWplMeth() const { return ec_project_state_.projectGeneral.wpl_meth; }
     int generalFpMeth() const { return ec_project_state_.projectGeneral.foot_meth; }

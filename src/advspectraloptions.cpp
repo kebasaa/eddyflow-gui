@@ -599,6 +599,57 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     //> The analytic cospectral SHAPE, not a correction method. Every method
     //> above weights a transfer function by it, so it is a modifier on all of
     //> them rather than a sixth entry in their list.
+    //> Iterative correction. Under the cospectral model because it is the
+    //> same circle: the model is evaluated at z/L, and z/L is what the
+    //> corrected heat flux produces.
+    corrIterCheckBox = new QCheckBox(tr("Iterate the correction"));
+    corrIterCheckBox->setStyleSheet(QStringLiteral("QCheckBox { margin-left: 40px; }"));
+    const QString corrIterTip = tr("<b>Iterate the correction:</b> The "
+        "analytic cospectrum is evaluated at z/L; z/L comes from the "
+        "corrected sensible heat flux; and that flux is what the spectral "
+        "correction produces. A single pass leaves the three disagreeing - "
+        "the correction was computed at a stability the run then revised."
+        "<br><br>Repeating closes the circle. Each pass re-corrects the same "
+        "raw covariances at the stability the pass before it produced, so "
+        "nothing compounds; what changes is only which z/L the cospectrum "
+        "was evaluated at."
+        "<br><br>Largest effect in strongly non-neutral conditions, where "
+        "the correction factor is most sensitive to stability. On a "
+        "near-neutral forest day it moves the fluxes by hundredths of a "
+        "percent, and the <i>corr_iter_dev</i> column in the full output "
+        "says by how much for every period."
+        "<br><br>This is EddyUH's behaviour (EddyUH.m:722-903), which "
+        "iterates unconditionally. Off here, because a single pass is what "
+        "this program has always done.");
+    corrIterCheckBox->setToolTip(corrIterTip);
+
+    corrIterMaxLabel = new ClickLabel(tr("Passes :"));
+    corrIterMaxSpin = new QSpinBox;
+    corrIterMaxSpin->setRange(1, 20);
+    corrIterMaxSpin->setSingleStep(1);
+    corrIterMaxSpin->setAccelerated(true);
+    corrIterMaxSpin->setToolTip(tr("<b>Passes:</b> How many times to repeat "
+        "the correction. Four is EddyUH's, which runs exactly that many and "
+        "tests nothing. One is the same as switching this off."));
+    corrIterMaxLabel->setToolTip(corrIterMaxSpin->toolTip());
+
+    corrIterTolLabel = new ClickLabel(tr("Stop below :"));
+    corrIterTolSpin = new QDoubleSpinBox;
+    corrIterTolSpin->setDecimals(2);
+    corrIterTolSpin->setRange(0.0, 100.0);
+    corrIterTolSpin->setSingleStep(0.1);
+    corrIterTolSpin->setAccelerated(true);
+    corrIterTolSpin->setSuffix(tr("  [%]"));
+    corrIterTolSpin->setSpecialValueText(tr("run every pass"));
+    corrIterTolSpin->setToolTip(tr("<b>Stop below:</b> Stop early once every "
+        "gas flux moves by less than this between passes."
+        "<br><br>Zero means run every pass, and is the default because it is "
+        "what EddyUH does - its loop has no early exit at all. Setting a "
+        "tolerance is this program's own addition: it saves passes, and it "
+        "changes the answer slightly, because stopping at pass two is not "
+        "the same as stopping at pass four."));
+    corrIterTolLabel->setToolTip(corrIterTolSpin->toolTip());
+
     cospModelLabel = new ClickLabel(tr("Cospectral model :"));
     cospModelCombo = new QComboBox;
     cospModelCombo->addItem(tr("Moncrieff et al. (1997) - the default"));
@@ -905,22 +956,27 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
 
     settingsLayout->addWidget(cospModelLabel, 23, 1, Qt::AlignRight);
     settingsLayout->addWidget(cospModelCombo, 23, 2, 1, 3);
+    settingsLayout->addWidget(corrIterCheckBox, 24, 0, 1, 2);
+    settingsLayout->addWidget(corrIterMaxLabel, 24, 1, Qt::AlignRight);
+    settingsLayout->addWidget(corrIterMaxSpin, 24, 2);
+    settingsLayout->addWidget(corrIterTolLabel, 24, 3, Qt::AlignRight);
+    settingsLayout->addWidget(corrIterTolSpin, 24, 4);
 
-    settingsLayout->addWidget(ghgSystemCorrectionTitle, 24, 0, 1, -1);
-    settingsLayout->addWidget(hfCorrectGhgBaCheck, 25, 0, 1, 2);
-    settingsLayout->addWidget(hfCorrectGhgZohCheck, 26, 0, 1, 2);
-    settingsLayout->addWidget(sonicFrequencyLabel, 26, 1, Qt::AlignRight);
-    settingsLayout->addWidget(sonicFrequency, 26, 2, 1, 1);
+    settingsLayout->addWidget(ghgSystemCorrectionTitle, 25, 0, 1, -1);
+    settingsLayout->addWidget(hfCorrectGhgBaCheck, 26, 0, 1, 2);
+    settingsLayout->addWidget(hfCorrectGhgZohCheck, 27, 0, 1, 2);
+    settingsLayout->addWidget(sonicFrequencyLabel, 27, 1, Qt::AlignRight);
+    settingsLayout->addWidget(sonicFrequency, 27, 2, 1, 1);
 
-    settingsLayout->addWidget(spectraExistingRadio, 27, 0, 1, 2);
-    settingsLayout->addWidget(spectraFileBrowse, 27, 1, 1, 4);
-    settingsLayout->addWidget(spectraNonExistingRadio, 28, 0, 1, 2);
+    settingsLayout->addWidget(spectraExistingRadio, 28, 0, 1, 2);
+    settingsLayout->addWidget(spectraFileBrowse, 28, 1, 1, 4);
+    settingsLayout->addWidget(spectraNonExistingRadio, 29, 0, 1, 2);
 
-    settingsLayout->addWidget(fratiniTitle, 29, 0, 1, -1);
-    settingsLayout->addWidget(fullSpectraNonExistingRadio, 30, 0, 1, 2);
-    settingsLayout->addWidget(fullSpectraExistingRadio, 31, 0, 1, 2);
-    settingsLayout->addWidget(fullSpectraDirBrowse, 31, 1, 1, 4);
-    settingsLayout->addWidget(addSonicCheck, 32, 0, 1, -1);
+    settingsLayout->addWidget(fratiniTitle, 30, 0, 1, -1);
+    settingsLayout->addWidget(fullSpectraNonExistingRadio, 31, 0, 1, 2);
+    settingsLayout->addWidget(fullSpectraExistingRadio, 32, 0, 1, 2);
+    settingsLayout->addWidget(fullSpectraDirBrowse, 32, 1, 1, 4);
+    settingsLayout->addWidget(addSonicCheck, 33, 0, 1, -1);
     settingsLayout->setColumnStretch(7, 1);
 
     auto settingsGroupLayout = new QHBoxLayout;
@@ -1029,6 +1085,25 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             this, &AdvSpectralOptions::updateHorst_1);
     connect(cospModelCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [=](int n){ ecProject_->setGeneralCospModel(n); });
+    //> On the click, not the state change: refresh() blocks the project's
+    //> signals, not the widgets', so a toggled connection would switch the
+    //> loop on in a file the user only opened.
+    connect(corrIterCheckBox, &QCheckBox::clicked,
+            this, [=]()
+            {
+                ecProject_->setGeneralCorrIterMethod(
+                    corrIterCheckBox->isChecked() ? 1 : 0);
+                updateCorrIterAvailability();
+            });
+    connect(corrIterMaxSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [=](int n) { ecProject_->setGeneralCorrIterMax(n); });
+    connect(corrIterTolSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [=](double d) { ecProject_->setGeneralCorrIterTol(d); });
+    connect(corrIterMaxLabel, &ClickLabel::clicked,
+            this, [=]() { corrIterMaxSpin->setFocus(Qt::ShortcutFocusReason); });
+    connect(corrIterTolLabel, &ClickLabel::clicked,
+            this, [=]() { corrIterTolSpin->setFocus(Qt::ShortcutFocusReason); });
+
     connect(cospModelLabel, &ClickLabel::clicked,
             this, [=](){ cospModelCombo->showPopup(); });
     connect(horstCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -1165,6 +1240,10 @@ void AdvSpectralOptions::reset()
     hfMethodCheck->setChecked(ecProject_->defaultSettings.projectGeneral.hf_meth);
     WidgetUtils::resetComboToItem(hfMethCombo, 0);
     WidgetUtils::resetComboToItem(cospModelCombo, ecProject_->defaultSettings.projectGeneral.cosp_model);
+    corrIterCheckBox->setChecked(ecProject_->defaultSettings.projectGeneral.corr_iter_meth);
+    corrIterMaxSpin->setValue(ecProject_->defaultSettings.projectGeneral.corr_iter_max);
+    corrIterTolSpin->setValue(ecProject_->defaultSettings.projectGeneral.corr_iter_tol);
+    updateCorrIterAvailability();
     horstMethodLabel->setEnabled(false);
     horstCheck->setEnabled(false);
     horstCheck->setChecked(false);
@@ -1274,6 +1353,10 @@ void AdvSpectralOptions::refresh()
     lfMethodCheck->setChecked(ecProject_->generalLfMethod());
     hfMethodCheck->setChecked(ecProject_->generalHfMethod());
     cospModelCombo->setCurrentIndex(ecProject_->generalCospModel());
+    corrIterCheckBox->setChecked(ecProject_->generalCorrIterMethod());
+    corrIterMaxSpin->setValue(ecProject_->generalCorrIterMax());
+    corrIterTolSpin->setValue(ecProject_->generalCorrIterTol());
+    updateCorrIterAvailability();
 
     int hfMethod = ecProject_->generalHfMethod();
     switch(hfMethod)
@@ -1959,6 +2042,16 @@ void AdvSpectralOptions::onMinSmplLabelClicked()
 void AdvSpectralOptions::updateMinSmpl(int n)
 {
     ecProject_->setSpectraMinSmpl(n);
+}
+
+/// The two numbers describe a loop that is not running otherwise.
+void AdvSpectralOptions::updateCorrIterAvailability()
+{
+    const bool on = corrIterCheckBox->isChecked();
+    corrIterMaxLabel->setEnabled(on);
+    corrIterMaxSpin->setEnabled(on);
+    corrIterTolLabel->setEnabled(on);
+    corrIterTolSpin->setEnabled(on);
 }
 
 void AdvSpectralOptions::onClickHorstLabel()
