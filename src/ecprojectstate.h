@@ -390,6 +390,17 @@ struct ScreenSettingState
     int tlag_borrow_noise = 0;
     //> 0 the best-resolved tube-mate, 1 the analyser's carbon dioxide.
     int tlag_borrow_donor = 0;
+    //> Inclinometer tilt: 0 off, 1 position, 2 position and swinging. The
+    //> sensitivity and the lever arm are EddyUH's own literals.
+    int tilt_sensor_meth = 0;
+    qreal tilt_sensor_v_g = 4.0;
+    qreal tilt_arm_x = -1.5;
+    qreal tilt_arm_y = -1.5;
+    qreal tilt_arm_z = -1.5;
+    qreal tilt_lpf_s = 0.0;
+    //> Metek head correction: 0 off, 1 raw data, 2 undo the online 2-D one.
+    int head_corr_meth = 0;
+    QString head_corr_dir;
 };
 
 /// \struct ScreenTestState

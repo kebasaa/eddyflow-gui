@@ -54,6 +54,7 @@
 #include "ecproject.h"
 #include "fileutils.h"
 #include "infomessage.h"
+#include "dirbrowsewidget.h"
 #include "planarfitsettingsdialog.h"
 #include "pwbtimelagsettingsdialog.h"
 #include "richtextcheckbox.h"
@@ -158,6 +159,175 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     aoaMethCombo->setItemData(1, tr("<b>Field calibration:</b> Select this option to apply the angle-of-attack correction according to the method described in the referenced paper, which makes use of a field calibration instead of the wind tunnel calibration."), Qt::ToolTipRole);
     aoaMethCombo->setItemData(2, tr("<b>Wind tunnel calibration:</b> Select this option to apply the angle-of-attack correction according to the method described in the referenced paper, which makes use of a wind tunnel calibration instead of the field calibration."), Qt::ToolTipRole);
     aoaMethCombo->setEnabled(false);
+
+    //> Two hardware corrections that run on the raw wind before any
+    //> rotation, so they sit above it here as well as in the engine.
+    headCorrCheckBox = new RichTextCheckBox;
+    headCorrCheckBox->setText(tr("Metek USA-1 head correction (three-dimensional flow distortion)"));
+    headCorrCheckBox->setToolTip(tr("<b>Metek USA-1 head correction:</b> The "
+        "transducers and their supports deflect the flow before the sonic "
+        "measures it, by an amount that depends on where the wind comes from. "
+        "Metek measured that in a wind tunnel and published three tables of "
+        "Fourier coefficients over elevation angle - one each for the wind "
+        "speed, the azimuth and the elevation - evaluated at three, six and "
+        "nine times the azimuth. Applied sample by sample to the raw wind, "
+        "before the inclinometer correction and any axis rotation."
+        "<br><br><b>The tables are not shipped with EddyFlow.</b> They are "
+        "Metek GmbH's measurements, which EddyUH redistributes under the "
+        "University of Helsinki's own agreement; this program cannot. Point "
+        "the directory below at your own copy of <i>phicorr.dat</i>, "
+        "<i>ucorr.dat</i> and <i>alphacorr.dat</i>. Without all three the "
+        "correction declines and says so in the run log, and the fluxes come "
+        "out as if it had never been switched on."
+        "<br><br>Applies to one-inner-bar USA-1 models only, which is what "
+        "the tables were measured on. Nothing checks that, because nothing in "
+        "the metadata distinguishes the variants."));
+
+    headCorrMethLabel = new ClickLabel(tr("Applies to :"));
+    headCorrMethCombo = new QComboBox;
+    headCorrMethCombo->addItem(tr("Raw, uncorrected data"));
+    headCorrMethCombo->addItem(tr("Data already carrying Metek's online 2-D correction"));
+    headCorrMethCombo->setItemData(0, tr("<b>Raw, uncorrected data:</b> The "
+        "logger applied nothing, so the three-dimensional correction is "
+        "applied to the wind as recorded."), Qt::ToolTipRole);
+    headCorrMethCombo->setItemData(1, tr("<b>Data already carrying Metek's "
+        "online 2-D correction:</b> The sonic's own two-dimensional "
+        "correction is first undone, with the closed form Metek publishes for "
+        "it, and the full three-dimensional correction applied to what is "
+        "left."
+        "<br><br>Applying the three-dimensional correction on top of the "
+        "two-dimensional one without removing it would count the horizontal "
+        "part twice. If you are unsure which your logger wrote, the sonic's "
+        "configuration says so - guessing costs a percent or so of the "
+        "horizontal wind."), Qt::ToolTipRole);
+    headCorrMethLabel->setToolTip(headCorrMethCombo->itemData(0, Qt::ToolTipRole).toString());
+
+    headCorrDirLabel = new ClickLabel(tr("Table directory :"));
+    headCorrDirBrowse = new DirBrowseWidget;
+    headCorrDirBrowse->setDialogTitle(tr("Select the Metek Head Correction Table Directory"));
+    headCorrDirBrowse->setToolTip(tr("<b>Table directory:</b> The folder "
+        "holding <i>phicorr.dat</i>, <i>ucorr.dat</i> and "
+        "<i>alphacorr.dat</i>, each twenty comma-separated rows of elevation "
+        "from -50 to +45 degrees in steps of five, carrying the elevation and "
+        "then C0, C3, S3, C6, S6, C9 and S9."
+        "<br><br>Read once per run rather than once per averaging period. A "
+        "directory missing any of the three, or holding a file with fewer "
+        "than twenty rows, declines the correction for the whole run and says "
+        "so in the log rather than correcting some periods and not others."));
+    headCorrDirLabel->setToolTip(headCorrDirBrowse->toolTip());
+
+    tiltSensorCheckBox = new RichTextCheckBox;
+    tiltSensorCheckBox->setText(tr("Inclinometer tilt correction (fast inclination channels)"));
+    tiltSensorCheckBox->setToolTip(tr("<b>Inclinometer tilt correction:</b> A "
+        "mast that leans, or sways, tilts the sonic with it. A planar fit or "
+        "a double rotation removes the <i>mean</i> tilt over an averaging "
+        "period; neither can remove a tilt that changes <i>within</i> one. An "
+        "inclinometer logged at the same rate as the wind can, sample by "
+        "sample, and that is what this does."
+        "<br><br><b>Where the angles come from.</b> Ordinary extra raw "
+        "columns named <i>theta</i>, <i>phi</i> and <i>psi</i>, declared in "
+        "the <b>Raw File Description</b> like any other channel. There is "
+        "nothing to configure here about which column is which - the name is "
+        "the whole of it, because there is only one sonic. A channel that is "
+        "absent contributes a zero angle, which leaves that axis alone; if "
+        "none of the three is found the correction is skipped and says so."
+        "<br><br>The channels hold the inclinometer's <i>output voltage</i>, "
+        "not an angle. The angle is -asin(V / sensitivity)."
+        "<br><br><b>psi is always zero</b>, even when a psi column exists. "
+        "EddyUH reads it and then overwrites it with zeros, commenting "
+        "&quot;not measured&quot;; the rotation matrix and the swinging term "
+        "are both built "
+        "on that assumption. So this is a two-angle correction with three "
+        "channels declared."
+        "<br><br>Runs on the raw wind, before any axis rotation, which "
+        "expects a series already in the sonic's true frame."));
+
+    tiltSensorMethLabel = new ClickLabel(tr("Correct for :"));
+    tiltSensorMethCombo = new QComboBox;
+    tiltSensorMethCombo->addItem(tr("Position"));
+    tiltSensorMethCombo->addItem(tr("Position and swinging"));
+    tiltSensorMethCombo->setItemData(0, tr("<b>Position:</b> Rotates the "
+        "measured wind vector by the inclination of the moment. This is the "
+        "part of the correction that is unambiguously right, and the one to "
+        "use unless you have a reason not to."), Qt::ToolTipRole);
+    tiltSensorMethCombo->setItemData(1, tr("<b>Position and swinging:</b> "
+        "Adds a term for the motion of the sonic head itself as the mast "
+        "swings, built from the lever arm below and the time derivatives of "
+        "the angles."
+        "<br><br><b>That term is a single number, added to u, v and w "
+        "alike.</b> EddyUH writes it as a dot product, where the velocity of "
+        "a point on a rotating body is a cross product and would give three "
+        "different components (EddyUH_tiltangle.m:104). The units survive - "
+        "radians per second times metres is metres per second - which is why "
+        "it is easy to miss. EddyFlow reproduces it as written, because this "
+        "option exists to reproduce EddyUH's numbers and a silently corrected "
+        "version would reproduce nothing."
+        "<br><br>If you want the physical correction rather than EddyUH's, "
+        "use <i>Position</i> and treat this mode as unavailable. Adjusting "
+        "the lever arm will not help - no arm turns a scalar into a "
+        "vector."), Qt::ToolTipRole);
+    tiltSensorMethLabel->setToolTip(tiltSensorMethCombo->itemData(1, Qt::ToolTipRole).toString());
+
+    tiltSensorVgLabel = new ClickLabel(tr("Sensitivity :"));
+    tiltSensorVgSpin = new QDoubleSpinBox;
+    tiltSensorVgSpin->setDecimals(4);
+    tiltSensorVgSpin->setRange(0.0001, 1000.0);
+    tiltSensorVgSpin->setSingleStep(0.1);
+    tiltSensorVgSpin->setAccelerated(true);
+    tiltSensorVgSpin->setSuffix(tr("  [V/g]"));
+    tiltSensorVgSpin->setToolTip(tr("<b>Sensitivity:</b> Volts per g of the "
+        "inclinometer, which is what turns the logged voltage into an angle: "
+        "-asin(V / sensitivity). Four is the value EddyUH uses, as a literal "
+        "rather than a setting; check your inclinometer's data sheet before "
+        "trusting it."
+        "<br><br>A reading past full scale is clamped to plus or minus a "
+        "right angle rather than allowed to produce a value the arc sine "
+        "cannot take, which would otherwise spread through every wind "
+        "component of that sample."));
+    tiltSensorVgLabel->setToolTip(tiltSensorVgSpin->toolTip());
+
+    tiltLpfLabel = new ClickLabel(tr("Smoothing :"));
+    tiltLpfSpin = new QDoubleSpinBox;
+    tiltLpfSpin->setDecimals(2);
+    tiltLpfSpin->setRange(0.0, 600.0);
+    tiltLpfSpin->setSingleStep(0.5);
+    tiltLpfSpin->setAccelerated(true);
+    tiltLpfSpin->setSuffix(tr("  [s]"));
+    tiltLpfSpin->setSpecialValueText(tr("no smoothing"));
+    tiltLpfSpin->setToolTip(tr("<b>Smoothing:</b> A centred running mean over "
+        "the angle series, in seconds, to keep the inclinometer's own noise "
+        "out of the correction. Zero, the default, applies none."
+        "<br><br>Smoothing the angle is not the same as smoothing the wind: "
+        "it removes noise from what the mast is <i>believed</i> to be doing, "
+        "not from what the sonic measured. Too long a window also removes the "
+        "genuine sway this correction exists to catch, so keep it short "
+        "against the swinging period."));
+    tiltLpfLabel->setToolTip(tiltLpfSpin->toolTip());
+
+    const auto armTip = tr("<b>Lever arm:</b> The vector from the point the "
+        "mast pivots about to the sonic head, in metres, in the sonic's own "
+        "axes. Used only by <i>Position and swinging</i>; <i>Position</i> "
+        "ignores it entirely."
+        "<br><br>-1.5 on each axis is EddyUH's own literal, which is a "
+        "starting point and not a measurement of your mast. A wrong arm adds "
+        "a velocity that is not there.");
+    tiltArmLabel = new ClickLabel(tr("Lever arm :"));
+    tiltArmLabel->setToolTip(armTip);
+    tiltArmXLabel = new QLabel(tr("x"));
+    tiltArmYLabel = new QLabel(tr("y"));
+    tiltArmZLabel = new QLabel(tr("z"));
+    tiltArmXSpin = new QDoubleSpinBox;
+    tiltArmYSpin = new QDoubleSpinBox;
+    tiltArmZSpin = new QDoubleSpinBox;
+    for (auto* spin : {tiltArmXSpin, tiltArmYSpin, tiltArmZSpin})
+    {
+        spin->setDecimals(3);
+        spin->setRange(-100.0, 100.0);
+        spin->setSingleStep(0.1);
+        spin->setAccelerated(true);
+        spin->setSuffix(tr("  [m]"));
+        spin->setToolTip(armTip);
+    }
 
     rotCheckBox = new RichTextCheckBox;
     rotCheckBox->setToolTip(tr("<b>Axis rotation for tilt correction:</b> Select the appropriate method for compensating anemometer tilt with respect to local streamlines. Uncheck the box to <i>not perform</i> any rotation (not recommnended). If your site has a complex or sloping topography, a planar-fit method is advisable. Click on the <b><i>Planar Fit Settings...</i></b> to configure the procedure."));
@@ -497,6 +667,17 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     qBox_2->addStretch();
 
 //
+    auto tiltArmLayout = new QHBoxLayout;
+    tiltArmLayout->addWidget(tiltArmXLabel, 0, Qt::AlignRight);
+    tiltArmLayout->addWidget(tiltArmXSpin, 1);
+    tiltArmLayout->addStretch(1);
+    tiltArmLayout->addWidget(tiltArmYLabel, 0, Qt::AlignRight);
+    tiltArmLayout->addWidget(tiltArmYSpin, 1);
+    tiltArmLayout->addStretch(1);
+    tiltArmLayout->addWidget(tiltArmZLabel, 0, Qt::AlignRight);
+    tiltArmLayout->addWidget(tiltArmZSpin, 1);
+    tiltArmLayout->addStretch(1);
+
     auto settingsLayout = new QGridLayout;
     settingsLayout->addWidget(rawProcessingTitle, 0, 0);
     settingsLayout->addLayout(qBox_1, 1, 0, 1, 2);
@@ -505,30 +686,44 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     settingsLayout->addWidget(aoaCheckBox, 3, 0);
     settingsLayout->addWidget(aoaMethLabel, 3, 1, Qt::AlignRight);
     settingsLayout->addWidget(aoaMethCombo, 3, 2);
-    settingsLayout->addWidget(rotCheckBox, 4, 0);
-    settingsLayout->addWidget(rotMethLabel, 4, 1, Qt::AlignRight);
-    settingsLayout->addWidget(rotMethCombo, 4, 2);
-    settingsLayout->addWidget(pfSettingsButton, 4, 3);
-    settingsLayout->addLayout(qBox_2, 5, 0);
-    settingsLayout->addWidget(detrendMethLabel, 5, 1, Qt::AlignRight);
-    settingsLayout->addWidget(detrendCombo, 5, 2);
-    settingsLayout->addWidget(timeConstantLabel, 6, 1, Qt::AlignRight);
-    settingsLayout->addWidget(timeConstantSpin, 6, 2);
-    settingsLayout->addWidget(timeLagCheckBox, 7, 0);
-    settingsLayout->addWidget(timeLagMethodLabel, 7, 1, Qt::AlignRight);
-    settingsLayout->addWidget(timeLagMethodCombo, 7, 2);
-    settingsLayout->addWidget(tlSettingsButton, 7, 3);
+    settingsLayout->addWidget(headCorrCheckBox, 4, 0);
+    settingsLayout->addWidget(headCorrMethLabel, 4, 1, Qt::AlignRight);
+    settingsLayout->addWidget(headCorrMethCombo, 4, 2);
+    settingsLayout->addWidget(headCorrDirLabel, 5, 1, Qt::AlignRight);
+    settingsLayout->addWidget(headCorrDirBrowse, 5, 2, 1, 2);
+    settingsLayout->addWidget(tiltSensorCheckBox, 6, 0);
+    settingsLayout->addWidget(tiltSensorMethLabel, 6, 1, Qt::AlignRight);
+    settingsLayout->addWidget(tiltSensorMethCombo, 6, 2);
+    settingsLayout->addWidget(tiltSensorVgLabel, 7, 1, Qt::AlignRight);
+    settingsLayout->addWidget(tiltSensorVgSpin, 7, 2);
+    settingsLayout->addWidget(tiltLpfLabel, 8, 1, Qt::AlignRight);
+    settingsLayout->addWidget(tiltLpfSpin, 8, 2);
+    settingsLayout->addWidget(tiltArmLabel, 9, 1, Qt::AlignRight);
+    settingsLayout->addLayout(tiltArmLayout, 9, 2, 1, 2);
+    settingsLayout->addWidget(rotCheckBox, 10, 0);
+    settingsLayout->addWidget(rotMethLabel, 10, 1, Qt::AlignRight);
+    settingsLayout->addWidget(rotMethCombo, 10, 2);
+    settingsLayout->addWidget(pfSettingsButton, 10, 3);
+    settingsLayout->addLayout(qBox_2, 11, 0);
+    settingsLayout->addWidget(detrendMethLabel, 11, 1, Qt::AlignRight);
+    settingsLayout->addWidget(detrendCombo, 11, 2);
+    settingsLayout->addWidget(timeConstantLabel, 12, 1, Qt::AlignRight);
+    settingsLayout->addWidget(timeConstantSpin, 12, 2);
+    settingsLayout->addWidget(timeLagCheckBox, 13, 0);
+    settingsLayout->addWidget(timeLagMethodLabel, 13, 1, Qt::AlignRight);
+    settingsLayout->addWidget(timeLagMethodCombo, 13, 2);
+    settingsLayout->addWidget(tlSettingsButton, 13, 3);
     //> Indented under the method it modifies, in the combo's own column.
-    settingsLayout->addWidget(covmaxDebaselineCheckBox, 8, 2, 1, 2);
-    settingsLayout->addWidget(tlagBorrowCheckBox, 9, 2, 1, 2);
-    settingsLayout->addWidget(tlagBorrowSnrLabel, 10, 1, Qt::AlignRight);
-    settingsLayout->addWidget(tlagBorrowSnrSpin, 10, 2);
-    settingsLayout->addWidget(tlagBorrowNoiseLabel, 11, 1, Qt::AlignRight);
-    settingsLayout->addWidget(tlagBorrowNoiseCombo, 11, 2, 1, 2);
-    settingsLayout->addWidget(tlagBorrowDonorLabel, 12, 1, Qt::AlignRight);
-    settingsLayout->addWidget(tlagBorrowDonorCombo, 12, 2, 1, 2);
-    settingsLayout->addWidget(hrLabel, 13, 0, 1, 4);
-    settingsLayout->addWidget(wplTitle, 14, 0);
+    settingsLayout->addWidget(covmaxDebaselineCheckBox, 14, 2, 1, 2);
+    settingsLayout->addWidget(tlagBorrowCheckBox, 15, 2, 1, 2);
+    settingsLayout->addWidget(tlagBorrowSnrLabel, 16, 1, Qt::AlignRight);
+    settingsLayout->addWidget(tlagBorrowSnrSpin, 16, 2);
+    settingsLayout->addWidget(tlagBorrowNoiseLabel, 17, 1, Qt::AlignRight);
+    settingsLayout->addWidget(tlagBorrowNoiseCombo, 17, 2, 1, 2);
+    settingsLayout->addWidget(tlagBorrowDonorLabel, 18, 1, Qt::AlignRight);
+    settingsLayout->addWidget(tlagBorrowDonorCombo, 18, 2, 1, 2);
+    settingsLayout->addWidget(hrLabel, 19, 0, 1, 4);
+    settingsLayout->addWidget(wplTitle, 20, 0);
     //> One cell, not two: column 0 is as wide as its widest widget, so the
     //> icon in a neighbouring cell would sit far off to the right of the text
     //> it belongs to. Same shape as qBox_2 above.
@@ -536,33 +731,33 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     wplBox->addWidget(wplCheckBox);
     wplBox->addWidget(wplWarningLabel);
     wplBox->addStretch();
-    settingsLayout->addLayout(wplBox, 15, 0);
+    settingsLayout->addLayout(wplBox, 21, 0);
     //> Beside WPL because both are about what the analyser really saw, but
     //> deliberately not gated on it: WPL is a density correction and this is
     //> an optical one, and the bias is there whether or not densities are
     //> being compensated.
-    settingsLayout->addWidget(spectroCheckBox, 16, 0);
-    settingsLayout->addWidget(spectroWaterCheckBox, 17, 0);
-    settingsLayout->addWidget(burbaCorrCheckBox, 18, 0);
-    settingsLayout->addWidget(burbaTypeLabel, 19, 0, 1, 1, Qt::AlignRight);
-    settingsLayout->addWidget(burbaSimpleRadio, 19, 1);
-    settingsLayout->addWidget(burbaMultiRadio, 20, 1);
-    settingsLayout->addWidget(burbaParamWidget, 21, 0, 1, 4);
-    settingsLayout->addWidget(defaultContainer, 22, 0, 1, 4);
+    settingsLayout->addWidget(spectroCheckBox, 22, 0);
+    settingsLayout->addWidget(spectroWaterCheckBox, 23, 0);
+    settingsLayout->addWidget(burbaCorrCheckBox, 24, 0);
+    settingsLayout->addWidget(burbaTypeLabel, 25, 0, 1, 1, Qt::AlignRight);
+    settingsLayout->addWidget(burbaSimpleRadio, 25, 1);
+    settingsLayout->addWidget(burbaMultiRadio, 26, 1);
+    settingsLayout->addWidget(burbaParamWidget, 27, 0, 1, 4);
+    settingsLayout->addWidget(defaultContainer, 28, 0, 1, 4);
     //> Between the corrections block and the quality-control one. It sat at
     //> row 16, with slack rows between it and the quality-control block
     //> below; the controls inserted above have taken that slack up, and a
     //> rule drawn across an occupied row overlays the widget there.
-    settingsLayout->addWidget(hrLabel_2, 23, 0, 1, 4);
-    settingsLayout->addWidget(qcTitle, 24, 0);
-    settingsLayout->addWidget(qcCheckBox, 25, 0);
-    settingsLayout->addWidget(qcLabel, 25, 1, Qt::AlignRight);
-    settingsLayout->addWidget(qcMethodCombo, 25, 2);
-    settingsLayout->addWidget(fpCheckBox, 26, 0);
-    settingsLayout->addWidget(fpLabel, 26, 1, Qt::AlignRight);
-    settingsLayout->addWidget(fpMethodCombo, 26, 2);
+    settingsLayout->addWidget(hrLabel_2, 29, 0, 1, 4);
+    settingsLayout->addWidget(qcTitle, 30, 0);
+    settingsLayout->addWidget(qcCheckBox, 31, 0);
+    settingsLayout->addWidget(qcLabel, 31, 1, Qt::AlignRight);
+    settingsLayout->addWidget(qcMethodCombo, 31, 2);
+    settingsLayout->addWidget(fpCheckBox, 32, 0);
+    settingsLayout->addWidget(fpLabel, 32, 1, Qt::AlignRight);
+    settingsLayout->addWidget(fpMethodCombo, 32, 2);
     settingsLayout->addWidget(cecCheckBox,    27, 0);
-    settingsLayout->addWidget(cecSettingsButton, 27, 3);
+    settingsLayout->addWidget(cecSettingsButton, 33, 3);
     settingsLayout->setRowStretch(27, 1);
     settingsLayout->setColumnStretch(4, 1);
 
@@ -741,6 +936,68 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             });
     connect(tlagBorrowDonorCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [=](int n) { ecProject_->setScreenTlagBorrowDonor(n); });
+    //> clicked, not toggled: refresh() blocks the project's signals and
+    //> not the widgets', so a toggled connection writes the file back while
+    //> the page is only being redrawn.
+    connect(headCorrCheckBox, &RichTextCheckBox::clicked,
+            this, [=]()
+            {
+                ecProject_->setScreenHeadCorrMeth(
+                    headCorrCheckBox->isChecked()
+                        ? headCorrMethCombo->currentIndex() + 1
+                        : 0);
+                updateSonicHardwareAvailability();
+            });
+    connect(headCorrMethCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [=](int n)
+            {
+                if (headCorrCheckBox->isChecked())
+                {
+                    ecProject_->setScreenHeadCorrMeth(n + 1);
+                }
+            });
+    connect(headCorrMethLabel, &ClickLabel::clicked,
+            this, &AdvProcessingOptions::onClickHeadCorrMethLabel);
+    connect(headCorrDirBrowse, &DirBrowseWidget::pathChanged,
+            this, [=](const QString& path)
+            { ecProject_->setScreenHeadCorrDir(path); });
+    connect(headCorrDirBrowse, &DirBrowseWidget::pathSelected,
+            this, [=](const QString& path)
+            { ecProject_->setScreenHeadCorrDir(path); });
+
+    connect(tiltSensorCheckBox, &RichTextCheckBox::clicked,
+            this, [=]()
+            {
+                ecProject_->setScreenTiltSensorMeth(
+                    tiltSensorCheckBox->isChecked()
+                        ? tiltSensorMethCombo->currentIndex() + 1
+                        : 0);
+                updateSonicHardwareAvailability();
+            });
+    connect(tiltSensorMethCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [=](int n)
+            {
+                if (tiltSensorCheckBox->isChecked())
+                {
+                    ecProject_->setScreenTiltSensorMeth(n + 1);
+                }
+                //> The arm is only read by the swinging mode, so it greys
+                //> with the choice rather than with the checkbox.
+                updateSonicHardwareAvailability();
+            });
+    connect(tiltSensorMethLabel, &ClickLabel::clicked,
+            this, &AdvProcessingOptions::onClickTiltSensorMethLabel);
+    connect(tiltSensorVgSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [=](double d) { ecProject_->setScreenTiltSensorVg(d); });
+    connect(tiltLpfSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [=](double d) { ecProject_->setScreenTiltLpfS(d); });
+    connect(tiltArmXSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [=](double d) { ecProject_->setScreenTiltArmX(d); });
+    connect(tiltArmYSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [=](double d) { ecProject_->setScreenTiltArmY(d); });
+    connect(tiltArmZSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [=](double d) { ecProject_->setScreenTiltArmZ(d); });
+
     connect(spectroCheckBox, &RichTextCheckBox::clicked,
             this, [=]()
             {
@@ -931,6 +1188,53 @@ void AdvProcessingOptions::updateTlagMeth_2(int n)
 /// detlim_meth lives on the Statistical Analysis page, so this control can be
 /// greyed by something changed on a different tab - which is why the tooltip
 /// names where to switch it on.
+///
+/// Both corrections carry parameters that only one of their modes reads, so
+/// the greying is finer than a single checkbox: the lever arm is meaningless
+/// under plain position correction and says so by being unavailable, rather
+/// than sitting there inviting a number nothing will use.
+void AdvProcessingOptions::updateSonicHardwareAvailability()
+{
+    const bool head = headCorrCheckBox->isChecked();
+    headCorrMethLabel->setEnabled(head);
+    headCorrMethCombo->setEnabled(head);
+    headCorrDirLabel->setEnabled(head);
+    headCorrDirBrowse->setEnabled(head);
+
+    const bool tilt = tiltSensorCheckBox->isChecked();
+    tiltSensorMethLabel->setEnabled(tilt);
+    tiltSensorMethCombo->setEnabled(tilt);
+    tiltSensorVgLabel->setEnabled(tilt);
+    tiltSensorVgSpin->setEnabled(tilt);
+    tiltLpfLabel->setEnabled(tilt);
+    tiltLpfSpin->setEnabled(tilt);
+
+    const bool swinging = tilt && tiltSensorMethCombo->currentIndex() == 1;
+    tiltArmLabel->setEnabled(swinging);
+    tiltArmXLabel->setEnabled(swinging);
+    tiltArmYLabel->setEnabled(swinging);
+    tiltArmZLabel->setEnabled(swinging);
+    tiltArmXSpin->setEnabled(swinging);
+    tiltArmYSpin->setEnabled(swinging);
+    tiltArmZSpin->setEnabled(swinging);
+}
+
+void AdvProcessingOptions::onClickHeadCorrMethLabel()
+{
+    if (headCorrMethCombo->isEnabled())
+    {
+        headCorrMethCombo->showPopup();
+    }
+}
+
+void AdvProcessingOptions::onClickTiltSensorMethLabel()
+{
+    if (tiltSensorMethCombo->isEnabled())
+    {
+        tiltSensorMethCombo->showPopup();
+    }
+}
+
 void AdvProcessingOptions::updateTlagBorrowAvailability()
 {
     //> Only ONE of the two floors needs something else switched on. The
@@ -1128,6 +1432,19 @@ void AdvProcessingOptions::reset()
     WidgetUtils::resetComboToItem(tlagBorrowDonorCombo,
         ecProject_->defaultSettings.screenSetting.tlag_borrow_donor);
     updateTlagBorrowAvailability();
+    headCorrCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.head_corr_meth > 0);
+    WidgetUtils::resetComboToItem(headCorrMethCombo,
+        qMax(0, ecProject_->defaultSettings.screenSetting.head_corr_meth - 1));
+    headCorrDirBrowse->setPath(ecProject_->defaultSettings.screenSetting.head_corr_dir);
+    tiltSensorCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.tilt_sensor_meth > 0);
+    WidgetUtils::resetComboToItem(tiltSensorMethCombo,
+        qMax(0, ecProject_->defaultSettings.screenSetting.tilt_sensor_meth - 1));
+    tiltSensorVgSpin->setValue(ecProject_->defaultSettings.screenSetting.tilt_sensor_v_g);
+    tiltLpfSpin->setValue(ecProject_->defaultSettings.screenSetting.tilt_lpf_s);
+    tiltArmXSpin->setValue(ecProject_->defaultSettings.screenSetting.tilt_arm_x);
+    tiltArmYSpin->setValue(ecProject_->defaultSettings.screenSetting.tilt_arm_y);
+    tiltArmZSpin->setValue(ecProject_->defaultSettings.screenSetting.tilt_arm_z);
+    updateSonicHardwareAvailability();
     spectroCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.spectro_meth);
     spectroWaterCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.spectro_water);
     spectroWaterCheckBox->setEnabled(ecProject_->defaultSettings.screenSetting.spectro_meth);
@@ -1226,6 +1543,21 @@ void AdvProcessingOptions::refresh()
     tlagBorrowDonorCombo->setCurrentIndex(ecProject_->screenTlagBorrowDonor());
     updateTlagBorrowAvailability();
     updateCovmaxDebaselineAvailability();
+
+    //> Zero is off, so the combo carries the mode minus one and is left
+    //> where it was when the correction is off - a project that has never
+    //> used it opens on the first mode rather than on nothing.
+    headCorrCheckBox->setChecked(ecProject_->screenHeadCorrMeth() > 0);
+    headCorrMethCombo->setCurrentIndex(qMax(0, ecProject_->screenHeadCorrMeth() - 1));
+    headCorrDirBrowse->setPath(ecProject_->screenHeadCorrDir());
+    tiltSensorCheckBox->setChecked(ecProject_->screenTiltSensorMeth() > 0);
+    tiltSensorMethCombo->setCurrentIndex(qMax(0, ecProject_->screenTiltSensorMeth() - 1));
+    tiltSensorVgSpin->setValue(ecProject_->screenTiltSensorVg());
+    tiltLpfSpin->setValue(ecProject_->screenTiltLpfS());
+    tiltArmXSpin->setValue(ecProject_->screenTiltArmX());
+    tiltArmYSpin->setValue(ecProject_->screenTiltArmY());
+    tiltArmZSpin->setValue(ecProject_->screenTiltArmZ());
+    updateSonicHardwareAvailability();
 
     qcCheckBox->setChecked(ecProject_->generalQcfMeth());
     if (ecProject_->generalQcfMeth())

@@ -1,6 +1,37 @@
 8.1.0 (2026-08-22)
 
     GUI:
+	- New feature: "Metek USA-1 head correction" and "Inclinometer tilt correction"
+       on the Advanced Processing Options page, between the angle-of-attack
+       correction and the axis rotations - which is where they run. Write the
+       engine's new head_corr_meth, head_corr_dir, tilt_sensor_meth,
+       tilt_sensor_v_g, tilt_arm_x/y/z and tilt_lpf_s.
+       Both keys are three-valued with off folded in, so each checkbox writes
+       its combo's index plus one and zero when unticked. The loader refuses
+       anything outside 0..2 by falling back to OFF rather than to one of the
+       two corrections: guessing wrong here rewrites the wind itself.
+       The lever arm greys with the MODE, not with the checkbox, because plain
+       position correction never reads it and a live box invites a number that
+       will be ignored.
+       The labels cannot explain why a planar fit is not already enough, so the
+       tooltips do: a rotation removes the mean tilt over a period, and this
+       removes a tilt that changes within one. They also say where the angle
+       columns come from - theta, phi and psi, declared in the Raw File
+       Description like any other channel, there being no control for it here -
+       that the columns hold volts rather than angles, and that psi is read and
+       then thrown away.
+       The Metek tooltip says plainly that the tables are Metek GmbH's data,
+       are not shipped, and that without all three files the correction
+       declines - otherwise a user ticks the box, walks away, and gets an
+       unchanged answer with no indication why.
+       The swinging mode's tooltip says that EddyUH adds a scalar where the
+       physics wants a vector, and that adjusting the lever arm will not fix
+       it. A user comparing against EddyUH wants that mode; a user who is not
+       wants to avoid it; neither can tell from a label reading "Position and
+       swinging".
+       The page's grid grew six rows, so everything below the angle-of-attack
+       correction moved down six.
+       Pinned by tests/test_sonic_hardware_contract_static.py.
 	- New feature: "Iterate the correction" on the Spectral Corrections page, under the
 	       cospectral model, with a passes spin and a tolerance spin greyed with it.
 	       Writes the engine's new corr_iter_meth, corr_iter_max and corr_iter_tol.

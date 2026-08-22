@@ -247,6 +247,14 @@ public:
     void setScreenTlagBorrowSnr(double d);
     void setScreenTlagBorrowNoise(int n);
     void setScreenTlagBorrowDonor(int n);
+    void setScreenTiltSensorMeth(int n);
+    void setScreenTiltSensorVg(double d);
+    void setScreenTiltArmX(double d);
+    void setScreenTiltArmY(double d);
+    void setScreenTiltArmZ(double d);
+    void setScreenTiltLpfS(double d);
+    void setScreenHeadCorrMeth(int n);
+    void setScreenHeadCorrDir(const QString& s);
     void setScreenDetlimOffset(double d);
     void setScreenDetlimWindow(double d);
     void setScreenFlowDistortion(int n);
@@ -723,6 +731,14 @@ public:
     double screenTlagBorrowSnr() const { return ec_project_state_.screenSetting.tlag_borrow_snr; }
     int screenTlagBorrowNoise() const { return ec_project_state_.screenSetting.tlag_borrow_noise; }
     int screenTlagBorrowDonor() const { return ec_project_state_.screenSetting.tlag_borrow_donor; }
+    int screenTiltSensorMeth() const { return ec_project_state_.screenSetting.tilt_sensor_meth; }
+    double screenTiltSensorVg() const { return ec_project_state_.screenSetting.tilt_sensor_v_g; }
+    double screenTiltArmX() const { return ec_project_state_.screenSetting.tilt_arm_x; }
+    double screenTiltArmY() const { return ec_project_state_.screenSetting.tilt_arm_y; }
+    double screenTiltArmZ() const { return ec_project_state_.screenSetting.tilt_arm_z; }
+    double screenTiltLpfS() const { return ec_project_state_.screenSetting.tilt_lpf_s; }
+    int screenHeadCorrMeth() const { return ec_project_state_.screenSetting.head_corr_meth; }
+    const QString& screenHeadCorrDir() const { return ec_project_state_.screenSetting.head_corr_dir; }
     double screenDetlimOffset() const { return ec_project_state_.screenSetting.detlim_offset_s; }
     double screenDetlimWindow() const { return ec_project_state_.screenSetting.detlim_window_s; }
     int screenFlowDistortion() const { return ec_project_state_.screenSetting.flow_distortion; }

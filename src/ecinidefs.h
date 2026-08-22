@@ -352,6 +352,21 @@ namespace EcIni
     const auto INI_SCREEN_SETTINGS_110  = QStringLiteral("tlag_borrow_noise");
     const auto INI_SCREEN_SETTINGS_111  = QStringLiteral("tlag_borrow_donor");
 
+    //> Two hardware corrections applied to the raw wind before any rotation.
+    //> The inclinometer reads its angles from ordinary extra raw columns
+    //> named theta, phi and psi, so there is nothing here to say where they
+    //> are - only how to turn a voltage into an angle.
+    const auto INI_SCREEN_SETTINGS_112  = QStringLiteral("tilt_sensor_meth");
+    const auto INI_SCREEN_SETTINGS_113  = QStringLiteral("tilt_sensor_v_g");
+    const auto INI_SCREEN_SETTINGS_114  = QStringLiteral("tilt_arm_x");
+    const auto INI_SCREEN_SETTINGS_115  = QStringLiteral("tilt_arm_y");
+    const auto INI_SCREEN_SETTINGS_116  = QStringLiteral("tilt_arm_z");
+    const auto INI_SCREEN_SETTINGS_117  = QStringLiteral("tilt_lpf_s");
+    //> The Metek look-up tables are that company's data and are not shipped,
+    //> so the directory holding them is a setting rather than a fixed path.
+    const auto INI_SCREEN_SETTINGS_118  = QStringLiteral("head_corr_meth");
+    const auto INI_SCREEN_SETTINGS_119  = QStringLiteral("head_corr_dir");
+
     const auto INIGROUP_SCREEN_TESTS = QStringLiteral("RawProcess_Tests");
     const auto INI_SCREEN_TESTS_0    = QStringLiteral("test_sr");
     const auto INI_SCREEN_TESTS_1    = QStringLiteral("test_ar");

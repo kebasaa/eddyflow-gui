@@ -340,6 +340,14 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.tlag_borrow_snr, previousProject.ec_project_state_.screenSetting.tlag_borrow_snr);
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.tlag_borrow_noise == previousProject.ec_project_state_.screenSetting.tlag_borrow_noise);
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.tlag_borrow_donor == previousProject.ec_project_state_.screenSetting.tlag_borrow_donor);
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.tilt_sensor_meth == previousProject.ec_project_state_.screenSetting.tilt_sensor_meth);
+    dataSetTest = dataSetTest && (qFuzzyCompare(ec_project_state_.screenSetting.tilt_sensor_v_g, previousProject.ec_project_state_.screenSetting.tilt_sensor_v_g));
+    dataSetTest = dataSetTest && (qFuzzyCompare(ec_project_state_.screenSetting.tilt_arm_x, previousProject.ec_project_state_.screenSetting.tilt_arm_x));
+    dataSetTest = dataSetTest && (qFuzzyCompare(ec_project_state_.screenSetting.tilt_arm_y, previousProject.ec_project_state_.screenSetting.tilt_arm_y));
+    dataSetTest = dataSetTest && (qFuzzyCompare(ec_project_state_.screenSetting.tilt_arm_z, previousProject.ec_project_state_.screenSetting.tilt_arm_z));
+    dataSetTest = dataSetTest && (qFuzzyCompare(ec_project_state_.screenSetting.tilt_lpf_s, previousProject.ec_project_state_.screenSetting.tilt_lpf_s));
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.head_corr_meth == previousProject.ec_project_state_.screenSetting.head_corr_meth);
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.head_corr_dir == previousProject.ec_project_state_.screenSetting.head_corr_dir);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.u_offset, previousProject.ec_project_state_.screenSetting.u_offset);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.v_offset, previousProject.ec_project_state_.screenSetting.v_offset);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.w_offset, previousProject.ec_project_state_.screenSetting.w_offset);
@@ -1026,6 +1034,14 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenSetting.tlag_borrow_snr = defaultEcProjectState.screenSetting.tlag_borrow_snr;
     ec_project_state_.screenSetting.tlag_borrow_noise = defaultEcProjectState.screenSetting.tlag_borrow_noise;
     ec_project_state_.screenSetting.tlag_borrow_donor = defaultEcProjectState.screenSetting.tlag_borrow_donor;
+    ec_project_state_.screenSetting.tilt_sensor_meth = defaultEcProjectState.screenSetting.tilt_sensor_meth;
+    ec_project_state_.screenSetting.tilt_sensor_v_g = defaultEcProjectState.screenSetting.tilt_sensor_v_g;
+    ec_project_state_.screenSetting.tilt_arm_x = defaultEcProjectState.screenSetting.tilt_arm_x;
+    ec_project_state_.screenSetting.tilt_arm_y = defaultEcProjectState.screenSetting.tilt_arm_y;
+    ec_project_state_.screenSetting.tilt_arm_z = defaultEcProjectState.screenSetting.tilt_arm_z;
+    ec_project_state_.screenSetting.tilt_lpf_s = defaultEcProjectState.screenSetting.tilt_lpf_s;
+    ec_project_state_.screenSetting.head_corr_meth = defaultEcProjectState.screenSetting.head_corr_meth;
+    ec_project_state_.screenSetting.head_corr_dir = defaultEcProjectState.screenSetting.head_corr_dir;
     ec_project_state_.screenSetting.flow_distortion = defaultEcProjectState.screenSetting.flow_distortion;
     ec_project_state_.screenSetting.rot_meth = defaultEcProjectState.screenSetting.rot_meth;
     ec_project_state_.screenSetting.detrend_meth = defaultEcProjectState.screenSetting.detrend_meth;
@@ -1875,6 +1891,14 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_109, ec_project_state_.screenSetting.tlag_borrow_snr);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_110, ec_project_state_.screenSetting.tlag_borrow_noise);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_111, ec_project_state_.screenSetting.tlag_borrow_donor);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_112, ec_project_state_.screenSetting.tilt_sensor_meth);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_113, QString::number(ec_project_state_.screenSetting.tilt_sensor_v_g, 'f', 4));
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_114, QString::number(ec_project_state_.screenSetting.tilt_arm_x, 'f', 4));
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_115, QString::number(ec_project_state_.screenSetting.tilt_arm_y, 'f', 4));
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_116, QString::number(ec_project_state_.screenSetting.tilt_arm_z, 'f', 4));
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_117, QString::number(ec_project_state_.screenSetting.tilt_lpf_s, 'f', 4));
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_118, ec_project_state_.screenSetting.head_corr_meth);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_119, ec_project_state_.screenSetting.head_corr_dir);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_2, ec_project_state_.screenSetting.cross_wind);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_3, ec_project_state_.screenSetting.flow_distortion);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_4, ec_project_state_.screenSetting.rot_meth);
@@ -3307,6 +3331,53 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenSetting.tlag_borrow_donor = readChoice(
             EcIni::INI_SCREEN_SETTINGS_111,
             defaultEcProjectState.screenSetting.tlag_borrow_donor);
+        //> Three-valued rather than two, so readChoice above does not fit.
+        //> Same intent: a value this version does not know falls back to off
+        //> rather than to one of the two corrections, because guessing wrong
+        //> here rewrites the wind itself.
+        const auto readMode = [&](const QString& key, int fallback)
+        {
+            const auto v = project_ini.value(key, fallback).toInt();
+            return (v >= 0 && v <= 2) ? v : fallback;
+        };
+        ec_project_state_.screenSetting.tilt_sensor_meth = readMode(
+            EcIni::INI_SCREEN_SETTINGS_112,
+            defaultEcProjectState.screenSetting.tilt_sensor_meth);
+        ec_project_state_.screenSetting.head_corr_meth = readMode(
+            EcIni::INI_SCREEN_SETTINGS_118,
+            defaultEcProjectState.screenSetting.head_corr_meth);
+        {
+            //> A sensitivity of zero divides the whole series by nothing and
+            //> a negative filter length is not a length. Both are refused
+            //> here as well as in the engine, so a hand-edited file is caught
+            //> on the way in rather than quietly repaired on the way out.
+            bool ok = false;
+            const double vg
+                    = project_ini.value(EcIni::INI_SCREEN_SETTINGS_113,
+                                        defaultEcProjectState.screenSetting.tilt_sensor_v_g).toDouble(&ok);
+            ec_project_state_.screenSetting.tilt_sensor_v_g = (ok && vg > 0.0)
+                    ? vg
+                    : defaultEcProjectState.screenSetting.tilt_sensor_v_g;
+            const double lpf
+                    = project_ini.value(EcIni::INI_SCREEN_SETTINGS_117,
+                                        defaultEcProjectState.screenSetting.tilt_lpf_s).toDouble(&ok);
+            ec_project_state_.screenSetting.tilt_lpf_s = (ok && lpf >= 0.0)
+                    ? lpf
+                    : defaultEcProjectState.screenSetting.tilt_lpf_s;
+        }
+        //> The arm has no sign or range to enforce: a mast can lean any way.
+        ec_project_state_.screenSetting.tilt_arm_x
+                = project_ini.value(EcIni::INI_SCREEN_SETTINGS_114,
+                                    defaultEcProjectState.screenSetting.tilt_arm_x).toDouble();
+        ec_project_state_.screenSetting.tilt_arm_y
+                = project_ini.value(EcIni::INI_SCREEN_SETTINGS_115,
+                                    defaultEcProjectState.screenSetting.tilt_arm_y).toDouble();
+        ec_project_state_.screenSetting.tilt_arm_z
+                = project_ini.value(EcIni::INI_SCREEN_SETTINGS_116,
+                                    defaultEcProjectState.screenSetting.tilt_arm_z).toDouble();
+        ec_project_state_.screenSetting.head_corr_dir
+                = project_ini.value(EcIni::INI_SCREEN_SETTINGS_119,
+                                    defaultEcProjectState.screenSetting.head_corr_dir).toString();
         ec_project_state_.screenSetting.flow_distortion
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_3,
                                     defaultEcProjectState.screenSetting.flow_distortion).toInt();
@@ -5776,6 +5847,54 @@ void EcProject::setScreenTlagBorrowNoise(int n)
 void EcProject::setScreenTlagBorrowDonor(int n)
 {
     ec_project_state_.screenSetting.tlag_borrow_donor = n;
+    setModified(true);
+}
+
+void EcProject::setScreenTiltSensorMeth(int n)
+{
+    ec_project_state_.screenSetting.tilt_sensor_meth = n;
+    setModified(true);
+}
+
+void EcProject::setScreenTiltSensorVg(double d)
+{
+    ec_project_state_.screenSetting.tilt_sensor_v_g = d;
+    setModified(true);
+}
+
+void EcProject::setScreenTiltArmX(double d)
+{
+    ec_project_state_.screenSetting.tilt_arm_x = d;
+    setModified(true);
+}
+
+void EcProject::setScreenTiltArmY(double d)
+{
+    ec_project_state_.screenSetting.tilt_arm_y = d;
+    setModified(true);
+}
+
+void EcProject::setScreenTiltArmZ(double d)
+{
+    ec_project_state_.screenSetting.tilt_arm_z = d;
+    setModified(true);
+}
+
+void EcProject::setScreenTiltLpfS(double d)
+{
+    ec_project_state_.screenSetting.tilt_lpf_s = d;
+    setModified(true);
+}
+
+void EcProject::setScreenHeadCorrMeth(int n)
+{
+    ec_project_state_.screenSetting.head_corr_meth = n;
+    setModified(true);
+}
+
+void EcProject::setScreenHeadCorrDir(const QString& s)
+{
+    ec_project_state_.screenSetting.head_corr_dir = s;
     setModified(true);
 }
 

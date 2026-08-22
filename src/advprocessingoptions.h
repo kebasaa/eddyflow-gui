@@ -59,6 +59,7 @@ class ClickLabel;
 class CecSettingsDialog;
 struct ConfigState;
 class CustomResetLineEdit;
+class DirBrowseWidget;
 class DlProject;
 class EcProject;
 class PlanarFitSettingsDialog;
@@ -108,6 +109,9 @@ private slots:
     void updateCovmaxDebaselineAvailability();
     /// Grey the borrowing controls unless the flux detection limit is on.
     void updateTlagBorrowAvailability();
+    void updateSonicHardwareAvailability();
+    void onClickHeadCorrMethLabel();
+    void onClickTiltSensorMethLabel();
     void updateTlSettingsButton(bool b);
 
     void onClickDetrendCombo(int detrendMethod);
@@ -225,6 +229,31 @@ private:
     QComboBox* tlagBorrowNoiseCombo;
     ClickLabel* tlagBorrowDonorLabel;
     QComboBox* tlagBorrowDonorCombo;
+    //> Two hardware corrections on the raw wind, ahead of any rotation.
+    //> The Metek tables are that company's data and are not shipped, so the
+    //> directory holding them is a setting rather than a fixed path.
+    RichTextCheckBox* headCorrCheckBox;
+    ClickLabel* headCorrMethLabel;
+    QComboBox* headCorrMethCombo;
+    ClickLabel* headCorrDirLabel;
+    DirBrowseWidget* headCorrDirBrowse;
+    //> The inclinometer's angles arrive as ordinary extra raw columns named
+    //> theta, phi and psi, so nothing here says where they are - only how to
+    //> read a voltage as an angle.
+    RichTextCheckBox* tiltSensorCheckBox;
+    ClickLabel* tiltSensorMethLabel;
+    QComboBox* tiltSensorMethCombo;
+    ClickLabel* tiltSensorVgLabel;
+    QDoubleSpinBox* tiltSensorVgSpin;
+    ClickLabel* tiltLpfLabel;
+    QDoubleSpinBox* tiltLpfSpin;
+    ClickLabel* tiltArmLabel;
+    QLabel* tiltArmXLabel;
+    QLabel* tiltArmYLabel;
+    QLabel* tiltArmZLabel;
+    QDoubleSpinBox* tiltArmXSpin;
+    QDoubleSpinBox* tiltArmYSpin;
+    QDoubleSpinBox* tiltArmZSpin;
     RichTextCheckBox* wplCheckBox;
     //> Closed-path spectroscopic correction, and its water-channel opt-in.
     //> The second is meaningless without the first and is greyed with it.
