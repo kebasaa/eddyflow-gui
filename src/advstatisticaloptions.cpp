@@ -158,8 +158,18 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     randomMethodCombo = new QComboBox;
     randomMethodCombo->addItem(tr("Finkelstein and Sims (2001)"));
     randomMethodCombo->addItem(tr("Mann and Lenschow (1994)"));
+    randomMethodCombo->addItem(tr("Billesbach (2011)"));
     randomMethodCombo->setItemData(0, tr("<b>Finkelstein and Sims (2001):</b> Based on a mathematically rigorous expression for the variance of a covariance, which includes the auto- and cross-covariance terms for atmospheric fluxes. The uncertainty estimate is based on Eqs. 8-10 of the referenced paper."), Qt::ToolTipRole);
     randomMethodCombo->setItemData(1, tr("<b>Mann and Lenschow (1994):</b> Define the error variance of the central moment of the time series. The uncertainty estimate is based on, e.g. Eqs. 5 of Finkelstein and Sims (2001)."), Qt::ToolTipRole);
+    randomMethodCombo->setItemData(2, tr("<b>Billesbach (2011):</b> The \"random shuffle\" method. Reordering a scalar at random destroys every real correlation with vertical wind, so whatever covariance survives the shuffle was produced by noise alone; the mean of twenty such covariances is a floor below which a flux cannot be told from zero. This is a <b>noise floor, not a sampling error</b>: it answers whether a flux is resolvable, not how uncertain it is, and it is systematically smaller than the two methods above. Most useful for weak-flux species such as carbonyl sulfide or nitrous oxide."), Qt::ToolTipRole);
+    //> The stored value, not the row. These used to be read as index + 1,
+    //> which worked while the menu held exactly the first two methods and
+    //> stopped working the moment a third was added: ru_meth 3 is Mahrt
+    //> (computed elsewhere and not offered here), so Billesbach is 4 and the
+    //> row it sits on says nothing about it.
+    randomMethodCombo->setItemData(0, 1);
+    randomMethodCombo->setItemData(1, 2);
+    randomMethodCombo->setItemData(2, 4);
 
     auto itsLabel = WidgetUtils::createBlueLabel(this, tr("Integral turbulence scale (ITS)"));
     itsLabel->setToolTip(tr(""));
@@ -2497,7 +2507,11 @@ void AdvStatisticalOptions::refresh()
     randomMethodCombo->setEnabled(randomErrorCheckBox->isChecked());
     if (randomError)
     {
-        randomMethodCombo->setCurrentIndex(randomError - 1);
+        //> By stored value, not by row: ru_meth 4 is Billesbach and sits on
+        //> row 2, because 3 is Mahrt and this menu does not offer it. A
+        //> project holding 3 finds no row and keeps the one it had.
+        const int row = randomMethodCombo->findData(randomError);
+        if (row >= 0) { randomMethodCombo->setCurrentIndex(row); }
     }
     else
     {
@@ -2868,7 +2882,15 @@ void AdvStatisticalOptions::syncRandomErrorMethod()
     const QSignalBlocker checkBoxBlocker(randomErrorCheckBox);
     const QSignalBlocker comboBlocker(randomMethodCombo);
     randomErrorCheckBox->setChecked(method != 0);
-    if (method != 0) { randomMethodCombo->setCurrentIndex(method - 1); }
+    if (method != 0)
+    {
+        //> By stored value. A project may legitimately hold ru_meth = 3,
+        //> Mahrt, which this menu does not offer because the engine computes
+        //> it unconditionally; findData returns -1 there and the row is left
+        //> alone rather than being pointed at an unrelated method.
+        const int row = randomMethodCombo->findData(method);
+        if (row >= 0) { randomMethodCombo->setCurrentIndex(row); }
+    }
 
     setRandomErrorControlsEnabled(method != 0);
 }
@@ -2882,7 +2904,7 @@ void AdvStatisticalOptions::updateRandomErrorArea(bool b)
 {
     if (b)
     {
-        ecProject_->setRandomErrorMethod(randomMethodCombo->currentIndex() + 1);
+        ecProject_->setRandomErrorMethod(randomMethodCombo->currentData().toInt());
     }
     else
     {
@@ -2902,7 +2924,7 @@ void AdvStatisticalOptions::onClickRandomMethodLabel()
 
 void AdvStatisticalOptions::updateRandomMethod(int n)
 {
-    ecProject_->setRandomErrorMethod(n + 1);
+    ecProject_->setRandomErrorMethod(randomMethodCombo->itemData(n).toInt());
 }
 
 void AdvStatisticalOptions::onClickItsDefinitionLabel()

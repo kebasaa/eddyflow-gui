@@ -1,6 +1,25 @@
 8.1.0 (2026-08-22)
 
     GUI:
+	- New feature: Billesbach (2011) joins the random uncertainty menu, writing the
+	       engine's ru_meth = 4. It estimates a noise floor by reordering each scalar
+	       at random twenty times and averaging the covariance that survives: what
+	       is left after the shuffle was produced by noise alone. The tooltip says
+	       plainly that this is a noise floor and not a sampling error - it answers
+	       whether a flux is resolvable rather than how uncertain it is, and is
+	       systematically smaller than the other two - because the three sit in one
+	       menu and nothing else on the page would tell you they answer different
+	       questions.
+	- Fix: The random uncertainty menu maps to ru_meth by stored value rather than by
+	       row number. It was read as currentIndex() + 1, which held only while the
+	       menu listed exactly the first two methods: the engine's 3 is Mahrt (1998),
+	       which the menu does not offer because the engine computes it
+	       unconditionally, so the third entry is Billesbach at 4 and its position
+	       says nothing about its value. Left as arithmetic, adding the entry would
+	       have selected Mahrt while displaying Billesbach - no error, just a
+	       different method running under the wrong name. Four sites did it; all four
+	       now go through item data, and a project holding a value the menu does not
+	       list leaves the row alone instead of blanking it.
 	- New feature: A "Flux Detection Limit..." dialog, on the Statistical Analysis
 	       page beneath the random uncertainty group, writing the engine's new
 	       detlim_meth, detlim_offset_s and detlim_window_s. It estimates the noise
