@@ -103,6 +103,9 @@ private slots:
     void updateTimeConst(double l);
     void updateTlagMeth_1(bool b);
     void updateTlagMeth_2(int n);
+    /// Grey the baseline-subtraction box unless the method maximises a
+    /// covariance, which is the only thing it modifies.
+    void updateCovmaxDebaselineAvailability();
     void updateTlSettingsButton(bool b);
 
     void onClickDetrendCombo(int detrendMethod);
@@ -205,6 +208,9 @@ private:
     //> restore cecCheckBox->toolTip(), which by then WAS the unavailable text.
     QString cecAvailableTooltip_;
 
+    //> Modifier on covariance maximisation. Greyed unless the time-lag method
+    //> is one of the two that maximise a covariance.
+    RichTextCheckBox* covmaxDebaselineCheckBox;
     RichTextCheckBox* wplCheckBox;
     //> Closed-path spectroscopic correction, and its water-channel opt-in.
     //> The second is meaningless without the first and is greyed with it.

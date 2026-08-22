@@ -284,6 +284,24 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     wplCheckBox->setText(tr("Compensate density fluctuations (WPL terms)"));
     wplCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Converting_to_Mixing_Ratio.html"));
 
+    covmaxDebaselineCheckBox = new RichTextCheckBox;
+    covmaxDebaselineCheckBox->setText(tr("Subtract the cross-covariance baseline"));
+    covmaxDebaselineCheckBox->setToolTip(tr("<b>Subtract the cross-covariance "
+        "baseline:</b> Choose the time lag by the largest departure of the "
+        "cross-covariance from the straight line joining the two ends of the search "
+        "window, rather than by its largest absolute value. A weak flux often sits on a "
+        "sloping cross-covariance - from a trend, or from a neighbouring stronger "
+        "correlation - and the plain maximum then lands on whichever end the slope is "
+        "highest at instead of on the peak."
+        "<br><br>This changes <b>which lag is selected</b>, and nothing about the "
+        "covariance reported there: the flux at the chosen lag is computed exactly as "
+        "before. Off by default."
+        "<br><br>Note that with the baseline removed the two ends of the window score "
+        "zero by construction, so the maximum can never land on an end - which means "
+        "<i>Covariance maximization with default</i> stops falling back to the nominal "
+        "lag. For a weak flux that safety net is worth replacing rather than simply "
+        "losing."));
+
     spectroCheckBox = new RichTextCheckBox;
     spectroCheckBox->setText(tr("Remove the spectroscopic effect of water vapour"));
     spectroCheckBox->setToolTip(tr("<b>Remove the spectroscopic effect of water vapour:</b> "
@@ -426,8 +444,10 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     settingsLayout->addWidget(timeLagMethodLabel, 7, 1, Qt::AlignRight);
     settingsLayout->addWidget(timeLagMethodCombo, 7, 2);
     settingsLayout->addWidget(tlSettingsButton, 7, 3);
-    settingsLayout->addWidget(hrLabel, 8, 0, 1, 4);
-    settingsLayout->addWidget(wplTitle, 9, 0);
+    //> Indented under the method it modifies, in the combo's own column.
+    settingsLayout->addWidget(covmaxDebaselineCheckBox, 8, 2, 1, 2);
+    settingsLayout->addWidget(hrLabel, 9, 0, 1, 4);
+    settingsLayout->addWidget(wplTitle, 10, 0);
     //> One cell, not two: column 0 is as wide as its widest widget, so the
     //> icon in a neighbouring cell would sit far off to the right of the text
     //> it belongs to. Same shape as qBox_2 above.
@@ -435,24 +455,24 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     wplBox->addWidget(wplCheckBox);
     wplBox->addWidget(wplWarningLabel);
     wplBox->addStretch();
-    settingsLayout->addLayout(wplBox, 10, 0);
+    settingsLayout->addLayout(wplBox, 11, 0);
     //> Beside WPL because both are about what the analyser really saw, but
     //> deliberately not gated on it: WPL is a density correction and this is
     //> an optical one, and the bias is there whether or not densities are
     //> being compensated.
-    settingsLayout->addWidget(spectroCheckBox, 11, 0);
-    settingsLayout->addWidget(spectroWaterCheckBox, 12, 0);
-    settingsLayout->addWidget(burbaCorrCheckBox, 13, 0);
-    settingsLayout->addWidget(burbaTypeLabel, 14, 0, 1, 1, Qt::AlignRight);
-    settingsLayout->addWidget(burbaSimpleRadio, 14, 1);
-    settingsLayout->addWidget(burbaMultiRadio, 15, 1);
-    settingsLayout->addWidget(burbaParamWidget, 16, 0, 1, 4);
-    settingsLayout->addWidget(defaultContainer, 17, 0, 1, 4);
+    settingsLayout->addWidget(spectroCheckBox, 12, 0);
+    settingsLayout->addWidget(spectroWaterCheckBox, 13, 0);
+    settingsLayout->addWidget(burbaCorrCheckBox, 14, 0);
+    settingsLayout->addWidget(burbaTypeLabel, 15, 0, 1, 1, Qt::AlignRight);
+    settingsLayout->addWidget(burbaSimpleRadio, 15, 1);
+    settingsLayout->addWidget(burbaMultiRadio, 16, 1);
+    settingsLayout->addWidget(burbaParamWidget, 17, 0, 1, 4);
+    settingsLayout->addWidget(defaultContainer, 18, 0, 1, 4);
     //> Between the corrections block and the quality-control one. It sat at
     //> row 16, with slack rows between it and the quality-control block
     //> below; the controls inserted above have taken that slack up, and a
     //> rule drawn across an occupied row overlays the widget there.
-    settingsLayout->addWidget(hrLabel_2, 18, 0, 1, 4);
+    settingsLayout->addWidget(hrLabel_2, 19, 0, 1, 4);
     settingsLayout->addWidget(qcTitle, 22, 0);
     settingsLayout->addWidget(qcCheckBox, 23, 0);
     settingsLayout->addWidget(qcLabel, 23, 1, Qt::AlignRight);
@@ -612,6 +632,17 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             this, &AdvProcessingOptions::updateBurbaGroup);
     connect(wplCheckBox, &RichTextCheckBox::toggled,
             [=](bool b){ burbaCorrCheckBox->setEnabled(b); });
+    //> On the click, not the state change - the same rule the WPL and CEC
+    //> boxes above follow. refresh() blocks the project's signals, not the
+    //> widgets', so a state-change connection fires while a project is being
+    //> loaded and would switch the correction on in a file the user only
+    //> opened.
+    connect(covmaxDebaselineCheckBox, &RichTextCheckBox::clicked,
+            this, [=]()
+            {
+                ecProject_->setScreenCovmaxDebaseline(
+                    covmaxDebaselineCheckBox->isChecked() ? 1 : 0);
+            });
     connect(spectroCheckBox, &RichTextCheckBox::clicked,
             this, [=]()
             {
@@ -783,6 +814,7 @@ void AdvProcessingOptions::updateTlagMeth_1(bool b)
     {
         ecProject_->setScreenTlagMeth(0);
     }
+    updateCovmaxDebaselineAvailability();
 }
 
 void AdvProcessingOptions::updateTlagMeth_2(int n)
@@ -791,6 +823,18 @@ void AdvProcessingOptions::updateTlagMeth_2(int n)
 
     // timelag optimization button
     tlSettingsButton->setEnabled(n == 3 || n == 4);
+    updateCovmaxDebaselineAvailability();
+}
+
+
+/// The baseline subtraction only means anything to a method that maximises a
+/// covariance: tlag_meth 2 and 3, which are combo rows 1 and 2. Constant does
+/// not search, and the optimiser and the block-bootstrap choose their lags by
+/// other machinery entirely.
+void AdvProcessingOptions::updateCovmaxDebaselineAvailability()
+{
+    const auto meth = ecProject_->screenTlagMeth();
+    covmaxDebaselineCheckBox->setEnabled(meth == 2 || meth == 3);
 }
 
 void AdvProcessingOptions::onClickDetrendCombo(int newDetrendMethod)
@@ -1037,6 +1081,8 @@ void AdvProcessingOptions::refresh()
         timeLagMethodCombo->setCurrentIndex(0);
     }
     tlSettingsButton->setEnabled(ecProject_->screenTlagMeth() == 4 || ecProject_->screenTlagMeth() == 5);
+    covmaxDebaselineCheckBox->setChecked(ecProject_->screenCovmaxDebaseline());
+    updateCovmaxDebaselineAvailability();
 
     qcCheckBox->setChecked(ecProject_->generalQcfMeth());
     if (ecProject_->generalQcfMeth())

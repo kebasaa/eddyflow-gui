@@ -1,6 +1,21 @@
 8.1.0 (2026-08-22)
 
     GUI:
+	- New feature: "Subtract the cross-covariance baseline", under the time-lag method
+	       it modifies, writing the engine's new covmax_debaseline. It chooses the lag
+	       by the largest departure from the straight line joining the two ends of the
+	       search window rather than by the largest absolute covariance, which is what
+	       a weak flux on a sloping cross-covariance needs. Greyed unless the method
+	       is one of the two that maximise a covariance - Constant does not search,
+	       and the optimiser and the block-bootstrap choose their lags by other
+	       machinery.
+	       The tooltip says explicitly that it changes <b>which lag is selected</b>
+	       and nothing about the covariance reported there, because a checkbox in the
+	       corrections half of that page reads like a correction otherwise. It also
+	       warns that with the baseline removed the window ends score zero by
+	       construction, so the maximum can never land on one - which means
+	       <i>Covariance maximization with default</i> stops falling back to the
+	       nominal lag. Off by default.
 	- Fix: The spectroscopic coefficient tooltips say that the values are spectroscopic
 	       only, and how to convert a published one. EddyUH divides by the same
 	       polynomial but folds the dilution into it - its a = -1 is pure dilution -

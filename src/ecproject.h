@@ -238,6 +238,7 @@ public:
     void setScreenDetlimMethod(int n);
     void setScreenSpectroMethod(int n);
     void setScreenSpectroWater(int n);
+    void setScreenCovmaxDebaseline(int n);
     void setScreenDetlimOffset(double d);
     void setScreenDetlimWindow(double d);
     void setScreenFlowDistortion(int n);
@@ -701,6 +702,7 @@ public:
     //> default; the water channel needs its own switch on top.
     int screenSpectroMethod() const { return ec_project_state_.screenSetting.spectro_meth; }
     int screenSpectroWater() const { return ec_project_state_.screenSetting.spectro_water; }
+    int screenCovmaxDebaseline() const { return ec_project_state_.screenSetting.covmax_debaseline; }
     double screenDetlimOffset() const { return ec_project_state_.screenSetting.detlim_offset_s; }
     double screenDetlimWindow() const { return ec_project_state_.screenSetting.detlim_window_s; }
     int screenFlowDistortion() const { return ec_project_state_.screenSetting.flow_distortion; }

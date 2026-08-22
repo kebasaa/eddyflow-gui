@@ -335,6 +335,7 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
     //> a computed dataset more thoroughly than most settings on this page.
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.spectro_meth == previousProject.ec_project_state_.screenSetting.spectro_meth);
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.spectro_water == previousProject.ec_project_state_.screenSetting.spectro_water);
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.covmax_debaseline == previousProject.ec_project_state_.screenSetting.covmax_debaseline);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.u_offset, previousProject.ec_project_state_.screenSetting.u_offset);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.v_offset, previousProject.ec_project_state_.screenSetting.v_offset);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.w_offset, previousProject.ec_project_state_.screenSetting.w_offset);
@@ -1006,6 +1007,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenSetting.detlim_window_s = defaultEcProjectState.screenSetting.detlim_window_s;
     ec_project_state_.screenSetting.spectro_meth = defaultEcProjectState.screenSetting.spectro_meth;
     ec_project_state_.screenSetting.spectro_water = defaultEcProjectState.screenSetting.spectro_water;
+    ec_project_state_.screenSetting.covmax_debaseline = defaultEcProjectState.screenSetting.covmax_debaseline;
     ec_project_state_.screenSetting.flow_distortion = defaultEcProjectState.screenSetting.flow_distortion;
     ec_project_state_.screenSetting.rot_meth = defaultEcProjectState.screenSetting.rot_meth;
     ec_project_state_.screenSetting.detrend_meth = defaultEcProjectState.screenSetting.detrend_meth;
@@ -1842,6 +1844,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_104, ec_project_state_.screenSetting.detlim_window_s);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_105, ec_project_state_.screenSetting.spectro_meth);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_106, ec_project_state_.screenSetting.spectro_water);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_107, ec_project_state_.screenSetting.covmax_debaseline);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_2, ec_project_state_.screenSetting.cross_wind);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_3, ec_project_state_.screenSetting.flow_distortion);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_4, ec_project_state_.screenSetting.rot_meth);
@@ -3192,6 +3195,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenSetting.spectro_water
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_106,
                                     defaultEcProjectState.screenSetting.spectro_water).toInt();
+        ec_project_state_.screenSetting.covmax_debaseline
+                = project_ini.value(EcIni::INI_SCREEN_SETTINGS_107,
+                                    defaultEcProjectState.screenSetting.covmax_debaseline).toInt();
         ec_project_state_.screenSetting.flow_distortion
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_3,
                                     defaultEcProjectState.screenSetting.flow_distortion).toInt();
@@ -5620,6 +5626,12 @@ void EcProject::setScreenDetlimMethod(int n)
 void EcProject::setScreenSpectroMethod(int n)
 {
     ec_project_state_.screenSetting.spectro_meth = n;
+    setModified(true);
+}
+
+void EcProject::setScreenCovmaxDebaseline(int n)
+{
+    ec_project_state_.screenSetting.covmax_debaseline = n;
     setModified(true);
 }
 

@@ -324,6 +324,10 @@ namespace EcIni
     //> which only RP holds; FCC never redoes it.
     const auto INI_SCREEN_SETTINGS_105  = QStringLiteral("spectro_meth");
     const auto INI_SCREEN_SETTINGS_106  = QStringLiteral("spectro_water");
+    //> Modifier on covariance maximisation: choose the lag by the largest
+    //> departure from the chord across the search window, not the largest
+    //> absolute covariance.
+    const auto INI_SCREEN_SETTINGS_107  = QStringLiteral("covmax_debaseline");
 
     const auto INIGROUP_SCREEN_TESTS = QStringLiteral("RawProcess_Tests");
     const auto INI_SCREEN_TESTS_0    = QStringLiteral("test_sr");

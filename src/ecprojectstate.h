@@ -372,6 +372,9 @@ struct ScreenSettingState
     //> own reading is not part of the published result.
     int spectro_meth = 0;
     int spectro_water = 0;
+    //> Baseline-subtracted time-lag selection. Off: it changes which lag is
+    //> picked for every gas.
+    int covmax_debaseline = 0;
 };
 
 /// \struct ScreenTestState
