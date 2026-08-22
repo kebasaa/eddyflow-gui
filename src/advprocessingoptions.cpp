@@ -302,6 +302,35 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
         "lag. For a weak flux that safety net is worth replacing rather than simply "
         "losing."));
 
+    tlagBorrowCheckBox = new RichTextCheckBox;
+    tlagBorrowCheckBox->setText(tr("Borrow a tube-mate's lag below the detection limit"));
+    tlagBorrowCheckBox->setToolTip(tr("<b>Borrow a tube-mate's lag below the "
+        "detection limit:</b> Gases drawn down one tube share a transport delay. A "
+        "species whose cross-covariance peak cannot be told from noise has nothing of "
+        "its own to detect, so it takes the lag of a gas on the same analyser that "
+        "resolved its peak - the best-resolved one, not the first in the list "
+        "(Nemitz et al., 2018)."
+        "<br><br>It also fires when the maximum lands on an end of the search window, "
+        "where a maximisation goes when there is no interior peak to find."
+        "<br><br><b>Requires the flux detection limit</b>, under Statistical Analysis: "
+        "without it there is nothing to compare a covariance against, and this control "
+        "stays greyed. Water is never borrowed for or from - its lag is the one every "
+        "other gas's water covariance is taken at. A borrowed lag is flagged in "
+        "<i>&lt;gas&gt;_def_timelag</i> and the donor is named in the run log. "
+        "Off by default."));
+
+    tlagBorrowSnrLabel = new ClickLabel(tr("Detection limits to clear :"));
+    tlagBorrowSnrLabel->setToolTip(tr("<b>Detection limits to clear:</b> How far above "
+        "its detection limit a gas's covariance must stand to keep its own time lag. "
+        "Three is the value Nemitz et al. use. Lower means fewer gases borrow; higher "
+        "means more."));
+    tlagBorrowSnrSpin = new QDoubleSpinBox;
+    tlagBorrowSnrSpin->setDecimals(1);
+    tlagBorrowSnrSpin->setRange(0.1, 100.0);
+    tlagBorrowSnrSpin->setSingleStep(0.5);
+    tlagBorrowSnrSpin->setAccelerated(true);
+    tlagBorrowSnrSpin->setToolTip(tlagBorrowSnrLabel->toolTip());
+
     spectroCheckBox = new RichTextCheckBox;
     spectroCheckBox->setText(tr("Remove the spectroscopic effect of water vapour"));
     spectroCheckBox->setToolTip(tr("<b>Remove the spectroscopic effect of water vapour:</b> "
@@ -446,8 +475,11 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     settingsLayout->addWidget(tlSettingsButton, 7, 3);
     //> Indented under the method it modifies, in the combo's own column.
     settingsLayout->addWidget(covmaxDebaselineCheckBox, 8, 2, 1, 2);
-    settingsLayout->addWidget(hrLabel, 9, 0, 1, 4);
-    settingsLayout->addWidget(wplTitle, 10, 0);
+    settingsLayout->addWidget(tlagBorrowCheckBox, 9, 2, 1, 2);
+    settingsLayout->addWidget(tlagBorrowSnrLabel, 10, 1, Qt::AlignRight);
+    settingsLayout->addWidget(tlagBorrowSnrSpin, 10, 2);
+    settingsLayout->addWidget(hrLabel, 11, 0, 1, 4);
+    settingsLayout->addWidget(wplTitle, 12, 0);
     //> One cell, not two: column 0 is as wide as its widest widget, so the
     //> icon in a neighbouring cell would sit far off to the right of the text
     //> it belongs to. Same shape as qBox_2 above.
@@ -455,24 +487,24 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     wplBox->addWidget(wplCheckBox);
     wplBox->addWidget(wplWarningLabel);
     wplBox->addStretch();
-    settingsLayout->addLayout(wplBox, 11, 0);
+    settingsLayout->addLayout(wplBox, 13, 0);
     //> Beside WPL because both are about what the analyser really saw, but
     //> deliberately not gated on it: WPL is a density correction and this is
     //> an optical one, and the bias is there whether or not densities are
     //> being compensated.
-    settingsLayout->addWidget(spectroCheckBox, 12, 0);
-    settingsLayout->addWidget(spectroWaterCheckBox, 13, 0);
-    settingsLayout->addWidget(burbaCorrCheckBox, 14, 0);
-    settingsLayout->addWidget(burbaTypeLabel, 15, 0, 1, 1, Qt::AlignRight);
-    settingsLayout->addWidget(burbaSimpleRadio, 15, 1);
-    settingsLayout->addWidget(burbaMultiRadio, 16, 1);
-    settingsLayout->addWidget(burbaParamWidget, 17, 0, 1, 4);
-    settingsLayout->addWidget(defaultContainer, 18, 0, 1, 4);
+    settingsLayout->addWidget(spectroCheckBox, 14, 0);
+    settingsLayout->addWidget(spectroWaterCheckBox, 15, 0);
+    settingsLayout->addWidget(burbaCorrCheckBox, 16, 0);
+    settingsLayout->addWidget(burbaTypeLabel, 17, 0, 1, 1, Qt::AlignRight);
+    settingsLayout->addWidget(burbaSimpleRadio, 17, 1);
+    settingsLayout->addWidget(burbaMultiRadio, 18, 1);
+    settingsLayout->addWidget(burbaParamWidget, 19, 0, 1, 4);
+    settingsLayout->addWidget(defaultContainer, 20, 0, 1, 4);
     //> Between the corrections block and the quality-control one. It sat at
     //> row 16, with slack rows between it and the quality-control block
     //> below; the controls inserted above have taken that slack up, and a
     //> rule drawn across an occupied row overlays the widget there.
-    settingsLayout->addWidget(hrLabel_2, 19, 0, 1, 4);
+    settingsLayout->addWidget(hrLabel_2, 21, 0, 1, 4);
     settingsLayout->addWidget(qcTitle, 22, 0);
     settingsLayout->addWidget(qcCheckBox, 23, 0);
     settingsLayout->addWidget(qcLabel, 23, 1, Qt::AlignRight);
@@ -643,6 +675,15 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
                 ecProject_->setScreenCovmaxDebaseline(
                     covmaxDebaselineCheckBox->isChecked() ? 1 : 0);
             });
+    connect(tlagBorrowCheckBox, &RichTextCheckBox::clicked,
+            this, [=]()
+            {
+                ecProject_->setScreenTlagBorrowMethod(
+                    tlagBorrowCheckBox->isChecked() ? 1 : 0);
+                updateTlagBorrowAvailability();
+            });
+    connect(tlagBorrowSnrSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [=](double d) { ecProject_->setScreenTlagBorrowSnr(d); });
     connect(spectroCheckBox, &RichTextCheckBox::clicked,
             this, [=]()
             {
@@ -826,6 +867,21 @@ void AdvProcessingOptions::updateTlagMeth_2(int n)
     updateCovmaxDebaselineAvailability();
 }
 
+/// The borrowing test divides a covariance by a detection limit, so without
+/// one there is nothing to decide. The engine refuses the same combination;
+/// this is the interface saying so before the run rather than after it.
+///
+/// detlim_meth lives on the Statistical Analysis page, so this control can be
+/// greyed by something changed on a different tab - which is why the tooltip
+/// names where to switch it on.
+void AdvProcessingOptions::updateTlagBorrowAvailability()
+{
+    const bool haveLimit = ecProject_->screenDetlimMethod() > 0;
+    tlagBorrowCheckBox->setEnabled(haveLimit);
+    const bool on = haveLimit && tlagBorrowCheckBox->isChecked();
+    tlagBorrowSnrLabel->setEnabled(on);
+    tlagBorrowSnrSpin->setEnabled(on);
+}
 
 /// The baseline subtraction only means anything to a method that maximises a
 /// covariance: tlag_meth 2 and 3, which are combo rows 1 and 2. Constant does
@@ -990,6 +1046,9 @@ void AdvProcessingOptions::reset()
     cecSettingsButton->setEnabled(false);
 
     wplCheckBox->setChecked(ecProject_->defaultSettings.projectGeneral.wpl_meth);
+    tlagBorrowCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.tlag_borrow_meth);
+    tlagBorrowSnrSpin->setValue(ecProject_->defaultSettings.screenSetting.tlag_borrow_snr);
+    updateTlagBorrowAvailability();
     spectroCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.spectro_meth);
     spectroWaterCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.spectro_water);
     spectroWaterCheckBox->setEnabled(ecProject_->defaultSettings.screenSetting.spectro_meth);
@@ -1082,6 +1141,9 @@ void AdvProcessingOptions::refresh()
     }
     tlSettingsButton->setEnabled(ecProject_->screenTlagMeth() == 4 || ecProject_->screenTlagMeth() == 5);
     covmaxDebaselineCheckBox->setChecked(ecProject_->screenCovmaxDebaseline());
+    tlagBorrowCheckBox->setChecked(ecProject_->screenTlagBorrowMethod());
+    tlagBorrowSnrSpin->setValue(ecProject_->screenTlagBorrowSnr());
+    updateTlagBorrowAvailability();
     updateCovmaxDebaselineAvailability();
 
     qcCheckBox->setChecked(ecProject_->generalQcfMeth());

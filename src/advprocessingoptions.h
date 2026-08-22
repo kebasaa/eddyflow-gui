@@ -106,6 +106,8 @@ private slots:
     /// Grey the baseline-subtraction box unless the method maximises a
     /// covariance, which is the only thing it modifies.
     void updateCovmaxDebaselineAvailability();
+    /// Grey the borrowing controls unless the flux detection limit is on.
+    void updateTlagBorrowAvailability();
     void updateTlSettingsButton(bool b);
 
     void onClickDetrendCombo(int detrendMethod);
@@ -211,6 +213,11 @@ private:
     //> Modifier on covariance maximisation. Greyed unless the time-lag method
     //> is one of the two that maximise a covariance.
     RichTextCheckBox* covmaxDebaselineCheckBox;
+    //> Conditional lag borrowing and its threshold. Greyed together with the
+    //> flux detection limit, which they have nothing to test against without.
+    RichTextCheckBox* tlagBorrowCheckBox;
+    ClickLabel* tlagBorrowSnrLabel;
+    QDoubleSpinBox* tlagBorrowSnrSpin;
     RichTextCheckBox* wplCheckBox;
     //> Closed-path spectroscopic correction, and its water-channel opt-in.
     //> The second is meaningless without the first and is greyed with it.

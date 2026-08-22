@@ -375,6 +375,10 @@ struct ScreenSettingState
     //> Baseline-subtracted time-lag selection. Off: it changes which lag is
     //> picked for every gas.
     int covmax_debaseline = 0;
+    //> Conditional lag borrowing, and how many detection limits a covariance
+    //> must clear to keep its own lag. Three is Nemitz et al.
+    int tlag_borrow_meth = 0;
+    qreal tlag_borrow_snr = 3.0;
 };
 
 /// \struct ScreenTestState

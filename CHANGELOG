@@ -1,6 +1,23 @@
 8.1.0 (2026-08-22)
 
     GUI:
+	- New feature: "Borrow a tube-mate's lag below the detection limit" and its "Detection
+	       limits to clear" threshold, beside the baseline checkbox, writing the
+	       engine's new tlag_borrow_meth and tlag_borrow_snr. A species whose
+	       cross-covariance peak cannot be told from noise takes the lag of the
+	       best-resolved gas on the same analyser rather than a nominal one
+	       (Nemitz et al., 2018). Default 3.0 detection limits, the paper's value.
+	       Both controls are greyed until the flux detection limit is on, because
+	       the test has nothing to compare against without it - and since that
+	       setting lives on the <i>Statistical Analysis</i> page, the tooltip names
+	       where to switch it on rather than leaving the user to hunt for what
+	       disabled a control on this one. The engine refuses the same combination
+	       independently, so a hand-written project cannot get past it either.
+	       The tooltip also states the two things a reader would otherwise have to
+	       find out from a run: that water is never borrowed for or from, and that
+	       a borrowed lag is flagged in <i>&lt;gas&gt;_def_timelag</i> with the
+	       donor named in the run log. Off by default. Pinned by
+	       tests/test_tlag_borrow_contract_static.py.
 	- New feature: "Subtract the cross-covariance baseline", under the time-lag method
 	       it modifies, writing the engine's new covmax_debaseline. It chooses the lag
 	       by the largest departure from the straight line joining the two ends of the

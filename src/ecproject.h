@@ -239,6 +239,8 @@ public:
     void setScreenSpectroMethod(int n);
     void setScreenSpectroWater(int n);
     void setScreenCovmaxDebaseline(int n);
+    void setScreenTlagBorrowMethod(int n);
+    void setScreenTlagBorrowSnr(double d);
     void setScreenDetlimOffset(double d);
     void setScreenDetlimWindow(double d);
     void setScreenFlowDistortion(int n);
@@ -703,6 +705,8 @@ public:
     int screenSpectroMethod() const { return ec_project_state_.screenSetting.spectro_meth; }
     int screenSpectroWater() const { return ec_project_state_.screenSetting.spectro_water; }
     int screenCovmaxDebaseline() const { return ec_project_state_.screenSetting.covmax_debaseline; }
+    int screenTlagBorrowMethod() const { return ec_project_state_.screenSetting.tlag_borrow_meth; }
+    double screenTlagBorrowSnr() const { return ec_project_state_.screenSetting.tlag_borrow_snr; }
     double screenDetlimOffset() const { return ec_project_state_.screenSetting.detlim_offset_s; }
     double screenDetlimWindow() const { return ec_project_state_.screenSetting.detlim_window_s; }
     int screenFlowDistortion() const { return ec_project_state_.screenSetting.flow_distortion; }

@@ -328,6 +328,10 @@ namespace EcIni
     //> departure from the chord across the search window, not the largest
     //> absolute covariance.
     const auto INI_SCREEN_SETTINGS_107  = QStringLiteral("covmax_debaseline");
+    //> Nemitz et al. (2018) conditional lag borrowing. Needs detlim_meth on,
+    //> since there is nothing to compare a covariance against otherwise.
+    const auto INI_SCREEN_SETTINGS_108  = QStringLiteral("tlag_borrow_meth");
+    const auto INI_SCREEN_SETTINGS_109  = QStringLiteral("tlag_borrow_snr");
 
     const auto INIGROUP_SCREEN_TESTS = QStringLiteral("RawProcess_Tests");
     const auto INI_SCREEN_TESTS_0    = QStringLiteral("test_sr");
