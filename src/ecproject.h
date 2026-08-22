@@ -235,6 +235,9 @@ public:
     void setScreenVOffset(double d);
     void setScreenWOffset(double d);
     void setScreenWBoost(int n);
+    void setScreenDetlimMethod(int n);
+    void setScreenDetlimOffset(double d);
+    void setScreenDetlimWindow(double d);
     void setScreenFlowDistortion(int n);
     void setScreenCrossWind(int n);
     void setScreenRotMethod(int n);
@@ -688,6 +691,12 @@ public:
     double screenVOffset() const { return ec_project_state_.screenSetting.v_offset; }
     double screenWOffset() const { return ec_project_state_.screenSetting.w_offset; }
     int screenWBoost() const { return ec_project_state_.screenSetting.gill_wm_wboost; }
+    //> Flux detection limit, Wienhold et al. (1994). Zero is off, which is
+    //> the default: the feature adds a column and must not change what an
+    //> existing project computes.
+    int screenDetlimMethod() const { return ec_project_state_.screenSetting.detlim_meth; }
+    double screenDetlimOffset() const { return ec_project_state_.screenSetting.detlim_offset_s; }
+    double screenDetlimWindow() const { return ec_project_state_.screenSetting.detlim_window_s; }
     int screenFlowDistortion() const { return ec_project_state_.screenSetting.flow_distortion; }
     int screenCrossWind() const { return ec_project_state_.screenSetting.cross_wind; }
     int screenRotMethod() const { return ec_project_state_.screenSetting.rot_meth; }

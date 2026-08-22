@@ -312,6 +312,13 @@ namespace EcIni
     const auto INI_SCREEN_SETTINGS_99   = QStringLiteral("out_qc_details");
     const auto INI_SCREEN_SETTINGS_100  = QStringLiteral("power_of_two");
     const auto INI_SCREEN_SETTINGS_101  = QStringLiteral("gill_wm_wboost");
+    //> Flux detection limit, Wienhold et al. (1994). RawProcess_Settings and
+    //> not [Project]: RP computes the limit and it travels to FCC inside the
+    //> ex record, so FCC never reads these keys and does not need to see the
+    //> group. The two window settings carry Wienhold's own values.
+    const auto INI_SCREEN_SETTINGS_102  = QStringLiteral("detlim_meth");
+    const auto INI_SCREEN_SETTINGS_103  = QStringLiteral("detlim_offset_s");
+    const auto INI_SCREEN_SETTINGS_104  = QStringLiteral("detlim_window_s");
 
     const auto INIGROUP_SCREEN_TESTS = QStringLiteral("RawProcess_Tests");
     const auto INI_SCREEN_TESTS_0    = QStringLiteral("test_sr");

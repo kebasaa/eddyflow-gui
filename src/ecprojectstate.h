@@ -360,6 +360,13 @@ struct ScreenSettingState
     int out_details = 0;
     int power_of_two = 1;
     int gill_wm_wboost = 1;
+    //> Flux detection limit, Wienhold et al. (1994). Off by default, so an
+    //> existing project keeps its numbers; the two window settings carry
+    //> Wienhold's own values, which is what the engine also defaults to.
+    //> Both sides must agree - see tests/test_detlim_engine_contract_static.py.
+    int detlim_meth = 0;
+    qreal detlim_offset_s = 100.0;
+    qreal detlim_window_s = 50.0;
 };
 
 /// \struct ScreenTestState

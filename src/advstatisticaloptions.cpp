@@ -44,6 +44,7 @@
 #include <QUrl>
 
 #include "clicklabel.h"
+#include "detlimsettingsdialog.h"
 #include "dlproject.h"
 #include "ecproject.h"
 #include "measurement_record.h"
@@ -195,6 +196,23 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     securityCoeffSpin->setToolTip(securityCoeffLabel->toolTip());
     securityCoeffSpin->setVisible(false);
 
+    //> Flux detection limit. Independent of the random-error checkbox above
+    //> it: the two answer different questions - how uncertain is this flux,
+    //> against can this flux be told from zero - and either is useful without
+    //> the other. So the button is always live, and the method lives in the
+    //> dialog rather than a checkbox here.
+    detlimSettingsButton = new QPushButton(tr("Flux Detection Limit..."));
+    detlimSettingsButton->setToolTip(tr("<b>Flux detection limit:</b> "
+        "Estimate the noise floor of each gas's covariance with vertical "
+        "wind, after Wienhold et al. (1994), by measuring the scatter of the "
+        "cross-covariance function away from its peak. A flux smaller than "
+        "its detection limit cannot be distinguished from zero. Off by "
+        "default; switching it on changes no flux, it only reports the limit "
+        "alongside. Particularly worth having for weak-flux species such as "
+        "carbonyl sulfide or nitrous oxide."));
+    detlimSettingsButton->setProperty("mdButton", true);
+    detlimSettingsButton->setMaximumWidth(detlimSettingsButton->sizeHint().width());
+
     auto downLayout = new QGridLayout;
     downLayout->addLayout(qBox_2, 0, 0, 1, 2);
     downLayout->addWidget(randomErrorCheckBox, 1, 0);
@@ -207,7 +225,10 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     downLayout->addWidget(timelagMaxSpin, 4, 2);
     downLayout->addWidget(securityCoeffLabel, 5, 1, Qt::AlignRight);
     downLayout->addWidget(securityCoeffSpin, 5, 2);
-    downLayout->setRowStretch(6, 1);
+    //> Row 6, and the stretch moves down with it. The grid is hand-numbered,
+    //> so anything added below has to push the stretch again.
+    downLayout->addWidget(detlimSettingsButton, 6, 1, 1, 2, Qt::AlignLeft);
+    downLayout->setRowStretch(7, 1);
     downLayout->setColumnStretch(3, 1);
 
     auto downFrame = new QWidget;
@@ -444,6 +465,8 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     connect(nonSteadySpin_1, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &AdvStatisticalOptions::updateParamNsHfLim);
 
+    connect(detlimSettingsButton, &QPushButton::clicked,
+            this, &AdvStatisticalOptions::showDetlimSettingsDialog);
     connect(randomErrorCheckBox, &QCheckBox::toggled,
             this, &AdvStatisticalOptions::updateRandomErrorArea);
     //> This control is not the only thing that writes ru_meth: the CEC
@@ -2335,6 +2358,13 @@ void AdvStatisticalOptions::reset()
     nonSteadyCheckBox->setChecked(ecProject_->defaultSettings.screenTest.test_ns);
 
     testToolbox->setCurrentIndex(0);
+    //> Restore Default Values reaches every group on the page, so the
+    //> detection limit has to be reset here too or it survives the reset.
+    ecProject_->setScreenDetlimMethod(ecProject_->defaultSettings.screenSetting.detlim_meth);
+    ecProject_->setScreenDetlimOffset(ecProject_->defaultSettings.screenSetting.detlim_offset_s);
+    ecProject_->setScreenDetlimWindow(ecProject_->defaultSettings.screenSetting.detlim_window_s);
+    if (detlimDialog_) { detlimDialog_->refresh(); }
+
     randomErrorCheckBox->setChecked(false);
     randomMethodLabel->setEnabled(false);
     randomMethodCombo->setEnabled(false);
@@ -2359,11 +2389,32 @@ void AdvStatisticalOptions::reset()
     ecProject_->blockSignals(false);
 }
 
+/// Created on first use rather than in the constructor.
+///
+/// The page is built before a project is necessarily loaded, and the dialog
+/// reads the project the moment it refreshes. Constructing it lazily also
+/// keeps it out of the way for the many sessions that never open it.
+void AdvStatisticalOptions::showDetlimSettingsDialog()
+{
+    if (!detlimDialog_)
+    {
+        detlimDialog_ = new DetlimSettingsDialog(this, ecProject_);
+    }
+    detlimDialog_->refresh();
+    detlimDialog_->show();
+    detlimDialog_->raise();
+    detlimDialog_->activateWindow();
+}
+
 void AdvStatisticalOptions::refresh()
 {
     // save the modified flag to prevent side effects of setting widgets
     bool oldmod = ecProject_->modified();
     ecProject_->blockSignals(true);
+
+    //> Only if it has been opened. A project loaded while the dialog is up
+    //> would otherwise leave it showing the previous project's windows.
+    if (detlimDialog_) { detlimDialog_->refresh(); }
 
     spikeRemCheckBox->setChecked(ecProject_->screenTestSr());
     amplitudeResCheckBox->setChecked(ecProject_->screenTestAr());

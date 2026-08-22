@@ -1,3 +1,34 @@
+8.1.0 (2026-08-22)
+
+    GUI:
+	- New feature: A "Flux Detection Limit..." dialog, on the Statistical Analysis
+	       page beneath the random uncertainty group, writing the engine's new
+	       detlim_meth, detlim_offset_s and detlim_window_s. It estimates the noise
+	       floor of each gas's covariance with vertical wind after Wienhold et al.
+	       (1994), by measuring the scatter of the cross-covariance function away
+	       from its peak: a flux smaller than its detection limit cannot be told
+	       from zero. Worth having for weak-flux species - on the test dataset
+	       carbonyl sulfide clears three times its limit in 10 half-hours out of 48.
+	       Off by default, and switching it on changes no flux: it only reports the
+	       limit alongside. The two window settings offer Wienhold's own values, 100
+	       s and 50 s, so that enabling the feature reproduces the published method
+	       rather than something chosen here; tests/test_detlim_engine_contract_static.py
+	       compares them against the engine's literals so the two cannot drift.
+	       A dialog rather than controls on the page itself: that grid reserves its
+	       first column for the random-error checkbox and pins a stretch below the
+	       last live row, so a method plus two dependent windows does not sit in it
+	       without a rebuild.
+	       It is deliberately independent of the random uncertainty checkbox above
+	       it - unlike the CEC significance test, which needs a random error to
+	       compare against. These two answer different questions, how uncertain is
+	       this flux against can this flux be told from zero, and either is useful
+	       without the other.
+	       The dialog warns when the window is as wide as its own offset or wider,
+	       which is the one way to configure this so that it measures the flux
+	       instead of the noise under it. The engine refuses that combination and
+	       falls back to the defaults; the warning is the same rule, shown while the
+	       numbers are being set rather than afterwards in the log.
+
 8.0.0 (2026-08-20)
 
     GUI:

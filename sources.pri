@@ -17,6 +17,7 @@ HEADERS += \
     src/cecpairmodel.h \
     src/cecsettingsdialog.h \
     src/clicklabel.h \
+    src/detlimsettingsdialog.h \
     src/configstate.h \
     src/customcombomodel.h \
     src/customheader.h \
@@ -128,6 +129,7 @@ SOURCES +=  \
     src/cecpairmodel.cpp \
     src/cecsettingsdialog.cpp \
     src/clicklabel.cpp \
+    src/detlimsettingsdialog.cpp \
     src/customcombomodel.cpp \
     src/customheader.cpp \
     src/customsplashscreen.cpp \

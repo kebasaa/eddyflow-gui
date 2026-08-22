@@ -59,6 +59,7 @@ class QTabBar;
 class QToolBox;
 
 class ClickLabel;
+class DetlimSettingsDialog;
 class DlProject;
 class EcProject;
 
@@ -86,6 +87,10 @@ protected:
 
 private slots:
     void refresh();
+
+    /// Open the flux detection limit dialog, non-modally, as the CEC and PWB
+    /// buttons open theirs.
+    void showDetlimSettingsDialog();
 
     void on_spikeRemCheckBox_clicked(bool checked);
     void on_amplitudeResCheckBox_clicked(bool checked);
@@ -413,6 +418,13 @@ private:
     QDoubleSpinBox* timelagMaxSpin;
     ClickLabel* securityCoeffLabel;
     QDoubleSpinBox* securityCoeffSpin;
+
+    //> Flux detection limit, Wienhold et al. (1994). A button rather than
+    //> inline controls: the grid this sits in reserves column 0 for the
+    //> random-error checkbox and pins its stretch at the row below the last
+    //> live control, so the method plus its two windows go in a dialog.
+    QPushButton* detlimSettingsButton;
+    DetlimSettingsDialog* detlimDialog_{};
 
     //> The four grids that carry generated gas rows. Held because the rows,
     //> and everything the grid places below them, are positioned in

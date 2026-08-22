@@ -325,6 +325,12 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
     dataSetTest = dataSetTest && (ec_project_state_.screenGeneral.flag10_policy == previousProject.ec_project_state_.screenGeneral.flag10_policy);
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.max_lack == previousProject.ec_project_state_.screenSetting.max_lack);
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.instr_max_lack == previousProject.ec_project_state_.screenSetting.instr_max_lack);
+    //> The detection limit changes an output column, so a change to any of
+    //> the three invalidates a computed dataset the same way a despiking
+    //> threshold does.
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.detlim_meth == previousProject.ec_project_state_.screenSetting.detlim_meth);
+    dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.detlim_offset_s, previousProject.ec_project_state_.screenSetting.detlim_offset_s);
+    dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.detlim_window_s, previousProject.ec_project_state_.screenSetting.detlim_window_s);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.u_offset, previousProject.ec_project_state_.screenSetting.u_offset);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.v_offset, previousProject.ec_project_state_.screenSetting.v_offset);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.w_offset, previousProject.ec_project_state_.screenSetting.w_offset);
@@ -991,6 +997,9 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenSetting.w_offset = defaultEcProjectState.screenSetting.w_offset;
     ec_project_state_.screenSetting.cross_wind = defaultEcProjectState.screenSetting.cross_wind;
     ec_project_state_.screenSetting.gill_wm_wboost = defaultEcProjectState.screenSetting.gill_wm_wboost;
+    ec_project_state_.screenSetting.detlim_meth = defaultEcProjectState.screenSetting.detlim_meth;
+    ec_project_state_.screenSetting.detlim_offset_s = defaultEcProjectState.screenSetting.detlim_offset_s;
+    ec_project_state_.screenSetting.detlim_window_s = defaultEcProjectState.screenSetting.detlim_window_s;
     ec_project_state_.screenSetting.flow_distortion = defaultEcProjectState.screenSetting.flow_distortion;
     ec_project_state_.screenSetting.rot_meth = defaultEcProjectState.screenSetting.rot_meth;
     ec_project_state_.screenSetting.detrend_meth = defaultEcProjectState.screenSetting.detrend_meth;
@@ -1822,6 +1831,9 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_13, ec_project_state_.screenSetting.v_offset);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_14, ec_project_state_.screenSetting.w_offset);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_101, ec_project_state_.screenSetting.gill_wm_wboost);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_102, ec_project_state_.screenSetting.detlim_meth);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_103, ec_project_state_.screenSetting.detlim_offset_s);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_104, ec_project_state_.screenSetting.detlim_window_s);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_2, ec_project_state_.screenSetting.cross_wind);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_3, ec_project_state_.screenSetting.flow_distortion);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_4, ec_project_state_.screenSetting.rot_meth);
@@ -3139,6 +3151,33 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenSetting.gill_wm_wboost
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_101,
                                     defaultEcProjectState.screenSetting.gill_wm_wboost).toInt();
+        //> Flux detection limit. Sanitised on the way in, the way
+        //> cec_singular_band is: the engine refuses a window that reaches
+        //> into the peak and falls back to Wienhold's values, and the two
+        //> sides have to agree or the same file computes different numbers
+        //> depending on whether it was opened here first.
+        ec_project_state_.screenSetting.detlim_meth
+                = project_ini.value(EcIni::INI_SCREEN_SETTINGS_102,
+                                    defaultEcProjectState.screenSetting.detlim_meth).toInt();
+        {
+            bool offsetOk = false;
+            bool windowOk = false;
+            const double detlimOffset
+                    = project_ini.value(EcIni::INI_SCREEN_SETTINGS_103,
+                                        defaultEcProjectState.screenSetting.detlim_offset_s).toDouble(&offsetOk);
+            const double detlimWindow
+                    = project_ini.value(EcIni::INI_SCREEN_SETTINGS_104,
+                                        defaultEcProjectState.screenSetting.detlim_window_s).toDouble(&windowOk);
+            const bool detlimUsable = offsetOk && windowOk
+                    && detlimOffset > 0.0 && detlimWindow > 0.0
+                    && detlimWindow < detlimOffset;
+            ec_project_state_.screenSetting.detlim_offset_s = detlimUsable
+                    ? detlimOffset
+                    : defaultEcProjectState.screenSetting.detlim_offset_s;
+            ec_project_state_.screenSetting.detlim_window_s = detlimUsable
+                    ? detlimWindow
+                    : defaultEcProjectState.screenSetting.detlim_window_s;
+        }
         ec_project_state_.screenSetting.flow_distortion
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_3,
                                     defaultEcProjectState.screenSetting.flow_distortion).toInt();
@@ -5555,6 +5594,24 @@ void EcProject::setScreenVOffset(double d)
 void EcProject::setScreenWOffset(double d)
 {
     ec_project_state_.screenSetting.w_offset = d;
+    setModified(true);
+}
+
+void EcProject::setScreenDetlimMethod(int n)
+{
+    ec_project_state_.screenSetting.detlim_meth = n;
+    setModified(true);
+}
+
+void EcProject::setScreenDetlimOffset(double d)
+{
+    ec_project_state_.screenSetting.detlim_offset_s = d;
+    setModified(true);
+}
+
+void EcProject::setScreenDetlimWindow(double d)
+{
+    ec_project_state_.screenSetting.detlim_window_s = d;
     setModified(true);
 }
 
