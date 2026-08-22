@@ -519,7 +519,10 @@ VariableDesc::VariableDesc() :
     nomTimelag_(0.0),
     minTimelag_(0.0),
     maxTimelag_(0.0),
-    errorValue_(-9999.0)
+    errorValue_(-9999.0),
+    //> Zero is the identity: no water-broadening term to remove.
+    spectroA_(0.0),
+    spectroB_(0.0)
 { ; }
 
 VariableDesc::VariableDesc(const QString& ignore,
@@ -537,7 +540,9 @@ VariableDesc::VariableDesc(const QString& ignore,
                            qreal nomTimelag,
                            qreal minTimelag,
                            qreal maxTimelag,
-                           qreal errorValue
+                           qreal errorValue,
+                           qreal spectroA,
+                           qreal spectroB
                            ) :
     ignore_(ignore),
     numeric_(notNumeric),
@@ -554,7 +559,9 @@ VariableDesc::VariableDesc(const QString& ignore,
     nomTimelag_(nomTimelag),
     minTimelag_(minTimelag),
     maxTimelag_(maxTimelag),
-    errorValue_(errorValue)
+    errorValue_(errorValue),
+    spectroA_(spectroA),
+    spectroB_(spectroB)
 { ; }
 
 VariableDesc::~VariableDesc() { ; }
@@ -575,7 +582,9 @@ VariableDesc::VariableDesc(const VariableDesc& fileDesc) :
     nomTimelag_(fileDesc.nomTimelag_),
     minTimelag_(fileDesc.minTimelag_),
     maxTimelag_(fileDesc.maxTimelag_),
-    errorValue_(fileDesc.errorValue_)
+    errorValue_(fileDesc.errorValue_),
+    spectroA_(fileDesc.spectroA_),
+    spectroB_(fileDesc.spectroB_)
 { ; }
 
 VariableDesc& VariableDesc::operator=(const VariableDesc& fileDesc)
@@ -598,6 +607,8 @@ VariableDesc& VariableDesc::operator=(const VariableDesc& fileDesc)
         minTimelag_ = fileDesc.minTimelag_;
         maxTimelag_ = fileDesc.maxTimelag_;
         errorValue_ = fileDesc.errorValue_;
+        spectroA_ = fileDesc.spectroA_;
+        spectroB_ = fileDesc.spectroB_;
     }
     return *this;
 }
@@ -619,7 +630,9 @@ bool VariableDesc::operator==(const VariableDesc& fileDesc) const
             && qFuzzyCompare(nomTimelag_, fileDesc.nomTimelag_)
             && qFuzzyCompare(minTimelag_, fileDesc.minTimelag_)
             && qFuzzyCompare(maxTimelag_, fileDesc.maxTimelag_)
-            && qFuzzyCompare(errorValue_, fileDesc.errorValue_);
+            && qFuzzyCompare(errorValue_, fileDesc.errorValue_)
+            && qFuzzyCompare(spectroA_, fileDesc.spectroA_)
+            && qFuzzyCompare(spectroB_, fileDesc.spectroB_);
 }
 
 // Return string list of anem types

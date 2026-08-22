@@ -378,6 +378,12 @@ QVariant VariableModel::data(const QModelIndex& index, int role) const
                 //> No unit suffix: it is a raw-file value, in whatever the
                 //> input unit of this column happens to be.
                 return QVariant(QString::number(variableDesc.errorValue(), 'f', 4));
+            case SPECTROA:
+                //> Dimensionless, and small: it multiplies a mole fraction in
+                //> mol/mol, so four places is the useful resolution.
+                return QVariant(QString::number(variableDesc.spectroA(), 'f', 4));
+            case SPECTROB:
+                return QVariant(QString::number(variableDesc.spectroB(), 'f', 4));
             default:
                 return QVariant();
         }
@@ -651,6 +657,10 @@ QVariant VariableModel::data(const QModelIndex& index, int role) const
                 return QVariant(variableDesc.maxTimelag());
             case ERRORVALUE:
                 return QVariant(variableDesc.errorValue());
+            case SPECTROA:
+                return QVariant(variableDesc.spectroA());
+            case SPECTROB:
+                return QVariant(variableDesc.spectroB());
             default:
                 return QVariant();
         }
@@ -673,6 +683,8 @@ QVariant VariableModel::data(const QModelIndex& index, int role) const
             case MINTIMELAG:
             case MAXTIMELAG:
             case ERRORVALUE:
+            case SPECTROA:
+            case SPECTROB:
             default:
                 return QVariant(Qt::AlignVCenter | Qt::AlignRight);
         }
@@ -938,6 +950,20 @@ bool VariableModel::setData(const QModelIndex& index, const QVariant& value, int
             }
             variableDesc.setErrorValue(value.toReal());
             break;
+        case SPECTROA:
+            if (value == variableDesc.spectroA())
+            {
+                return false;
+            }
+            variableDesc.setSpectroA(value.toReal());
+            break;
+        case SPECTROB:
+            if (value == variableDesc.spectroB())
+            {
+                return false;
+            }
+            variableDesc.setSpectroB(value.toReal());
+            break;
         default:
             return false;
     }
@@ -1010,6 +1036,8 @@ QVariant VariableModel::headerData(int section, Qt::Orientation orientation,
             case MINTIMELAG:
             case MAXTIMELAG:
             case ERRORVALUE:
+            case SPECTROA:
+            case SPECTROB:
                 return QVariant(QString());
             default:
                 return QVariant();
@@ -1081,6 +1109,13 @@ Qt::ItemFlags VariableModel::flags(const QModelIndex& index) const
         case NOMTIMELAG:
         case MINTIMELAG:
         case MAXTIMELAG:
+        //> Editable on any column that is not ignored, like the time lags.
+        //> Not restricted to gases here: whether the correction applies is
+        //> the engine's decision - it skips open paths and anything with no
+        //> coefficient - and greying the cell would hide the setting rather
+        //> than explain it.
+        case SPECTROA:
+        case SPECTROB:
             if (variableDesc.ignore() == QLatin1String("yes"))
             {
                 return disabledFlags;

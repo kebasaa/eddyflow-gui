@@ -206,6 +206,10 @@ private:
     QString cecAvailableTooltip_;
 
     RichTextCheckBox* wplCheckBox;
+    //> Closed-path spectroscopic correction, and its water-channel opt-in.
+    //> The second is meaningless without the first and is greyed with it.
+    RichTextCheckBox* spectroCheckBox;
+    RichTextCheckBox* spectroWaterCheckBox;
     QLabel* wplWarningLabel;
     RichTextCheckBox* burbaCorrCheckBox;
     ClickLabel* burbaTypeLabel;

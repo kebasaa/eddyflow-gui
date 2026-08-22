@@ -284,6 +284,38 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     wplCheckBox->setText(tr("Compensate density fluctuations (WPL terms)"));
     wplCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Converting_to_Mixing_Ratio.html"));
 
+    spectroCheckBox = new RichTextCheckBox;
+    spectroCheckBox->setText(tr("Remove the spectroscopic effect of water vapour"));
+    spectroCheckBox->setToolTip(tr("<b>Remove the spectroscopic effect of water vapour:</b> "
+        "Water vapour broadens the absorption lines a laser analyser measures, so the mixing "
+        "ratio it reports depends on humidity beyond simple dilution. Each affected column is "
+        "divided, sample by sample, by 1 + <i>a</i>&#183;&#967;<sub>q</sub> + "
+        "<i>b</i>&#183;&#967;<sub>q</sub>&#178;, using the water its own analyser read at the "
+        "same instant (Peltola et al., 2014; applied point by point after Chen et al., 2010). "
+        "<br><br>Enter <i>a</i> and <i>b</i> per column in the <b>Raw File Description</b>; "
+        "a column that leaves them at zero is not touched, and neither is an open-path "
+        "analyser. This is independent of the density compensation above - the bias is in "
+        "what the instrument reported, whether or not WPL is applied. Off by default."
+        "<br><br><b>Coefficients here are spectroscopic only.</b> EddyUH and the Rella "
+        "(2010) tables it ships use a convention in which the dilution is folded into the "
+        "same polynomial, so that <i>a</i> = &minus;1, <i>b</i> = 0 means pure dilution and "
+        "no spectroscopy. EddyFlow corrects the density separately, so the identity here is "
+        "<i>a</i> = <i>b</i> = 0. To carry a published value across, add one to <i>a</i>: an "
+        "EddyUH <i>a</i> of &minus;1.39 becomes &minus;0.39 here. Typing the EddyUH value "
+        "unchanged would count the dilution twice."));
+
+    spectroWaterCheckBox = new RichTextCheckBox;
+    spectroWaterCheckBox->setText(tr("Also correct the water channel (EddyUH form, unpublished)"));
+    spectroWaterCheckBox->setToolTip(tr("<b>Also correct the water channel:</b> Applies the same "
+        "division to each hygrometer against <i>its own</i> reading, which is self-broadening. "
+        "<br><br><b>This is not part of the published Peltola et al. (2014) result</b>, which "
+        "derives the effect of water on <i>another</i> gas's absorption lines. EddyUH corrects "
+        "the water channel too, using a coefficient whose derivation its own source comment "
+        "states is not published anywhere; this offers the same idea in the point-by-point form "
+        "used for every other column. Select it deliberately, and report that you did. "
+        "Off by default, and it does nothing unless the correction above is on and the "
+        "hygrometer's own coefficients are non-zero."));
+
     //> Lit only in the inconsistent state - the partition on, the correction it
     //> depends on off. A warning icon that is usually on is one nobody reads.
     wplWarningLabel = new QLabel;
@@ -404,13 +436,23 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     wplBox->addWidget(wplWarningLabel);
     wplBox->addStretch();
     settingsLayout->addLayout(wplBox, 10, 0);
-    settingsLayout->addWidget(burbaCorrCheckBox, 11, 0);
-    settingsLayout->addWidget(burbaTypeLabel, 12, 0, 1, 1, Qt::AlignRight);
-    settingsLayout->addWidget(burbaSimpleRadio, 12, 1);
-    settingsLayout->addWidget(burbaMultiRadio, 13, 1);
-    settingsLayout->addWidget(burbaParamWidget, 14, 0, 1, 4);
-    settingsLayout->addWidget(defaultContainer, 15, 0, 1, 4);
-    settingsLayout->addWidget(hrLabel_2, 16, 0, 1, 4);
+    //> Beside WPL because both are about what the analyser really saw, but
+    //> deliberately not gated on it: WPL is a density correction and this is
+    //> an optical one, and the bias is there whether or not densities are
+    //> being compensated.
+    settingsLayout->addWidget(spectroCheckBox, 11, 0);
+    settingsLayout->addWidget(spectroWaterCheckBox, 12, 0);
+    settingsLayout->addWidget(burbaCorrCheckBox, 13, 0);
+    settingsLayout->addWidget(burbaTypeLabel, 14, 0, 1, 1, Qt::AlignRight);
+    settingsLayout->addWidget(burbaSimpleRadio, 14, 1);
+    settingsLayout->addWidget(burbaMultiRadio, 15, 1);
+    settingsLayout->addWidget(burbaParamWidget, 16, 0, 1, 4);
+    settingsLayout->addWidget(defaultContainer, 17, 0, 1, 4);
+    //> Between the corrections block and the quality-control one. It sat at
+    //> row 16, with slack rows between it and the quality-control block
+    //> below; the controls inserted above have taken that slack up, and a
+    //> rule drawn across an occupied row overlays the widget there.
+    settingsLayout->addWidget(hrLabel_2, 18, 0, 1, 4);
     settingsLayout->addWidget(qcTitle, 22, 0);
     settingsLayout->addWidget(qcCheckBox, 23, 0);
     settingsLayout->addWidget(qcLabel, 23, 1, Qt::AlignRight);
@@ -570,6 +612,19 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             this, &AdvProcessingOptions::updateBurbaGroup);
     connect(wplCheckBox, &RichTextCheckBox::toggled,
             [=](bool b){ burbaCorrCheckBox->setEnabled(b); });
+    connect(spectroCheckBox, &RichTextCheckBox::clicked,
+            this, [=]()
+            {
+                const bool on = spectroCheckBox->isChecked();
+                ecProject_->setScreenSpectroMethod(on ? 1 : 0);
+                spectroWaterCheckBox->setEnabled(on);
+            });
+    connect(spectroWaterCheckBox, &RichTextCheckBox::clicked,
+            this, [=]()
+            {
+                ecProject_->setScreenSpectroWater(
+                    spectroWaterCheckBox->isChecked() ? 1 : 0);
+            });
     connect(burbaCorrCheckBox, &RichTextCheckBox::toggled, [=](bool checked)
             { ecProject_->setScreenBuCorr(checked); });
     connect(burbaCorrCheckBox, &RichTextCheckBox::toggled,
@@ -891,6 +946,9 @@ void AdvProcessingOptions::reset()
     cecSettingsButton->setEnabled(false);
 
     wplCheckBox->setChecked(ecProject_->defaultSettings.projectGeneral.wpl_meth);
+    spectroCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.spectro_meth);
+    spectroWaterCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.spectro_water);
+    spectroWaterCheckBox->setEnabled(ecProject_->defaultSettings.screenSetting.spectro_meth);
 
     setBurbaDefaultValues();
 
@@ -1005,6 +1063,10 @@ void AdvProcessingOptions::refresh()
     updateCecAvailability();
 
     wplCheckBox->setChecked(ecProject_->generalWplMeth());
+    spectroCheckBox->setChecked(ecProject_->screenSpectroMethod());
+    spectroWaterCheckBox->setChecked(ecProject_->screenSpectroWater());
+    //> The water switch is meaningless on its own.
+    spectroWaterCheckBox->setEnabled(ecProject_->screenSpectroMethod());
 
     burbaCorrCheckBox->setChecked(ecProject_->screenBuCorr());
     burbaCorrCheckBox->setEnabled(ecProject_->generalWplMeth());

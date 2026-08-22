@@ -385,6 +385,20 @@ QWidget *VariableDelegate::createEditor(QWidget* parent,
             connect(dspin, &QDoubleSpinBox::editingFinished,
                     this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
             return dspin;
+        case VariableModel::SPECTROA:
+        case VariableModel::SPECTROB:
+            //> Dimensionless and of order one: it multiplies a mole fraction
+            //> in mol/mol, so a coefficient of a few is already a large
+            //> effect. Signed, because water broadening can raise or lower
+            //> the reported value depending on the line.
+            dspin = new QDoubleSpinBox(parent);
+            dspin->setDecimals(4);
+            dspin->setRange(-100.0, 100.0);
+            dspin->setSingleStep(0.01);
+            dspin->setAccelerated(true);
+            connect(dspin, &QDoubleSpinBox::editingFinished,
+                    this, QOverload<>::of(&VariableDelegate::commitAndCloseEditor));
+            return dspin;
         default:
             return QStyledItemDelegate::createEditor(parent, option, index);
     }
@@ -500,6 +514,8 @@ void VariableDelegate::setEditorData(QWidget* editor,
         case VariableModel::MINTIMELAG:
         case VariableModel::MAXTIMELAG:
         case VariableModel::ERRORVALUE:
+        case VariableModel::SPECTROA:
+        case VariableModel::SPECTROB:
             dspin = dynamic_cast<QDoubleSpinBox*>(editor);
             if (!dspin) { return; }
             dspin->setValue(value.toReal());
@@ -610,6 +626,8 @@ void VariableDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
         case VariableModel::MINTIMELAG:
         case VariableModel::MAXTIMELAG:
         case VariableModel::ERRORVALUE:
+        case VariableModel::SPECTROA:
+        case VariableModel::SPECTROB:
             dspin = dynamic_cast<QDoubleSpinBox*>(editor);
             if (!dspin) { return; }
             value = dspin->value();

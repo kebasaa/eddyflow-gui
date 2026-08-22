@@ -319,6 +319,11 @@ namespace EcIni
     const auto INI_SCREEN_SETTINGS_102  = QStringLiteral("detlim_meth");
     const auto INI_SCREEN_SETTINGS_103  = QStringLiteral("detlim_offset_s");
     const auto INI_SCREEN_SETTINGS_104  = QStringLiteral("detlim_window_s");
+    //> Closed-path spectroscopic correction, Peltola et al. (2014), applied
+    //> point by point. RawProcess_Settings because it acts on the raw series,
+    //> which only RP holds; FCC never redoes it.
+    const auto INI_SCREEN_SETTINGS_105  = QStringLiteral("spectro_meth");
+    const auto INI_SCREEN_SETTINGS_106  = QStringLiteral("spectro_water");
 
     const auto INIGROUP_SCREEN_TESTS = QStringLiteral("RawProcess_Tests");
     const auto INI_SCREEN_TESTS_0    = QStringLiteral("test_sr");

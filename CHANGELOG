@@ -1,6 +1,35 @@
 8.1.0 (2026-08-22)
 
     GUI:
+	- Fix: The spectroscopic coefficient tooltips say that the values are spectroscopic
+	       only, and how to convert a published one. EddyUH divides by the same
+	       polynomial but folds the dilution into it - its a = -1 is pure dilution -
+	       while EddyFlow corrects the density separately and its identity is zero.
+	       Someone holding a Rella (2010) number and a box to type it into had nothing
+	       telling them the two are not the same quantity, and entering it unchanged
+	       would count the dilution twice. Both the Processing Options checkbox and the
+	       Spectroscopic a column header now say so, and give the rule: add one to the
+	       EddyUH value. Pinned by tests/test_spectroscopic_contract_static.py.
+	- New feature: "Remove the spectroscopic effect of water vapour", on the Processing
+	       Options page beside the density compensation, writing the engine's new
+	       spectro_meth. Water broadens the absorption lines a laser analyser
+	       measures, so each affected column is divided sample by sample by
+	       1 + a*chi_q + b*chi_q^2, using the water its own analyser read at the same
+	       instant. Deliberately not gated on WPL, and the tooltip says why: WPL is a
+	       density correction and this is an optical one, and the bias is in what the
+	       instrument reported whether or not densities are being compensated.
+	       The per-column a and b are two new rows in the Raw File Description, named
+	       Spectroscopic a and b so that nobody confuses them with Gain value and
+	       Offset value directly above, which are the linear calibration and have
+	       nothing to do with this - both tooltips say so. Zero, the default, leaves
+	       the column untouched.
+	- New feature: "Also correct the water channel (EddyUH form, unpublished)", beneath
+	       it and greyed until it is switched on. It applies the same division to each
+	       hygrometer against its own reading, which is self-broadening. The tooltip
+	       states plainly that this is <b>not part of the published Peltola et al.
+	       (2014) result</b>, that EddyUH does it with a coefficient whose derivation
+	       its own source says is not published anywhere, and that it should be
+	       selected deliberately and reported. Off by default.
 	- New feature: Billesbach (2011) joins the random uncertainty menu, writing the
 	       engine's ru_meth = 4. It estimates a noise floor by reordering each scalar
 	       at random twenty times and averaging the covariance that survives: what

@@ -236,6 +236,8 @@ public:
     void setScreenWOffset(double d);
     void setScreenWBoost(int n);
     void setScreenDetlimMethod(int n);
+    void setScreenSpectroMethod(int n);
+    void setScreenSpectroWater(int n);
     void setScreenDetlimOffset(double d);
     void setScreenDetlimWindow(double d);
     void setScreenFlowDistortion(int n);
@@ -695,6 +697,10 @@ public:
     //> the default: the feature adds a column and must not change what an
     //> existing project computes.
     int screenDetlimMethod() const { return ec_project_state_.screenSetting.detlim_meth; }
+    //> Closed-path spectroscopic correction. Zero is off, which is the
+    //> default; the water channel needs its own switch on top.
+    int screenSpectroMethod() const { return ec_project_state_.screenSetting.spectro_meth; }
+    int screenSpectroWater() const { return ec_project_state_.screenSetting.spectro_water; }
     double screenDetlimOffset() const { return ec_project_state_.screenSetting.detlim_offset_s; }
     double screenDetlimWindow() const { return ec_project_state_.screenSetting.detlim_window_s; }
     int screenFlowDistortion() const { return ec_project_state_.screenSetting.flow_distortion; }

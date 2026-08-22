@@ -994,6 +994,11 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
             //> -9999 for a file written before the key existed, which is what
             //> the engine assumes for such a file anyway.
             var.setErrorValue(project_ini.value(prefix + DlIni::INI_VARDESC_ERROR_VALUE, -9999.0).toReal());
+            //> Absent means zero, which makes the correction the identity -
+            //> the right reading of a metadata file written before these
+            //> keys existed, which declares no analyser characterisation.
+            var.setSpectroA(project_ini.value(prefix + DlIni::INI_VARDESC_SPECTRO_A, 0.0).toReal());
+            var.setSpectroB(project_ini.value(prefix + DlIni::INI_VARDESC_SPECTRO_B, 0.0).toReal());
             addVariable(var);
         }
     project_ini.endGroup();
@@ -1369,6 +1374,10 @@ bool DlProject::saveProject(const QString& filename)
                                  QString::number(var.maxTimelag(), 'f', 2));
             project_ini.setValue(prefix + DlIni::INI_VARDESC_ERROR_VALUE,
                                  QString::number(var.errorValue(), 'f', 4));
+            project_ini.setValue(prefix + DlIni::INI_VARDESC_SPECTRO_A,
+                                 QString::number(var.spectroA(), 'f', 4));
+            project_ini.setValue(prefix + DlIni::INI_VARDESC_SPECTRO_B,
+                                 QString::number(var.spectroB(), 'f', 4));
             ++k;
         }
     project_ini.endGroup();

@@ -146,6 +146,12 @@ namespace DlIni
     //> logger-specific value, and is written as -9999 so the default is visible
     //> rather than implied.
     const auto INI_VARDESC_ERROR_VALUE  = QStringLiteral("error_value");
+    //> Peltola et al. (2014) water-broadening coefficients. Named apart from
+    //> a_value and b_value, which are the linear calibration gain and offset:
+    //> the engine matches tag names exactly and forbids one being a substring
+    //> of another, and a reader would confuse them anyway.
+    const auto INI_VARDESC_SPECTRO_A    = QStringLiteral("spectro_a");
+    const auto INI_VARDESC_SPECTRO_B    = QStringLiteral("spectro_b");
 } // namespace DlIni
 
 #endif // DLINIDEFS_H

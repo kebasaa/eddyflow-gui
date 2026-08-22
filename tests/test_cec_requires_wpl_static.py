@@ -141,8 +141,19 @@ class TheTriangleMarksTheInconsistentState(unittest.TestCase):
         belongs to."""
         self.assertIn("wplBox->addWidget(wplCheckBox);", self.page)
         self.assertIn("wplBox->addWidget(wplWarningLabel);", self.page)
-        self.assertIn("settingsLayout->addLayout(wplBox, 10, 0);", self.page)
-        self.assertNotIn("settingsLayout->addWidget(wplCheckBox, 10, 0);", self.page)
+        #> Column 0, in one cell, at whatever row the grid has grown to. The
+        #> row was pinned here and moved when a control was inserted above;
+        #> what this test is about is the column and the single cell, so it
+        #> asks for those and lets the row float.
+        self.assertRegex(
+            self.page,
+            r"settingsLayout->addLayout\(wplBox, \d+, 0\);",
+            "the WPL box is no longer laid out as one cell in column 0")
+        self.assertNotRegex(
+            self.page,
+            r"settingsLayout->addWidget\(wplCheckBox, \d+, 0\);",
+            "the checkbox is back in the grid on its own, which strands the "
+            "warning icon away from its text")
 
 
 class TheUnavailableTooltipDoesNotStick(unittest.TestCase):

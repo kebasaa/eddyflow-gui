@@ -367,6 +367,11 @@ struct ScreenSettingState
     int detlim_meth = 0;
     qreal detlim_offset_s = 100.0;
     qreal detlim_window_s = 50.0;
+    //> Closed-path spectroscopic correction, Peltola et al. (2014). Off, and
+    //> the water channel off within that: correcting a hygrometer against its
+    //> own reading is not part of the published result.
+    int spectro_meth = 0;
+    int spectro_water = 0;
 };
 
 /// \struct ScreenTestState
