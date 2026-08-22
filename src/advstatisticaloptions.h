@@ -258,7 +258,7 @@ private:
 
     //> Which per-gas setting a value belongs to. Used only to pick the
     //> built-in default for a gas that has none of its own.
-    enum class GasParam { SrLim, AlMin, AlMax, DsHf, DsSf, TlDef };
+    enum class GasParam { SrLim, StepLim, AlMin, AlMax, DsHf, DsSf, TlDef };
 
     void createTabWidget();
     void rebuildGasRows();
@@ -285,6 +285,19 @@ private:
     QWidget* tab0;
     QRadioButton *vickersDespikingRadio;
     QRadioButton *mauderDespikingRadio;
+    //> EddyUH's spi_method 1. Its parameters are absolute step limits, which
+    //> share nothing with the sigma multipliers the other two use, so it
+    //> carries its own four sonic spins and its own per-gas column.
+    QRadioButton *stepDespikingRadio;
+    ClickLabel* stepLabel_u;
+    ClickLabel* stepLabel_v;
+    ClickLabel* stepLabel_w;
+    ClickLabel* stepLabel_ts;
+    QDoubleSpinBox* stepSpin_u;
+    QDoubleSpinBox* stepSpin_v;
+    QDoubleSpinBox* stepSpin_w;
+    QDoubleSpinBox* stepSpin_ts;
+    QString stepGasTip_;
     QButtonGroup* despikingRadioGroup;
     QLabel* spikeGraphLabel;
     QSpinBox* despSpin_1;
@@ -443,6 +456,7 @@ private:
     QString dsSoftTip_;
 
     QVector<GasRow> srRows_;        //< spike plausibility range
+    QVector<GasRow> stepRows_;      //< consecutive-difference step limit
     QVector<GasPairRow> alRows_;    //< absolute limits, min and max
     QVector<GasPairRow> dsRows_;    //< discontinuities, hard and soft flag
     QVector<GasRow> tlRows_;        //< nominal time lag

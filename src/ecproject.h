@@ -407,6 +407,10 @@ public:
     void setScreenParamDsSfGas4(double n);
     void setScreenParamDsSfVar(double n);
     void setScreenParamDespikeVm(int n);
+    void setScreenParamSrStepU(double d);
+    void setScreenParamSrStepV(double d);
+    void setScreenParamSrStepW(double d);
+    void setScreenParamSrStepTs(double d);
     void setScreenParamTlHfLim(double n);
     void setScreenParamTlSfLim(double n);
     void setScreenParamTlDefCo2(double n);
@@ -870,6 +874,11 @@ public:
     double screenParamDsSfGas4() const { return ec_project_state_.screenParam.ds_sf_other; }
     double screenParamDsSfVar() const { return ec_project_state_.screenParam.ds_sf_var; }
     int screenParamDespikeVm() const { return ec_project_state_.screenParam.despike_vm; }
+    //> Consecutive-difference step limits, in each variable's own units.
+    double screenParamSrStepU() const { return ec_project_state_.screenParam.sr_step_u; }
+    double screenParamSrStepV() const { return ec_project_state_.screenParam.sr_step_v; }
+    double screenParamSrStepW() const { return ec_project_state_.screenParam.sr_step_w; }
+    double screenParamSrStepTs() const { return ec_project_state_.screenParam.sr_step_ts; }
 
     double screenParamTlHfLim() const { return ec_project_state_.screenParam.tl_hf_lim; }
     double screenParamTlSfLim() const { return ec_project_state_.screenParam.tl_sf_lim; }

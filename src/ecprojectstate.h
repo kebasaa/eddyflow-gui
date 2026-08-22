@@ -462,6 +462,13 @@ struct ScreenParamState
     qreal aa_lim = 10.0;
     qreal ns_hf_lim = 0.5;
     int despike_vm = 0;
+    //> Consecutive-difference step limits, in each variable's own units.
+    //> Zero is "not stated" and leaves that column undespiked, which is the
+    //> shape EddyUH's dlim has - a NaN entry there means the same.
+    qreal sr_step_u = 10.0;
+    qreal sr_step_v = 10.0;
+    qreal sr_step_w = 5.0;
+    qreal sr_step_ts = 10.0;
 };
 
 /// \struct ScreenTiltState

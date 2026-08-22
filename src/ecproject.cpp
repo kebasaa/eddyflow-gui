@@ -570,7 +570,13 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_uv, previousProject.ec_project_state_.screenParam.ds_sf_uv)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_var, previousProject.ec_project_state_.screenParam.ds_sf_var)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_w, previousProject.ec_project_state_.screenParam.ds_sf_w)
-               && ec_project_state_.screenParam.despike_vm == previousProject.ec_project_state_.screenParam.despike_vm;
+               && ec_project_state_.screenParam.despike_vm == previousProject.ec_project_state_.screenParam.despike_vm
+               //> The step limits change which samples are replaced, so they
+               //> invalidate a computed dataset exactly as the method does.
+               && qFuzzyCompare(ec_project_state_.screenParam.sr_step_u, previousProject.ec_project_state_.screenParam.sr_step_u)
+               && qFuzzyCompare(ec_project_state_.screenParam.sr_step_v, previousProject.ec_project_state_.screenParam.sr_step_v)
+               && qFuzzyCompare(ec_project_state_.screenParam.sr_step_w, previousProject.ec_project_state_.screenParam.sr_step_w)
+               && qFuzzyCompare(ec_project_state_.screenParam.sr_step_ts, previousProject.ec_project_state_.screenParam.sr_step_ts);
     }
 
     subTest = (ec_project_state_.screenTest.test_tl && previousProject.ec_project_state_.screenTest.test_tl);
@@ -1151,6 +1157,10 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenParam.ds_sf_other = defaultEcProjectState.screenParam.ds_sf_other;
     ec_project_state_.screenParam.ds_sf_var = defaultEcProjectState.screenParam.ds_sf_var;
     ec_project_state_.screenParam.despike_vm = defaultEcProjectState.screenParam.despike_vm;
+    ec_project_state_.screenParam.sr_step_u = defaultEcProjectState.screenParam.sr_step_u;
+    ec_project_state_.screenParam.sr_step_v = defaultEcProjectState.screenParam.sr_step_v;
+    ec_project_state_.screenParam.sr_step_w = defaultEcProjectState.screenParam.sr_step_w;
+    ec_project_state_.screenParam.sr_step_ts = defaultEcProjectState.screenParam.sr_step_ts;
     ec_project_state_.screenParam.do_extlim_dw = defaultEcProjectState.screenParam.do_extlim_dw;
     ec_project_state_.screenParam.do_hf1_lim = defaultEcProjectState.screenParam.do_hf1_lim;
     ec_project_state_.screenParam.do_hf2_lim = defaultEcProjectState.screenParam.do_hf2_lim;
@@ -2015,6 +2025,10 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_33, QString::number(ec_project_state_.screenParam.ds_sf_t, 'f', 2));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_36, QString::number(ec_project_state_.screenParam.ds_sf_var, 'f', 2));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_60, ec_project_state_.screenParam.despike_vm);
+        project_ini.setValue(EcIni::INI_SCREEN_PARAM_61, ec_project_state_.screenParam.sr_step_u);
+        project_ini.setValue(EcIni::INI_SCREEN_PARAM_62, ec_project_state_.screenParam.sr_step_v);
+        project_ini.setValue(EcIni::INI_SCREEN_PARAM_63, ec_project_state_.screenParam.sr_step_w);
+        project_ini.setValue(EcIni::INI_SCREEN_PARAM_64, ec_project_state_.screenParam.sr_step_ts);
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_37, QString::number(ec_project_state_.screenParam.tl_hf_lim, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_38, QString::number(ec_project_state_.screenParam.tl_sf_lim, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_41, QString::number(ec_project_state_.screenParam.aa_min, 'f', 1));
@@ -2042,6 +2056,17 @@ bool EcProject::saveEcProject(const QString &filename)
                 {
                     project_ini.setValue(p + QStringLiteral("sr_lim"),
                                          QString::number(proc.srLim, 'f', 1));
+                }
+                //> Six decimals for the same reason as the absolute limits
+                //> below: this is a step in the gas's OWN unit, so a species
+                //> reported in ppb has a plausible limit down at 1e-3 and
+                //> one decimal would round it to zero - which the engine
+                //> reads as "no limit stated" and leaves the column
+                //> undespiked without saying why.
+                if (proc.stepLim >= 0.0)
+                {
+                    project_ini.setValue(p + QStringLiteral("step_lim"),
+                                         QString::number(proc.stepLim, 'f', 6));
                 }
                 //> Six decimals, not three. These are umol/mol (mmol/mol for
                 //> water) whatever unit the column reports, so a gas measured
@@ -3719,6 +3744,21 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenParam.despike_vm
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_60,
                                     defaultEcProjectState.screenParam.despike_vm).toInt();
+        //> Zero is a legitimate value here - it means "do not despike this
+        //> column" - so a negative one is the only thing to reject.
+        const auto readStep = [&](const QString& key, qreal fallback)
+        {
+            const auto v = project_ini.value(key, fallback).toDouble();
+            return v >= 0.0 ? v : fallback;
+        };
+        ec_project_state_.screenParam.sr_step_u = readStep(
+            EcIni::INI_SCREEN_PARAM_61, defaultEcProjectState.screenParam.sr_step_u);
+        ec_project_state_.screenParam.sr_step_v = readStep(
+            EcIni::INI_SCREEN_PARAM_62, defaultEcProjectState.screenParam.sr_step_v);
+        ec_project_state_.screenParam.sr_step_w = readStep(
+            EcIni::INI_SCREEN_PARAM_63, defaultEcProjectState.screenParam.sr_step_w);
+        ec_project_state_.screenParam.sr_step_ts = readStep(
+            EcIni::INI_SCREEN_PARAM_64, defaultEcProjectState.screenParam.sr_step_ts);
         ec_project_state_.screenParam.tl_hf_lim
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_37,
                                     defaultEcProjectState.screenParam.tl_hf_lim).toDouble();
@@ -3765,6 +3805,7 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
                 if (!value.isEmpty()) { target = value.toDouble(); }
             };
             readInto(QStringLiteral("sr_lim"), proc.srLim);
+            readInto(QStringLiteral("step_lim"), proc.stepLim);
             readInto(QStringLiteral("al_min"), proc.alMin);
             readInto(QStringLiteral("al_max"), proc.alMax);
             readInto(QStringLiteral("ds_hf"), proc.dsHf);
@@ -4432,6 +4473,7 @@ static void seedGasProcessingGaps(GasProcessingSettings& proc,
     }
 
     put(proc.srLim, d.srLim);
+    put(proc.stepLim, d.stepLim);
     put(proc.alMin, d.alMin);
     put(proc.alMax, d.alMax);
     put(proc.dsHf, d.dsHf);
@@ -6455,6 +6497,30 @@ void EcProject::setScreenParamDsSfUV(double n)
 void EcProject::setScreenParamDsSfW(double n)
 {
     ec_project_state_.screenParam.ds_sf_w = n;
+    setModified(true);
+}
+
+void EcProject::setScreenParamSrStepU(double d)
+{
+    ec_project_state_.screenParam.sr_step_u = d;
+    setModified(true);
+}
+
+void EcProject::setScreenParamSrStepV(double d)
+{
+    ec_project_state_.screenParam.sr_step_v = d;
+    setModified(true);
+}
+
+void EcProject::setScreenParamSrStepW(double d)
+{
+    ec_project_state_.screenParam.sr_step_w = d;
+    setModified(true);
+}
+
+void EcProject::setScreenParamSrStepTs(double d)
+{
+    ec_project_state_.screenParam.sr_step_ts = d;
     setModified(true);
 }
 

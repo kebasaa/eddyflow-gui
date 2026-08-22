@@ -413,6 +413,14 @@ namespace EcIni
     const auto INI_SCREEN_PARAM_58   = QStringLiteral("tl_def_ch4");
     const auto INI_SCREEN_PARAM_59   = QStringLiteral("tl_def_gas4");
     const auto INI_SCREEN_PARAM_60   = QStringLiteral("despike_vm");
+    //> Consecutive-difference despiking, EddyUH's spi_method 1. Absolute step
+    //> limits in each variable's own units, so four keys rather than the two
+    //> the Vickers sigma multipliers share: a kelvin is not a metre per
+    //> second.
+    const auto INI_SCREEN_PARAM_61   = QStringLiteral("sr_step_u");
+    const auto INI_SCREEN_PARAM_62   = QStringLiteral("sr_step_v");
+    const auto INI_SCREEN_PARAM_63   = QStringLiteral("sr_step_w");
+    const auto INI_SCREEN_PARAM_64   = QStringLiteral("sr_step_ts");
 
     const auto INIGROUP_SCREEN_TILT   = QStringLiteral("RawProcess_TiltCorrection_Settings");
     const auto INI_SCREEN_TILT_0      = QStringLiteral("pf_start_date");

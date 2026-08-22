@@ -32,7 +32,8 @@ RECORD_SRC = GUI_ROOT / "src" / "measurement_record.cpp"
 BASIC_PAGE_SRC = GUI_ROOT / "src" / "basicsettingspage.cpp"
 
 #: The settings the Statistical Analysis page owns, as record suffixes.
-SUFFIXES = ("sr_lim", "al_min", "al_max", "ds_hf", "ds_sf", "tl_def")
+SUFFIXES = ("sr_lim", "step_lim", "al_min", "al_max", "ds_hf", "ds_sf",
+            "tl_def")
 #: The Spectral Corrections page, written in a FluxCorrection* section.
 #:
 #: `months` is the odd one out - a group list like `1-6,7-12` rather than a
@@ -304,6 +305,18 @@ class LegacySettingsMigration(unittest.TestCase):
         self.defaults = src[helper: src.index("\n}\n", helper) + 3]
         self.fields = set(re.findall(r'proc\.(\w+)', self.body + self.defaults))
 
+    #: Settings that never had a flat key, so there is nothing to migrate
+    #: FROM. A record created before one of these existed simply carries its
+    #: sentinel, which is exactly what "not stated" means for it - unlike the
+    #: migrated settings, where the sentinel would silently mean "use the
+    #: built-in default" and lose a number the project really held.
+    #:
+    #:   stepLim  consecutive-difference despiking arrived with the method
+    #:            itself, after the flat keys were retired. Its sentinel means
+    #:            "do not despike this column", which is a decision and not a
+    #:            missing value.
+    NEVER_HAD_A_FLAT_KEY = {"stepLim"}
+
     def test_every_processing_setting_is_migrated(self):
         """The migration must cover all of GasProcessingSettings."""
         hdr = _read(RECORD_HDR)
@@ -311,7 +324,7 @@ class LegacySettingsMigration(unittest.TestCase):
         struct = struct[: struct.index("};")]
         declared = set(re.findall(r'(?:qreal|int)\s+(\w+)\s*=', struct))
 
-        missing = sorted(declared - self.fields)
+        missing = sorted(declared - self.fields - self.NEVER_HAD_A_FLAT_KEY)
         self.assertFalse(
             missing,
             "these settings would be lost when the flat keys are retired: %s"

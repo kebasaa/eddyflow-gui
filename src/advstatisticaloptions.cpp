@@ -322,6 +322,14 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
 
     connect(despikingRadioGroup, QOverload<int>::of(&QButtonGroup::idClicked),
             this, &AdvStatisticalOptions::despikingRadioClicked);
+    connect(stepSpin_u, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [=](double d) { ecProject_->setScreenParamSrStepU(d); });
+    connect(stepSpin_v, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [=](double d) { ecProject_->setScreenParamSrStepV(d); });
+    connect(stepSpin_w, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [=](double d) { ecProject_->setScreenParamSrStepW(d); });
+    connect(stepSpin_ts, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [=](double d) { ecProject_->setScreenParamSrStepTs(d); });
     connect(despikingRadioGroup, QOverload<int>::of(&QButtonGroup::idClicked),
             this, &AdvStatisticalOptions::updateDespikingMethod);
     connect(despSpin_1, QOverload<int>::of(&QSpinBox::valueChanged),
@@ -537,10 +545,61 @@ void AdvStatisticalOptions::createTabWidget()
     vickersDespikingRadio->setText(tr("Vickers and Mahrt, 1997"));
     mauderDespikingRadio = new QRadioButton;
     mauderDespikingRadio->setText(tr("Mauder et al., 2013"));
+    stepDespikingRadio = new QRadioButton;
+    stepDespikingRadio->setText(tr("Consecutive difference (EddyUH)"));
+    const auto stepTip = tr("<b>Consecutive difference:</b> Replaces a sample "
+        "that steps further from the one before it than the limit you state, "
+        "and counts it as a spike. A rate-of-change limit, <b>not</b> a "
+        "statistical outlier test: nothing here is scaled by a standard "
+        "deviation and nothing iterates, so the two methods above and this "
+        "one do not take the same kind of number."
+        "<br><br>The limits are <b>absolute, in each variable's own unit</b> "
+        "- metres per second for the wind, kelvin for the sonic temperature, "
+        "and the gas's own concentration unit for a gas. Leave one at zero "
+        "and that column is not despiked at all; the run log names every "
+        "column it passed over for that reason."
+        "<br><br>This is EddyUH's <i>spi_method 1</i>. Its defaults here are "
+        "the values the CH-LAE project used. Worth knowing before trusting "
+        "them: a limit far larger than the signal's own sample-to-sample "
+        "noise removes nothing, which is what those values do to a "
+        "high-precision analyser's trace-gas channels.");
+    stepDespikingRadio->setToolTip(stepTip);
+
+    stepLabel_u = new ClickLabel(tr("u step limit : "));
+    stepLabel_v = new ClickLabel(tr("v step limit : "));
+    stepLabel_w = new ClickLabel(tr("w step limit : "));
+    stepLabel_ts = new ClickLabel(tr("Sonic temperature step limit : "));
+    const auto mkStep = [&](QDoubleSpinBox*& spin, const QString& suffix)
+    {
+        spin = new QDoubleSpinBox;
+        spin->setDecimals(3);
+        spin->setRange(0.0, 100000.0);
+        spin->setSingleStep(0.5);
+        spin->setAccelerated(true);
+        spin->setSuffix(suffix);
+        spin->setSpecialValueText(tr("not despiked"));
+        spin->setToolTip(stepTip);
+    };
+    mkStep(stepSpin_u, tr("  [m+1s-1]"));
+    mkStep(stepSpin_v, tr("  [m+1s-1]"));
+    mkStep(stepSpin_w, tr("  [m+1s-1]"));
+    mkStep(stepSpin_ts, tr("  [K]"));
+    stepLabel_u->setToolTip(stepTip);
+    stepLabel_v->setToolTip(stepTip);
+    stepLabel_w->setToolTip(stepTip);
+    stepLabel_ts->setToolTip(stepTip);
+    stepGasTip_ = tr("<b>Step limit:</b> The largest step this gas may take "
+        "from one sample to the next, in its own concentration unit. Zero "
+        "leaves the column undespiked. Not a multiple of anything - see the "
+        "method's own tooltip.");
 
     despikingRadioGroup = new QButtonGroup(this);
     despikingRadioGroup->addButton(vickersDespikingRadio, 0);
     despikingRadioGroup->addButton(mauderDespikingRadio, 1);
+    //> Two, not two-in-sequence: the id IS the ini value, and the engine
+    //> reads '2' for this method. Renumbering to keep the rows contiguous
+    //> would change the method of every project that states one.
+    despikingRadioGroup->addButton(stepDespikingRadio, 2);
 
     despLabel_1 = new ClickLabel(tr("Maximum number of consecutive outliers : "));
     despLabel_1->setToolTip(tr("<b>Maximum number of consecutive outliers:</b> Spikes are detected as outliers with respect to a certain plausibility range. However, if a series of consecutive outliers is found, it might be a sign of a physical trend. Specify <i>n</i>, the maximum number of consecutive outliers that define a spike. If more than <i>n</i> consecutive outliers are found, they are not flagged or removed. Note, however, that those values may be eliminated on the basis of a physical plausibility test (<b><i>Absolute limits</i></b> test)."));
@@ -600,7 +659,19 @@ void AdvStatisticalOptions::createTabWidget()
     tab0Grid->addWidget(despLabel_8, 0, 2, Qt::AlignRight);
     tab0Grid->addWidget(despSpin_8, 0, 3);
     tab0Grid->addWidget(mauderDespikingRadio, 1, 0, 1, 2);
-    tab0Grid->addWidget(despFilterCheckBox, 1, 3, 1, -1);
+    tab0Grid->addWidget(despFilterCheckBox, 1, 3);
+    //> Its own column pair, because its numbers are absolute limits and the
+    //> ones to the left are sigma multipliers. Side by side in the same
+    //> column would invite reading one as the other.
+    tab0Grid->addWidget(stepDespikingRadio, 0, 4, 1, 2);
+    tab0Grid->addWidget(stepLabel_u, 1, 4, Qt::AlignRight);
+    tab0Grid->addWidget(stepSpin_u, 1, 5);
+    tab0Grid->addWidget(stepLabel_v, 2, 4, Qt::AlignRight);
+    tab0Grid->addWidget(stepSpin_v, 2, 5);
+    tab0Grid->addWidget(stepLabel_w, 3, 4, Qt::AlignRight);
+    tab0Grid->addWidget(stepSpin_w, 3, 5);
+    tab0Grid->addWidget(stepLabel_ts, 4, 4, Qt::AlignRight);
+    tab0Grid->addWidget(stepSpin_ts, 4, 5);
     tab0Grid->addWidget(questionMark_2, 2, 0);
     tab0Grid->addWidget(spikeGraphLabel, 2, 1, -1, 1, Qt::AlignTop);
     tab0Grid->addWidget(spikeGraphLabel, 2, 1, -1, 1, Qt::AlignTop);
@@ -614,6 +685,8 @@ void AdvStatisticalOptions::createTabWidget()
     tab0Grid->setColumnStretch(1, 0);
     tab0Grid->setColumnStretch(2, 1);
     tab0Grid->setColumnStretch(3, 0);
+    tab0Grid->setColumnStretch(4, 1);
+    tab0Grid->setColumnStretch(5, 0);
     tab0Grid->setContentsMargins(10, 10, 10, 10);
     tab0->setLayout(tab0Grid);
     tab0->setEnabled(false);
@@ -1328,6 +1401,14 @@ double AdvStatisticalOptions::defaultGasParam(const QString& slug,
             if (isH2o) { return d.sr_lim_h2o; }
             if (isCh4) { return d.sr_lim_ch4; }
             return d.sr_lim_other;
+        case GasParam::StepLim:
+            //> Zero, deliberately: an absolute step limit cannot be guessed
+            //> from the species. A carbon dioxide series in ppm and one in
+            //> mol/mol want numbers six orders apart, and the unit is a
+            //> property of the column rather than of the gas. Zero means "not
+            //> despiked", which is the only safe thing to assume, and the run
+            //> log names every column that carries it.
+            return 0.0;
         case GasParam::AlMin:
             if (isCo2) { return d.al_co2_min; }
             if (isH2o) { return d.al_h2o_min; }
@@ -1409,6 +1490,7 @@ double AdvStatisticalOptions::gasParamFor(int gasIndex, GasParam param) const
     switch (param)
     {
         case GasParam::SrLim: if (proc.srLim >= 0.0) { return proc.srLim; } break;
+        case GasParam::StepLim: if (proc.stepLim >= 0.0) { return proc.stepLim; } break;
         case GasParam::AlMin: if (proc.alMin >= 0.0) { return proc.alMin * scale.factor; } break;
         case GasParam::AlMax: if (proc.alMax >= 0.0) { return proc.alMax * scale.factor; } break;
         case GasParam::DsHf:  if (proc.dsHf  >= 0.0) { return proc.dsHf;  } break;
@@ -1446,6 +1528,7 @@ void AdvStatisticalOptions::onGasParamChanged(int gasIndex, GasParam param,
     switch (param)
     {
         case GasParam::SrLim: gases[gasIndex].proc.srLim = value; break;
+        case GasParam::StepLim: gases[gasIndex].proc.stepLim = value; break;
         case GasParam::AlMin: gases[gasIndex].proc.alMin = value / scale.factor; break;
         case GasParam::AlMax: gases[gasIndex].proc.alMax = value / scale.factor; break;
         case GasParam::DsHf:  gases[gasIndex].proc.dsHf  = value; break;
@@ -1465,9 +1548,10 @@ void AdvStatisticalOptions::resetGasParamsToDefault()
     if (!ecProject_) { return; }
 
     const auto& gases = ecProject_->gasColumns();
-    const GasParam params[] = { GasParam::SrLim, GasParam::AlMin,
-                                GasParam::AlMax, GasParam::DsHf,
-                                GasParam::DsSf,  GasParam::TlDef };
+    const GasParam params[] = { GasParam::SrLim, GasParam::StepLim,
+                                GasParam::AlMin, GasParam::AlMax,
+                                GasParam::DsHf,  GasParam::DsSf,
+                                GasParam::TlDef };
     for (int i = 0; i < gases.size(); ++i)
     {
         const auto slug = gases.at(i).slug;
@@ -1493,6 +1577,7 @@ void AdvStatisticalOptions::rebuildGasRows()
     }
 
     for (const auto& row : srRows_) { dropWidget(row.label); dropWidget(row.spin); }
+    for (const auto& row : stepRows_) { dropWidget(row.label); dropWidget(row.spin); }
     for (const auto& row : tlRows_) { dropWidget(row.label); dropWidget(row.spin); }
     for (const auto& row : alRows_)
     {
@@ -1503,6 +1588,7 @@ void AdvStatisticalOptions::rebuildGasRows()
         dropWidget(row.label); dropWidget(row.first); dropWidget(row.second);
     }
     srRows_.clear();
+    stepRows_.clear();
     alRows_.clear();
     dsRows_.clear();
     tlRows_.clear();
@@ -1512,6 +1598,10 @@ void AdvStatisticalOptions::rebuildGasRows()
     // First free row of each grid, after the fixed rows laid out in
     // createTabWidget().
     int srRow = 5;
+    //> The step column starts level with its own four sonic spins above it,
+    //> not with the sigma column, so the two tables read as the separate
+    //> settings they are.
+    int stepRow = 5;
     int alRow = 4;
     int dsRow = 4;
     int tlRow = 2;
@@ -1551,6 +1641,37 @@ void AdvStatisticalOptions::rebuildGasRows()
                     this, [=](double v)
                     { onGasParamChanged(idx, GasParam::SrLim, v); });
             srRows_.append(row);
+        }
+
+        // --- consecutive-difference step limit -------------------------
+        {
+            GasRow row;
+            row.gasIndex = i;
+            row.label = new ClickLabel(tr("%1 : ").arg(name));
+            row.label->setToolTip(stepGasTip_);
+            row.spin = new QDoubleSpinBox;
+            //> Six decimals for the same reason the file carries six: a
+            //> species reported in ppb has a plausible step down at 1e-3,
+            //> and one decimal would round it to "not despiked".
+            row.spin->setDecimals(6);
+            row.spin->setRange(0.0, 1000000.0);
+            row.spin->setSingleStep(0.1);
+            row.spin->setAccelerated(true);
+            row.spin->setSpecialValueText(tr("not despiked"));
+            row.spin->setToolTip(stepGasTip_);
+            row.spin->setValue(gasParamFor(i, GasParam::StepLim));
+
+            tab0Grid_->addWidget(row.label, stepRow, 4, Qt::AlignRight);
+            tab0Grid_->addWidget(row.spin, stepRow, 5);
+            ++stepRow;
+
+            auto spin = row.spin;
+            connect(row.label, &ClickLabel::clicked, this, [=]()
+                    { spin->setFocus(Qt::ShortcutFocusReason); spin->selectAll(); });
+            connect(row.spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                    this, [=](double v)
+                    { onGasParamChanged(idx, GasParam::StepLim, v); });
+            stepRows_.append(row);
         }
 
         // --- absolute limits ------------------------------------------
@@ -1692,13 +1813,22 @@ void AdvStatisticalOptions::rebuildGasRows()
 }
 
 /// The spike table's gas rows follow the despiking method, like the fixed
-/// rows around them: they are Vickers and Mahrt settings only.
+/// rows around them. The sigma column is Vickers and Mahrt's; the step column
+/// beside it belongs to the consecutive difference, so the two are enabled by
+/// different methods and never both at once.
 void AdvStatisticalOptions::setSpikeGasRowsEnabled(bool enabled)
 {
     for (const auto& row : srRows_)
     {
         if (row.label) { row.label->setEnabled(enabled); }
         if (row.spin) { row.spin->setEnabled(enabled); }
+    }
+    const bool stepSelected =
+        ecProject_ && ecProject_->screenParamDespikeVm() == 2;
+    for (const auto& row : stepRows_)
+    {
+        if (row.label) { row.label->setEnabled(stepSelected); }
+        if (row.spin) { row.spin->setEnabled(stepSelected); }
     }
 }
 
@@ -1893,6 +2023,10 @@ void AdvStatisticalOptions::on_nonSteadyCheckBox_clicked(bool checked)
 void AdvStatisticalOptions::setTestDefaultValues()
 {
     vickersDespikingRadio->setChecked(true);
+    stepSpin_u->setValue(ecProject_->defaultSettings.screenParam.sr_step_u);
+    stepSpin_v->setValue(ecProject_->defaultSettings.screenParam.sr_step_v);
+    stepSpin_w->setValue(ecProject_->defaultSettings.screenParam.sr_step_w);
+    stepSpin_ts->setValue(ecProject_->defaultSettings.screenParam.sr_step_ts);
     despikingRadioClicked(ecProject_->defaultSettings.screenParam.despike_vm);
 
     despSpin_1->setValue(ecProject_->defaultSettings.screenParam.sr_num_spk);
@@ -2450,14 +2584,24 @@ void AdvStatisticalOptions::refresh()
     // gas records under the rows, and the values below come from them.
     rebuildGasRows();
 
-    if (ecProject_->screenParamDespikeVm())
+    //> The id IS the ini value, so an unknown one falls to Vickers - which is
+    //> where the engine's own reader sends '0' and nothing else it knows.
+    switch (ecProject_->screenParamDespikeVm())
     {
+    case 1:
         mauderDespikingRadio->setChecked(true);
-    }
-    else
-    {
+        break;
+    case 2:
+        stepDespikingRadio->setChecked(true);
+        break;
+    default:
         vickersDespikingRadio->setChecked(true);
+        break;
     }
+    stepSpin_u->setValue(ecProject_->screenParamSrStepU());
+    stepSpin_v->setValue(ecProject_->screenParamSrStepV());
+    stepSpin_w->setValue(ecProject_->screenParamSrStepW());
+    stepSpin_ts->setValue(ecProject_->screenParamSrStepTs());
     despikingRadioClicked(ecProject_->screenParamDespikeVm());
 
     amplResSpin_1->setValue(ecProject_->screenParamArLim());
@@ -3143,7 +3287,11 @@ bool AdvStatisticalOptions::requestTestSettingsReset()
 // Enable/disable Vickers despiking settings
 void AdvStatisticalOptions::despikingRadioClicked(int b)
 {
-    bool vickersSelected = !b;
+    //> Three methods now, and each half of the page belongs to one of them.
+    //> The sigma settings are Vickers's; the step limits are the consecutive
+    //> difference's; Mauder takes neither.
+    const bool vickersSelected = (b == 0);
+    const bool stepSelected = (b == 2);
 
     despLabel_1->setEnabled(vickersSelected);
     despLabel_2->setEnabled(vickersSelected);
@@ -3151,6 +3299,16 @@ void AdvStatisticalOptions::despikingRadioClicked(int b)
     despSpin_1->setEnabled(vickersSelected);
     despSpin_2->setEnabled(vickersSelected);
     despSpin_3->setEnabled(vickersSelected);
+
+    stepLabel_u->setEnabled(stepSelected);
+    stepLabel_v->setEnabled(stepSelected);
+    stepLabel_w->setEnabled(stepSelected);
+    stepLabel_ts->setEnabled(stepSelected);
+    stepSpin_u->setEnabled(stepSelected);
+    stepSpin_v->setEnabled(stepSelected);
+    stepSpin_w->setEnabled(stepSelected);
+    stepSpin_ts->setEnabled(stepSelected);
+
     setSpikeGasRowsEnabled(vickersSelected);
 }
 

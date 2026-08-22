@@ -1,6 +1,31 @@
 8.1.0 (2026-08-22)
 
     GUI:
+	- New feature: A third despiking method on the Statistical Analysis page,
+	       "Consecutive difference (EddyUH)", writing despike_vm = 2. It replaces a
+	       sample that steps further from the one before it than a stated limit, and
+	       counts it as a spike.
+	       Its settings sit in a column of their own rather than beside the existing
+	       ones, because they are a different kind of number: the two methods above
+	       take sigma multipliers and this one takes ABSOLUTE limits in each
+	       variable's own unit. Side by side in the same column would invite reading
+	       one as the other. Four sonic spins - u, v, w and sonic temperature, since
+	       a kelvin is not a metre per second - and a step column in the per-gas
+	       table beside the plausibility one.
+	       The radio's id IS the ini value: 0, 1, 2, with 2 for the new arm.
+	       Renumbering the group to keep its rows contiguous would silently change
+	       the method of every project that states one, so the third button carries
+	       id 2 and the refresh falls back to Vickers for anything it does not know.
+	       A limit of zero shows as "not despiked" rather than a bare 0, on every one
+	       of those spins, because that is what it means and because the engine will
+	       then pass the column over and say so in the run log. The per-gas default
+	       is zero deliberately: an absolute step cannot be guessed from the species
+	       when the unit belongs to the column. The four sonic defaults are EddyUH's
+	       own values for the CH-LAE project - 10, 10, 5 and 10.
+	       The method and all four limits join the comparison that marks a computed
+	       dataset stale, since despiking changes the series everything later is
+	       computed from.
+	       Pinned by tests/test_despike_step_contract_static.py.
 	- New feature: A "Cospectral model" choice under the low-pass correction methods on
 	       the Spectral Corrections page, writing the engine's new cosp_model.
 	       Six curves: Moncrieff et al. (1997) - the default, and what this
