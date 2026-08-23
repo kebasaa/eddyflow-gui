@@ -1029,13 +1029,7 @@ const QString kH2oSlug = QStringLiteral("h2o");
 //> EcProject::writeEddyProCompatibleKeys().
 } // namespace
 
-/// Whether the project has any H2O to offer.
 
-/// Canonical instrument id of the analyser measuring \a rawColumn.
-///
-/// Read from the metadata rather than parsed out of the table's display text:
-/// the label is translated and formatted for reading, while the id is what
-/// both the project file and the same-analyser rule match on.
 /// Species of the gas in the open slot, as a slug.
 ///
 /// Read from the record rather than from a combo's current text, which is
@@ -1056,6 +1050,11 @@ QString BasicSettingsPage::openGasSpecies() const
     return ecProject_->gasColumns().at(slot).slug;
 }
 
+/// Canonical instrument id of the analyser measuring \a rawColumn.
+///
+/// Read from the metadata rather than parsed out of the table's display text:
+/// the label is translated and formatted for reading, while the id is what
+/// both the project file and the same-analyser rule match on.
 QString BasicSettingsPage::canonicalInstrumentForColumn(int rawColumn) const
 {
     if (!dlProject_ || rawColumn <= 0) { return QString(); }
@@ -1086,12 +1085,6 @@ int BasicSettingsPage::firstGasColumn(const QString& slug) const
     return -1;
 }
 
-/// Add a measurement of \a slug at \a rawColumn.
-///
-/// The first four record positions are the historical slots and stay put even
-/// when empty, because the engine maps record i to gas slot firstGas+i-1;
-/// reordering them would move each gas's settings onto a different species.
-/// Additional measurements are appended after those four.
 /// Why a gas measured on \a rawColumn cannot be added, empty if it can.
 ///
 /// Checked before the record is created rather than after: the engine reads
@@ -1135,6 +1128,12 @@ QString BasicSettingsPage::gasLimitBlockReason(int rawColumn) const
     return QString();
 }
 
+/// Add a measurement of \a slug at \a rawColumn.
+///
+/// The first four record positions are the historical slots and stay put even
+/// when empty, because the engine maps record i to gas slot firstGas+i-1;
+/// reordering them would move each gas's settings onto a different species.
+/// Additional measurements are appended after those four.
 void BasicSettingsPage::addGasRecord(const QString& slug, int rawColumn)
 {
     if (!ecProject_ || slug.isEmpty() || rawColumn <= 0) { return; }
@@ -1324,6 +1323,7 @@ void BasicSettingsPage::removeGasRecord(const QString& slug, int rawColumn)
     ecProject_->setGasColumns(gases);
 }
 
+/// Whether the project has any H2O to offer.
 bool BasicSettingsPage::hasMoistureCandidates() const
 {
     if (!ecProject_) { return false; }
