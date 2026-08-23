@@ -28,6 +28,7 @@ HEADERS += \
     src/dlinstrtab.h \
     src/dlproject.h \
     src/dlprojectstate.h \
+    src/matfile.h \
     src/dlrawfiledesctab.h \
     src/dlsitetab.h \
     src/docchooser.h \
@@ -136,6 +137,7 @@ SOURCES +=  \
     src/dlinidialog.cpp \
     src/dlinstrtab.cpp \
     src/dlproject.cpp \
+    src/matfile.cpp \
     src/dlrawfiledesctab.cpp \
     src/dlsitetab.cpp \
     src/docchooser.cpp \

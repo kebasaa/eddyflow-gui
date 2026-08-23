@@ -1,6 +1,12 @@
 # define libraries to build and link
 # QUAZIP_LIB_DIR and QUAZIP_LIB_NAME can be passed on the qmake command line
 
+# zlib, for the MAT-file reader. QuaZip already pulls it in transitively, but
+# naming it here is what makes matfile.cpp's own use of inflate() legitimate
+# rather than a lucky side effect of link order - and it is present in the
+# MinGW sysroot, on macOS and on every Linux Qt builds against.
+LIBS += -lz
+
 CONFIG(debug, debug|release) {
     win32 {
         # quazip 1.x for Qt6 (debug)
