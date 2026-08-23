@@ -30,6 +30,7 @@
 #include "ecproject.h"
 #include "irga_desc.h"
 #include "matfile.h"
+#include "measurement_record.h"
 #include "variable_desc.h"
 
 #include <QDir>
@@ -66,6 +67,34 @@ const NamePair kVariables[] = {
     //> as ambient would feed the cell's pressure into the air density.
     {"T_C", 15}, {"P_C", 11},
     {"T_A", 12}, {"P_A", 13},
+};
+
+//> The engine's own slug for a column that becomes a measurement record,
+//> which is not the display string above: the metadata writes COS and the
+//> record writes cos. Kind 0 is a gas, 1 is a cell channel; a name absent
+//> from this table gets no record, which is right for wind and for
+//> diagnostics.
+struct SlugEntry
+{
+    const char* eddyuh;
+    const char* slug;
+    int kind;
+};
+
+const SlugEntry kSlugs[] = {
+    {"CO2", "co2", 0},
+    {"H2O", "h2o", 0},
+    {"CH4", "ch4", 0},
+    {"N2O", "n2o", 0},
+    {"COS", "cos", 0},
+    {"CO", "co", 0},
+    {"SO2", "so2", 0},
+    {"O3", "o3", 0},
+    {"NH3", "nh3", 0},
+    {"NO", "no", 0},
+    {"NO2", "no2", 0},
+    {"T_C", "cell_t", 1},
+    {"P_C", "int_p", 1},
 };
 
 const NamePair kUnits[] = {
@@ -709,6 +738,16 @@ bool EddyUhImport::convert(const QString& path, EcProject* ec, DlProject* dl,
         ec->setGeneralFilePrototype(convertPrototype(rf.fileName()));
     }
     ec->setGeneralFileType(Defs::RawFileType::ASCII);
+    //> An EddyUH project always describes generic ASCII files, which carry no
+    //> embedded metadata, so the pair's metadata file is not optional - it is
+    //> the only description of the columns there is. The engine calls this
+    //> use_pfile, and without it it never opens the metadata at all: it falls
+    //> back to an embedded description that does not exist, reports an
+    //> acquisition frequency of zero, parses no records from any file, and
+    //> ends with "EddyFlow was not able to process any raw file". Found by
+    //> running an imported project. The path itself is filled in on save,
+    //> once there is somewhere to put the metadata.
+    ec->setGeneralUseAltMdFile(true);
 
     const int startRow = rawSetup.field(QStringLiteral("startrow")).toInt(1);
     dl->setHeaderRows(qMax(0, startRow - 1));
@@ -757,13 +796,24 @@ bool EddyUhImport::convert(const QString& path, EcProject* ec, DlProject* dl,
     const QString start = asDate(pre.value(QStringLiteral("startdate"))
                                      .toString());
     const QString end = asDate(pre.value(QStringLiteral("enddate")).toString());
-    if (!start.isEmpty())
+    if (!start.isEmpty() && !end.isEmpty())
     {
         ec->setGeneralStartDate(start);
-    }
-    if (!end.isEmpty())
-    {
         ec->setGeneralEndDate(end);
+        //> The dates alone do nothing. The engine honours a range only when
+        //> the subset flag is on AND both times are set: with either time
+        //> left empty it silently processes every file it can find, which is
+        //> a month of work when a week was asked for and no message either
+        //> way. Found by running an imported project over a range it ignored.
+        ec->setGeneralStartTime(QStringLiteral("00:00"));
+        ec->setGeneralEndTime(QStringLiteral("00:00"));
+        ec->setGeneralSubset(1);
+    }
+    else if (!start.isEmpty() || !end.isEmpty())
+    {
+        note(QObject::tr("The EddyUH project states only one end of its date "
+                         "range, so no range was set and every raw file found "
+                         "will be processed."));
     }
 
     //> ---------------------------------------------------------------
@@ -1032,6 +1082,82 @@ bool EddyUhImport::convert(const QString& path, EcProject* ec, DlProject* dl,
                + QStringLiteral(": ") + model;
     };
 
+    //> The canonical id the project's records use - li7200_1, not the
+    //> "Irga 1: LI-7200" the metadata table shows. Same model and the same
+    //> per-type number, spelt the way the engine reads it.
+    auto instrumentId = [&](int i) -> QString {
+        const QString label = instrumentLabel(i);
+        //> DlProject exposes this under its role name; the underlying
+        //> converter is not static.
+        return dl->canonicalInstrumentId(label);
+    };
+
+    //> ---------------------------------------------------------------
+    //> Despiking.
+    //>
+    //> spi_method 1 is EddyUH's consecutive-difference test - replace a
+    //> sample whose step from its predecessor exceeds a per-column limit -
+    //> which is what despike_vm 1 does here. dlim carries those limits, one
+    //> per USED column in Columnorder's order, not per raw column: the
+    //> supplied project has 29 raw columns, 14 of them used, and 14 entries
+    //> in dlim. NaN means the column states no limit and is left undespiked,
+    //> which is the same thing a zero means on this side.
+    //> ---------------------------------------------------------------
+    const int spiMethod = pre.value(QStringLiteral("spi_method")).toInt(0);
+    ec->setScreenParamDespikeVm(spiMethod == 1 ? 1 : 0);
+    if (spiMethod != 0 && spiMethod != 1)
+    {
+        note(QObject::tr("The despiking method is %1, which EddyFlow does not "
+                         "offer. The Vickers and Mauder test was left in "
+                         "place.").arg(spiMethod));
+    }
+
+    QMap<int, double> stepLimit;
+    {
+        const auto order = pre.value(QStringLiteral("Columnorder")).numbers();
+        const auto dlim = pre.value(QStringLiteral("dlim")).numbers();
+        for (int k = 0; k < order.size() && k < dlim.size(); ++k)
+        {
+            const double v = dlim.at(k);
+            //> Not std::isnan alone: MATLAB writes NaN for "no limit" and
+            //> the engine reads a non-positive number the same way, so both
+            //> are dropped here rather than written out as a limit of zero.
+            if (v == v && v > 0.0)
+            {
+                stepLimit.insert(static_cast<int>(order.at(k)), v);
+            }
+        }
+        if (order.size() != dlim.size() && !dlim.isEmpty())
+        {
+            note(QObject::tr("EddyUH lists %1 used columns but %2 despiking "
+                             "limits. The limits were matched in order and the "
+                             "surplus ignored; check them on the Statistical "
+                             "Analysis page.")
+                     .arg(order.size()).arg(dlim.size()));
+        }
+    }
+
+    //> EddyUH's MaxNoSpikes is the number of spikes a period may contain
+    //> before it is rejected. EddyFlow's sr_num_spk is how many consecutive
+    //> outliers make ONE spike - a different quantity with a similar name -
+    //> so it is deliberately not carried across.
+    if (pre.contains(QStringLiteral("MaxNoSpikes")))
+    {
+        note(QObject::tr("EddyUH's maximum spike count (%1 per period) has no "
+                         "EddyFlow equivalent and was not imported: EddyFlow's "
+                         "own spike setting counts consecutive outliers within "
+                         "one spike, which is a different quantity.")
+                 .arg(pre.value(QStringLiteral("MaxNoSpikes")).toInt()));
+    }
+
+    //> An EddyUH project has exactly one sonic, so there is nothing to
+    //> choose between - but the engine still has to be told which instrument
+    //> is it, and left empty it has no wind at all.
+    ec->setGeneralColMasterSonic(instrumentId(0));
+
+    QVector<GasRecord> gasRecords;
+    QVector<MeasurementRecord> cellRecords;
+
     for (int c = 1; c <= nCols; ++c)
     {
         VariableDesc var;
@@ -1068,6 +1194,17 @@ bool EddyUhImport::convert(const QString& path, EcProject* ec, DlProject* dl,
         }
         var.setVariable(variableString(vi));
         var.setInstrument(instrumentLabel(o.instrument));
+
+        //> The wind and the sonic temperature carry their step limits on the
+        //> project rather than on a record, there being no record for them.
+        if (stepLimit.contains(c))
+        {
+            const double lim = stepLimit.value(c);
+            if (vi == 0) { ec->setScreenParamSrStepU(lim); }
+            else if (vi == 1) { ec->setScreenParamSrStepV(lim); }
+            else if (vi == 2) { ec->setScreenParamSrStepW(lim); }
+            else if (vi == 3) { ec->setScreenParamSrStepTs(lim); }
+        }
 
         const QString uhUnit = units.at(o.slot).toString();
         const int ui = lookup(kUnits, uhUnit, -1);
@@ -1127,11 +1264,82 @@ bool EddyUhImport::convert(const QString& path, EcProject* ec, DlProject* dl,
         }
 
         dl->variables()->append(var);
+
+        //> And the project-side record. The metadata says what a column IS;
+        //> the project says which columns this run should USE, and without
+        //> the records the engine finds no gas analyser and processes
+        //> nothing. In the interface these are filled by the metadata read
+        //> that follows an import; built here as well so that a project
+        //> converted without a window open is runnable, and so that the two
+        //> cannot disagree about a mapping EddyUH states outright.
+        if (o.isGas)
+        {
+            for (const auto& e : kSlugs)
+            {
+                if (uhName.compare(QLatin1String(e.eddyuh), Qt::CaseInsensitive)
+                    != 0)
+                {
+                    continue;
+                }
+                const QString instrId = instrumentId(o.instrument);
+                if (e.kind == 0)
+                {
+                    GasRecord g;
+                    g.slug = QLatin1String(e.slug);
+                    g.instrumentId = instrId;
+                    g.rawColumn = c;
+                    //> In the gas's own concentration unit, which is why it
+                    //> lives on the record and not in a shared table.
+                    if (stepLimit.contains(c))
+                    {
+                        g.proc.stepLim = stepLimit.value(c);
+                    }
+                    gasRecords.append(g);
+                }
+                else
+                {
+                    MeasurementRecord m;
+                    m.slug = QLatin1String(e.slug);
+                    m.instrumentId = instrId;
+                    m.rawColumn = c;
+                    cellRecords.append(m);
+                }
+                break;
+            }
+        }
     }
+
+    ec->setGasColumns(gasRecords);
+    ec->setCellColumns(cellRecords);
+    if (gasRecords.isEmpty())
+    {
+        note(QObject::tr("No gas column could be matched to a species "
+                         "EddyFlow knows, so the project will run as an "
+                         "anemometer-only site."));
+    }
+
+    //> Zero is "nothing selected here", which is what a project that
+    //> describes its columns through the records wants. The state's own
+    //> default is -1, meaning nothing has been decided at all, and the engine
+    //> rejects every record of every period on that - silently, reporting
+    //> only that it could not process any raw file. Found by running an
+    //> imported project and getting no output at all.
+    //>
+    //> The ambient temperature and pressure genuinely are absent: EddyUH
+    //> takes them from its meteorological file, not from a raw column.
+    ec->setGeneralColTs(0);
+    ec->setGeneralColAirT(0);
+    ec->setGeneralColAirP(0);
 
     //> ---------------------------------------------------------------
     //> What is simply not in the files.
     //> ---------------------------------------------------------------
+    note(QObject::tr("EddyUH states no absolute limits for any gas - its "
+                     "dlim values are despiking step limits, which are a "
+                     "different test - so the absolute-limits screening will "
+                     "not run. Set a minimum and a maximum per gas under "
+                     "Advanced > Statistical Analysis if you want it."));
+
     note(QObject::tr("EddyUH collects its flux-time options afresh at every "
                      "run and writes them only to the text log beside the "
                      "fluxes, so they are NOT in the project files and could "

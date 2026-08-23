@@ -243,6 +243,126 @@ class TheInstrumentLabelIsTheFormTheWriterParses(unittest.TestCase):
         self.assertIn("crashes the save", SRC)
 
 
+class TheProjectItProducesIsRunnable(unittest.TestCase):
+    """The metadata says what a column IS; the project says which columns the
+    run should USE. Without the second, the engine finds no gas analyser and
+    reports only that it could not process any raw file - which is what
+    happened the first time an imported project was actually run."""
+
+    def test_the_records_are_written(self):
+        self.assertIn("ec->setGasColumns(gasRecords);", SRC)
+        self.assertIn("ec->setCellColumns(cellRecords);", SRC)
+
+    def test_a_record_carries_the_engine_slug_not_the_display_string(self):
+        #> The metadata writes COS and the record writes cos.
+        self.assertIn("kSlugs", SRC)
+        self.assertIn('{"COS", "cos", 0}', SRC)
+        self.assertIn('{"T_C", "cell_t", 1}', SRC)
+        self.assertIn('{"P_C", "int_p", 1}', SRC)
+
+    def test_a_record_names_its_instrument_canonically(self):
+        #> li7200_1, not "Irga 1: LI-7200".
+        self.assertIn("canonicalInstrumentId(label)", SRC)
+
+    def test_the_three_column_keys_are_decided_rather_than_left_undecided(self):
+        #> Their state default is -1, "nothing decided", and the engine
+        #> rejects every record of every period on that - silently. Zero is
+        #> "nothing selected here", which is what a project describing its
+        #> columns through the records means.
+        for setter in ("setGeneralColTs(0)", "setGeneralColAirT(0)",
+                       "setGeneralColAirP(0)"):
+            self.assertIn("ec->" + setter, SRC, setter)
+
+    def test_the_external_metadata_file_is_switched_on(self):
+        #> The engine calls this use_pfile. An EddyUH project always describes
+        #> generic ASCII files, which carry no embedded metadata, so the pair's
+        #> metadata is the only description of the columns there is. Without
+        #> the flag the engine never opens it: it reports an acquisition
+        #> frequency of zero, parses no record from any file, and ends with
+        #> "not able to process any raw file" - which names none of that.
+        self.assertIn("ec->setGeneralUseAltMdFile(true);", SRC)
+        self.assertIn("use_pfile", SRC)
+
+    def test_a_date_range_carries_its_times_and_its_flag(self):
+        #> The engine honours a range only when the subset flag is on AND
+        #> both times are set. With either time empty it silently processes
+        #> every file it can find - a month where a week was asked for, and
+        #> no message either way.
+        block = SRC[SRC.index("if (!start.isEmpty() && !end.isEmpty())"):]
+        block = block[:block.index("else if")]
+        self.assertIn('setGeneralStartTime(QStringLiteral("00:00"))', block)
+        self.assertIn('setGeneralEndTime(QStringLiteral("00:00"))', block)
+        self.assertIn("setGeneralSubset(1)", block)
+
+    def test_half_a_range_sets_none_of_it(self):
+        #> A start with no end would otherwise run to the last file there is.
+        self.assertIn("states only one end of its date", SRC)
+
+    def test_the_master_sonic_is_named(self):
+        #> One sonic, so nothing to choose between - but left empty the
+        #> engine has no wind at all.
+        self.assertIn("ec->setGeneralColMasterSonic(instrumentId(0));", SRC)
+
+    def test_the_reason_is_recorded_where_it_will_be_read(self):
+        self.assertIn("could not process any raw file", SRC)
+
+    def test_an_import_with_no_recognised_gas_says_so(self):
+        self.assertIn("anemometer-only site", SRC)
+
+    def test_the_interface_still_re_reads_the_metadata(self):
+        #> The importer builds the records itself so a headless conversion
+        #> runs, but the Basic Settings page keeps its own view and must be
+        #> told - exactly as after an EddyPro import.
+        self.assertIn("emit updateMetadataReadRequest();", UH_FN)
+
+
+class TheDespikingComesAcross(unittest.TestCase):
+    """``spi_method`` 1 is EddyUH's consecutive-difference test, which is what
+    ``despike_vm`` 1 does here - the capability exists precisely so an EddyUH
+    project can be reproduced."""
+
+    def test_the_method_is_mapped(self):
+        self.assertIn("ec->setScreenParamDespikeVm(spiMethod == 1 ? 1 : 0);",
+                      SRC)
+
+    def test_the_limits_are_indexed_by_used_column_not_raw_column(self):
+        #> dlim has one entry per entry of Columnorder, not one per raw
+        #> column: 29 raw columns, 14 used, 14 limits. Indexing it by raw
+        #> column would put the water limit on the sonic temperature.
+        block = SRC[SRC.index("QMap<int, double> stepLimit;"):]
+        block = block[:block.index(chr(10) + "    }")]
+        self.assertIn('QStringLiteral("Columnorder")', block)
+        self.assertIn("order.at(k)", block)
+
+    def test_a_nan_limit_is_dropped_rather_than_written_as_zero(self):
+        block = SRC[SRC.index("QMap<int, double> stepLimit;"):]
+        block = block[:block.index(chr(10) + "    }")]
+        #> v == v is the NaN test; the engine reads a non-positive number as
+        #> "no limit" too, so both go the same way.
+        self.assertIn("v == v && v > 0.0", block)
+
+    def test_the_wind_limits_go_on_the_project_and_the_gas_ones_on_the_record(self):
+        for setter in ("setScreenParamSrStepU", "setScreenParamSrStepV",
+                       "setScreenParamSrStepW", "setScreenParamSrStepTs"):
+            self.assertIn("ec->%s(lim)" % setter, SRC, setter)
+        self.assertIn("g.proc.stepLim = stepLimit.value(c);", SRC)
+
+    def test_the_spike_count_is_refused_rather_than_mistranslated(self):
+        #> EddyUH's MaxNoSpikes is how many spikes a period may contain;
+        #> EddyFlow's sr_num_spk is how many consecutive outliers make one
+        #> spike. Similar names, different quantities.
+        self.assertNotIn("setScreenParamSrNumSpk", SRC)
+        self.assertIn("MaxNoSpikes", SRC)
+        #> Split across source lines, so the assertion is on a fragment.
+        self.assertIn("has no ", SRC)
+        self.assertIn("EddyFlow equivalent and was not imported", SRC)
+
+    def test_the_absent_absolute_limits_are_reported(self):
+        #> Not the same test as dlim, and without them the screening does not
+        #> run - which the engine warns about at every run.
+        self.assertIn("states no absolute limits", SRC)
+
+
 class TheSiblingsAreOptional(unittest.TestCase):
 
     def test_they_are_matched_on_the_stem_not_a_full_name(self):

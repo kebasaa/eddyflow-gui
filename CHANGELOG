@@ -1,6 +1,65 @@
 8.1.0 (2026-08-22)
 
     GUI:
+	- Fix: An imported EddyUH project could not be run. It carried no gas records,
+       no master sonic, no column selection and no external-metadata flag, so
+       the engine found no gas analyser, reported an acquisition frequency of
+       zero, parsed no record from any raw file, and ended with "EddyFlow was
+       not able to process any raw file" - which names none of that. Five
+       things were missing, each found by running the imported project:
+         * use_pfile. An EddyUH project always describes generic ASCII files,
+           which carry no embedded metadata, so the pair's metadata file is
+           the only description of the columns there is. Without the flag the
+           engine never opens it.
+         * The gas and cell records. The metadata says what a column IS; the
+           project says which columns the run should USE. In the interface
+           these are filled by the metadata read that follows an import; they
+           are now built by the importer as well, so a project converted
+           without a window open is runnable.
+         * master_sonic. One sonic, nothing to choose between - but left
+           empty the engine has no wind at all.
+         * col_ts, col_air_t and col_air_p. Their state default is -1,
+           "nothing decided", which the engine reads as no selection at all.
+           Zero is "nothing selected here", which is what a project that
+           describes its columns through the records means.
+         * pr_start_time and pr_end_time. The engine honours a date range
+           only when the subset flag is on AND both times are set; with
+           either empty it silently processes every file it can find.
+       The interface also now emits its metadata-read request after an EddyUH
+       import, as it already did after an EddyPro one, so the Basic Settings
+       page agrees with the records the conversion wrote.
+	- New feature: The importer carries EddyUH's despiking across. spi_method 1
+       is its consecutive-difference test, which is what despike_vm 1 does
+       here, and dlim carries the per-column step limits - one per USED column
+       in Columnorder's order, not one per raw column. A NaN limit means the
+       column states none and is left undespiked. The wind and sonic
+       temperature limits go on the project; a gas limit goes on its record,
+       in that gas's own concentration unit.
+       MaxNoSpikes is deliberately NOT carried across: EddyUH's is how many
+       spikes a period may contain, EddyFlow's sr_num_spk is how many
+       consecutive outliers make one spike. Similar names, different
+       quantities. Reported instead.
+       The importer also now says that EddyUH states no absolute limits for
+       any gas - its dlim values are a different test - so the absolute-limits
+       screening will not run unless the user sets them.
+	- Note: The imported project was run end to end against a month of CH-LAE
+       raw data and compared with the EddyUH flux file for the same month.
+       On the 168 half-hourly periods that do not contain the site's hourly
+       calibration, agreement is close: CO2 R2 0.983 on the MGA and 0.981 on
+       the LI-7200, water 0.994 and 0.970, nitrous oxide 0.854, carbonyl
+       sulfide 0.852, sensible heat 0.877, the w-Ts covariance 0.874, wind
+       speed 1.000 - slopes between 0.91 and 1.18 throughout.
+       On the 168 periods that DO contain the calibration, agreement
+       collapses to R2 0.04-0.07. The valve opens for about two minutes every
+       hour and carbonyl sulfide reaches 2e10 nmol/mol; EddyUH screened those
+       periods out, and how it did so is not in its project files. This is the
+       clearest illustration of what the import report warns about.
+       Two departures from the EddyUH project were needed for the comparison
+       and are NOT importer faults: the raw files here are 20 Hz where the
+       project says 10 - EddyUH read a decimated copy that is not on this
+       machine - and absolute limits had to be set by hand, EddyUH having
+       none. Told 10 Hz against 20 Hz files, EddyFlow uses only the first half
+       of every averaging period.
 	- New feature: File > Import EddyUH Project. Reads an EddyUH project - the
        preproc_ file, with its lag, planar fit and response time siblings
        found beside it by stem - and fills an EddyFlow project and metadata

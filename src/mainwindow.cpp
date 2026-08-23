@@ -674,6 +674,14 @@ void MainWindow::importEddyUhFile(const QString& fileName)
         return;
     }
 
+    //> As after an EddyPro import, and for the same reason: this is a direct
+    //> synchronous call into the Basic Settings page, and it is what makes the
+    //> interface's own view of the columns agree with the records the
+    //> conversion just wrote. The importer builds them itself, so a project
+    //> converted without a window open still runs; this keeps the two in step
+    //> when there IS a window.
+    emit updateMetadataReadRequest();
+
     const QString targetFile = QFileInfo(fileStr).path()
                                + QLatin1Char('/')
                                + QStringLiteral("eddyuh_") + importer.stem()
