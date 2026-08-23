@@ -79,6 +79,7 @@ private slots:
     void fileNew();
     void fileOpen(const QString& fileName = QString());
     void importEddyProFile(const QString& fileName = QString());
+    void importEddyUhFile(const QString& fileName = QString());
     void fileRecent();
     bool fileSave(const bool quiet = false);
     bool fileSaveAs(const QString& fileName = QString());
@@ -255,6 +256,7 @@ private:
     QAction *newAction;
     QAction *openAction;
     QAction *importEddyProAction;
+    QAction *importEddyUhAction;
     QAction *closeAction;
     QAction *recentOpenAction;
     QAction *saveAction;

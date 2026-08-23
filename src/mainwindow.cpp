@@ -62,6 +62,7 @@
 #include "dlinidialog.h"
 #include "dlproject.h"
 #include "ecproject.h"
+#include "eddyuhimport.h"
 #include "globalsettings.h"
 #include "infomessage.h"
 #include "mainwidget.h"
@@ -463,6 +464,17 @@ void MainWindow::fileOpen(const QString &fileName)
         return;
     }
 
+    //> An EddyUH preproc file has no extension at all, so there is nothing to
+    //> key on but the name and the MAT header. Same reasoning as above: every
+    //> route that can reach one - the file dialog, the command line, Recent
+    //> Files, the Finder - should reach the importer rather than be told the
+    //> file is not in native format.
+    if (EddyUhImport::looksLikeEddyUhProject(fileStr))
+    {
+        importEddyUhFile(fileStr);
+        return;
+    }
+
     QFileInfo projectDir(fileStr);
     auto projectPath = projectDir.canonicalPath();
     configState_.window.last_data_path = projectPath;
@@ -598,6 +610,113 @@ void MainWindow::importEddyProFile(const QString& fileName)
         tr("The project was converted from EddyPro format and has not been saved."),
         tr("Nothing has been written yet. Save it to create "
            "<b>%1</b> and its metadata.").arg(QFileInfo(targetFile).fileName()));
+}
+
+/// Open an EddyUH project as an unsaved EddyFlow one, writing nothing.
+///
+/// The same shape as importEddyProFile above and for the same reason: the
+/// conversion happens in memory and stops, leaving an ordinary unsaved
+/// document. Opening a project to look at it is not consent to write two
+/// files.
+///
+/// Unlike EddyPro's, an EddyUH project is four files and the one the user
+/// picks - preproc_<stem> - has no extension. So the file dialog cannot
+/// filter on a suffix and the confirmation lists which siblings were found
+/// beside it, because a project missing its lag file converts perfectly well
+/// and simply carries less.
+///
+/// The notes the importer returns are shown whether or not anything went
+/// wrong. They are never empty: EddyUH keeps its flux-time options out of the
+/// project files entirely, so every import leaves something for the user to
+/// set, and a silent success would hide that.
+void MainWindow::importEddyUhFile(const QString& fileName)
+{
+    QString fileStr = fileName;
+    if (fileStr.isEmpty())
+    {
+        fileStr = QFileDialog::getOpenFileName(this,
+                        tr("Import an EddyUH Project"),
+                        WidgetUtils::getDialogPathHint(QStringLiteral("import_eddyuh_project")),
+                        tr("EddyUH Preprocessing Setup (preproc_*);;All Files (*.*)"),
+                        nullptr);
+        if (fileStr.isEmpty()) { return; }
+    }
+
+    if (!QFile::exists(fileStr)) { return; }
+    if (!EddyUhImport::looksLikeEddyUhProject(fileStr))
+    {
+        WidgetUtils::warning(this,
+            tr("Not an EddyUH Project"),
+            tr("<b>%1</b> is not an EddyUH preprocessing setup file.")
+                .arg(QFileInfo(fileStr).fileName()),
+            tr("Choose the file whose name begins with <i>preproc_</i>. The "
+               "lag, planar fit and response time files are found beside it "
+               "automatically."));
+        return;
+    }
+    WidgetUtils::rememberDialogPath(QStringLiteral("import_eddyuh_project"), fileStr, true);
+
+    EddyUhImport importer;
+    QString error;
+
+    //> Before the conversion, not after: DlProject marks itself modified as
+    //> it is filled, and modified is what would write it.
+    mainWidget_->projectPage()->dlIniDialog()->beginDeferredSave();
+
+    if (!importer.convert(fileStr, ecProject_,
+                          mainWidget_->projectPage()->dlIniDialog()->dlProject(),
+                          &error))
+    {
+        WidgetUtils::warning(this,
+            tr("EddyUH Project Not Imported"),
+            tr("The project could not be read."),
+            error);
+        return;
+    }
+
+    const QString targetFile = QFileInfo(fileStr).path()
+                               + QLatin1Char('/')
+                               + QStringLiteral("eddyuh_") + importer.stem()
+                               + QStringLiteral(".") + Defs::PROJECT_FILE_EXT;
+
+    const bool asModified = true;
+    setCurrentProjectFile(targetFile, asModified);
+    newFlag_ = true;
+
+    showStatusTip(tr("Project imported"));
+    consoleOutput->clear();
+    if (currentPage() != Defs::CurrPage::ProjectCreation)
+    {
+        changePage(Defs::CurrPage::ProjectCreation);
+    }
+    updateInfoDock(true);
+
+    QStringList found;
+    for (const auto& s : EddyUhImport::siblingsOf(fileStr))
+    {
+        found << QFileInfo(s).fileName();
+    }
+
+    QString detail = tr("Nothing has been written yet. Save it to create "
+                        "<b>%1</b> and its metadata.")
+                         .arg(QFileInfo(targetFile).fileName());
+    if (!found.isEmpty())
+    {
+        detail += tr("<br><br>Found beside it: %1")
+                      .arg(found.join(QStringLiteral(", ")));
+    }
+    detail += QStringLiteral("<br><br><b>") + tr("What you must still set:")
+              + QStringLiteral("</b><ul>");
+    for (const auto& n : importer.notes())
+    {
+        detail += QStringLiteral("<li>") + n + QStringLiteral("</li>");
+    }
+    detail += QStringLiteral("</ul>");
+
+    WidgetUtils::information(this,
+        tr("EddyUH Project Imported"),
+        tr("The project was converted from EddyUH format and has not been saved."),
+        detail);
 }
 
 //
@@ -1126,6 +1245,10 @@ void MainWindow::createActions()
     importEddyProAction->setText(tr("Import EddyPro Project..."));
     importEddyProAction->setToolTip(tr("Import an EddyPro project file and convert it to EddyFlow format."));
 
+    importEddyUhAction = new QAction(this);
+    importEddyUhAction->setText(tr("Import EddyUH Project..."));
+    importEddyUhAction->setToolTip(tr("Import an EddyUH project - choose its preproc_ file - and convert it to EddyFlow format."));
+
     closeAction = new QAction(this);
     closeAction->setText(tr("&Close"));
     closeAction->setIcon(QIcon(QStringLiteral(":/icons/close")));
@@ -1336,6 +1459,7 @@ void MainWindow::connectActions()
     connect(newAction, &QAction::triggered, this, &MainWindow::fileNew);
     connect(openAction, &QAction::triggered, this, [this](){ fileOpen(); });
     connect(importEddyProAction, &QAction::triggered, this, [this]{ importEddyProFile(); });
+    connect(importEddyUhAction, &QAction::triggered, this, [this]{ importEddyUhFile(); });
     connect(closeAction, &QAction::triggered, this, &MainWindow::fileClose);
     connect(saveAction, &QAction::triggered, this, &MainWindow::fileSave);
     connect(saveAsAction, &QAction::triggered, this, [this](){ fileSaveAs(); });
@@ -1424,6 +1548,7 @@ void MainWindow::createMenus()
     fileMenu->addAction(newAction);
     fileMenu->addAction(openAction);
     fileMenu->addAction(importEddyProAction);
+    fileMenu->addAction(importEddyUhAction);
 
     // submenu open recent file
     fileMenuOpenRecent = fileMenu->addMenu(tr("&Open Recent"));

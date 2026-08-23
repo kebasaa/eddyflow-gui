@@ -29,6 +29,7 @@ HEADERS += \
     src/dlproject.h \
     src/dlprojectstate.h \
     src/matfile.h \
+    src/eddyuhimport.h \
     src/dlrawfiledesctab.h \
     src/dlsitetab.h \
     src/docchooser.h \
@@ -138,6 +139,7 @@ SOURCES +=  \
     src/dlinstrtab.cpp \
     src/dlproject.cpp \
     src/matfile.cpp \
+    src/eddyuhimport.cpp \
     src/dlrawfiledesctab.cpp \
     src/dlsitetab.cpp \
     src/docchooser.cpp \

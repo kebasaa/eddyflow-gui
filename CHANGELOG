@@ -1,6 +1,64 @@
 8.1.0 (2026-08-22)
 
     GUI:
+	- New feature: File > Import EddyUH Project. Reads an EddyUH project - the
+       preproc_ file, with its lag, planar fit and response time siblings
+       found beside it by stem - and fills an EddyFlow project and metadata
+       pair. Nothing is written until you save, as with the EddyPro import:
+       opening a project to look at it is not consent to write two files.
+       What comes across: the site, the measurement height, the boom
+       direction, the averaging interval and file length, the sampling rate,
+       the raw file path and name template, the delimiter, the header rows and
+       the timestamp convention, the rotation and detrending choices, the
+       instruments with their tube geometry and separations, every raw column
+       with its variable, unit, measure type and conversion, and the per-gas
+       lag windows.
+       What cannot come across is listed in the dialog after every import, and
+       the list is never empty. EddyUH collects its flux-time options afresh
+       at every run and writes them only to the text log beside the fluxes, so
+       the spectral correction method, the cospectral model, the peak-frequency
+       parameterisation, the time-lag method, the data screening and the
+       footprint model are simply not in the project files. Nor is the
+       longitude, nor the anemometer's north alignment.
+       Some things are assumed rather than read, and each says so: an EddyUH
+       inlet separation is one unsigned scalar where EddyFlow wants a signed
+       northward and eastward pair, so it goes on the northward axis; a name
+       like "Aerodyne cw-QCL" gives a manufacturer but not a model.
+       One field is deliberately NOT imported. EddyUH stores a path length per
+       gas analyser and uses it in no calculation - only the sonic's reaches
+       EddyUH_TF.m - so its value is unchecked, and the supplied project holds
+       76 for one analyser and 0.125 for the other, an optical path against a
+       physical one. EddyFlow's spectral correction does use it, so importing
+       it would turn a number that meant nothing into one that changes the
+       answer.
+       A raw column no instrument claims becomes Ignore rather than being
+       dropped, which would shift every column after it by one. An
+       unrecognised instrument or variable name is reported and left unset
+       rather than guessed at.
+       A one-dimensional rotation switches rotations OFF rather than being
+       promoted to a double rotation, which would additionally null the
+       vertical wind - the thing the project chose not to do.
+       Verified against the supplied CH-LAE project: 398 of 483 metadata keys
+       identical to the hand-built pair for the same site. Every difference is
+       accounted for - the two projects name the trace-gas analyser
+       differently and list the two analysers in opposite order, the hand-built
+       one describes a raw file with four header rows against EddyUH's one,
+       and the hand-built one predates the spectroscopic keys. The lag windows
+       come across exactly: 16 +/- 1 s and 17 +/- 5 s on the QCL, 0.6 +/- 0.5 s
+       and 4 +/- 4 s on the LI-7200.
+       Pinned by tests/test_eddyuh_import_static.py.
+	- Fix: MATLAB's ...StringList() accessors in this application are sorted
+       alphabetically before they are returned, so the position of a string in
+       one is not the number of the accessor that produced it. The first
+       version of this importer indexed them, which turned raw column 1 into
+       AGC and a Gill HS into an 81000RE - silently, in a file that looked
+       plausible. Every lookup now calls its accessor directly.
+	- Note: DlProject::toIniVariableInstrument splits a column's instrument
+       label on a colon and then on a space and takes element 1 of each
+       without checking, so a label not of the form "Sonic 1: HS-50" does not
+       produce a wrong file - it crashes the save. The importer produces that
+       form, and "Other" where it cannot. The underlying fragility is not
+       fixed here.
 	- New feature: "Metek USA-1 head correction" and "Inclinometer tilt correction"
        on the Advanced Processing Options page, between the angle-of-attack
        correction and the axis rotations - which is where they run. Write the
