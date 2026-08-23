@@ -1913,10 +1913,36 @@ QString DlProject::toIniVariableInstrument(const QString& s)
     {
         if (s != QLatin1String("Other"))
         {
-            QString numberStr = s.split(QLatin1Char(':')).at(0);
-            QString modelStr = s.split(QLatin1Char(':')).at(1);
-            QString instrType = numberStr.split(QLatin1Char(' ')).at(0);
-            QString number = numberStr.split(QLatin1Char(' ')).at(1);
+            //> "Sonic 1: HS-50" - a type, a space, a number, a colon, a
+            //> model. Anything else is not a label this can convert.
+            //>
+            //> The pieces used to be indexed straight out of the split with
+            //> no check, so a label with no colon, or none in the part before
+            //> it, ran off the end of a QStringList and took the application
+            //> down. Not on some exotic path either: this is called from
+            //> saveProject, so a hand-edited metadata file - or one written by
+            //> anything that did not know the exact form - crashed the save
+            //> instead of being refused. src/eddyuhimport.cpp hit it for real
+            //> and works around it by only ever emitting this form.
+            //>
+            //> A malformed label now converts to nothing, which is what the
+            //> empty-input branch below already returns and what the file
+            //> means by a column with no instrument.
+            const auto halves = s.split(QLatin1Char(':'));
+            const auto head = halves.value(0).split(QLatin1Char(' '));
+            const QString modelStr = halves.value(1);
+            const QString instrType = head.value(0);
+            const QString number = head.value(1);
+            //> The number too, not only the two counts: " : " splits into two
+            //> halves and two words and passes a count check, then builds the
+            //> bare "_" - which is no more a usable id than a crash was.
+            //> An empty MODEL is deliberately still allowed: "_1" is what an
+            //> instrument with no model chosen writes, and it has always read
+            //> back that way.
+            if (halves.size() < 2 || head.size() < 2 || number.isEmpty())
+            {
+                return QString();
+            }
             QString model;
             if (instrType == tr("Sonic"))
             {
@@ -1948,9 +1974,23 @@ QString DlProject::fromIniVariableInstrument(const QString& s)
     {
         if (s != QStringLiteral("other"))
         {
-            int index = s.lastIndexOf(QLatin1Char('_'));
-            QString number = s.mid(index + 1);
-            QString modelStr = s.left(index);
+            const int index = s.lastIndexOf(QLatin1Char('_'));
+            //> The same assumption in the other direction, and the same fix.
+            //> This one does not crash - QString::left(-1) hands back the
+            //> whole string rather than throwing - but with no underscore to
+            //> split on it puts the model in both halves and builds a label
+            //> like "Sonic li7200: LI-7200", which then converts back to
+            //> something different again. Refused rather than garbled.
+            //>
+            //> Only a missing underscore is refused, not one at position
+            //> zero: "_1" is what an instrument with no model chosen writes,
+            //> and it still reads back the way it always has.
+            if (index < 0)
+            {
+                return QString();
+            }
+            const QString number = s.mid(index + 1);
+            const QString modelStr = s.left(index);
 
             InstrumentType instrType = getInstrumentTypeFromModel(modelStr);
             if (instrType == InstrumentType::ANEM)
