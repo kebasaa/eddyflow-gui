@@ -1031,7 +1031,7 @@ const QString kH2oSlug = QStringLiteral("h2o");
 
 /// Whether the project has any H2O to offer.
 
-/// Canonical instrument id of the analyser measuring  rawColumn.
+/// Canonical instrument id of the analyser measuring \a rawColumn.
 ///
 /// Read from the metadata rather than parsed out of the table's display text:
 /// the label is translated and formatted for reading, while the id is what
@@ -1086,13 +1086,13 @@ int BasicSettingsPage::firstGasColumn(const QString& slug) const
     return -1;
 }
 
-/// Add a measurement of  slug at  rawColumn.
+/// Add a measurement of \a slug at \a rawColumn.
 ///
 /// The first four record positions are the historical slots and stay put even
 /// when empty, because the engine maps record i to gas slot firstGas+i-1;
 /// reordering them would move each gas's settings onto a different species.
 /// Additional measurements are appended after those four.
-/// Why a gas measured on  rawColumn cannot be added, empty if it can.
+/// Why a gas measured on \a rawColumn cannot be added, empty if it can.
 ///
 /// Checked before the record is created rather than after: the engine reads
 /// only the first MaxNumGases records and the first MaxGasesPerInstrument per
@@ -4142,7 +4142,7 @@ void BasicSettingsPage::filterVariables()
     }
 }
 
-/// Remove every candidate for  role whose label satisfies  drop.
+/// Remove every candidate for \a role whose label satisfies \a drop.
 ///
 /// "None" placeholders are never removed, and the list is walked backwards so
 /// that a removal cannot skip the entry after it.
