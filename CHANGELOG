@@ -26,6 +26,16 @@
 	               page asks the same question for its Massman fallback and the two had
 	               a copy each: they agreed on which models count and could still have
 	               disagreed on the answer.
+	- Fix: The day and night tabs of the Burba multiple-regression parameters
+       could not be clicked. The Conditional Eddy Covariance checkbox was
+       added to the grid at row 27, which the Burba parameter stack already
+       spans: two widgets in one cell overlap, and the one added later is
+       painted over what is underneath it - here, the tab bar. The checkbox
+       now sits on row 33, beside its own settings button, the way every
+       other option carrying one does.
+       The layout stretch moves off row 27 for the same reason. Giving it to
+       a row that holds a widget lets that block absorb the slack instead of
+       the empty space below the group.
 	- Fix: An imported EddyUH project could not be run. It carried no gas records,
        no master sonic, no column selection and no external-metadata flag, so
        the engine found no gas analyser, reported an acquisition frequency of

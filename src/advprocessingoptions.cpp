@@ -758,9 +758,16 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     settingsLayout->addWidget(fpCheckBox, 32, 0);
     settingsLayout->addWidget(fpLabel, 32, 1, Qt::AlignRight);
     settingsLayout->addWidget(fpMethodCombo, 32, 2);
-    settingsLayout->addWidget(cecCheckBox,    27, 0);
+    //> On the checkbox's own row, beside its settings button, the way every
+    //> other option carrying one sits. It used to be added at row 27, which the
+    //> Burba parameter stack already spans: two widgets in one cell overlap,
+    //> and the one added later is painted over what is underneath it - here,
+    //> the tab bar, which is why the day/night tabs could not be clicked.
+    settingsLayout->addWidget(cecCheckBox, 33, 0);
     settingsLayout->addWidget(cecSettingsButton, 33, 3);
-    settingsLayout->setRowStretch(27, 1);
+    //> On an empty trailing row: row 27 carries the Burba stack, and giving the
+    //> stretch to an occupied row lets that block absorb the slack instead.
+    settingsLayout->setRowStretch(34, 1);
     settingsLayout->setColumnStretch(4, 1);
 
 //    auto overallFrame = new QWidget;
