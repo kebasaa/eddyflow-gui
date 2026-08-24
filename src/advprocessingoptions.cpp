@@ -1899,7 +1899,16 @@ void AdvProcessingOptions::updateCecAvailability()
         QSignalBlocker blocker(cecCheckBox);
         cecCheckBox->setChecked(false);
         cecSettingsButton->setEnabled(false);
-        ecProject_->setGeneralCecMeth(0);
+        //> Only when it actually says otherwise. EcProject::loadEcProject()
+        //> calls setModified(false) BEFORE it emits ecProjectChanged(), and
+        //> refresh() - which lands on this - is what that signal drives. So
+        //> writing the 0 that is already there marks a project modified purely
+        //> for having been opened, and a site that measures only one of the two
+        //> species hits this on every single load.
+        if (ecProject_->generalCecMeth() != 0)
+        {
+            ecProject_->setGeneralCecMeth(0);
+        }
         return;
     }
 
@@ -1929,7 +1938,12 @@ void AdvProcessingOptions::setSmartfluxUI()
     //> toggle they hand back the first cycle's values; updateCecAvailability
     //> derives the right state from the records every time, so there is
     //> nothing worth remembering.
-    if (on) { ecProject_->setGeneralCecMeth(0); }
+    //> Same guard, same reason: entering the mode with the partition already
+    //> off is not a change to the project.
+    if (on && ecProject_->generalCecMeth() != 0)
+    {
+        ecProject_->setGeneralCecMeth(0);
+    }
     updateCecAvailability();
 
     timeLagMethodCombo->setItemData(4,
