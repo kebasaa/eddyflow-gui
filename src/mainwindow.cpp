@@ -1838,6 +1838,8 @@ void MainWindow::readSettings()
             settings.value(Defs::CONF_GEN_RECENTNUM, configState_.general.recentnum).toInt();
         configState_.general.loadlastproject =
             settings.value(Defs::CONF_GEN_LOADLAST, configState_.general.loadlastproject).toBool();
+        configState_.general.parallelPrepass =
+            settings.value(Defs::CONF_GEN_PARALLEL_PREPASS, configState_.general.parallelPrepass).toBool();
         configState_.general.recentfiles = settings.value(Defs::CONF_GEN_RECENTFILES).toStringList();
         while (configState_.general.recentfiles.count() > configState_.general.recentnum)
         {
@@ -1883,6 +1885,7 @@ void MainWindow::writeSettings()
         settings.setValue(Defs::CONF_GEN_RECENTFILES, configState_.general.recentfiles);
         settings.setValue(Defs::CONF_GEN_RECENTNUM, configState_.general.recentnum);
         settings.setValue(Defs::CONF_GEN_LOADLAST, configState_.general.loadlastproject);
+        settings.setValue(Defs::CONF_GEN_PARALLEL_PREPASS, configState_.general.parallelPrepass);
     settings.endGroup();
 
     // write project config
@@ -3685,6 +3688,13 @@ void MainWindow::runExpress()
         args << Defs::HOST_OS;
         args << QStringLiteral("-e");
         args << appEnvPath_;
+        //> -j is passed in BOTH states rather than only when the box is
+        //> ticked. Omitting it would fall through to the engine's own default,
+        //> which is to use every core, and the box would then do nothing when
+        //> unticked. "0" means auto-detect, "1" means the serial path.
+        args << QStringLiteral("-j");
+        args << (configState_.general.parallelPrepass ? QStringLiteral("0")
+                                                      : QStringLiteral("1"));
         args << projFilePath;
 
         engineProcess_->engineProcessStart(engineFilePath, workingDir, args);
@@ -3796,6 +3806,11 @@ void MainWindow::runAdvancedStep_1()
             args << Defs::HOST_OS;
             args << QStringLiteral("-e");
             args << appEnvPath_;
+            //> As above: explicit in both states, so the preference is what
+            //> decides and not the engine's default.
+            args << QStringLiteral("-j");
+            args << (configState_.general.parallelPrepass ? QStringLiteral("0")
+                                                          : QStringLiteral("1"));
             args << projFilePath1;
             engineProcess_->engineProcessStart(engine1FilePath, workingDir, args);
 

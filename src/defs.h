@@ -312,6 +312,7 @@ namespace Defs
     const auto CONF_GEN_RECENTFILES   = QStringLiteral("/recentfiles");
     const auto CONF_GEN_RECENTNUM     = QStringLiteral("/recentnum");
     const auto CONF_GEN_ENV           = QStringLiteral("/env");
+    const auto CONF_GEN_PARALLEL_PREPASS = QStringLiteral("/parallelprepass");
 
     const auto CONFGROUP_PROJECT        = QStringLiteral("/project");
     const auto CONF_PROJ_DEFAULT_PATH   = QStringLiteral("/default_data_path");

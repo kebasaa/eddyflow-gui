@@ -654,6 +654,22 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     auto qcTitle = new QLabel(tr("Other options"));
     qcTitle->setProperty("groupLabel", true);
 
+    parallelPrepassCheckBox = new RichTextCheckBox;
+    parallelPrepassCheckBox->setText(tr("Parallelise the planar fit and time lag pre-passes"));
+    parallelPrepassCheckBox->setToolTip(tr("<b>Parallelise the planar fit and "
+        "time lag pre-passes:</b> Before it computes any flux, EddyFlow may walk "
+        "every averaging period once to fit the planar fit planes, or to optimise "
+        "the time lags. On a long dataset that walk dominates the run. Each period "
+        "in it is independent of the others, so the range is split across the "
+        "processor cores and the pieces joined back together in order."
+        "<br><br>This does <b>not change the results</b>: the planar fit "
+        "coefficients and the optimised time lags come out identical to a run "
+        "without it. It has no effect on a project that runs no pre-pass, nor on "
+        "the flux computation itself, which is not split."
+        "<br><br>This is a setting for <i>this computer</i>, not for the project: "
+        "it is remembered between sessions but is not saved into the project file, "
+        "so a colleague opening the same project decides it for themselves."));
+
     auto hrLabel = new QLabel;
     hrLabel->setObjectName(QStringLiteral("hrLabel"));
     auto hrLabel_2 = new QLabel;
@@ -765,9 +781,13 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     //> the tab bar, which is why the day/night tabs could not be clicked.
     settingsLayout->addWidget(cecCheckBox, 33, 0);
     settingsLayout->addWidget(cecSettingsButton, 33, 3);
+    //> Last in the group: it is about how the run is computed rather than
+    //> about what is computed, so it sits below the options that change the
+    //> numbers rather than among them.
+    settingsLayout->addWidget(parallelPrepassCheckBox, 34, 0, 1, 4);
     //> On an empty trailing row: row 27 carries the Burba stack, and giving the
     //> stretch to an occupied row lets that block absorb the slack instead.
-    settingsLayout->setRowStretch(34, 1);
+    settingsLayout->setRowStretch(35, 1);
     settingsLayout->setColumnStretch(4, 1);
 
 //    auto overallFrame = new QWidget;
@@ -939,6 +959,15 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             {
                 ecProject_->setScreenCovmaxDebaseline(
                     covmaxDebaselineCheckBox->isChecked() ? 1 : 0);
+            });
+    //> Straight into the application preferences. Unlike every other control
+    //> on this page this one is not part of the project, so it neither dirties
+    //> the project nor travels with it.
+    connect(parallelPrepassCheckBox, &RichTextCheckBox::clicked,
+            this, [=]()
+            {
+                configState_->general.parallelPrepass =
+                    parallelPrepassCheckBox->isChecked();
             });
     connect(tlagBorrowCheckBox, &RichTextCheckBox::clicked,
             this, [=]()
@@ -1564,6 +1593,7 @@ void AdvProcessingOptions::refresh()
     }
     tlSettingsButton->setEnabled(ecProject_->screenTlagMeth() == 4 || ecProject_->screenTlagMeth() == 5);
     covmaxDebaselineCheckBox->setChecked(ecProject_->screenCovmaxDebaseline());
+    parallelPrepassCheckBox->setChecked(configState_->general.parallelPrepass);
     tlagBorrowCheckBox->setChecked(ecProject_->screenTlagBorrowMethod());
     tlagBorrowSnrSpin->setValue(ecProject_->screenTlagBorrowSnr());
     tlagBorrowNoiseCombo->setCurrentIndex(ecProject_->screenTlagBorrowNoise());

@@ -26,6 +26,24 @@
 	               page asks the same question for its Massman fallback and the two had
 	               a copy each: they agreed on which models count and could still have
 	               disagreed on the answer.
+	- New feature: Advanced Settings > Processing Options > Other options gains
+	               "Parallelise the planar fit and time lag pre-passes", which passes
+	               the engine's new -j switch when a run is started.
+	               Before it computes any flux the engine may walk every averaging
+	               period once, to fit the planar fit planes or to optimise the time
+	               lags. Each period in that walk is independent of the others, so it
+	               is split across the processor cores; the results are identical to a
+	               serial run.
+	               The state lives in the application preferences, not in the project.
+	               How many cores this computer should give the engine has nothing to
+	               do with the site being processed, so there is no new ini key, the
+	               generated tag tables do not move, and ecproject.cpp is untouched.
+	               -j is passed in BOTH states, "0" for auto-detect and "1" for serial:
+	               the engine's own default with no -j is to use every core, so an
+	               unticked box that passed nothing would do nothing.
+	               Off by default until the serial-versus-parallel equivalence runs are
+	               signed off; only the two eddyflow_rp launches get it, since FCC has
+	               no pre-pass and metadata retrieval never reaches one.
 	- Fix: The day and night tabs of the Burba multiple-regression parameters
        could not be clicked. The Conditional Eddy Covariance checkbox was
        added to the grid at row 27, which the Burba parameter stack already
