@@ -75,6 +75,8 @@ public slots:
     void refreshSpectralAssessmentCreationMode();
 
 private slots:
+    /// The QA/QC table's own Restore Default Values button.
+    void on_defaultValuesButton_clicked();
     /// Grey the two iteration numbers unless the loop is switched on.
     void updateCorrIterAvailability();
     void refresh();
@@ -169,6 +171,11 @@ private:
     double defaultGasSpectral(const QString& slug, SpectralParam param) const;
     void onGasSpectralChanged(int gasIndex, SpectralParam param, double value);
     void resetGasSpectralToDefault();
+    /// Every row of the QA/QC table, fixed and per-gas alike.
+    void resetSpectralTableToDefault();
+    bool requestSpectralTableReset();
+
+    QPushButton* defaultValuesButton;
 
     QCheckBox* vmFlagsCheckBox;
     QCheckBox* lowQualityCheckBox;

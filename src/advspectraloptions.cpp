@@ -907,6 +907,18 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     spectralTableTitleLayout->addWidget(questionMark_44, 0, Qt::AlignVCenter);
     spectralTableTitleLayout->addStretch();
 
+    //> On the table's own title row rather than with the page-wide button: it
+    //> resets the table and nothing else, and this is where that scope reads.
+    defaultValuesButton = new QPushButton(tr("Restore Default Values"));
+    defaultValuesButton->setProperty("mdButton", true);
+    defaultValuesButton->setMaximumWidth(defaultValuesButton->sizeHint().width());
+    defaultValuesButton->setToolTip(tr("<b>Restore Default Values</b>: Resets "
+                                       "the spectra and cospectra QA/QC table "
+                                       "to its default settings. Each gas "
+                                       "returns to the default for its own "
+                                       "species."));
+    spectralTableTitleLayout->addWidget(defaultValuesButton, 0, Qt::AlignVCenter);
+
     auto spectralTableContainer = new QWidget;
     auto spectralTableLayout = new QVBoxLayout(spectralTableContainer);
     spectralTableLayout->setContentsMargins(0, 0, 0, 0);
@@ -1021,6 +1033,9 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             this, &AdvSpectralOptions::updateFilter);
     connect(nBinsLabel, &ClickLabel::clicked, [=]()
             { nBinsSpin->setFocus(); nBinsSpin->selectAll(); });
+    connect(defaultValuesButton, &QPushButton::clicked,
+            this, &AdvSpectralOptions::on_defaultValuesButton_clicked);
+
     connect(nBinsSpin, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &AdvSpectralOptions::updateNBins);
     connect(fftCheckBox, &QCheckBox::toggled, [=](bool checked)
@@ -1275,23 +1290,13 @@ void AdvSpectralOptions::reset()
     forceEndDatePolicy();
     forceEndTimePolicy();
 
-    qcMinUnstableUstarSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_un_ustar);
-    qcMinUnstableHSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_un_h);
-    qcMinUnstableLESpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_un_le);
-    qcMinStableUstarSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_st_ustar);
-    qcMinStableHSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_st_h);
-    qcMinStableLESpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_st_le);
-    qcMaxUstarSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_max_ustar);
-    qcMaxHSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_max_h);
-    qcMaxLESpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_max_le);
+    //> Every row of the QA/QC table, fixed and per-gas alike. Shared with the
+    //> table's own Restore Default Values button so the two cannot drift.
+    resetSpectralTableToDefault();
 
     minSmplSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_smpl);
 
     setSpectralAssessmentFrequencyCellsEnabled(false);
-
-    // Every per-gas value back to the built-in default for its species, on
-    // its record.
-    resetGasSpectralToDefault();
 
     fullSpectraExistingRadio->setEnabled(false);
     fullSpectraExistingRadio->setChecked(ecProject_->defaultSettings.projectGeneral.full_sp_avail);
@@ -2234,6 +2239,51 @@ void AdvSpectralOptions::onGasSpectralChanged(int gasIndex,
     }
     ecProject_->setGasColumns(gases);
 
+}
+
+/// Restore Default Values for the QA/QC table as a whole: the three fixed rows
+/// that come from flat keys, and every per-gas row.
+///
+/// Deliberately NOT the minimum number of samples, which sits below the table
+/// and is not one of its cells - the page-wide reset still covers that.
+void AdvSpectralOptions::resetSpectralTableToDefault()
+{
+    if (!ecProject_) { return; }
+
+    const auto& d = ecProject_->defaultSettings.spectraSettings;
+
+    qcMinUnstableUstarSpin->setValue(d.sa_min_un_ustar);
+    qcMinUnstableHSpin->setValue(d.sa_min_un_h);
+    qcMinUnstableLESpin->setValue(d.sa_min_un_le);
+    qcMinStableUstarSpin->setValue(d.sa_min_st_ustar);
+    qcMinStableHSpin->setValue(d.sa_min_st_h);
+    qcMinStableLESpin->setValue(d.sa_min_st_le);
+    qcMaxUstarSpin->setValue(d.sa_max_ustar);
+    qcMaxHSpin->setValue(d.sa_max_h);
+    qcMaxLESpin->setValue(d.sa_max_le);
+
+    // Every per-gas value back to the built-in default for its species, on
+    // its record.
+    resetGasSpectralToDefault();
+
+    refreshSpectralQaQcTableState();
+}
+
+void AdvSpectralOptions::on_defaultValuesButton_clicked()
+{
+    if (requestSpectralTableReset())
+    {
+        resetSpectralTableToDefault();
+    }
+}
+
+bool AdvSpectralOptions::requestSpectralTableReset()
+{
+    return WidgetUtils::yesNoQuestion(this,
+                tr("Reset Spectral Assessment Settings"),
+                tr("<p>Do you want to reset the spectra and cospectra QA/QC "
+                   "settings to the default settings?</p>"),
+                tr("<p>You cannot undo this action.</p>"));
 }
 
 /// Restore Default Values, for the per-gas spectral settings. Only the
