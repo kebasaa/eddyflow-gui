@@ -363,6 +363,101 @@ class TheDespikingComesAcross(unittest.TestCase):
         self.assertIn("states no absolute limits", SRC)
 
 
+class TheRawFormatIsAlwaysAsciiPlainText(unittest.TestCase):
+    """An EddyUH project describes its raw files column by column with a
+    delimiter and a header count. That is ASCII plain text and nothing else -
+    there is no EddyUH project of another kind to import."""
+
+    def test_the_importer_states_it(self):
+        self.assertIn("ec->setGeneralFileType(Defs::RawFileType::ASCII);", SRC)
+
+    def test_it_is_not_left_to_whatever_was_selected_before(self):
+        #> Defs::RawFileType::GHG is zero, so an unset file type is GHG - the
+        #> one format whose metadata is embedded and whose columns therefore
+        #> come from somewhere an EddyUH project cannot supply.
+        self.assertNotIn("RawFileType::GHG", SRC)
+
+    def test_the_pages_are_told_so_the_radio_agrees(self):
+        #> The Project Creation page reads the format in refresh(), which runs
+        #> on ecProjectChanged - and this import navigates the user straight
+        #> to that page. Without the announcement the project said ASCII while
+        #> the page went on showing the format selected before.
+        self.assertIn("ecProject_->announceProjectChanged();", UH_FN)
+        self.assertLess(UH_FN.index("announceProjectChanged"),
+                        UH_FN.index("changePage"))
+
+    def test_the_announcement_follows_the_conversion(self):
+        self.assertLess(UH_FN.index("importer.convert("),
+                        UH_FN.index("announceProjectChanged"))
+
+
+class TheConfirmationDescribesThisProject(unittest.TestCase):
+    """Not the act of importing one. A different site, sonic, analyser or
+    rotation must produce a different dialog."""
+
+    def test_the_importer_offers_a_summary(self):
+        self.assertIn("QStringList summary() const", HDR)
+
+    def test_the_dialog_shows_it(self):
+        self.assertIn("importer.summary()", UH_FN)
+        self.assertIn("What was read:", UH_FN)
+
+    def test_the_summary_is_read_back_from_the_documents(self):
+        #> Built from the finished EcProject and DlProject rather than
+        #> recorded as each mapping ran, so a mapping that quietly did nothing
+        #> shows here as nothing rather than as what it meant to do.
+        block = SRC[SRC.index("auto say = [&](const QString& what"):]
+        block = block[:block.index("dl->setModified(true);")]
+        for src in ("dl->siteName()", "dl->anems()", "dl->irgas()",
+                    "ec->generalFilePrototype()", "ec->gasColumns().size()",
+                    "ec->screenRotMethod()", "ec->screenAvrgLen()",
+                    "dl->acquisitionFrequency()"):
+            self.assertIn(src, block, src)
+
+    def test_every_summary_line_carries_a_value(self):
+        #> A line of fixed prose in the summary would be a line that reads the
+        #> same for every project, which is the thing being fixed.
+        block = SRC[SRC.index("auto say = [&](const QString& what"):]
+        block = block[:block.index("dl->setModified(true);")]
+        #> Each say() call is taken whole, by matching its parentheses, and
+        #> must interpolate something. Counting say( against .arg( instead
+        #> let a call with a literal value slip through, because the totals
+        #> still balanced - found by injecting exactly that.
+        calls = []
+        at = 0
+        while True:
+            at = block.find("say(", at)
+            if at < 0:
+                break
+            depth, i = 0, at + 3
+            while i < len(block):
+                if block[i] == "(":
+                    depth += 1
+                elif block[i] == ")":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                i += 1
+            calls.append(block[at:i + 1])
+            at = i + 1
+
+        self.assertGreaterEqual(len(calls), 5, "too few summary lines")
+        for c in calls:
+            self.assertTrue(
+                ".arg(" in c or "orNotSet(" in c,
+                "this summary line reads the same for every project: %r"
+                % " ".join(c.split())[:70])
+
+    def test_the_summary_is_escaped_before_it_becomes_html(self):
+        #> Site names and file templates come out of a file this program did
+        #> not write and land in a rich-text dialog.
+        self.assertIn("toHtmlEscaped()", UH_FN)
+
+    def test_both_lists_are_shown_only_when_they_have_something(self):
+        self.assertIn("if (!summary.isEmpty())", UH_FN)
+        self.assertIn("if (!notes.isEmpty())", UH_FN)
+
+
 class TheSiblingsAreOptional(unittest.TestCase):
 
     def test_they_are_matched_on_the_stem_not_a_full_name(self):

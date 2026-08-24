@@ -78,6 +78,15 @@ public:
     /// in the files.
     QStringList notes() const { return notes_; }
 
+    /// What the conversion produced - the site, the instruments, the raw
+    /// file, the processing choices - so the confirmation describes THIS
+    /// project rather than the act of importing one.
+    ///
+    /// Read back out of the finished documents rather than recorded as each
+    /// mapping runs, so a mapping that quietly did nothing shows here as
+    /// nothing rather than as what it meant to do.
+    QStringList summary() const { return summary_; }
+
     /// The stem the four files share, for naming the converted project.
     QString stem() const { return stem_; }
 
@@ -85,6 +94,7 @@ private:
     void note(const QString& text) { notes_.append(text); }
 
     QStringList notes_;
+    QStringList summary_;
     QString stem_;
 };
 

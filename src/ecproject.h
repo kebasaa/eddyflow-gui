@@ -1081,6 +1081,17 @@ public:
 public slots:
     void setModified(bool mod);
 
+public:
+    //> Tell every page to redraw itself from the project.
+    //>
+    //> loadEcProject ends by emitting ecProjectChanged, which is what makes
+    //> ProjectPage::refresh() pick up the file type, the metadata choice and
+    //> the rest. Anything that fills a project WITHOUT going through the
+    //> loader - the EddyUH importer does, since a MAT file cannot be renamed
+    //> into an ini - leaves every page showing the project it replaced. A
+    //> signal can only be emitted by its own class, hence this.
+    void announceProjectChanged() { emit ecProjectChanged(); }
+
 signals:
     // send that the project has been created
     void ecProjectNew();

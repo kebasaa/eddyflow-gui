@@ -674,12 +674,23 @@ void MainWindow::importEddyUhFile(const QString& fileName)
         return;
     }
 
+    //> Every page redraws from the project it now holds. An EddyPro import
+    //> gets this for free - it ends inside loadEcProject, which emits the
+    //> signal itself - but a MAT file cannot be renamed into an ini, so this
+    //> conversion never goes near the loader and nothing had told the pages
+    //> anything. The Project Creation page in particular reads the raw file
+    //> format here: without this it went on showing whichever format was
+    //> selected before, while the project said ASCII, and this import
+    //> navigates the user straight to that page.
+    ecProject_->announceProjectChanged();
+
     //> As after an EddyPro import, and for the same reason: this is a direct
     //> synchronous call into the Basic Settings page, and it is what makes the
     //> interface's own view of the columns agree with the records the
     //> conversion just wrote. The importer builds them itself, so a project
     //> converted without a window open still runs; this keeps the two in step
-    //> when there IS a window.
+    //> when there IS a window. After the signal above, so the pages have the
+    //> project before they are asked to read the metadata against it.
     emit updateMetadataReadRequest();
 
     const QString targetFile = QFileInfo(fileStr).path()
@@ -705,6 +716,10 @@ void MainWindow::importEddyUhFile(const QString& fileName)
         found << QFileInfo(s).fileName();
     }
 
+    //> Both halves come from the importer and both describe THIS project:
+    //> a different site, a different sonic or a different rotation produces
+    //> a different dialog. Nothing here is a fixed description of what an
+    //> EddyUH import does in general.
     QString detail = tr("Nothing has been written yet. Save it to create "
                         "<b>%1</b> and its metadata.")
                          .arg(QFileInfo(targetFile).fileName());
@@ -713,13 +728,31 @@ void MainWindow::importEddyUhFile(const QString& fileName)
         detail += tr("<br><br>Found beside it: %1")
                       .arg(found.join(QStringLiteral(", ")));
     }
-    detail += QStringLiteral("<br><br><b>") + tr("What you must still set:")
-              + QStringLiteral("</b><ul>");
-    for (const auto& n : importer.notes())
+
+    const auto summary = importer.summary();
+    if (!summary.isEmpty())
     {
-        detail += QStringLiteral("<li>") + n + QStringLiteral("</li>");
+        detail += QStringLiteral("<br><br><b>") + tr("What was read:")
+                  + QStringLiteral("</b><ul>");
+        for (const auto& line : summary)
+        {
+            detail += QStringLiteral("<li>") + line.toHtmlEscaped()
+                      + QStringLiteral("</li>");
+        }
+        detail += QStringLiteral("</ul>");
     }
-    detail += QStringLiteral("</ul>");
+
+    const auto notes = importer.notes();
+    if (!notes.isEmpty())
+    {
+        detail += QStringLiteral("<b>") + tr("What you must still set:")
+                  + QStringLiteral("</b><ul>");
+        for (const auto& n : notes)
+        {
+            detail += QStringLiteral("<li>") + n + QStringLiteral("</li>");
+        }
+        detail += QStringLiteral("</ul>");
+    }
 
     WidgetUtils::information(this,
         tr("EddyUH Project Imported"),

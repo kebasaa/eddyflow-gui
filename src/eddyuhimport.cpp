@@ -669,6 +669,7 @@ bool EddyUhImport::convert(const QString& path, EcProject* ec, DlProject* dl,
                            QString* error)
 {
     notes_.clear();
+    summary_.clear();
     if (!ec || !dl)
     {
         return false;
@@ -737,6 +738,12 @@ bool EddyUhImport::convert(const QString& path, EcProject* ec, DlProject* dl,
         ec->setScreenDataPath(rf.path());
         ec->setGeneralFilePrototype(convertPrototype(rf.fileName()));
     }
+    //> Always ASCII plain text. An EddyUH project describes its raw files
+    //> column by column with a delimiter and a header count, which is that
+    //> format and no other - there is no EddyUH project of any other kind to
+    //> import. Set explicitly rather than left to whatever the interface had
+    //> selected before, and announced to the pages afterwards so the choice
+    //> is the one on screen too.
     ec->setGeneralFileType(Defs::RawFileType::ASCII);
     //> An EddyUH project always describes generic ASCII files, which carry no
     //> embedded metadata, so the pair's metadata file is not optional - it is
@@ -1348,6 +1355,95 @@ bool EddyUhImport::convert(const QString& path, EcProject* ec, DlProject* dl,
                      "the time-lag method, the data screening and the "
                      "footprint model. All of these took EddyFlow's defaults "
                      "and should be set deliberately."));
+
+    //> ---------------------------------------------------------------
+    //> What this project turned out to be.
+    //>
+    //> Read back from the two documents rather than accumulated as the
+    //> mappings ran: this describes the state the user is about to look at,
+    //> so a mapping that silently did nothing shows up here as nothing.
+    //> ---------------------------------------------------------------
+    auto say = [&](const QString& what, const QString& value) {
+        summary_.append(QStringLiteral("%1: %2").arg(what, value));
+    };
+    const auto orNotSet = [](const QString& v) {
+        return v.isEmpty() ? QObject::tr("not set") : v;
+    };
+
+    say(QObject::tr("Site"),
+        orNotSet(dl->siteName())
+            + (dl->siteId().isEmpty()
+                   ? QString()
+                   : QStringLiteral(" (") + dl->siteId() + QLatin1Char(')')));
+
+    if (!dl->anems()->isEmpty())
+    {
+        const auto& a = dl->anems()->first();
+        say(QObject::tr("Anemometer"),
+            QObject::tr("%1, %2 m, boom at %3 deg")
+                .arg(orNotSet(a.model()))
+                .arg(a.height(), 0, 'f', 1)
+                .arg(a.northOffset(), 0, 'f', 0));
+    }
+    for (int k = 0; k < dl->irgas()->size(); ++k)
+    {
+        const auto& g = dl->irgas()->at(k);
+        say(QObject::tr("Analyser %1").arg(k + 1),
+            QObject::tr("%1, tube %2 cm by %3 mm at %4 l/min")
+                .arg(orNotSet(g.model()))
+                .arg(g.tubeLength(), 0, 'f', 0)
+                .arg(g.tubeDiameter(), 0, 'f', 1)
+                .arg(g.tubeFlowRate(), 0, 'f', 1));
+    }
+
+    int used = 0;
+    for (const auto& v : *dl->variables())
+    {
+        if (v.variable() != variableString(14)) { ++used; }
+    }
+    say(QObject::tr("Raw files"),
+        QObject::tr("ASCII plain text, %1 columns of which %2 are read, "
+                    "%3 separated, %4 header row(s)")
+            .arg(dl->variables()->size())
+            .arg(used)
+            .arg(orNotSet(dl->fieldSep()))
+            .arg(dl->headerRows()));
+    say(QObject::tr("File name template"),
+        orNotSet(ec->generalFilePrototype()));
+    say(QObject::tr("Measurements"),
+        QObject::tr("%1 gas, %2 cell channel(s), at %3 Hz")
+            .arg(ec->gasColumns().size())
+            .arg(ec->cellColumns().size())
+            .arg(dl->acquisitionFrequency(), 0, 'f', 0));
+
+    static const char* const kRotations[] = {
+        QT_TR_NOOP("none"), QT_TR_NOOP("double rotation"),
+        QT_TR_NOOP("triple rotation"), QT_TR_NOOP("planar fit"),
+        QT_TR_NOOP("planar fit, no velocity bias")};
+    static const char* const kDetrends[] = {
+        QT_TR_NOOP("block average"), QT_TR_NOOP("linear detrending"),
+        QT_TR_NOOP("running mean"), QT_TR_NOOP("exponential running mean")};
+    //> Named apart from the rot further up, which is EddyUH's Dim_coordrot;
+    //> this one is what EddyFlow ended up with.
+    const int rotOut = ec->screenRotMethod();
+    const int det = ec->screenDetrendMeth();
+    say(QObject::tr("Processing"),
+        QObject::tr("%1 min averaging, %2, %3, %4 despiking")
+            .arg(ec->screenAvrgLen())
+            .arg(rotOut >= 0 && rotOut <= 4 ? QObject::tr(kRotations[rotOut])
+                                      : QObject::tr("unknown rotation"))
+            .arg(det >= 0 && det <= 3 ? QObject::tr(kDetrends[det])
+                                      : QObject::tr("unknown detrending"))
+            .arg(ec->screenParamDespikeVm() == 1
+                     ? QObject::tr("consecutive-difference")
+                     : QObject::tr("Vickers and Mauder")));
+
+    if (!ec->generalStartDate().isEmpty())
+    {
+        say(QObject::tr("Period"),
+            QObject::tr("%1 to %2").arg(ec->generalStartDate(),
+                                        ec->generalEndDate()));
+    }
 
     dl->setModified(true);
     ec->setModified(true);
