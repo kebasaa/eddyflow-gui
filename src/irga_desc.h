@@ -185,6 +185,16 @@ public:
 
     static bool isOpenPathModel(const QString &model);
 
+    //> The LI-7500 family, which is the set the engine matches with
+    //> index(model, 'li7500') /= 0 when it decides whether the instrument
+    //> sensible heat (Burba) terms can be computed at all.
+    static bool isLi7500FamilyModel(const QString& model);
+    /// Whether any analyser in the list is one. Both the processing page
+    /// (Burba) and the spectral page (Massman fallback) ask this, and they
+    /// asked it with their own copy of the loop until this existed - so the
+    /// two could agree on the model set and still disagree on the answer.
+    static bool hasLi7500Family(const QList<IrgaDesc>* irgas);
+
 private:
     static bool isALicorModel(const QString& model);
 

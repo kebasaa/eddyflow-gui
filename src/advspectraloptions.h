@@ -65,7 +65,6 @@ public:
     ~AdvSpectralOptions();
 
     void setSmartfluxUI();
-    static bool isLi7500FamilyIrgaModel(const QString& model);
 
 signals:
     void updateOutputsRequest(int n);

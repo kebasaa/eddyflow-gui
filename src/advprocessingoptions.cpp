@@ -54,6 +54,7 @@
 #include "ecproject.h"
 #include "fileutils.h"
 #include "infomessage.h"
+#include "irga_desc.h"
 #include "dirbrowsewidget.h"
 #include "planarfitsettingsdialog.h"
 #include "pwbtimelagsettingsdialog.h"
@@ -595,7 +596,8 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
 
     // burba correction
     burbaCorrCheckBox = new RichTextCheckBox;
-    burbaCorrCheckBox->setToolTip(tr("<b>Add instrument sensible heat components, only for LI-7500:</b> Only applies to the LI-7500. It takes into account air density fluctuations due to temperature fluctuations induced by heat exchange processes at the instrument surfaces, as from Burba et al. (2008)."));
+    burbaAvailableTooltip_ = tr("<b>Add instrument sensible heat components, only for LI-7500:</b> Only applies to the LI-7500. It takes into account air density fluctuations due to temperature fluctuations induced by heat exchange processes at the instrument surfaces, as from Burba et al. (2008).");
+    burbaCorrCheckBox->setToolTip(burbaAvailableTooltip_);
     burbaCorrCheckBox->setText(tr("Add instrument sensible heat components, only for LI-7500 "));
     burbaCorrCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Calculating_Off-season_Uptake_Correction.html"));
 
@@ -897,6 +899,18 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
                     wplCheckBox->setChecked(true);
                 }
             });
+
+    //> Burba availability is the only thing on this page that depends on the
+    //> METADATA rather than on the project, and no other Advanced page listens
+    //> to DlProject at all - so adding an analyser in the Metadata File Editor
+    //> would otherwise leave the box greyed until the project was reopened.
+    if (dlProject_)
+    {
+        connect(dlProject_, &DlProject::projectChanged,
+                this, &AdvProcessingOptions::updateBurbaAvailability);
+        connect(dlProject_, &DlProject::projectModified,
+                this, &AdvProcessingOptions::updateBurbaAvailability);
+    }
 
     connect(wplCheckBox, &RichTextCheckBox::clicked,
             this, &AdvProcessingOptions::warnWplOffWithCec);
@@ -1455,6 +1469,12 @@ void AdvProcessingOptions::reset()
     burbaCorrCheckBox->setChecked(false);
 
     enableBurbaCorrectionArea(false);
+    //> setEnabled(true) above is the default for a project that CAN have the
+    //> correction. Whether this one can depends on the metadata, which a
+    //> reset does not touch - so without this, resetting a project with no
+    //> LI-7500 handed back a clickable box for a correction the engine drops.
+    //> Every other path that can change the answer already ends here.
+    updateBurbaAvailability();
 
     burbaSimpleRadio->setChecked(true);
     burbaParamWidget->setCurrentIndex(0);
@@ -1594,15 +1614,17 @@ void AdvProcessingOptions::refresh()
 
     burbaRadioGroup->buttons().at(ecProject_->screenBuMulti())->setChecked(true);
 
+    //> The stack page follows the project, because which regression is in force
+    //> IS a project setting. Which of that page's day/night tabs is on top is
+    //> not: it is where the user last was, and forcing it back to Day here sent
+    //> them there again on every refresh.
     burbaParamWidget->setCurrentIndex(ecProject_->screenBuMulti());
-    burbaSimpleTab->setCurrentIndex(0);
-    burbaMultiTab->setCurrentIndex(0);
 
-    burbaTypeLabel->setEnabled(wplCheckBox->isChecked() && burbaCorrCheckBox->isChecked());
-    burbaSimpleRadio->setEnabled(wplCheckBox->isChecked() && burbaCorrCheckBox->isChecked());
-    burbaParamWidget->setEnabled(wplCheckBox->isChecked() && burbaCorrCheckBox->isChecked());
-    burbaMultiTab->setEnabled(wplCheckBox->isChecked() && burbaCorrCheckBox->isChecked());
-    setDefaultsButton->setEnabled(wplCheckBox->isChecked() && burbaCorrCheckBox->isChecked());
+    enableBurbaCorrectionArea(wplCheckBox->isChecked()
+                              && burbaCorrCheckBox->isChecked());
+    //> Last, so it can override the two lines above: without an LI-7500 the box
+    //> goes off and stays off, whatever the project said.
+    updateBurbaAvailability();
 
     lDayBotGain->setText(QString::number(ecProject_->screenLDayBotGain(), 'f', 3));
     lDayBotOffset->setText(QString::number(ecProject_->screenLDayBotOffset(), 'f', 2));
@@ -2298,8 +2320,10 @@ void AdvProcessingOptions::enableBurbaCorrectionArea(bool b)
     burbaTypeLabel->setEnabled(b);
     burbaSimpleRadio->setEnabled(b);
     burbaMultiRadio->setEnabled(b);
+    //> The stack, not the tab widgets inside it: disabling a parent already
+    //> disables its children, and naming only one of the two tab widgets left
+    //> the other relying on that cascade anyway.
     burbaParamWidget->setEnabled(b);
-    burbaMultiTab->setEnabled(b);
     setDefaultsButton->setEnabled(b);
 }
 
@@ -2314,6 +2338,67 @@ void AdvProcessingOptions::updateBurbaGroup(bool b)
 {
     burbaCorrCheckBox->setEnabled(b);
     enableBurbaCorrectionArea(b && burbaCorrCheckBox->isChecked());
+    //> After the WPL gate, not before: this can only ever take the box further
+    //> off, and it must have the last word on whether it is enabled.
+    updateBurbaAvailability();
+}
+
+/// Burba terms need an LI-7500 family analyser, and the engine says so itself:
+/// OverrideSettings() forces bu_corr to 'none' when no gas column names one, so
+/// a project that ticks this box without one is asking for a correction that is
+/// then silently dropped. Greyed here instead, and the setting cleared with it,
+/// so the interface and the run agree on what is going to happen.
+///
+/// Deliberately no SmartFlux veto, unlike updateCecAvailability() above. The
+/// engine clears bu_corr in exactly three places - configure_for_express.f90,
+/// configure_for_md_retrieval.f90 and the LI-7500 test in
+/// override_settings.f90 - and none of them is the embedded run environment.
+/// SmartFlux is also the case where the correction matters most, being paired
+/// with the open-path head it describes.
+void AdvProcessingOptions::updateBurbaAvailability()
+{
+    const auto hasLi7500 = hasLi7500FamilyIrga();
+
+    //> The density correction still gates it: an unavailable Burba stays
+    //> unavailable, but an available one is only offered while WPL is on.
+    const auto enabled = hasLi7500 && wplCheckBox->isChecked();
+
+    burbaCorrCheckBox->setEnabled(enabled);
+    burbaCorrCheckBox->setToolTip(hasLi7500
+        ? burbaAvailableTooltip_
+        : tr("<b>Add instrument sensible heat components, only for LI-7500:</b> "
+             "Unavailable. The correction describes the heat exchange at the "
+             "surfaces of an LI-7500 open-path head, so it applies only "
+             "to that family of analyzers - and none is configured in the "
+             "metadata. Add one in the Metadata File Editor to enable it."));
+
+    if (!hasLi7500)
+    {
+        QSignalBlocker blocker(burbaCorrCheckBox);
+        burbaCorrCheckBox->setChecked(false);
+        //> Only when it actually says otherwise. The setter marks the project
+        //> modified unconditionally, and this runs on every metadata read - so
+        //> writing the 0 that is already there would mark a project dirty for
+        //> no reason other than having been opened.
+        if (ecProject_->screenBuCorr() != 0)
+        {
+            ecProject_->setScreenBuCorr(0);
+        }
+        enableBurbaCorrectionArea(false);
+        return;
+    }
+
+    enableBurbaCorrectionArea(enabled && burbaCorrCheckBox->isChecked());
+}
+
+/// Asked of every analyser the metadata describes, which is the same set the
+/// engine walks. The walk itself lives in IrgaDesc, so this page and the
+/// spectral page cannot answer it differently.
+bool AdvProcessingOptions::hasLi7500FamilyIrga() const
+{
+    if (!dlProject_) { return false; }
+
+    return IrgaDesc::hasLi7500Family(dlProject_->irgas());
 }
 
 void AdvProcessingOptions::createQuestionMark()

@@ -1990,23 +1990,7 @@ bool AdvSpectralOptions::isFratini()
 
 bool AdvSpectralOptions::hasLi7500FamilyIrga() const
 {
-    const IrgaDescList* irgas = dlProject_->irgas();
-    for (const IrgaDesc& irga : *irgas)
-    {
-        if (isLi7500FamilyIrgaModel(irga.model()))
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool AdvSpectralOptions::isLi7500FamilyIrgaModel(const QString& model)
-{
-    return model == IrgaDesc::getIRGA_MODEL_STRING_2()
-           || model == IrgaDesc::getIRGA_MODEL_STRING_3()
-           || model == IrgaDesc::getIRGA_MODEL_STRING_12()
-           || model == IrgaDesc::getIRGA_MODEL_STRING_14();
+    return IrgaDesc::hasLi7500Family(dlProject_ ? dlProject_->irgas() : nullptr);
 }
 
 void AdvSpectralOptions::maybeWarnMassmanFallback()

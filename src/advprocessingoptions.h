@@ -142,6 +142,10 @@ private slots:
 
     void updateWplMeth_1(bool b);
     void updateBurbaGroup(bool b);
+    /// The engine refuses the instrument sensible heat terms outright when no
+    /// LI-7500 family analyser is configured (override_settings.f90). Mirrored
+    /// here so the interface does not offer a correction that will not run.
+    void updateBurbaAvailability();
     void updateBurbaType_2(int n);
     void enableBurbaCorrectionArea(bool b);
 
@@ -174,6 +178,8 @@ private:
     void createBurbaParamItems();
     void createQuestionMark();
     bool requestBurbaSettingsReset();
+    /// Whether the metadata describes an LI-7500 family analyser at all.
+    bool hasLi7500FamilyIrga() const;
     void setBurbaDefaultValues();
 
     QLabel* windOffsetLabel;
@@ -213,6 +219,10 @@ private:
     //> "unavailable" one and has to be able to put this back. It used to
     //> restore cecCheckBox->toolTip(), which by then WAS the unavailable text.
     QString cecAvailableTooltip_;
+
+    //> Same reason as cecAvailableTooltip_: updateBurbaAvailability() swaps in
+    //> an "unavailable" tooltip and needs the original to put back.
+    QString burbaAvailableTooltip_;
 
     //> Modifier on covariance maximisation. Greyed unless the time-lag method
     //> is one of the two that maximise a covariance.

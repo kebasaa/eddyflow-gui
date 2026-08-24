@@ -1,6 +1,31 @@
 8.1.0 (2026-08-22)
 
     GUI:
+	- New feature: The Burba instrument sensible heat correction is greyed out, and
+	               its setting cleared, on a project whose metadata describes no
+	               LI-7500 family analyser.
+	               The engine already refuses it in that case - OverrideSettings walks
+	               every gas column and forces bu_corr to 'none' if none names a model
+	               containing li7500 - but it does so SILENTLY, with no warning number,
+	               unlike the conditional eddy covariance partition which at least says
+	               Warning(114). So the box could be ticked, saved, and run, and the
+	               correction quietly not happen. Now the interface and the run agree.
+	               The model set is exactly the engine's four open-path variants -
+	               LI-7500, LI-7500A, LI-7500RS, LI-7500DS. LI-7200 and LI-7700 do not
+	               qualify, which is what the engine's substring test already implies.
+	               This is the only control on the Advanced pages that depends on the
+	               METADATA rather than on the project, so it listens to DlProject:
+	               adding an analyser in the Metadata File Editor enables the box
+	               without reopening the project.
+	               No SmartFlux veto, unlike the partition. The engine clears bu_corr in
+	               exactly three places - express mode, metadata retrieval, and the
+	               LI-7500 test itself - and none of them is the embedded run
+	               environment; SmartFlux is also the case where the correction matters
+	               most, being paired with the open-path head it describes.
+	               The list walk behind it now lives in IrgaDesc, because the spectral
+	               page asks the same question for its Massman fallback and the two had
+	               a copy each: they agreed on which models count and could still have
+	               disagreed on the answer.
 	- Fix: An imported EddyUH project could not be run. It carried no gas records,
        no master sonic, no column selection and no external-metadata flag, so
        the engine found no gas analyser, reported an acquisition frequency of

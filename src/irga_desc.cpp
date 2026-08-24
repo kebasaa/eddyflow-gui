@@ -658,6 +658,28 @@ bool IrgaDesc::isGoodIrga(const IrgaDesc &irga)
             && isGoodKorLAnalyzer);
 }
 
+bool IrgaDesc::isLi7500FamilyModel(const QString& model)
+{
+    return (model == getIRGA_MODEL_STRING_2()    // li7500
+             || model == getIRGA_MODEL_STRING_3()    // li7500a
+             || model == getIRGA_MODEL_STRING_12()   // li7500rs
+             || model == getIRGA_MODEL_STRING_14());  // li7500ds
+}
+
+bool IrgaDesc::hasLi7500Family(const QList<IrgaDesc>* irgas)
+{
+    if (!irgas) { return false; }
+
+    for (const IrgaDesc& irga : *irgas)
+    {
+        if (isLi7500FamilyModel(irga.model()))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool IrgaDesc::isOpenPathModel(const QString& model)
 {
     return (model == IrgaDesc::getIRGA_MODEL_STRING_2()
