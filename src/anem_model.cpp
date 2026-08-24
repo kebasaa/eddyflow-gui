@@ -45,9 +45,16 @@ qreal AnemModel::stationAcFreq() const
     return project_ ? project_->acquisitionFrequency() : 10.0;
 }
 
-qreal AnemModel::displayedAcFreq(const AnemDesc& anem) const
+/// Whether the sampling choice changes anything for this instrument.
+///
+/// Only an instrument genuinely SLOWER than the station has an interval to
+/// average over. The engine clamps the rate it uses to
+/// min(instr%ac_freq, Metadata%ac_freq) (column_sampling.f90), so at or above
+/// the station's rate the two choices produce the same pairing and the stored
+/// value is never read.
+bool AnemModel::samplingIsRelevant(const AnemDesc& anem) const
 {
-    return anem.acFreq() > 0.0 ? anem.acFreq() : stationAcFreq();
+    return anem.acFreq() > 0.0 && anem.acFreq() < stationAcFreq();
 }
 
 AnemModel::~AnemModel()
@@ -288,16 +295,23 @@ QVariant AnemModel::data(const QModelIndex& index, int role) const
                     return QVariant(QString::number(anemDesc.tau(), 'f', 4) + QStringLiteral(" [s]"));
                 }
             case ACFREQ:
-                //> Shown as the station's rate while the instrument states
-                //> none, so the cell always reads as the rate actually in
-                //> force - and follows the station if that changes.
-                return QVariant(QString::number(displayedAcFreq(anemDesc), 'f', 3)
+                //> Named, not just resolved. The stored 0 means "follow the
+                //> station", and a cell that printed only the station's number
+                //> gave no way to tell that apart from an instrument pinned to
+                //> the same rate - which is the state the editor then had no
+                //> way back to.
+                if (anemDesc.acFreq() <= 0.0)
+                {
+                    return QVariant(tr("Station frequency (%1 Hz)")
+                                    .arg(QString::number(stationAcFreq(), 'f', 3)));
+                }
+                return QVariant(QString::number(anemDesc.acFreq(), 'f', 3)
                                 + QStringLiteral(" [Hz]"));
             case SAMPLING:
-                //> Only says anything for an instrument slower than the
-                //> station: at the station's rate there is no interval to
-                //> average over, and w is the same sample either way.
-                if (anemDesc.acFreq() <= 0.0) { return nullStrValue; }
+                //> Always shown, and always editable - see flags(). It only
+                //> MEANS anything for an instrument slower than the station,
+                //> and that is said by grey text and a tooltip rather than by
+                //> withholding the cell.
                 return QVariant(anemDesc.sampling());
             default:
                 return QVariant();
@@ -507,7 +521,11 @@ QVariant AnemModel::data(const QModelIndex& index, int role) const
                     return QVariant(anemDesc.tau());
                 }
             case ACFREQ:
-                return QVariant(displayedAcFreq(anemDesc));
+                //> The stored value, not the resolved one: an instrument that
+                //> follows the station must open its editor on 0, which is the
+                //> spin's special "Station frequency" entry. Seeding it with
+                //> the station's number instead left no way back to 0.
+                return QVariant(anemDesc.acFreq());
             case SAMPLING:
                 return QVariant(anemDesc.sampling());
             default:
@@ -570,6 +588,12 @@ QVariant AnemModel::data(const QModelIndex& index, int role) const
     }
     else if (role == Qt::ForegroundRole)
     {
+        //> Greyed rather than withheld: the value is still there, still
+        //> editable, and still saved - it just has no effect at this rate.
+        if (row == SAMPLING && !samplingIsRelevant(anemDesc))
+        {
+            return QVariant(QColor(Qt::darkGray));
+        }
         return QVariant(QColor(Qt::black));
     }
     // tooltips texts
@@ -610,6 +634,17 @@ QVariant AnemModel::data(const QModelIndex& index, int role) const
                     return QVariant(tr("Same as the station's acquisition frequency"));
                 }
                 return QVariant(tr("Acquisition frequency of this anemometer"));
+            case SAMPLING:
+                if (!samplingIsRelevant(anemDesc))
+                {
+                    return QVariant(tr("Not relevant at the station's own "
+                                       "acquisition frequency: there is no "
+                                       "interval to average over. Stored, but "
+                                       "not used."));
+                }
+                return QVariant(tr("Whether this instrument reports the value "
+                                   "at an instant or the mean over its own "
+                                   "sampling interval."));
             case VPATHLENGTH:
             case HPATHLENGTH:
             case TAU:
@@ -755,7 +790,11 @@ bool AnemModel::setData(const QModelIndex& index, const QVariant& value, int rol
             //> on following the station rather than freezing today's number.
             //> Typing the station's own rate is not "changing it".
             const auto entered = value.toReal();
-            const auto stored = qFuzzyCompare(entered, stationAcFreq()) ? 0.0 : entered;
+            //> <= 0 is the user asking for it outright, by winding the spin
+            //> down to its "Station frequency" entry or typing a zero.
+            const auto stored = (entered <= 0.0
+                                 || qFuzzyCompare(entered, stationAcFreq()))
+                                ? 0.0 : entered;
             //> Offset by one: qFuzzyCompare is undefined against exactly
             //> zero, which is the value that means "follow the station".
             if (qFuzzyCompare(stored + 1.0, anemDesc.acFreq() + 1.0))
@@ -910,14 +949,12 @@ Qt::ItemFlags AnemModel::flags(const QModelIndex& index) const
                 return currentFlags;
             }
         case SAMPLING:
-            //> Greyed out until the instrument is given a rate of its own -
-            //> see the display role.
-            if (anemDesc.acFreq() <= 0.0)
-            {
-                currentFlags &= ~Qt::ItemIsEnabled;
-                currentFlags &= ~Qt::ItemIsEditable;
-                currentFlags &= ~Qt::ItemIsSelectable;
-            }
+            //> Always selectable, on every instrument. It used to be greyed
+            //> whenever the instrument had no rate of its own, which is also
+            //> the state an instrument lands in the moment it is set to the
+            //> station's rate - so stating the sampling once put the cell
+            //> permanently out of reach. Whether the choice MATTERS is said by
+            //> samplingIsRelevant(), in the foreground colour and the tooltip.
             return currentFlags;
         default:
             return currentFlags;

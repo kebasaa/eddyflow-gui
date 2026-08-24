@@ -63,10 +63,29 @@ class InstrumentSamplingStaticTests(unittest.TestCase):
     def test_typing_the_station_rate_keeps_the_instrument_following(self):
         for path in ("src/anem_model.cpp", "src/irga_model.cpp"):
             body = read(path)
-            assert "qFuzzyCompare(entered, stationAcFreq()) ? 0.0 : entered" in body, path
+            assert "qFuzzyCompare(entered, stationAcFreq())" in body, path
+            # An explicit zero is the user asking for it outright, by winding
+            # the spin down to its "Station frequency" entry or typing one.
+            assert "entered <= 0.0" in body, path
             # qFuzzyCompare is undefined against exactly zero, which is the
             # value that means "follow the station".
             assert "+ 1.0)" in body, path
+
+    def test_the_follow_the_station_state_can_be_seen_and_chosen(self):
+        """0 is the stored sentinel for "follow the station". A spin that
+        cannot reach 0, seeded with the RESOLVED rate rather than the stored
+        one, left no way back to it and no way to tell it apart from an
+        instrument pinned to the same number."""
+        for delegate in ("src/anem_delegate.cpp", "src/irga_delegate.cpp"):
+            body = read(delegate)
+            assert "dspin->setRange(0.0, 100.0)" in body, delegate
+            assert 'setSpecialValueText(tr("Station frequency"))' in body, delegate
+
+        for model in ("src/anem_model.cpp", "src/irga_model.cpp"):
+            body = read(model)
+            # The EditRole hands back the stored value, not the resolved one.
+            assert "displayedAcFreq" not in body.split("case ACFREQ:")[-1], model
+            assert 'tr("Station frequency (%1 Hz)")' in body, model
 
     def test_the_row_is_shown_edited_and_is_the_last_one(self):
         for model, view, delegate, enum in (
@@ -81,7 +100,9 @@ class InstrumentSamplingStaticTests(unittest.TestCase):
             assert "::ACFREQ:" in body, delegate
             # Same validation as the station's own frequency spin.
             assert 'dspin->setSuffix(QStringLiteral(" [Hz]"))' in body, delegate
-            assert "dspin->setRange(0.001, 100.0)" in body, delegate
+            #> 0 is reserved as the "follow the station" entry; the station's
+            #> own spin (dlsitetab.cpp) keeps the 0.001 floor.
+            assert "dspin->setRange(0.0, 100.0)" in body, delegate
 
     def test_the_whole_column_signal_reaches_the_last_row(self):
         """setData emits dataChanged over MANUFACTURER..<last row>, and the
@@ -130,6 +151,25 @@ class InstrumentSamplingStaticTests(unittest.TestCase):
             assert "::SAMPLING:" in d, delegate
             #> A combo, not a spin box: isComboRow is what the delegate keys on.
             assert "|| row == " in d and "::SAMPLING" in d, delegate
+
+    def test_the_sampling_row_is_editable_on_every_instrument(self):
+        """Sampling used to be greyed whenever the instrument had no rate of
+        its own - which is also the state it lands in the moment it is set to
+        the station's rate, so stating the sampling once put the cell out of
+        reach. Whether the choice MATTERS is said by colour and tooltip now,
+        not by withholding the cell."""
+        for model in ("src/anem_model.cpp", "src/irga_model.cpp"):
+            body = read(model)
+            flags = body[body.index("Qt::ItemFlags"):]
+            sampling = flags[flags.index("case SAMPLING:"):]
+            sampling = sampling[:sampling.index("return currentFlags;")]
+            assert "ItemIsEnabled" not in sampling, model
+            assert "ItemIsEditable" not in sampling, model
+            assert "ItemIsSelectable" not in sampling, model
+            #> The relevance test the grey text and the tooltip both key on.
+            assert "bool %s::samplingIsRelevant" % (
+                "AnemModel" if "anem" in model else "IrgaModel") in body, model
+            assert "acFreq() < stationAcFreq()" in body, model
 
     def test_the_sampling_default_is_instantaneous(self):
         """The first entry of the list is the default, and the descriptors must

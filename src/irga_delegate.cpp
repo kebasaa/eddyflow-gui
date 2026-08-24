@@ -286,11 +286,13 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
             }
         case IrgaModel::ACFREQ:
             //> Same validation as the station's own frequency spin
-            //> (dlsitetab.cpp): 3 decimals, 0.001-100 Hz. The value shown is
-            //> the station's until the analyser is given one of its own.
+            //> (dlsitetab.cpp) except at the bottom: 3 decimals, up to 100 Hz,
+            //> and 0 reserved as the "follow the station" entry. The station's
+            //> own spin keeps its 0.001 floor, where 0 would mean nothing.
             dspin = new QDoubleSpinBox(parent);
             dspin->setDecimals(3);
-            dspin->setRange(0.001, 100.0);
+            dspin->setRange(0.0, 100.0);
+            dspin->setSpecialValueText(tr("Station frequency"));
             dspin->setSingleStep(1.0);
             dspin->setAccelerated(true);
             dspin->setSuffix(QStringLiteral(" [Hz]"));

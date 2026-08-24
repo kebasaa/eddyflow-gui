@@ -88,7 +88,8 @@ signals:
 private:
     //> See AnemModel.
     qreal stationAcFreq() const;
-    qreal displayedAcFreq(const IrgaDesc& irga) const;
+    /// Whether the sampling choice changes anything at this instrument's rate.
+    bool samplingIsRelevant(const IrgaDesc& irga) const;
 
     IrgaDescList *list_;
     DlProject *project_;
