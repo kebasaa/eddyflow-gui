@@ -1862,7 +1862,10 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
                                 "This is also the file's own completeness "
                                 "threshold, and the allowance for every "
                                 "instrument that is not given one of its own "
-                                "below."));
+                                "under <i>Missing samples allowance, per "
+                                "instrument</i>, which is listed below once a "
+                                "metadata file describing the instruments has "
+                                "been loaded."));
     maxLackSpin = new QSpinBox;
     maxLackSpin->setRange(0, 99);
     maxLackSpin->setSingleStep(1);
@@ -5880,21 +5883,31 @@ void BasicSettingsPage::refreshInstrMaxLackRows()
         delete item;
     }
 
-    struct Row { QString label; };
+    //> Model first, id as a qualifier - not the other way round. An id is free
+    //> text and is very often a bare number, so leading with it produced rows
+    //> labelled "0" that named nothing the user could recognise, and gave no
+    //> clue whether they were looking at a sonic or an analyser.
+    const auto describe = [](const QString& model, const QString& id,
+                             const QString& fallback)
+    {
+        auto name = model.trimmed();
+        if (name.isEmpty()) { name = fallback; }
+        const auto tag = id.trimmed();
+        if (tag.isEmpty()) { return name; }
+        return QStringLiteral("%1 (%2)").arg(name, tag);
+    };
+
+    struct Row { QString label; QString category; };
     QList<Row> rows;
     for (const auto& anem : *dlProject_->anems())
     {
-        auto name = anem.id().trimmed();
-        if (name.isEmpty()) { name = anem.model().trimmed(); }
-        if (name.isEmpty()) { name = tr("Anemometer"); }
-        rows.append({name});
+        rows.append({describe(anem.model(), anem.id(), tr("Anemometer")),
+                     tr("Anemometers")});
     }
     for (const auto& irga : *dlProject_->irgas())
     {
-        auto name = irga.id().trimmed();
-        if (name.isEmpty()) { name = irga.model().trimmed(); }
-        if (name.isEmpty()) { name = tr("Gas analyzer"); }
-        rows.append({name});
+        rows.append({describe(irga.model(), irga.id(), tr("Gas analyzer")),
+                     tr("Gas analyzers")});
     }
 
     //> Nothing to show without a metadata file.
@@ -5926,13 +5939,33 @@ void BasicSettingsPage::refreshInstrMaxLackRows()
 
     auto title = new QLabel(tr("Missing samples allowance, per instrument :"),
                             instrLackContainer_);
+    //> Styled as a section header, like the other headings on this page: the
+    //> block appears only once a metadata file is loaded, and an unstyled line
+    //> of text among the spin boxes above it read as part of them.
+    title->setProperty("groupLabel", true);
     title->setToolTip(tip);
     instrLackLayout_->addWidget(title, 0, 0, 1, 2);
 
     int row = 1;
     int slot = 1;
+    QString currentCategory;
     for (const auto& r : rows)
     {
+        //> Anemometers first, then analysers - the order the slots are keyed
+        //> in. Said out loud so a sonic cannot be mistaken for an analyser.
+        if (r.category != currentCategory)
+        {
+            currentCategory = r.category;
+            auto heading = new QLabel(currentCategory, instrLackContainer_);
+            //> An objectName, not a property: the stylesheet selects it
+            //> as QLabel#citeLabel. Grey, so the heading reads as a
+            //> divider rather than as another instrument.
+            heading->setObjectName(QStringLiteral("citeLabel"));
+            heading->setToolTip(tip);
+            instrLackLayout_->addWidget(heading, row, 0, 1, 2, Qt::AlignLeft);
+            ++row;
+        }
+
         auto label = new QLabel(r.label, instrLackContainer_);
         label->setToolTip(tip);
 
