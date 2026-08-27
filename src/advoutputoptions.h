@@ -25,6 +25,7 @@
 #ifndef ADVOUTPUTOPTIONS_H
 #define ADVOUTPUTOPTIONS_H
 
+#include <QHash>
 #include <QVector>
 #include <QWidget>
 #include <QWidgetList>
@@ -172,8 +173,18 @@ private:
 
     void createQuestionMark();
 
-    std::vector<bool> oldEnabled{};
-    std::vector<bool> oldVisible{};
+    //> Keyed by the widget rather than by position. The lists these describe
+    //> are not a fixed length - the per-gas boxes come and go with the
+    //> project's gas records - so a positional restore read back the wrong
+    //> widget's state, or ran off the end of the vector entirely.
+    QHash<QWidget*, bool> oldEnabled{};
+    QHash<QWidget*, bool> oldVisible{};
+
+    //> refresh() writes the project through its tail helpers, and several of
+    //> EcProject's setters announce a change whether or not one happened. That
+    //> makes refresh reachable from its own body; this stops the second entry
+    //> rather than trusting every setter to be well behaved.
+    bool refreshing_{false};
 
     QPushButton* fullSelectionButton;
     QLabel* fullSelectionDesc;

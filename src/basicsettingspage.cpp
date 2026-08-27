@@ -7101,14 +7101,21 @@ void BasicSettingsPage::setSmartfluxUI(bool on)
     {
         if (on)
         {
-            oldEnabled.push_back(w->isEnabled());
+            //> Only the first entry records anything, or a second would save
+            //> the disabled state this loop just imposed and call it original.
+            if (!oldEnabled.contains(w)) { oldEnabled.insert(w, w->isEnabled()); }
             w->setDisabled(on);
         }
         else
         {
-            w->setEnabled(oldEnabled.at(static_cast<unsigned long>(widgets.indexOf(w))));
+            //> Nothing recorded means the mode was never entered - which is
+            //> the state the program starts in, since the persisted SmartFlux
+            //> flag is written but never read back. Enabled is the right
+            //> answer, and it is what the positional vector used to abort on.
+            w->setEnabled(oldEnabled.value(w, true));
         }
     }
+    if (!on) { oldEnabled.clear(); }
 
     if (on)
     {

@@ -7504,6 +7504,15 @@ void EcProject::setSpectraFile(const QString &p)
 
 void EcProject::setSpectraFluxRunMode(int n)
 {
+    //> Setting it to what it already says is not a change, and must not be
+    //> announced as one. AdvOutputOptions::updateSpectralAssessmentCreationAvailability
+    //> calls this unconditionally in SmartFlux mode, and updateInfo() is wired
+    //> back to AdvOutputOptions::refresh - so an unconditional emit here closed
+    //> a loop that recursed until the stack was gone: refresh -> availability
+    //> -> this setter -> updateInfo -> refresh. The guard is what makes the
+    //> second turn a no-op instead of another turn.
+    if (ec_project_state_.spectraSettings.flux_run_mode == n) { return; }
+
     ec_project_state_.spectraSettings.flux_run_mode = n;
     setModified(true);
     emit updateInfo();
