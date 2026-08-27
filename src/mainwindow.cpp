@@ -32,6 +32,7 @@
 #include <QDockWidget>
 #include <QErrorMessage>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QFuture>
 #include <QGridLayout>
 #include <QMenuBar>
@@ -880,7 +881,15 @@ void MainWindow::fileRecent()
 
     if (configState_.project.smartfluxMode)
     {
-        loadSmartfluxProjectCopy(fname);
+        if (!loadSmartfluxProjectCopy(fname))
+        {
+            //> A failed load has closed the project and left a blank one.
+            //> The mode has nothing left to describe, so leave it rather than
+            //> sit over the blank project claiming otherwise. setSmartfluxMode
+            //> rather than requestSmartFluxMode: this is not the user choosing
+            //> to leave, and there is nothing to ask them about.
+            setSmartfluxMode(false);
+        }
     }
     else
     {
@@ -2052,7 +2061,22 @@ void MainWindow::setSmartfluxMode(bool on)
         if (!currentProjectFile().contains(Defs::DEFAULT_SMARTFLUX_SUFFIX))
         {
             // laod a renamed copy of the previous loaded project
-            loadSmartfluxProjectCopy(currentProjectFile());
+            if (!loadSmartfluxProjectCopy(currentProjectFile()))
+            {
+                //> The copy is not there, and a failed load has already closed
+                //> the project and put a blank one in its place. Staying in the
+                //> mode would leave the bar, the greyed pages and the Create
+                //> Package button describing a project that is no longer open.
+                //>
+                //> Turned back off here rather than returning, so the rest of
+                //> this function puts every menu action and page back the way
+                //> leaving the mode normally would.
+                on = false;
+                configState_.project.smartfluxMode = false;
+                GlobalSettings::setAppPersistentSettings(Defs::CONFGROUP_PROJECT,
+                                                         Defs::CONF_PROJ_SMARTFLUX,
+                                                         false);
+            }
         }
     }
 
@@ -2091,39 +2115,69 @@ void MainWindow::setSmartfluxMode(bool on)
     }
 }
 
-void MainWindow::loadSmartfluxProjectCopy(const QString& filename)
+/// The -smartflux twin of a project file name.
+///
+/// Built from the file NAME rather than by finding ".eddyflow" anywhere in the
+/// path. indexOf found the first match, so a project sitting in a directory
+/// that happened to be called something.eddyflow had the suffix spliced into
+/// the directory instead of the file. And a name carrying no extension at all -
+/// an imported EddyUH preproc file has none - gave indexOf -1, where insert()
+/// quietly does nothing: the "copy" came back identical to the original, and
+/// was then opened or overwritten as though it were the copy.
+QString MainWindow::smartfluxProjectNameFor(const QString& filename)
 {
-    // laod a renamed copy of the previous loaded project
-    const QString epExt = QStringLiteral(".") + Defs::PROJECT_FILE_EXT;
+    const QFileInfo info(filename);
 
-    QString filenameCopy = filename;
-    if (filenameCopy.indexOf(Defs::DEFAULT_SMARTFLUX_SUFFIX) == -1)
+    auto base = info.completeBaseName();
+    if (!base.endsWith(Defs::DEFAULT_SMARTFLUX_SUFFIX))
     {
-        filenameCopy.insert(filenameCopy.indexOf(epExt), Defs::DEFAULT_SMARTFLUX_SUFFIX);
+        base += Defs::DEFAULT_SMARTFLUX_SUFFIX;
     }
+
+    //> Always the project extension, even where the original had none: what is
+    //> being named here is an EddyFlow project either way.
+    const auto name = base + QLatin1Char('.') + Defs::PROJECT_FILE_EXT;
+
+    const auto dir = info.path();
+    if (dir.isEmpty() || dir == QLatin1String(".")) { return name; }
+    return dir + QLatin1Char('/') + name;
+}
+
+/// The renamed copy this mode runs on, loaded or created.
+///
+/// Returns false when the copy could not be put in place. The caller must not
+/// stay in SmartFlux mode then: a failed load closes the project and leaves a
+/// blank one behind, and the mode would otherwise sit over it claiming to
+/// describe a project that is no longer open.
+bool MainWindow::loadSmartfluxProjectCopy(const QString& filename)
+{
+    const QString filenameCopy = smartfluxProjectNameFor(filename);
 
     if (currentProjectFile() == Defs::DEFAULT_PROJECT_FILENAME)
     {
         setCurrentProjectFile(filenameCopy, true);
         newFlag_ = true;
-        return;
+        return true;
     }
 
-    // if we are not reopening the same smartflux project file
-    if (currentProjectFile() != filenameCopy)
+    //> Already on the copy. Nothing to do, and nothing has gone wrong.
+    if (currentProjectFile() == filenameCopy) { return true; }
+
+    // if the corresponding smartflux project file already exists, open it
+    if (QFile::exists(filenameCopy))
     {
-        // if the corresponding smartflux project file already exists, open it
-        if (QFile::exists(filenameCopy))
-        {
-            fileOpen(filenameCopy);
-        }
-        // save and open silently a renamed copy of the current project file
-        else
-        {
-            fileSaveAs(filenameCopy);
-            newFlag_ = true;
-        }
+        fileOpen(filenameCopy);
+        //> fileOpen reports nothing itself, but openFile sets the current
+        //> project file when the load succeeds and calls fileClose() - which
+        //> clears it - when it does not. So this is the load's own answer
+        //> rather than an assumption that it worked.
+        return currentProjectFile() == filenameCopy;
     }
+
+    // save and open silently a renamed copy of the current project file
+    if (!fileSaveAs(filenameCopy)) { return false; }
+    newFlag_ = true;
+    return true;
 }
 
 // Add a file to the recent files list
@@ -3309,7 +3363,15 @@ void MainWindow::fileOpenRequest(QString file)
     if (configState_.project.smartfluxMode
             && !file.isEmpty())
     {
-        loadSmartfluxProjectCopy(file);
+        if (!loadSmartfluxProjectCopy(file))
+        {
+            //> A failed load has closed the project and left a blank one.
+            //> The mode has nothing left to describe, so leave it rather than
+            //> sit over the blank project claiming otherwise. setSmartfluxMode
+            //> rather than requestSmartFluxMode: this is not the user choosing
+            //> to leave, and there is nothing to ask them about.
+            setSmartfluxMode(false);
+        }
     }
     else
     {

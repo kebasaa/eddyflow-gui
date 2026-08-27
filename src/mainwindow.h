@@ -357,7 +357,10 @@ private:
 
     bool argFilename_;
 
-    void loadSmartfluxProjectCopy(const QString &filename);
+    /// False when the renamed copy could not be put in place - see the
+    /// definition. The caller must leave SmartFlux mode when it returns false.
+    bool loadSmartfluxProjectCopy(const QString &filename);
+    static QString smartfluxProjectNameFor(const QString& filename);
     void cleanEnvTmpDir();
     void silentMdClenaup();
 
