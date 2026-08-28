@@ -385,6 +385,9 @@ private:
     //> series), so it stays out of checkbox_list/areAllCheckedTests/
     //> selectAllTest too.
     QCheckBox* postFluxDespikeCheckBox;
+    //> Same reasoning again: RP-only whole-run post-pass, not one of the
+    //> Vickers & Mahrt (1997) raw-data tests.
+    QCheckBox* storCleanCheckBox;
 
     QCheckBox* selectAllCheckBox;
     QPushButton* defaultValuesButton;

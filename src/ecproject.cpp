@@ -1032,6 +1032,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenSetting.spectro_meth = defaultEcProjectState.screenSetting.spectro_meth;
     ec_project_state_.screenSetting.spectro_water = defaultEcProjectState.screenSetting.spectro_water;
     ec_project_state_.screenSetting.covmax_debaseline = defaultEcProjectState.screenSetting.covmax_debaseline;
+    ec_project_state_.screenSetting.test_stor_clean = defaultEcProjectState.screenSetting.test_stor_clean;
     ec_project_state_.screenSetting.tlag_borrow_meth = defaultEcProjectState.screenSetting.tlag_borrow_meth;
     ec_project_state_.screenSetting.tlag_borrow_snr = defaultEcProjectState.screenSetting.tlag_borrow_snr;
     ec_project_state_.screenSetting.tlag_borrow_noise = defaultEcProjectState.screenSetting.tlag_borrow_noise;
@@ -1903,6 +1904,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_117, QString::number(ec_project_state_.screenSetting.tilt_lpf_s, 'f', 4));
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_118, ec_project_state_.screenSetting.head_corr_meth);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_119, ec_project_state_.screenSetting.head_corr_dir);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_120, ec_project_state_.screenSetting.test_stor_clean);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_2, ec_project_state_.screenSetting.cross_wind);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_3, ec_project_state_.screenSetting.flow_distortion);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_4, ec_project_state_.screenSetting.rot_meth);
@@ -3386,6 +3388,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenSetting.head_corr_dir
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_119,
                                     defaultEcProjectState.screenSetting.head_corr_dir).toString();
+        ec_project_state_.screenSetting.test_stor_clean
+                = project_ini.value(EcIni::INI_SCREEN_SETTINGS_120,
+                                    defaultEcProjectState.screenSetting.test_stor_clean).toInt();
         ec_project_state_.screenSetting.flow_distortion
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_3,
                                     defaultEcProjectState.screenSetting.flow_distortion).toInt();
@@ -6888,6 +6893,17 @@ void EcProject::setGeneralCorrIterTol(double d)
 void EcProject::setGeneralTestPfd(int n)
 {
     ec_project_state_.projectGeneral.test_pfd = n;
+    setModified(true);
+}
+
+//> Storage cleaning runs as a standalone RP post-pass over already-written
+//> output, so like test_pfd it cannot make a computed dataset stale and is
+//> deliberately not in fuzzyCompare - even though it sits in screenSetting
+//> alongside fields that ARE, because that is where RP.SCTags(21) needs to
+//> live for the engine to read it (see INI_SCREEN_SETTINGS_120's comment).
+void EcProject::setScreenTestStorClean(int n)
+{
+    ec_project_state_.screenSetting.test_stor_clean = n;
     setModified(true);
 }
 

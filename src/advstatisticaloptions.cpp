@@ -90,6 +90,9 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     postFluxDespikeCheckBox = new QCheckBox(tr("Post-flux despiking (STL)"));
     postFluxDespikeCheckBox->setToolTip(tr("<b>Post-flux despiking (adapted from RFlux):</b> After the run finishes, decomposes each of NEE, H and LE into seasonal, trend and remainder components (STL, Cleveland et al. 1990) and flags remainder-component outliers with a Laplace-distribution test. This looks for outliers in the <i>computed half-hourly flux series</i>, not in the raw high-frequency data, so it catches spikes the raw-data tests above cannot see. Needs at least 20 periods and 4 periods/day to run; shorter or coarser runs are skipped. Off by default; enabling it writes a separate <tt>..._flux_despiking...csv</tt> file and does not change any existing output."));
 
+    storCleanCheckBox = new QCheckBox(tr("Storage-flux cleaning"));
+    storCleanCheckBox->setToolTip(tr("<b>Storage-flux cleaning (adapted from RFlux):</b> After the run finishes, tests every configured gas's storage term for outliers with a Tukey boxplot (\"far out\" fence, 3 times the interquartile range) binned by time-of-day across the whole run, then fills the outliers - and any gap already there - by linear interpolation where a valid point exists on both sides. A period with no measurement is never fabricated into a value, no matter what surrounds it. Needs at least 20 periods and 4 periods/day to run; shorter or coarser runs are skipped. RP-only. Off by default; enabling it writes a separate <tt>..._storage_cleaning...csv</tt> file per configured gas and does not change any existing output."));
+
     auto hrLabel_1 = new QLabel;
     hrLabel_1->setObjectName(QStringLiteral("hrLabel"));
 
@@ -110,13 +113,14 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     testSelectionLayout->addWidget(nonSteadyCheckBox, 8, 0);
     testSelectionLayout->addWidget(rfluxDiagCheckBox, 9, 0);
     testSelectionLayout->addWidget(postFluxDespikeCheckBox, 10, 0);
-    testSelectionLayout->addWidget(hrLabel_1, 11, 0, 1, -1);
-    testSelectionLayout->addWidget(selectAllCheckBox, 12, 0);
-    testSelectionLayout->addWidget(defaultValuesButton, 13, 0);
-    testSelectionLayout->addWidget(hrLabel_2, 14, 0, 1, -1);
-    testSelectionLayout->addWidget(thumbnailGraphLabel, 15, 0);
+    testSelectionLayout->addWidget(storCleanCheckBox, 11, 0);
+    testSelectionLayout->addWidget(hrLabel_1, 12, 0, 1, -1);
+    testSelectionLayout->addWidget(selectAllCheckBox, 13, 0);
+    testSelectionLayout->addWidget(defaultValuesButton, 14, 0);
+    testSelectionLayout->addWidget(hrLabel_2, 15, 0, 1, -1);
+    testSelectionLayout->addWidget(thumbnailGraphLabel, 16, 0);
     testSelectionLayout->setContentsMargins(10, 10, 10, 10);
-    testSelectionLayout->setRowStretch(16, 1);
+    testSelectionLayout->setRowStretch(17, 1);
     testSelectionLayout->setColumnMinimumWidth(0, 185);
 
     createQuestionMark();
@@ -346,6 +350,8 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
             this, &AdvStatisticalOptions::updateTestRf);
     connect(postFluxDespikeCheckBox, &QCheckBox::toggled,
             this, [=](bool b) { ecProject_->setGeneralTestPfd(b ? 1 : 0); });
+    connect(storCleanCheckBox, &QCheckBox::toggled,
+            this, [=](bool b) { ecProject_->setScreenTestStorClean(b ? 1 : 0); });
 
     connect(despikingRadioGroup, QOverload<int>::of(&QButtonGroup::idClicked),
             this, &AdvStatisticalOptions::despikingRadioClicked);
@@ -2604,6 +2610,7 @@ void AdvStatisticalOptions::refresh()
     nonSteadyCheckBox->setChecked(ecProject_->screenTestNs());
     rfluxDiagCheckBox->setChecked(ecProject_->screenTestRf());
     postFluxDespikeCheckBox->setChecked(ecProject_->generalTestPfd());
+    storCleanCheckBox->setChecked(ecProject_->screenTestStorClean());
 
     selectAllCheckBox->blockSignals(true);
     selectAllCheckBox->setChecked(areAllCheckedTests());

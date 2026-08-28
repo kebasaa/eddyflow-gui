@@ -373,6 +373,20 @@ namespace EcIni
     //> so the directory holding them is a setting rather than a fixed path.
     const auto INI_SCREEN_SETTINGS_118  = QStringLiteral("head_corr_meth");
     const auto INI_SCREEN_SETTINGS_119  = QStringLiteral("head_corr_dir");
+    //> Storage-flux cleaning (RFlux's cleanFlux() storage branch, Vitale et
+    //> al. 2020): a Tukey boxplot outlier test binned by time-of-day plus
+    //> interpolation, on every configured gas's storage term, written as a
+    //> separate output file after RP finishes. RP-only - it is RP.SCTags(21),
+    //> read (like every RP.SCTags/SNTags key) from wherever the
+    //> [RawProcess_*] block of sections falls in the file, never from
+    //> [Project] - ReadIniRP's key='RawProcess' scan starts at the first
+    //> [RawProcess_*] header and stops at the first section after that
+    //> is not one, so anything meant for SCTags/SNTags has to sit inside
+    //> that contiguous run. RawProcess_Settings rather than
+    //> RawProcess_Tests, alongside covmax_debaseline and kin: not a
+    //> screening-test flag, so grouping it with test_sr/test_rf there
+    //> would misdescribe what it does.
+    const auto INI_SCREEN_SETTINGS_120  = QStringLiteral("test_stor_clean");
 
     const auto INIGROUP_SCREEN_TESTS = QStringLiteral("RawProcess_Tests");
     const auto INI_SCREEN_TESTS_0    = QStringLiteral("test_sr");

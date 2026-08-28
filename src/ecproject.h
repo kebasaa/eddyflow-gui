@@ -148,6 +148,7 @@ public:
     void setGeneralCorrIterMax(int n);
     void setGeneralCorrIterTol(double d);
     void setGeneralTestPfd(int n);
+    void setScreenTestStorClean(int n);
     void setGeneralLfMethod(int n);
     void setGeneralWplMeth( int n);
     void setGeneralFpMeth(int n);
@@ -632,6 +633,7 @@ public:
     int generalCorrIterMax() const { return ec_project_state_.projectGeneral.corr_iter_max; }
     double generalCorrIterTol() const { return ec_project_state_.projectGeneral.corr_iter_tol; }
     int generalTestPfd() const { return ec_project_state_.projectGeneral.test_pfd; }
+    int screenTestStorClean() const { return ec_project_state_.screenSetting.test_stor_clean; }
     int generalLfMethod() const { return ec_project_state_.projectGeneral.lf_meth; }
     int generalWplMeth() const { return ec_project_state_.projectGeneral.wpl_meth; }
     int generalFpMeth() const { return ec_project_state_.projectGeneral.foot_meth; }

@@ -403,6 +403,9 @@ struct ScreenSettingState
     //> Metek head correction: 0 off, 1 raw data, 2 undo the online 2-D one.
     int head_corr_meth = 0;
     QString head_corr_dir;
+    //> Storage-flux cleaning (RFlux's cleanFlux() storage branch). RP-only,
+    //> off by default.
+    int test_stor_clean = 0;
 };
 
 /// \struct ScreenTestState

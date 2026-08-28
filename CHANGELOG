@@ -461,12 +461,18 @@
 	               as the three it joins - no new checkbox, no new ecproject
 	               field, since qcflag_meth/generalQcMeth() already carry any
 	               integer the engine's select case accepts. The tooltip
-	               names what feeds it (the ITC deviation and Mahrt's 1998
-	               nonstationarity ratio always; KID once enabled; AL1/DDI/
-	               HF/HD/DIP only when Extra raw-signal diagnostics is also
-	               on) and says plainly what RFlux tests it leaves out
-	               (low-signal-resolution, physical-range) rather than
-	               implying parity with RFlux's own cleanFlux().
+	               names what feeds it - the ITC deviation always, and, on
+	               a project that does not hand spectral corrections off
+	               to FCC, Mahrt's 1998 nonstationarity ratio, the always-
+	               on KID test and (when Extra raw-signal diagnostics is
+	               also on) AL1/DDI/HF/HD/DIP too - and says plainly both
+	               what RFlux's cleanFlux() this leaves out
+	               (low-signal-resolution, physical-range) and that the
+	               wider set drops to ITC-only on the more common project
+	               that does hand off to FCC, rather than implying either
+	               parity with cleanFlux() or that the wider set always
+	               applies. That second caveat was missing from the
+	               tooltip's first wording; corrected once discovered.
 
 8.0.0 (2026-08-20)
 
