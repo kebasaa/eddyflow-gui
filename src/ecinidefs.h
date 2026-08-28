@@ -133,6 +133,13 @@ namespace EcIni
     const auto INI_PROJECT_84   = QStringLiteral("corr_iter_meth");
     const auto INI_PROJECT_85   = QStringLiteral("corr_iter_max");
     const auto INI_PROJECT_86   = QStringLiteral("corr_iter_tol");
+    //> Post-flux despiking (RFlux's despiking(variant="v1"), Vitale et al.
+    //> 2020): an STL decomposition of the whole run's NEE/H/LE series with
+    //> a decile-binned Laplace outlier test on the residual, written as a
+    //> separate output file after FCC finishes. [Project] because FCC.SNTags
+    //> and FCC.SCTags are both completely full below their record origins;
+    //> FCC is still the only reader.
+    const auto INI_PROJECT_87   = QStringLiteral("test_pfd");
 
     const auto INIGROUP_SPEC_SETTINGS = QStringLiteral("FluxCorrection_SpectralAnalysis_General");
     const auto INI_SPEC_SETTINGS_0    = QStringLiteral("sa_start_date");
@@ -377,6 +384,7 @@ namespace EcIni
     const auto INI_SCREEN_TESTS_6    = QStringLiteral("test_tl");
     const auto INI_SCREEN_TESTS_7    = QStringLiteral("test_aa");
     const auto INI_SCREEN_TESTS_8    = QStringLiteral("test_ns");
+    const auto INI_SCREEN_TESTS_9    = QStringLiteral("test_rf");
 
     const auto INIGROUP_SCREEN_PARAM = QStringLiteral("RawProcess_ParameterSettings");
     const auto INI_SCREEN_PARAM_0    = QStringLiteral("sr_num_spk");

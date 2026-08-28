@@ -107,6 +107,8 @@ struct ProjectGeneralState
     int corr_iter_meth = 0;
     int corr_iter_max = 4;
     qreal corr_iter_tol = 0.0;
+    //> Post-flux despiking (RFlux's despiking(variant="v1")). Off by default.
+    int test_pfd = 0;
     int lf_meth = 1;
     int wpl_meth = 1;
     int foot_meth = 1;
@@ -416,6 +418,9 @@ struct ScreenTestState
     int test_tl = 0;
     int test_aa = 0;
     int test_ns = 0;
+    /// Extra raw-signal instrument-malfunction diagnostics ported from
+    /// RFlux (AL1, DDI, Qn/MAD-scaled HF5/HF10/HD5/HD10). Off by default.
+    int test_rf = 0;
 };
 
 /// \struct ScreenParamState

@@ -84,6 +84,11 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     attackAngleCheckBox->setToolTip(tr("<b>Angle of attack:</b> Calculates sample-wise angle of attacks throughout the current flux averaging period, and flags it if the percentage of angles of attack exceeding a user-defined range is beyond a threshold that you can set on the right-side panel."));
     nonSteadyCheckBox = new QCheckBox(tr("Steadiness of horizontal wind"));
     nonSteadyCheckBox->setToolTip(tr("<b>Steadiness of horizontal wind:</b> Assesses whether the along-wind and cross-wind components of the wind vector undergo a systematic reduction/increase throughout the file. If the quadratic combination of such systematic variations is beyond the user-selected limit, the flux-averaging period is hard-flagged for non stationary horizontal wind."));
+    rfluxDiagCheckBox = new QCheckBox(tr("Extra raw-signal diagnostics (RFlux)"));
+    rfluxDiagCheckBox->setToolTip(tr("<b>Extra raw-signal diagnostics (adapted from RFlux):</b> Computes additional per-variable diagnostics beyond the tests above - lag-1 autocorrelation (AL1), the discrete/dominant-value test (DDI), spike counts on the raw series and its first differences scaled by a robust median/MAD estimator (HF5, HF10, HD5, HD10), and Hartigan's dip test p-value for multimodality (DIP, Hartigan & Hartigan 1985). These are informational only: nothing here hard-flags a period or feeds back into flux computation. Off by default; enabling it adds columns to the full and FLUXNET output."));
+
+    postFluxDespikeCheckBox = new QCheckBox(tr("Post-flux despiking (STL)"));
+    postFluxDespikeCheckBox->setToolTip(tr("<b>Post-flux despiking (adapted from RFlux):</b> After the run finishes, decomposes each of NEE, H and LE into seasonal, trend and remainder components (STL, Cleveland et al. 1990) and flags remainder-component outliers with a Laplace-distribution test. This looks for outliers in the <i>computed half-hourly flux series</i>, not in the raw high-frequency data, so it catches spikes the raw-data tests above cannot see. Needs at least 20 periods and 4 periods/day to run; shorter or coarser runs are skipped. Off by default; enabling it writes a separate <tt>..._flux_despiking...csv</tt> file and does not change any existing output."));
 
     auto hrLabel_1 = new QLabel;
     hrLabel_1->setObjectName(QStringLiteral("hrLabel"));
@@ -103,13 +108,15 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     testSelectionLayout->addWidget(timeLagCheckBox, 6, 0);
     testSelectionLayout->addWidget(attackAngleCheckBox, 7, 0);
     testSelectionLayout->addWidget(nonSteadyCheckBox, 8, 0);
-    testSelectionLayout->addWidget(hrLabel_1, 10, 0, 1, -1);
-    testSelectionLayout->addWidget(selectAllCheckBox, 11, 0);
-    testSelectionLayout->addWidget(defaultValuesButton, 12, 0);
-    testSelectionLayout->addWidget(hrLabel_2, 13, 0, 1, -1);
-    testSelectionLayout->addWidget(thumbnailGraphLabel, 14, 0);
+    testSelectionLayout->addWidget(rfluxDiagCheckBox, 9, 0);
+    testSelectionLayout->addWidget(postFluxDespikeCheckBox, 10, 0);
+    testSelectionLayout->addWidget(hrLabel_1, 11, 0, 1, -1);
+    testSelectionLayout->addWidget(selectAllCheckBox, 12, 0);
+    testSelectionLayout->addWidget(defaultValuesButton, 13, 0);
+    testSelectionLayout->addWidget(hrLabel_2, 14, 0, 1, -1);
+    testSelectionLayout->addWidget(thumbnailGraphLabel, 15, 0);
     testSelectionLayout->setContentsMargins(10, 10, 10, 10);
-    testSelectionLayout->setRowStretch(15, 1);
+    testSelectionLayout->setRowStretch(16, 1);
     testSelectionLayout->setColumnMinimumWidth(0, 185);
 
     createQuestionMark();
@@ -335,6 +342,10 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
             this, &AdvStatisticalOptions::updateTestAa);
     connect(nonSteadyCheckBox, &QCheckBox::toggled,
             this, &AdvStatisticalOptions::updateTestNs);
+    connect(rfluxDiagCheckBox, &QCheckBox::toggled,
+            this, &AdvStatisticalOptions::updateTestRf);
+    connect(postFluxDespikeCheckBox, &QCheckBox::toggled,
+            this, [=](bool b) { ecProject_->setGeneralTestPfd(b ? 1 : 0); });
 
     connect(despikingRadioGroup, QOverload<int>::of(&QButtonGroup::idClicked),
             this, &AdvStatisticalOptions::despikingRadioClicked);
@@ -2187,6 +2198,11 @@ void AdvStatisticalOptions::updateTestNs(bool b)
     ecProject_->setScreenTestNs(b);
 }
 
+void AdvStatisticalOptions::updateTestRf(bool b)
+{
+    ecProject_->setScreenTestRf(b);
+}
+
 void AdvStatisticalOptions::updateParamSrNumSpk(int n)
 {
     ecProject_->setScreenParamSrNumSpk(n);
@@ -2516,6 +2532,7 @@ void AdvStatisticalOptions::reset()
     timeLagCheckBox->setChecked(ecProject_->defaultSettings.screenTest.test_tl);
     attackAngleCheckBox->setChecked(ecProject_->defaultSettings.screenTest.test_aa);
     nonSteadyCheckBox->setChecked(ecProject_->defaultSettings.screenTest.test_ns);
+    rfluxDiagCheckBox->setChecked(ecProject_->defaultSettings.screenTest.test_rf);
 
     testToolbox->setCurrentIndex(0);
     //> Restore Default Values reaches every group on the page, so the
@@ -2585,6 +2602,8 @@ void AdvStatisticalOptions::refresh()
     timeLagCheckBox->setChecked(ecProject_->screenTestTl());
     attackAngleCheckBox->setChecked(ecProject_->screenTestAa());
     nonSteadyCheckBox->setChecked(ecProject_->screenTestNs());
+    rfluxDiagCheckBox->setChecked(ecProject_->screenTestRf());
+    postFluxDespikeCheckBox->setChecked(ecProject_->generalTestPfd());
 
     selectAllCheckBox->blockSignals(true);
     selectAllCheckBox->setChecked(areAllCheckedTests());

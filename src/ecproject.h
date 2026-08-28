@@ -147,6 +147,7 @@ public:
     void setGeneralCorrIterMethod(int n);
     void setGeneralCorrIterMax(int n);
     void setGeneralCorrIterTol(double d);
+    void setGeneralTestPfd(int n);
     void setGeneralLfMethod(int n);
     void setGeneralWplMeth( int n);
     void setGeneralFpMeth(int n);
@@ -368,6 +369,7 @@ public:
     void setScreenTestTl(int l);
     void setScreenTestAa(int l);
     void setScreenTestNs(int l);
+    void setScreenTestRf(int l);
 
     void setScreenParamSrNumSpk(int n);
     void setScreenParamSrHfLim(double n);
@@ -629,6 +631,7 @@ public:
     int generalCorrIterMethod() const { return ec_project_state_.projectGeneral.corr_iter_meth; }
     int generalCorrIterMax() const { return ec_project_state_.projectGeneral.corr_iter_max; }
     double generalCorrIterTol() const { return ec_project_state_.projectGeneral.corr_iter_tol; }
+    int generalTestPfd() const { return ec_project_state_.projectGeneral.test_pfd; }
     int generalLfMethod() const { return ec_project_state_.projectGeneral.lf_meth; }
     int generalWplMeth() const { return ec_project_state_.projectGeneral.wpl_meth; }
     int generalFpMeth() const { return ec_project_state_.projectGeneral.foot_meth; }
@@ -843,6 +846,7 @@ public:
     int screenTestTl() const { return ec_project_state_.screenTest.test_tl; }
     int screenTestAa() const { return ec_project_state_.screenTest.test_aa; }
     int screenTestNs() const { return ec_project_state_.screenTest.test_ns; }
+    int screenTestRf() const { return ec_project_state_.screenTest.test_rf; }
 
     int screenParamSrNumSpk() const { return ec_project_state_.screenParam.sr_num_spk; }
     double screenParamSrULim() const { return ec_project_state_.screenParam.sr_lim_u; }

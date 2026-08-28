@@ -417,6 +417,56 @@
 	       instead of the noise under it. The engine refuses that combination and
 	       falls back to the defaults; the warning is the same rule, shown while the
 	       numbers are being set rather than afterwards in the log.
+	- New feature: A checkbox for the engine's new test_rf (Advanced Settings ->
+	               Statistical Analysis, "Extra raw-signal diagnostics (RFlux)"),
+	               off by default. Adapted from RFlux's inst_prob_test() (Vitale
+	               et al. 2020, Biogeosciences) - lag-1 autocorrelation, the
+	               discrete/dominant-value test, robust-scaled spike counts, and
+	               (added after this checkbox first landed) Hartigan's dip test
+	               p-value for multimodality (Hartigan & Hartigan 1985), cited
+	               separately from the RFlux tests in its own tooltip line since
+	               it has its own, older, more precise reference.
+	               Deliberately outside checkbox_list/areAllCheckedTests/
+	               selectAllTest and the toolbox: it has no parameter page of its
+	               own, and "select all" restoring project defaults should not
+	               silently turn on a diagnostic that widens the output file.
+	               Wired through all four places a screen-test flag needs:
+	               saveEcProject, loadEcProject, the fuzzyCompare chain and
+	               newEcProject - the last being where PWB's own flag was missed
+	               entirely when it was added.
+	- New feature: A checkbox for the engine's new test_pfd (Advanced Settings ->
+	               Statistical Analysis, "Post-flux despiking (STL)"), off by
+	               default. Adapted from RFlux's despiking(variant="v1"): unlike
+	               the raw-signal tests above it, this one runs once per run,
+	               after every flux is computed, on the finished half-hourly
+	               NEE/H/LE series rather than on raw high-frequency data - so it
+	               is wired through generalTestPfd()/setGeneralTestPfd() in the
+	               [Project] general settings, not the per-test screenTest
+	               family the raw-data checkboxes above use.
+	               Deliberately outside checkbox_list/areAllCheckedTests/
+	               selectAllTest, for the same reason test_rf is: it has no
+	               parameter page of its own, and it needs at least 20 periods
+	               and 4 periods/day to run at all, so "select all" silently
+	               turning it on would be misleading on a short project.
+	               Wired through the same four places as every other project
+	               setting: ecproject.h's getter/setter, saveEcProject,
+	               loadEcProject and newEcProject. Not part of fuzzyCompare, for
+	               the same reason corr_iter_meth is not - it runs as a
+	               standalone post-pass over already-written output, so it
+	               cannot make a computed dataset stale.
+	- New feature: A fourth entry in the Quality check combo (Advanced
+	               Settings -> Processing Options), "Vitale et al. (2020)
+	               (0-1-2 severity system)", for the engine's new qc_meth
+	               option. A plain fourth qcMethodCombo item, the same shape
+	               as the three it joins - no new checkbox, no new ecproject
+	               field, since qcflag_meth/generalQcMeth() already carry any
+	               integer the engine's select case accepts. The tooltip
+	               names what feeds it (the ITC deviation and Mahrt's 1998
+	               nonstationarity ratio always; KID once enabled; AL1/DDI/
+	               HF/HD/DIP only when Extra raw-signal diagnostics is also
+	               on) and says plainly what RFlux tests it leaves out
+	               (low-signal-resolution, physical-range) rather than
+	               implying parity with RFlux's own cleanFlux().
 
 8.0.0 (2026-08-20)
 

@@ -492,7 +492,8 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
         && previousSettingsCompare(ec_project_state_.screenTest.test_ds, previousProject.ec_project_state_.screenTest.test_ds)
         && previousSettingsCompare(ec_project_state_.screenTest.test_tl, previousProject.ec_project_state_.screenTest.test_tl)
         && previousSettingsCompare(ec_project_state_.screenTest.test_aa, previousProject.ec_project_state_.screenTest.test_aa)
-        && previousSettingsCompare(ec_project_state_.screenTest.test_ns, previousProject.ec_project_state_.screenTest.test_ns);
+        && previousSettingsCompare(ec_project_state_.screenTest.test_ns, previousProject.ec_project_state_.screenTest.test_ns)
+        && previousSettingsCompare(ec_project_state_.screenTest.test_rf, previousProject.ec_project_state_.screenTest.test_rf);
 
     subTest = (ec_project_state_.screenTest.test_sr && previousProject.ec_project_state_.screenTest.test_sr);
     if (subTest)
@@ -943,6 +944,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.projectGeneral.corr_iter_meth = defaultEcProjectState.projectGeneral.corr_iter_meth;
     ec_project_state_.projectGeneral.corr_iter_max = defaultEcProjectState.projectGeneral.corr_iter_max;
     ec_project_state_.projectGeneral.corr_iter_tol = defaultEcProjectState.projectGeneral.corr_iter_tol;
+    ec_project_state_.projectGeneral.test_pfd = defaultEcProjectState.projectGeneral.test_pfd;
     ec_project_state_.projectGeneral.wpl_meth = defaultEcProjectState.projectGeneral.wpl_meth;
     ec_project_state_.projectGeneral.foot_meth = defaultEcProjectState.projectGeneral.foot_meth;
     ec_project_state_.projectGeneral.cec_meth = defaultEcProjectState.projectGeneral.cec_meth;
@@ -1143,6 +1145,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenTest.test_tl = defaultEcProjectState.screenTest.test_tl;
     ec_project_state_.screenTest.test_aa = defaultEcProjectState.screenTest.test_aa;
     ec_project_state_.screenTest.test_ns = defaultEcProjectState.screenTest.test_ns;
+    ec_project_state_.screenTest.test_rf = defaultEcProjectState.screenTest.test_rf;
 
     // preproc parameters section
     ec_project_state_.screenParam.aa_lim = defaultEcProjectState.screenParam.aa_lim;
@@ -1684,6 +1687,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_PROJECT_84, ec_project_state_.projectGeneral.corr_iter_meth);
         project_ini.setValue(EcIni::INI_PROJECT_85, ec_project_state_.projectGeneral.corr_iter_max);
         project_ini.setValue(EcIni::INI_PROJECT_86, ec_project_state_.projectGeneral.corr_iter_tol);
+        project_ini.setValue(EcIni::INI_PROJECT_87, ec_project_state_.projectGeneral.test_pfd);
         project_ini.setValue(EcIni::INI_PROJECT_48, ec_project_state_.projectGeneral.wpl_meth);
         project_ini.setValue(EcIni::INI_PROJECT_49, ec_project_state_.projectGeneral.foot_meth);
         project_ini.setValue(EcIni::INI_PROJECT_72, ec_project_state_.projectGeneral.cec_meth);
@@ -2026,6 +2030,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_TESTS_6, ec_project_state_.screenTest.test_tl);
         project_ini.setValue(EcIni::INI_SCREEN_TESTS_7, ec_project_state_.screenTest.test_aa);
         project_ini.setValue(EcIni::INI_SCREEN_TESTS_8, ec_project_state_.screenTest.test_ns);
+        project_ini.setValue(EcIni::INI_SCREEN_TESTS_9, ec_project_state_.screenTest.test_rf);
     project_ini.endGroup();
 
     // screen param section
@@ -2751,6 +2756,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
                     ? t
                     : defaultEcProjectState.projectGeneral.corr_iter_tol;
         }
+        ec_project_state_.projectGeneral.test_pfd
+                = project_ini.value(EcIni::INI_PROJECT_87,
+                                    defaultEcProjectState.projectGeneral.test_pfd).toInt();
         ec_project_state_.projectGeneral.wpl_meth
                 = project_ini.value(EcIni::INI_PROJECT_48,
                                     defaultEcProjectState.projectGeneral.wpl_meth).toInt();
@@ -3315,7 +3323,7 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
             ec_project_state_.screenSetting.tlag_borrow_snr = (snrOk && borrowSnr > 0.0)
                     ? borrowSnr
                     : defaultEcProjectState.screenSetting.tlag_borrow_snr;
-        }
+        }
         //> Two-valued, so anything outside {0,1} is a project from a
         //> version this one does not know. Falling back to our own choice
         //> keeps the behaviour the file was computed with rather than
@@ -3702,6 +3710,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenTest.test_ns
                 = project_ini.value(EcIni::INI_SCREEN_TESTS_8,
                                     defaultEcProjectState.screenTest.test_ns).toInt();
+        ec_project_state_.screenTest.test_rf
+                = project_ini.value(EcIni::INI_SCREEN_TESTS_9,
+                                    defaultEcProjectState.screenTest.test_rf).toInt();
     project_ini.endGroup();
 
     // preproc test section
@@ -6416,6 +6427,12 @@ void EcProject::setScreenTestNs(int l)
     setModified(true);
 }
 
+void EcProject::setScreenTestRf(int l)
+{
+    ec_project_state_.screenTest.test_rf = l;
+    setModified(true);
+}
+
 void EcProject::setScreenParamSrNumSpk(int n)
 {
     ec_project_state_.screenParam.sr_num_spk = n;
@@ -6862,6 +6879,15 @@ void EcProject::setGeneralCorrIterMax(int n)
 void EcProject::setGeneralCorrIterTol(double d)
 {
     ec_project_state_.projectGeneral.corr_iter_tol = d;
+    setModified(true);
+}
+
+//> Post-flux despiking runs as a standalone FCC post-pass over already
+//> written output, so like corr_iter_meth above it cannot make a computed
+//> dataset stale and is deliberately not in fuzzyCompare.
+void EcProject::setGeneralTestPfd(int n)
+{
+    ec_project_state_.projectGeneral.test_pfd = n;
     setModified(true);
 }
 

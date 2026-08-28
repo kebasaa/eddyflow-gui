@@ -117,6 +117,7 @@ private slots:
     void updateTestTl(bool b);
     void updateTestAa(bool b);
     void updateTestNs(bool b);
+    void updateTestRf(bool b);
 
     void updateParamSrNumSpk(int n);
     void updateParamSrULim(double n);
@@ -374,6 +375,16 @@ private:
     QCheckBox* timeLagCheckBox;
     QCheckBox* attackAngleCheckBox;
     QCheckBox* nonSteadyCheckBox;
+    //> Not part of the Vickers & Mahrt (1997) nine above, and deliberately
+    //> outside checkbox_list/areAllCheckedTests/selectAllTest: it has no
+    //> parameter page of its own and "select all" restoring project
+    //> defaults should not silently turn it on.
+    QCheckBox* rfluxDiagCheckBox;
+    //> Same reasoning as rfluxDiagCheckBox above: not one of the Vickers &
+    //> Mahrt (1997) raw-data tests (it runs once, on the finished flux
+    //> series), so it stays out of checkbox_list/areAllCheckedTests/
+    //> selectAllTest too.
+    QCheckBox* postFluxDespikeCheckBox;
 
     QCheckBox* selectAllCheckBox;
     QPushButton* defaultValuesButton;
