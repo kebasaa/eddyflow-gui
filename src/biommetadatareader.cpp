@@ -28,42 +28,85 @@
 #include <QFile>
 #include <QSettings>
 
+#include <QSet>
+
 #include "bminidefs.h"
 
-const QString BiomMetadataReader::getVAR_TA()
+/// A biomet label with its positional qualifier removed - SW_IN_1_1_1 becomes
+/// SW_IN, TA_1_3_1 becomes TA, and a label carrying no qualifier is handed back
+/// as it stands.
+///
+/// The rule is the engine's, from biometBaseNameAndPositionalQualifierFromLabel
+/// in biomet_subs.f90: take trailing _<integer> groups off the right one at a
+/// time, and stop at the first segment that is not a number.
+///
+/// Counting underscores cannot do it, which is what the code this replaces
+/// tried. The name itself may contain them - P_RAIN_1_1_1, T_DP_1_1_1 - and a
+/// name with underscores and no qualifier at all, which SW_IN is, has to
+/// survive untouched. Splitting on "_" and keeping the first field turned
+/// SW_IN into SW; assuming three trailing fields turned a bare SW_IN into SW
+/// as well.
+QString BiomMetadataReader::baseName(const QString& label)
 {
-    static const QString s(QStringLiteral("TA"));
+    auto s = label.trimmed();
+
+    while (true)
+    {
+        const auto underscore = s.lastIndexOf(QLatin1Char('_'));
+        if (underscore < 0) { break; }
+
+        auto isNumber = false;
+        s.mid(underscore + 1).toInt(&isNumber);
+        if (!isNumber) { break; }
+
+        s.truncate(underscore);
+    }
+
     return s;
 }
 
-const QString BiomMetadataReader::getVAR_PA()
+/// Which measurement a label names.
+///
+/// Matched whole, against the alias sets the engine keeps in
+/// biomet_enrich_vars_description.f90, so the two agree on what a name means.
+/// The synonyms are the engine's: global radiation IS incoming shortwave, and
+/// it files RG, R_G, RGLOBAL, R_GLOBAL, SWIN and SW_IN together as SW_IN.
+///
+/// Whole rather than by substring, because substrings were the bug. The
+/// FLUXNET names never matched anything - "SW_IN_1_1_1".contains("RG") is
+/// false, and "LW_IN_1_1_1".contains("LWIN") is false for the underscore -
+/// while the short literals matched names they should not: PPFD_OUT contains
+/// PPFD but is outgoing PAR, which the engine files separately as PPFD_R.
+BiomMetadataReader::VarType BiomMetadataReader::varType(const QString& label)
 {
-    static const QString s(QStringLiteral("PA"));
-    return s;
-}
+    const auto base = baseName(label).toUpper();
+    if (base.isEmpty()) { return VarType::Unknown; }
 
-const QString BiomMetadataReader::getVAR_RH()
-{
-    static const QString s(QStringLiteral("RH"));
-    return s;
-}
+    static const QSet<QString> airTemperature {
+        QStringLiteral("TA"), QStringLiteral("T_A"),
+        QStringLiteral("T_AIR"), QStringLiteral("TAIR") };
+    static const QSet<QString> airPressure {
+        QStringLiteral("PA"), QStringLiteral("P_A"),
+        QStringLiteral("PAIR"), QStringLiteral("P_AIR") };
+    static const QSet<QString> relativeHumidity {
+        QStringLiteral("RH") };
+    static const QSet<QString> globalRadiation {
+        QStringLiteral("RG"), QStringLiteral("R_G"),
+        QStringLiteral("RGLOBAL"), QStringLiteral("R_GLOBAL"),
+        QStringLiteral("SWIN"), QStringLiteral("SW_IN") };
+    static const QSet<QString> longwaveIncoming {
+        QStringLiteral("LWIN"), QStringLiteral("LW_IN") };
+    static const QSet<QString> par {
+        QStringLiteral("PPFD"), QStringLiteral("PPFD_IN") };
 
-const QString BiomMetadataReader::getVAR_RG()
-{
-    static const QString s(QStringLiteral("RG"));
-    return s;
-}
+    if (airTemperature.contains(base))   { return VarType::AirTemperature; }
+    if (airPressure.contains(base))      { return VarType::AirPressure; }
+    if (relativeHumidity.contains(base)) { return VarType::RelativeHumidity; }
+    if (globalRadiation.contains(base))  { return VarType::GlobalRadiation; }
+    if (longwaveIncoming.contains(base)) { return VarType::LongwaveIncoming; }
+    if (par.contains(base))              { return VarType::Par; }
 
-const QString BiomMetadataReader::getVAR_LWIN()
-{
-    static const QString s(QStringLiteral("LWIN"));
-    return s;
-}
-
-const QString BiomMetadataReader::getVAR_PPFD()
-{
-    static const QString s(QStringLiteral("PPFD"));
-    return s;
+    return VarType::Unknown;
 }
 
 BiomMetadataReader::BiomMetadataReader(QList<BiomItem> *biomMetadata)
@@ -118,39 +161,15 @@ bool BiomMetadataReader::readEmbMetadata(const QString& fileName)
             continue;
         }
 
-        // variables types the GUI is allowed to show and manage for now
-        QStringList allowedVarIDs;
-        allowedVarIDs << getVAR_TA()
-                      << getVAR_PA()
-                      << getVAR_RH()
-                      << getVAR_RG()
-                      << getVAR_LWIN()
-                      << getVAR_PPFD();
-
-        // get components of the variable type field
-        // it can be simple or with positional notation defined
-        auto type_components_list = var.split(QLatin1Char('_'));
-
-        auto extracted_type = QString();
-        // entry with positional notation and underscore(s)
-        // in the variable name (e.g. P_RAIN_1_1_1)
-        auto type_components_size = type_components_list.size();
-        if (type_components_size > 4)
-        {
-            QStringList extracted_var_name = type_components_list.mid(0, type_components_size - 3);
-            extracted_type = extracted_var_name.join(QLatin1Char('_'));
-        }
-        // entry with positional notation and no underscore
-        // in the variable name (e.g. PA_1_1_1)
-        // or entry with no positional notation (e.g. DATE)
-        else
-        {
-            extracted_type = type_components_list.first();
-        }
-
-        auto allowedVar = allowedVarIDs.filter(extracted_type);
-        // skip not allowed entries
-        if (allowedVar.isEmpty())
+        //> Only the measurements the interface has a row for, decided on the
+        //> whole base name.
+        //>
+        //> The test this replaces was inverted: allowedVarIDs.filter(extracted)
+        //> keeps an entry when an ALLOWED id contains the extracted type, not
+        //> the other way round. So single letters got in - "P" through "PA",
+        //> "G" through "RG" - while SW_IN and LW_IN, which no allowed id
+        //> contains, were turned away before they could ever be offered.
+        if (varType(var) == VarType::Unknown)
         {
             continue;
         }
@@ -217,20 +236,17 @@ bool BiomMetadataReader::readAltMetadata(const QString& fileName)
         // iterate on the variable list
         for (auto k = 0; k < strings.count(); ++k)
         {
-            auto var = strings.at(k).split(QLatin1Char('_'));
-            auto id = var.at(0).toUpper().trimmed();
+            //> The whole header field, not its first underscore-separated
+            //> piece. Splitting on "_" and keeping the front of it reduced
+            //> SW_IN_1_1_1 to SW and LW_IN_1_1_1 to LW, neither of which names
+            //> anything - and it collapsed TA_1_1_1 and TA_1_3_1 to the same
+            //> "TA", so two different sensors were offered under one label
+            //> with no way to tell them apart.
+            const auto label = strings.at(k).trimmed();
 
-            QStringList allowedVars;
-            allowedVars << getVAR_TA()
-                        << getVAR_PA()
-                        << getVAR_RH()
-                        << getVAR_RG()
-                        << getVAR_LWIN()
-                        << getVAR_PPFD();
-
-            if (!allowedVars.filter(id).isEmpty())
+            if (varType(label) != VarType::Unknown)
             {
-                biomMetadata_->append(BiomItem(id, id, k + 1));
+                biomMetadata_->append(BiomItem(label, label, k + 1));
             }
         }
     }

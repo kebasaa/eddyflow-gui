@@ -3719,41 +3719,45 @@ void BasicSettingsPage::parseBiomMetadata()
                             + tr("Column # ")
                             + QString::number(bi.col_);
 
-        if (bi.type_.contains(BiomMetadataReader::getVAR_TA()))
+        //> Asked of the whole base name rather than by substring. RG and
+        //> SW_IN are the same measurement and both land on Global Radiation;
+        //> LW_IN and LWIN likewise on the longwave row.
+        switch (BiomMetadataReader::varType(bi.type_))
         {
-            varString.prepend(tr("Ambient Temperature '"));
-            airTRefCombo->setEnabled(true);
-            airTRefCombo->addItem(varString, bi.col_ + 1000);
-        }
-        else if (bi.type_.contains(BiomMetadataReader::getVAR_PA()))
-        {
-            varString.prepend(tr("Ambient Pressure '"));
-            airPRefCombo->setEnabled(true);
-            airPRefCombo->addItem(varString, bi.col_ + 1000);
-        }
-        else if (bi.type_.contains(BiomMetadataReader::getVAR_RH()))
-        {
-            varString.prepend(tr("Ambient Relative Humidity '"));
-            rhCombo->setEnabled(true);
-            rhCombo->addItem(varString, bi.col_);
-        }
-        else if (bi.type_.contains(BiomMetadataReader::getVAR_RG()))
-        {
-            varString.prepend(tr("Global Radiation '"));
-            rgCombo->setEnabled(true);
-            rgCombo->addItem(varString, bi.col_);
-        }
-        else if (bi.type_.contains(BiomMetadataReader::getVAR_LWIN()))
-        {
-            varString.prepend(tr("Longwave Incoming Radiation '"));
-            lwinCombo->setEnabled(true);
-            lwinCombo->addItem(varString, bi.col_);
-        }
-        else if (bi.type_.contains(BiomMetadataReader::getVAR_PPFD()))
-        {
-            varString.prepend(tr("Photosynthetically Active Radiation '"));
-            ppfdCombo->setEnabled(true);
-            ppfdCombo->addItem(varString, bi.col_);
+            case BiomMetadataReader::VarType::AirTemperature:
+                varString.prepend(tr("Ambient Temperature '"));
+                airTRefCombo->setEnabled(true);
+                //> Offset by 1000 to mark it as a biomet column rather than a
+                //> raw one, the way this combo has always distinguished them.
+                airTRefCombo->addItem(varString, bi.col_ + 1000);
+                break;
+            case BiomMetadataReader::VarType::AirPressure:
+                varString.prepend(tr("Ambient Pressure '"));
+                airPRefCombo->setEnabled(true);
+                airPRefCombo->addItem(varString, bi.col_ + 1000);
+                break;
+            case BiomMetadataReader::VarType::RelativeHumidity:
+                varString.prepend(tr("Ambient Relative Humidity '"));
+                rhCombo->setEnabled(true);
+                rhCombo->addItem(varString, bi.col_);
+                break;
+            case BiomMetadataReader::VarType::GlobalRadiation:
+                varString.prepend(tr("Global Radiation '"));
+                rgCombo->setEnabled(true);
+                rgCombo->addItem(varString, bi.col_);
+                break;
+            case BiomMetadataReader::VarType::LongwaveIncoming:
+                varString.prepend(tr("Longwave Incoming Radiation '"));
+                lwinCombo->setEnabled(true);
+                lwinCombo->addItem(varString, bi.col_);
+                break;
+            case BiomMetadataReader::VarType::Par:
+                varString.prepend(tr("Photosynthetically Active Radiation '"));
+                ppfdCombo->setEnabled(true);
+                ppfdCombo->addItem(varString, bi.col_);
+                break;
+            case BiomMetadataReader::VarType::Unknown:
+                break;
         }
     }
 
