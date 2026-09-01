@@ -292,15 +292,25 @@ const QString VariableDesc::getVARIABLE_MEASURE_TYPE_STRING_0()
     return s;
 }
 
+//> The "(wet)"/"(dry)" qualifiers are the whole point of the distinction and
+//> the easiest thing to get wrong: much of the literature says "mole fraction"
+//> when it means the DRY one, which is this list's "Mixing ratio". Declaring a
+//> dry mole fraction as "Mole fraction (wet)" makes the engine apply a WPL
+//> correction that should not be applied - mixing ratio is already a dry-air
+//> quantity and Fluxes23 deliberately skips WPL for it.
+//>
+//> Display only: the .metadata file still stores mole_fraction/mixing_ratio,
+//> and every comparison in the GUI goes through these accessors rather than a
+//> literal, so the stored values are untouched.
 const QString VariableDesc::getVARIABLE_MEASURE_TYPE_STRING_1()
 {
-    static const QString s(tr("Mole fraction"));
+    static const QString s(tr("Mole fraction (wet)"));
     return s;
 }
 
 const QString VariableDesc::getVARIABLE_MEASURE_TYPE_STRING_2()
 {
-    static const QString s(tr("Mixing ratio"));
+    static const QString s(tr("Mixing ratio (dry)"));
     return s;
 }
 
