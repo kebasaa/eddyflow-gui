@@ -849,13 +849,25 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
                     isVersionCompatible = false;
                 }
 
-                qreal aValue = (project_ini.value(prefix + DlIni::INI_VARDESC_B_VALUE).toReal()
-                                - project_ini.value(prefix + DlIni::INI_VARDESC_A_VALUE).toReal()) /
-                                minMaxValue;
+                //> zero_fullscale maps the input range [min, max] onto the
+                //> output range [a, b], which the engine applies as
+                //>     out = ((b - a) / (max - min)) * (in - min) + a
+                //> Rearranged into the gain/offset form this file stores:
+                //>     gain   = (b - a) / (max - min)
+                //>     offset = a - gain*min = (a*max - b*min) / (max - min)
+                //>
+                //> The offset used to read (b*max - max*min) / (max - min),
+                //> which is neither of those. On min=0, max=5 V, a=0,
+                //> b=3000 ppm it produced 600*in + 3000 - reading 3000 ppm at
+                //> 0 V - where the engine's own formula gives 600*in. The gain
+                //> was right, so the error was a pure offset: every value
+                //> shifted by a constant, which is the shape that survives a
+                //> plausibility check.
+                const qreal zfsA = project_ini.value(prefix + DlIni::INI_VARDESC_A_VALUE).toReal();
+                const qreal zfsB = project_ini.value(prefix + DlIni::INI_VARDESC_B_VALUE).toReal();
 
-                qreal bValue = (project_ini.value(prefix + DlIni::INI_VARDESC_B_VALUE).toReal()
-                                    * project_ini.value(prefix + DlIni::INI_VARDESC_MAX_VALUE).toReal()
-                                - maxValue * minValue) / minMaxValue;
+                qreal aValue = (zfsB - zfsA) / minMaxValue;
+                qreal bValue = (zfsA * maxValue - zfsB * minValue) / minMaxValue;
 
                 var.setOutputUnit(fromIniVariableMeasureUnit(project_ini.value(prefix + DlIni::INI_VARDESC_UNIT_OUT, QString()).toString()));
                 var.setAValue(aValue);
@@ -1354,10 +1366,14 @@ bool DlProject::saveProject(const QString& filename)
                                  toIniVariableMeasureType(var.measureType()));
             project_ini.setValue(prefix + DlIni::INI_VARDESC_UNIT_IN,
                                  toIniVariableMeasureUnit(var.inputUnit()));
-            project_ini.setValue(prefix + DlIni::INI_VARDESC_MIN_VALUE,
-                                 QString::number(var.minValue(), 'f', 6));
-            project_ini.setValue(prefix + DlIni::INI_VARDESC_MAX_VALUE,
-                                 QString::number(var.maxValue(), 'f', 6));
+            //> min_value/max_value are deliberately not written any more.
+            //> They are the input endpoints of zero_fullscale, the legacy
+            //> conversion this interface has not offered since it dropped
+            //> the type from conversionTypeStringList() - every file it
+            //> saves is gain_offset or none, so both keys were written as a
+            //> constant 0.000000 on every column of every file. They are
+            //> still READ above, because a legacy file has to be migrated
+            //> before they can be dropped from it.
             project_ini.setValue(prefix + DlIni::INI_VARDESC_CONVERSION,
                                  toIniVariableConversionType(var.conversionType()));
             project_ini.setValue(prefix + DlIni::INI_VARDESC_UNIT_OUT,
