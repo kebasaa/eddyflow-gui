@@ -617,7 +617,21 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
             if (instrType == InstrumentType::ANEM)
             {
                 AnemDesc anem;
-                QString anemModel = project_ini.value(prefix + DlIni::INI_ANEM_2).toString().remove(QRegularExpression(QStringLiteral("_\\d*$")));
+                auto anemKeys = instrumentModelKeys(project_ini, prefix,
+                                                    DlIni::INI_ANEM_2);
+                //> An ef_model naming a sonic NEWER than this build resolves
+                //> to nothing, and taking it would leave the row with no model
+                //> where the stand-in would at least have worked. The stand-in
+                //> is by construction a model this build knows, so fall back
+                //> to it and stop treating the block as overridden.
+                if (anemKeys.overridden
+                    && fromIniAnemModel(anemKeys.effective).isEmpty())
+                {
+                    anemKeys.effective = anemKeys.standIn;
+                    anemKeys.overridden = false;
+                }
+                const bool anemStoodIn = anemKeys.overridden;
+                QString anemModel = anemKeys.effective;
                 if (anemModel != canonicalModelKey(anemModel))
                 {
                     legacyInstrumentSlugs = true;
@@ -625,6 +639,23 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
 
                 anem.setManufacturer(fromIniAnemManufacturer(project_ini.value(prefix + DlIni::INI_ANEM_1, QString()).toString()));
                 anem.setModel(fromIniAnemModel(anemModel));
+
+                //> The manufacturer in the file describes the STAND-IN, not
+                //> this instrument, so it is re-derived rather than believed.
+                //> Only when ef_model actually overrode something: on every
+                //> classic file the manufacturer as written is the answer, and
+                //> re-deriving it there would quietly rewrite files this has
+                //> no business touching. Left alone if the model is one no
+                //> list claims, so an unrecognised model degrades to what the
+                //> file said instead of to nothing.
+                if (anemStoodIn)
+                {
+                    const auto firm = AnemDesc::manufacturerForModel(anem.model());
+                    if (!firm.isEmpty())
+                    {
+                        anem.setManufacturer(firm);
+                    }
+                }
                 anem.setSwVersion(project_ini.value(prefix + DlIni::INI_ANEM_16, QString()).toString().trimmed());
                 anem.setId(project_ini.value(prefix + DlIni::INI_ANEM_4, QString()).toString());
 
@@ -673,7 +704,21 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
             else if (instrType == InstrumentType::IRGA)
             {
                 IrgaDesc irga;
-                QString irgaModel = project_ini.value(prefix + DlIni::INI_IRGA_1).toString().remove(QRegularExpression(QStringLiteral("_\\d*$")));
+                auto irgaKeys = instrumentModelKeys(project_ini, prefix,
+                                                    DlIni::INI_IRGA_1);
+                //> See the anemometer branch: an analyser this build has never
+                //> heard of falls back to the stand-in rather than to nothing.
+                //> That is the format working as intended - it is built for a
+                //> reader that does not recognise the instrument, and one day
+                //> this is that reader.
+                if (irgaKeys.overridden
+                    && fromIniIrgaModel(irgaKeys.effective).isEmpty())
+                {
+                    irgaKeys.effective = irgaKeys.standIn;
+                    irgaKeys.overridden = false;
+                }
+                const bool irgaStoodIn = irgaKeys.overridden;
+                QString irgaModel = irgaKeys.effective;
                 if (irgaModel != canonicalModelKey(irgaModel))
                 {
                     legacyInstrumentSlugs = true;
@@ -681,6 +726,20 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
 
                 irga.setManufacturer(fromIniIrgaManufacturer(project_ini.value(prefix + DlIni::INI_IRGA_0, QString()).toString()));
                 irga.setModel(fromIniIrgaModel(irgaModel));
+
+                //> See the anemometer branch above: the manufacturer beside a
+                //> stand-in describes the stand-in. An EC150 declared as
+                //> generic_open_path says "Other", and a row reading
+                //> Other / EC150 would not even offer EC150 in its dropdown,
+                //> which is filtered by the manufacturer next to it.
+                if (irgaStoodIn)
+                {
+                    const auto firm = IrgaDesc::manufacturerForModel(irga.model());
+                    if (!firm.isEmpty())
+                    {
+                        irga.setManufacturer(firm);
+                    }
+                }
 
                 // sw version
                 auto sw_version_loading = project_ini.value(prefix + DlIni::INI_IRGA_16, QString()).toString();
@@ -1199,6 +1258,18 @@ bool DlProject::saveProject(const QString& filename)
     // instruments section
     project_ini.beginGroup(DlIni::INIGROUP_INSTRUMENTS);
         // firstly remove all previous keys because they are variable in number
+        //
+        //> This also drops instr_<K>_ef_model, and that is deliberate. The
+        //> stand-in pair exists solely so an ARCHIVE stays readable by
+        //> EddyPro, which refuses instruments it cannot name. A standalone
+        //> .metadata is under no such obligation: loadProject has already put
+        //> the real instrument in the list, so what is written here names it
+        //> in `model` outright and ef_model has nothing left to say.
+        //>
+        //> So a user moving off a .ghg's embedded metadata onto their own file
+        //> gets a clean file describing their real analyser. Do not "fix" this
+        //> by preserving the key: a file carrying both a real model and an
+        //> ef_model would describe the same instrument twice, differently.
         project_ini.remove(QString());
 
         // iterate through the instrument lists
@@ -1327,6 +1398,10 @@ bool DlProject::saveProject(const QString& filename)
     // variables section
     project_ini.beginGroup(DlIni::INIGROUP_VARDESC);
         // firstly remove all previous keys because they are variable in number
+        //
+        //> Drops ghg_format_version with them, for the reason given at the
+        //> [Instruments] wipe above: the file being written is not an extended
+        //> .ghg and has no version of that format to declare.
         project_ini.remove(QString());
         project_ini.setValue(DlIni::INI_VARDESC_FIELDSEP, project_state_.varDesc.separator);
         project_ini.setValue(DlIni::INI_VARDESC_HEADER_ROWS, project_state_.varDesc.header_rows);
@@ -2550,6 +2625,36 @@ DlProject::InstrumentType DlProject::getInstrumentType(const QSettings& iniGroup
         return InstrumentType::IRGA;
     }
     return InstrumentType::UNDEFINED;
+}
+
+/// \brief What an instr_<K>_* block says it is, both ways round.
+///
+/// An extended .ghg describes an instrument EddyPro cannot name twice: a
+/// generic stand-in in `model`, which EddyPro validates, and the truth in
+/// `ef_model`, which it ignores. Preferring the latter is the whole of what
+/// this program has to do differently, and it is the same precedence the
+/// engine applies in ReadMetadataFile.
+///
+/// The category is NOT reconsidered: a stand-in is always the MATCHING generic
+/// - generic_open_path for an analyser, generic_sonic for a sonic - so
+/// getInstrumentType, which reads key presence rather than the model, lands in
+/// the right branch either way.
+DlProject::ModelKeys DlProject::instrumentModelKeys(const QSettings& iniGroup,
+                                                    const QString& prefix,
+                                                    const QString& modelKey)
+{
+    static const QRegularExpression indexSuffix(QStringLiteral("_\\d*$"));
+
+    ModelKeys keys;
+    keys.standIn = iniGroup.value(prefix + modelKey).toString()
+                       .remove(indexSuffix);
+
+    const auto ef = iniGroup.value(prefix + DlIni::INI_INSTR_EF_MODEL,
+                                   QString()).toString().trimmed();
+    keys.overridden = !ef.isEmpty();
+    keys.effective = keys.overridden ? QString(ef).remove(indexSuffix)
+                                     : keys.standIn;
+    return keys;
 }
 
 DlProject::InstrumentType DlProject::getInstrumentTypeFromModel(const QString& model)

@@ -122,6 +122,18 @@ namespace DlIni
     //> See INI_ANEM_18 - the same key, written for either category.
     const auto INI_IRGA_18          = QStringLiteral("integrates");
 
+    //> Extended .ghg: the instrument this REALLY is, where `model` states a
+    //> generic stand-in chosen so EddyPro will accept the archive. Read in
+    //> preference to `model` and never written - a standalone .metadata is
+    //> under no obligation to EddyPro, so it names the real instrument in
+    //> `model` and has nothing left for this key to say.
+    //>
+    //> Declared once rather than as INI_ANEM_19 and INI_IRGA_19 with the same
+    //> spelling, because it genuinely is one key: the engine applies it in a
+    //> single loop over every instr_<K>_* block whatever the category
+    //> (read_metadata_file.f90). Same reasoning as INI_ANEM_17/INI_IRGA_17.
+    const auto INI_INSTR_EF_MODEL   = QStringLiteral("ef_model");
+
     const auto INIGROUP_VARDESC         = QStringLiteral("FileDescription");
     const auto INI_VARDESC_PREFIX       = QStringLiteral("col_");
     const auto INI_VARDESC_FIELDSEP     = QStringLiteral("separator");

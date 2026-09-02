@@ -194,6 +194,11 @@ public:
     static const QStringList youngModelStringList();
     static const QStringList otherModelStringList();
 
+    //> Which manufacturer makes this model, empty if none does. Used where a
+    //> model arrives without a manufacturer to be trusted beside it - see the
+    //> extended .ghg stand-in in DlProject::loadProject.
+    static const QString manufacturerForModel(const QString& model);
+
     // return a list of wind format strings
     static const QStringList allWindFormatStringList();
     static const QStringList commonWindFormatStringList();

@@ -176,6 +176,11 @@ public:
     static const QStringList miroModelStringList();
     static const QStringList aerodyneModelStringList();
 
+    //> Which manufacturer makes this model, empty if none does. Used where a
+    //> model arrives without a manufacturer to be trusted beside it - see the
+    //> extended .ghg stand-in in DlProject::loadProject.
+    static const QString manufacturerForModel(const QString& model);
+
     static bool isWellNamed(const IrgaDesc& irga);
     static bool hasGoodSeparations(const IrgaDesc& irga);
     static bool isAGoodClosedPath(const IrgaDesc& irga);

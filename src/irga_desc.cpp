@@ -473,6 +473,46 @@ bool IrgaDesc::isALicorModel(const QString& model)
              || (model == getIRGA_MODEL_STRING_14()));
 }
 
+/// \brief Which manufacturer makes this model, or empty if nothing does.
+///
+/// Needed by the extended .ghg: a stand-in declares the manufacturer that goes
+/// with the STAND-IN, so an EC155 pretending to be a generic closed path says
+/// "Other". Believing that alongside the real model would leave the row
+/// inconsistent AND the real model unofferable, because the model combobox is
+/// filtered by the manufacturer beside it (IrgaDelegate::createEditor).
+///
+/// Asks the per-manufacturer lists rather than carrying a second table, so a
+/// model added to one of them is answered for here without being added twice -
+/// which is exactly the drift a parallel table invites.
+const QString IrgaDesc::manufacturerForModel(const QString& model)
+{
+    if (model.isEmpty())
+    {
+        return QString();
+    }
+    if (licorModelStringList().contains(model))
+    {
+        return getIRGA_MANUFACTURER_STRING_0();
+    }
+    if (campbellIrgaModelStringList().contains(model))
+    {
+        return getIRGA_MANUFACTURER_STRING_2();
+    }
+    if (miroModelStringList().contains(model))
+    {
+        return getIRGA_MANUFACTURER_STRING_3();
+    }
+    if (aerodyneModelStringList().contains(model))
+    {
+        return getIRGA_MANUFACTURER_STRING_4();
+    }
+    if (otherModelStringList().contains(model))
+    {
+        return getIRGA_MANUFACTURER_STRING_1();
+    }
+    return QString();
+}
+
 bool IrgaDesc::isWellNamed(const IrgaDesc& irga)
 {
     const auto model = irga.model();

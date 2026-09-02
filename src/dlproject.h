@@ -247,6 +247,27 @@ private:
     InstrumentType getInstrumentType(const QSettings& iniGroup, const QString& prefix);
     InstrumentType getInstrumentTypeFromModel(const QString& model);
 
+    //> What an instr_<K>_* block says it is, both ways round.
+    //>
+    //> `standIn` is instr_<K>_model, `effective` is instr_<K>_ef_model where
+    //> the block carries one and `standIn` otherwise, and `overridden` says
+    //> which - the manufacturer beside an overridden model describes the
+    //> STAND-IN and has to be re-derived rather than believed.
+    //>
+    //> Both are kept because the caller may have to change its mind: an
+    //> ef_model naming an instrument NEWER than this build resolves to no
+    //> model at all, and the stand-in is by construction one this build does
+    //> know. See resolveInstrumentModel.
+    struct ModelKeys
+    {
+        QString effective;
+        QString standIn;
+        bool overridden = false;
+    };
+    ModelKeys instrumentModelKeys(const QSettings& iniGroup,
+                                  const QString& prefix,
+                                  const QString& modelKey);
+
     QString fromIniIrgaManufacturer(const QString& s);
     QString fromIniIrgaModel(const QString& s);
     QString toIniIrgaManufacturer(const QString& s);

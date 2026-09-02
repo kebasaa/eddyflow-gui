@@ -499,6 +499,43 @@ const QStringList AnemDesc::otherModelStringList()
             << getANEM_MODEL_STRING_12());
 }
 
+/// \brief Which manufacturer makes this model, or empty if nothing does.
+///
+/// The sonic half of IrgaDesc::manufacturerForModel, and needed for the same
+/// reason: an extended .ghg standing a CSAT3B in as a generic_sonic declares
+/// the manufacturer that goes with the stand-in, and the model combobox is
+/// filtered by whatever manufacturer sits beside it.
+///
+/// Asks the per-manufacturer lists rather than carrying a second table.
+const QString AnemDesc::manufacturerForModel(const QString& model)
+{
+    if (model.isEmpty())
+    {
+        return QString();
+    }
+    if (campbellModelStringList().contains(model))
+    {
+        return getANEM_MANUFACTURER_STRING_0();
+    }
+    if (gillModelStringList().contains(model))
+    {
+        return getANEM_MANUFACTURER_STRING_1();
+    }
+    if (metekModelStringList().contains(model))
+    {
+        return getANEM_MANUFACTURER_STRING_2();
+    }
+    if (youngModelStringList().contains(model))
+    {
+        return getANEM_MANUFACTURER_STRING_3();
+    }
+    if (otherModelStringList().contains(model))
+    {
+        return getANEM_MANUFACTURER_STRING_4();
+    }
+    return QString();
+}
+
 // Return string list of anem types
 const QStringList AnemDesc::allWindFormatStringList()
 {
