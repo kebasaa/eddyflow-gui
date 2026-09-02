@@ -127,6 +127,84 @@ class LoadPrefersTheRealInstrument(unittest.TestCase):
         self.assertIn("if (irgaStoodIn)", self.src)
 
 
+class ColumnsFollowTheRename(unittest.TestCase):
+    """A renamed instrument takes its columns with it.
+
+    col_<n>_instrument names an instrument by its MODEL STRING, not its block
+    number, so preferring ef_model renames something every column is still
+    pointing at. Saved without repointing them, the file says li7500a_1 in
+    [Instruments] and generic_open_path_1 in all 34 columns that use it, and
+    the engine rejects it outright - reported against a COLUMN, which is a
+    confusing way to be told the instrument was renamed.
+    """
+
+    def setUp(self):
+        self.src = read(DL_PROJECT)
+
+    def test_the_rename_is_recorded_for_both_categories(self):
+        self.assertIn("QHash<QString, QString> standInToReal;", self.src)
+        self.assertIn("standInToReal.insert(anemKeys.rawStandIn, anemKeys.rawEffective);",
+                      self.src)
+        self.assertIn("standInToReal.insert(irgaKeys.rawStandIn, irgaKeys.rawEffective);",
+                      self.src)
+
+    def test_it_is_keyed_on_the_raw_value(self):
+        #> Including the trailing instance counter, because that counter is
+        #> part of what a column writes. Keyed on the stripped model, the
+        #> lookup would miss every column in the file.
+        self.assertIn("keys.rawStandIn = iniGroup.value(prefix + modelKey).toString();",
+                      self.src)
+
+    def test_the_columns_are_translated_through_it(self):
+        self.assertIn("standInToReal.value(varInstr, varInstr)", self.src)
+        #> Defaulting to the value itself keeps every classic file a no-op:
+        #> the map is empty there, so nothing is rewritten.
+
+    def test_the_fallback_reverts_the_raw_value_too(self):
+        #> When an unknown ef_model is abandoned, rawEffective has to go back
+        #> with effective - otherwise the map would repoint every column at an
+        #> instrument the list does not contain.
+        self.assertIn("anemKeys.rawEffective = anemKeys.rawStandIn;", self.src)
+        self.assertIn("irgaKeys.rawEffective = irgaKeys.rawStandIn;", self.src)
+
+
+class MetekIsSpeltTheWayEveryoneElseSpellsIt(unittest.TestCase):
+    """The interface used to write a Metek key nothing else accepted.
+
+    `u3amp` and `u3cagemp` were this program's alone. The engine's whitelist
+    has never held them, and LI-COR's SmartFlux writes `usoni3_classa_mp_1`
+    into every .ghg, so a Metek site configured here produced a metadata the
+    engine REFUSED, and a genuine .ghg opened here lost its anemometer model.
+    """
+
+    def setUp(self):
+        self.src = read(DL_PROJECT)
+
+    def test_the_written_key_is_the_engines(self):
+        self.assertIn('QStringLiteral("usoni3_classa_mp")', self.src)
+        self.assertIn('QStringLiteral("usoni3_cage_mp")', self.src)
+
+    def test_the_old_spellings_still_read(self):
+        #> Migrated rather than dropped: a project written by an earlier
+        #> release carries them and must still open.
+        self.assertIn('{ QStringLiteral("u3amp"),    QStringLiteral("usoni3_classa_mp") }',
+                      self.src)
+        self.assertIn('{ QStringLiteral("u3cagemp"), QStringLiteral("usoni3_cage_mp")   }',
+                      self.src)
+
+    def test_the_engine_accepts_what_is_now_written(self):
+        if not ENGINE_ROOT.is_dir():
+            self.skipTest("engine checkout not beside this one")
+        whitelist = read(ENGINE_ROOT / "src" / "src_common"
+                         / "metadata_file_validation.f90")
+        for model in ("usoni3_classa_mp", "usoni3_cage_mp"):
+            self.assertIn(f"'{model}'", whitelist,
+                          f"the engine would reject {model}")
+        #> and the retired spellings are not in it, which is why they were a bug
+        for model in ("u3amp", "u3cagemp"):
+            self.assertNotIn(f"'{model}'", whitelist)
+
+
 class ManufacturerDerivation(unittest.TestCase):
 
     def test_it_asks_the_existing_lists(self):

@@ -262,6 +262,11 @@ private:
     {
         QString effective;
         QString standIn;
+        //> The same two as written, instance counter and all. Columns refer to
+        //> an instrument by exactly this string, so renaming one means
+        //> repointing them - which needs the raw pair, not the stripped keys.
+        QString rawEffective;
+        QString rawStandIn;
         bool overridden = false;
     };
     ModelKeys instrumentModelKeys(const QSettings& iniGroup,

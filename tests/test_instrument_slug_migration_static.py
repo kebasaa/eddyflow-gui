@@ -65,7 +65,11 @@ class TheNormaliserKnowsEveryLegacySpelling(unittest.TestCase):
 
     def setUp(self):
         self.src = _read(DL_PROJECT)
-        self.body = _body(self.src, "QString normalizedCampbellModelKey(")
+        # Renamed from normalizedCampbellModelKey when Metek joined it:
+        # `u3amp`/`u3cagemp` were this interface's own spellings, which
+        # the engine has never accepted, so they migrate here too and the
+        # normaliser is no longer about one manufacturer.
+        self.body = _body(self.src, "QString normalizedModelKey(")
 
     def test_the_bare_spellings_are_mapped(self):
         for bare, canonical in BARE_MODEL_KEYS.items():
@@ -87,7 +91,7 @@ class TheNormaliserKnowsEveryLegacySpelling(unittest.TestCase):
                           "fromIniAnemNorthAlign"):
             body = _body(self.src, "DlProject::%s(" % converter)
             self.assertIn(
-                "normalizedCampbellModelKey(", body,
+                "normalizedModelKey(", body,
                 "%s resolves a model key without normalising it" % converter)
 
 
