@@ -65,7 +65,6 @@ public:
     ~AdvSpectralOptions();
 
     void setSmartfluxUI();
-    static bool isLi7500FamilyIrgaModel(const QString& model);
 
 signals:
     void updateOutputsRequest(int n);
@@ -76,6 +75,10 @@ public slots:
     void refreshSpectralAssessmentCreationMode();
 
 private slots:
+    /// The QA/QC table's own Restore Default Values button.
+    void on_defaultValuesButton_clicked();
+    /// Grey the two iteration numbers unless the loop is switched on.
+    void updateCorrIterAvailability();
     void refresh();
     void updateSpectraFile(const QString& fp);
     void updateBinnedSpectraFile(const QString& fp);
@@ -168,6 +171,11 @@ private:
     double defaultGasSpectral(const QString& slug, SpectralParam param) const;
     void onGasSpectralChanged(int gasIndex, SpectralParam param, double value);
     void resetGasSpectralToDefault();
+    /// Every row of the QA/QC table, fixed and per-gas alike.
+    void resetSpectralTableToDefault();
+    bool requestSpectralTableReset();
+
+    QPushButton* defaultValuesButton;
 
     QCheckBox* vmFlagsCheckBox;
     QCheckBox* lowQualityCheckBox;
@@ -202,6 +210,19 @@ private:
     QCheckBox* horstCheck;
     ClickLabel* horstMethodLabel;
     QComboBox* horstCombo;
+    //> The analytic cospectral shape every low-pass correction is
+    //> integrated against - a modifier on all the methods above, not a
+    //> method of its own, so it has no enabling checkbox of its own.
+    //> Iterative correction: repeat the spectral correction and the two
+    //> flux levels until the stability they assume and the stability they
+    //> produce agree. Its two numbers are greyed with the checkbox.
+    QCheckBox* corrIterCheckBox;
+    ClickLabel* corrIterMaxLabel;
+    QSpinBox* corrIterMaxSpin;
+    ClickLabel* corrIterTolLabel;
+    QDoubleSpinBox* corrIterTolSpin;
+    ClickLabel* cospModelLabel;
+    QComboBox* cospModelCombo;
     QCheckBox* hfCorrectGhgBaCheck;
     QCheckBox* hfCorrectGhgZohCheck;
     ClickLabel* sonicFrequencyLabel;

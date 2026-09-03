@@ -46,9 +46,16 @@ qreal IrgaModel::stationAcFreq() const
     return project_ ? project_->acquisitionFrequency() : 10.0;
 }
 
-qreal IrgaModel::displayedAcFreq(const IrgaDesc& irga) const
+/// Whether the sampling choice changes anything for this instrument.
+///
+/// Only an instrument genuinely SLOWER than the station has an interval to
+/// average over. The engine clamps the rate it uses to
+/// min(instr%ac_freq, Metadata%ac_freq) (column_sampling.f90), so at or above
+/// the station's rate the two choices produce the same pairing and the stored
+/// value is never read.
+bool IrgaModel::samplingIsRelevant(const IrgaDesc& irga) const
 {
-    return irga.acFreq() > 0.0 ? irga.acFreq() : stationAcFreq();
+    return irga.acFreq() > 0.0 && irga.acFreq() < stationAcFreq();
 }
 
 IrgaModel::~IrgaModel(){
@@ -182,21 +189,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
             case TUBEVSEPARATION:
                 return QVariant(QString::number(irgaDesc.tubeVSeparation(), 'f', 2) + QStringLiteral(" [cm]"));
             case VPATHLENGTH:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_6()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_7()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_15()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_16()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_21()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_22()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_23()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_20())
+                if (!IrgaDesc::needsPathGeometry(irgaDesc.model()))
                 {
                     return nullStrValue;
                 }
@@ -205,21 +198,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     return QVariant(QString::number(irgaDesc.vPathLength(), 'f', 4) + QStringLiteral(" [cm]"));
                 }
             case HPATHLENGTH:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_6()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_7()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_15()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_16()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_21()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_22()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_23()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_20())
+                if (!IrgaDesc::needsPathGeometry(irgaDesc.model()))
                 {
                     return nullStrValue;
                 }
@@ -228,21 +207,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     return QVariant(QString::number(irgaDesc.hPathLength(), 'f', 4) + QStringLiteral(" [cm]"));
                 }
             case TAU:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_6()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_7()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_15()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_16()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_21()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_22()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_23()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_20())
+                if (!IrgaDesc::needsPathGeometry(irgaDesc.model()))
                 {
                     return nullStrValue;
                 }
@@ -251,10 +216,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     return QVariant(QString::number(irgaDesc.tau(), 'f', 4) + QStringLiteral(" [s]"));
                 }
             case KWATER:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11())
+                if (!IrgaDesc::hasExtinctionCoefficients(irgaDesc.model()))
                 {
                     return nullStrValue;
                 }
@@ -263,10 +225,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     return QVariant(QString::number(irgaDesc.kWater(), 'f', 6) + QStringLiteral(" [") + Defs::M3_G_CM_STRING + QStringLiteral("]"));
                 }
             case KOXYGEN:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11())
+                if (!IrgaDesc::hasExtinctionCoefficients(irgaDesc.model()))
                 {
                     return nullStrValue;
                 }
@@ -275,15 +234,23 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     return QVariant(QString::number(irgaDesc.kOxygen(), 'f', 6) + QStringLiteral(" [") + Defs::M3_G_CM_STRING + QStringLiteral("]"));
                 }
             case ACFREQ:
-                //> Shown as the station's rate while the analyser states none,
-                //> so the cell always reads as the rate actually in force.
-                return QVariant(QString::number(displayedAcFreq(irgaDesc), 'f', 3)
+                //> Named, not just resolved. The stored 0 means "follow the
+                //> station", and a cell that printed only the station's number
+                //> gave no way to tell that apart from an instrument pinned to
+                //> the same rate - which is the state the editor then had no
+                //> way back to.
+                if (irgaDesc.acFreq() <= 0.0)
+                {
+                    return QVariant(tr("Station frequency (%1 Hz)")
+                                    .arg(QString::number(stationAcFreq(), 'f', 3)));
+                }
+                return QVariant(QString::number(irgaDesc.acFreq(), 'f', 3)
                                 + QStringLiteral(" [Hz]"));
             case SAMPLING:
-                //> Only says anything for an instrument slower than the
-                //> station: at the station's rate there is no interval to
-                //> average over, and w is the same sample either way.
-                if (irgaDesc.acFreq() <= 0.0) { return nullStrValue; }
+                //> Always shown, and always editable - see flags(). It only
+                //> MEANS anything for an instrument slower than the station,
+                //> and that is said by grey text and a tooltip rather than by
+                //> withholding the cell.
                 return QVariant(irgaDesc.sampling());
             default:
                 return QVariant();
@@ -335,19 +302,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
             case TUBEVSEPARATION:
                 return QVariant(irgaDesc.tubeVSeparation());
             case VPATHLENGTH:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_6()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_7()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_21()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_22()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_23()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_20())
+                if (!IrgaDesc::needsPathGeometry(irgaDesc.model()))
                 {
                     return nullStrValue;
                 }
@@ -356,19 +311,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     return QVariant(irgaDesc.vPathLength());
                 }
             case HPATHLENGTH:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_6()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_7()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_21()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_22()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_23()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_20())
+                if (!IrgaDesc::needsPathGeometry(irgaDesc.model()))
                 {
                     return nullStrValue;
                 }
@@ -377,19 +320,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     return QVariant(irgaDesc.hPathLength());
                 }
             case TAU:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_6()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_7()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_21()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_22()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_23()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_20())
+                if (!IrgaDesc::needsPathGeometry(irgaDesc.model()))
                 {
                     return nullStrValue;
                 }
@@ -398,10 +329,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     return QVariant(irgaDesc.tau());
                 }
             case KWATER:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11())
+                if (!IrgaDesc::hasExtinctionCoefficients(irgaDesc.model()))
                 {
                     return nullStrValue;
                 }
@@ -410,10 +338,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     return QVariant(irgaDesc.kWater());
                 }
             case KOXYGEN:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11())
+                if (!IrgaDesc::hasExtinctionCoefficients(irgaDesc.model()))
                 {
                     return nullStrValue;
                 }
@@ -422,7 +347,11 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     return QVariant(irgaDesc.kOxygen());
                 }
             case ACFREQ:
-                return QVariant(displayedAcFreq(irgaDesc));
+                //> The stored value, not the resolved one: an instrument that
+                //> follows the station must open its editor on 0, which is the
+                //> spin's special "Station frequency" entry. Seeding it with
+                //> the station's number instead left no way back to 0.
+                return QVariant(irgaDesc.acFreq());
             case SAMPLING:
                 return QVariant(irgaDesc.sampling());
             default:
@@ -472,19 +401,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
             case VPATHLENGTH:
             case HPATHLENGTH:
             case TAU:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_6()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_7()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_21()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_22()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_23()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_20())
+                if (!IrgaDesc::needsPathGeometry(irgaDesc.model()))
                 {
                     return QVariant(QBrush(QColor(QStringLiteral("#eff0f1"))));
                 }
@@ -494,10 +411,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                 }
             case KWATER:
             case KOXYGEN:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11())
+                if (!IrgaDesc::hasExtinctionCoefficients(irgaDesc.model()))
                 {
                     return QVariant(QBrush(QColor(QStringLiteral("#eff0f1"))));
                 }
@@ -509,8 +423,39 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                 return QVariant(QColor(Qt::white));
         }
     }
+    else if (role == Qt::ToolTipRole)
+    {
+        switch (row)
+        {
+            case ACFREQ:
+                if (irgaDesc.acFreq() <= 0.0)
+                {
+                    return QVariant(tr("Same as the station's acquisition frequency"));
+                }
+                return QVariant(tr("Acquisition frequency of this gas analyzer"));
+            case SAMPLING:
+                if (!samplingIsRelevant(irgaDesc))
+                {
+                    return QVariant(tr("Not relevant at the station's own "
+                                       "acquisition frequency: there is no "
+                                       "interval to average over. Stored, but "
+                                       "not used."));
+                }
+                return QVariant(tr("Whether this instrument reports the value "
+                                   "at an instant or the mean over its own "
+                                   "sampling interval."));
+            default:
+                return QVariant();
+        }
+    }
     else if (role == Qt::ForegroundRole)
     {
+        //> Greyed rather than withheld: the value is still there, still
+        //> editable, and still saved - it just has no effect at this rate.
+        if (row == SAMPLING && !samplingIsRelevant(irgaDesc))
+        {
+            return QVariant(QColor(Qt::darkGray));
+        }
         return QVariant(QColor(Qt::black));
     }
     else
@@ -674,7 +619,11 @@ bool IrgaModel::setData(const QModelIndex& index, const QVariant& value, int rol
             //> Stored as 0 when it matches the station, so the analyser goes on
             //> following the station rather than freezing today's number.
             const auto entered = value.toReal();
-            const auto stored = qFuzzyCompare(entered, stationAcFreq()) ? 0.0 : entered;
+            //> <= 0 is the user asking for it outright, by winding the spin
+            //> down to its "Station frequency" entry or typing a zero.
+            const auto stored = (entered <= 0.0
+                                 || qFuzzyCompare(entered, stationAcFreq()))
+                                ? 0.0 : entered;
             //> Offset by one: qFuzzyCompare is undefined against exactly zero,
             //> which is the value that means "follow the station".
             if (qFuzzyCompare(stored + 1.0, irgaDesc.acFreq() + 1.0))
@@ -820,18 +769,7 @@ Qt::ItemFlags IrgaModel::flags(const QModelIndex& index) const
         case VPATHLENGTH:
         case HPATHLENGTH:
         case TAU:
-            if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_6()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_7()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_21()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_22()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_23())
+            if (!IrgaDesc::needsPathGeometry(irgaDesc.model()))
             {
                 currentFlags &= ~Qt::ItemIsEnabled;
                 currentFlags &= ~Qt::ItemIsEditable;
@@ -844,10 +782,7 @@ Qt::ItemFlags IrgaModel::flags(const QModelIndex& index) const
             }
         case KWATER:
         case KOXYGEN:
-            if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11())
+            if (!IrgaDesc::hasExtinctionCoefficients(irgaDesc.model()))
             {
                 currentFlags &= ~Qt::ItemIsEnabled;
                 currentFlags &= ~Qt::ItemIsEditable;
@@ -859,14 +794,12 @@ Qt::ItemFlags IrgaModel::flags(const QModelIndex& index) const
                 return currentFlags;
             }
         case SAMPLING:
-            //> Greyed out until the instrument is given a rate of its own -
-            //> see the display role.
-            if (irgaDesc.acFreq() <= 0.0)
-            {
-                currentFlags &= ~Qt::ItemIsEnabled;
-                currentFlags &= ~Qt::ItemIsEditable;
-                currentFlags &= ~Qt::ItemIsSelectable;
-            }
+            //> Always selectable, on every instrument. It used to be greyed
+            //> whenever the instrument had no rate of its own, which is also
+            //> the state an instrument lands in the moment it is set to the
+            //> station's rate - so stating the sampling once put the cell
+            //> permanently out of reach. Whether the choice MATTERS is said by
+            //> samplingIsRelevant(), in the foreground colour and the tooltip.
             return currentFlags;
         default:
             return currentFlags;

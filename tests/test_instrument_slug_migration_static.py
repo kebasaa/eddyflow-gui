@@ -65,7 +65,11 @@ class TheNormaliserKnowsEveryLegacySpelling(unittest.TestCase):
 
     def setUp(self):
         self.src = _read(DL_PROJECT)
-        self.body = _body(self.src, "QString normalizedCampbellModelKey(")
+        # Renamed from normalizedCampbellModelKey when Metek joined it:
+        # `u3amp`/`u3cagemp` were this interface's own spellings, which
+        # the engine has never accepted, so they migrate here too and the
+        # normaliser is no longer about one manufacturer.
+        self.body = _body(self.src, "QString normalizedModelKey(")
 
     def test_the_bare_spellings_are_mapped(self):
         for bare, canonical in BARE_MODEL_KEYS.items():
@@ -87,7 +91,7 @@ class TheNormaliserKnowsEveryLegacySpelling(unittest.TestCase):
                           "fromIniAnemNorthAlign"):
             body = _body(self.src, "DlProject::%s(" % converter)
             self.assertIn(
-                "normalizedCampbellModelKey(", body,
+                "normalizedModelKey(", body,
                 "%s resolves a model key without normalising it" % converter)
 
 
@@ -213,7 +217,13 @@ class TheEngineKnowsTheSameSpellings(unittest.TestCase):
         self.assertIn("model(model_len - 1:model_len)", self.body)
 
     def test_every_ingestion_point_normalises(self):
-        for path, expected in ((ENGINE_READ_MD, 1), (ENGINE_DYN_MD, 2)):
+        # TWO model keys enter through read_metadata_file: instr_<k>_model,
+        # and the extended-.ghg instr_<k>_ef_model that overrides it where the
+        # first states a generic stand-in. Both are file input and both must be
+        # normalised - an ef_model left raw would be the only model in the
+        # program still wearing its file spelling, and it is the one every
+        # select case downstream then matches on.
+        for path, expected in ((ENGINE_READ_MD, 2), (ENGINE_DYN_MD, 2)):
             self.assertEqual(
                 expected, _read(path).count("CanonicalInstrumentModel("),
                 "%s does not normalise every model it reads" % path.name)

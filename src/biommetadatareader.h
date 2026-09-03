@@ -38,12 +38,24 @@ public:
     bool readEmbMetadata(const QString& fileName);
     bool readAltMetadata(const QString& fileName);
 
-    static const QString getVAR_TA();
-    static const QString getVAR_PA();
-    static const QString getVAR_RH();
-    static const QString getVAR_RG();
-    static const QString getVAR_LWIN();
-    static const QString getVAR_PPFD();
+    /// The biomet measurements the interface has a row for.
+    enum class VarType
+    {
+        Unknown,
+        AirTemperature,
+        AirPressure,
+        RelativeHumidity,
+        GlobalRadiation,
+        LongwaveIncoming,
+        Par
+    };
+
+    /// A label with its positional qualifier removed: SW_IN_1_1_1 -> SW_IN.
+    static QString baseName(const QString& label);
+
+    /// Which measurement a label names, or Unknown. Matched whole rather than
+    /// by substring - see the definition.
+    static VarType varType(const QString& label);
 
 private:
     int countEmbVariables(const QStringList& list);

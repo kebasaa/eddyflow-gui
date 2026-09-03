@@ -59,6 +59,7 @@ class ClickLabel;
 class CecSettingsDialog;
 struct ConfigState;
 class CustomResetLineEdit;
+class DirBrowseWidget;
 class DlProject;
 class EcProject;
 class PlanarFitSettingsDialog;
@@ -103,6 +104,14 @@ private slots:
     void updateTimeConst(double l);
     void updateTlagMeth_1(bool b);
     void updateTlagMeth_2(int n);
+    /// Grey the baseline-subtraction box unless the method maximises a
+    /// covariance, which is the only thing it modifies.
+    void updateCovmaxDebaselineAvailability();
+    /// Grey the borrowing controls unless the flux detection limit is on.
+    void updateTlagBorrowAvailability();
+    void updateSonicHardwareAvailability();
+    void onClickHeadCorrMethLabel();
+    void onClickTiltSensorMethLabel();
     void updateTlSettingsButton(bool b);
 
     void onClickDetrendCombo(int detrendMethod);
@@ -133,6 +142,10 @@ private slots:
 
     void updateWplMeth_1(bool b);
     void updateBurbaGroup(bool b);
+    /// The engine refuses the instrument sensible heat terms outright when no
+    /// LI-7500 family analyser is configured (override_settings.f90). Mirrored
+    /// here so the interface does not offer a correction that will not run.
+    void updateBurbaAvailability();
     void updateBurbaType_2(int n);
     void enableBurbaCorrectionArea(bool b);
 
@@ -165,6 +178,8 @@ private:
     void createBurbaParamItems();
     void createQuestionMark();
     bool requestBurbaSettingsReset();
+    /// Whether the metadata describes an LI-7500 family analyser at all.
+    bool hasLi7500FamilyIrga() const;
     void setBurbaDefaultValues();
 
     QLabel* windOffsetLabel;
@@ -205,7 +220,56 @@ private:
     //> restore cecCheckBox->toolTip(), which by then WAS the unavailable text.
     QString cecAvailableTooltip_;
 
+    //> Same reason as cecAvailableTooltip_: updateBurbaAvailability() swaps in
+    //> an "unavailable" tooltip and needs the original to put back.
+    QString burbaAvailableTooltip_;
+
+    //> Modifier on covariance maximisation. Greyed unless the time-lag method
+    //> is one of the two that maximise a covariance.
+    RichTextCheckBox* covmaxDebaselineCheckBox;
+    RichTextCheckBox* parallelPrepassCheckBox;
+    //> Conditional lag borrowing and its threshold. Greyed together with the
+    //> flux detection limit, which they have nothing to test against without.
+    RichTextCheckBox* tlagBorrowCheckBox;
+    ClickLabel* tlagBorrowSnrLabel;
+    QDoubleSpinBox* tlagBorrowSnrSpin;
+    //> Which noise floor a covariance is judged against, and who a gas that
+    //> fails borrows from. Both default to this program's own choice; the
+    //> second entry on each is what EddyUH does.
+    ClickLabel* tlagBorrowNoiseLabel;
+    QComboBox* tlagBorrowNoiseCombo;
+    ClickLabel* tlagBorrowDonorLabel;
+    QComboBox* tlagBorrowDonorCombo;
+    //> Two hardware corrections on the raw wind, ahead of any rotation.
+    //> The Metek tables are that company's data and are not shipped, so the
+    //> directory holding them is a setting rather than a fixed path.
+    RichTextCheckBox* headCorrCheckBox;
+    ClickLabel* headCorrMethLabel;
+    QComboBox* headCorrMethCombo;
+    ClickLabel* headCorrDirLabel;
+    DirBrowseWidget* headCorrDirBrowse;
+    //> The inclinometer's angles arrive as ordinary extra raw columns named
+    //> theta, phi and psi, so nothing here says where they are - only how to
+    //> read a voltage as an angle.
+    RichTextCheckBox* tiltSensorCheckBox;
+    ClickLabel* tiltSensorMethLabel;
+    QComboBox* tiltSensorMethCombo;
+    ClickLabel* tiltSensorVgLabel;
+    QDoubleSpinBox* tiltSensorVgSpin;
+    ClickLabel* tiltLpfLabel;
+    QDoubleSpinBox* tiltLpfSpin;
+    ClickLabel* tiltArmLabel;
+    QLabel* tiltArmXLabel;
+    QLabel* tiltArmYLabel;
+    QLabel* tiltArmZLabel;
+    QDoubleSpinBox* tiltArmXSpin;
+    QDoubleSpinBox* tiltArmYSpin;
+    QDoubleSpinBox* tiltArmZSpin;
     RichTextCheckBox* wplCheckBox;
+    //> Closed-path spectroscopic correction, and its water-channel opt-in.
+    //> The second is meaningless without the first and is greyed with it.
+    RichTextCheckBox* spectroCheckBox;
+    RichTextCheckBox* spectroWaterCheckBox;
     QLabel* wplWarningLabel;
     RichTextCheckBox* burbaCorrCheckBox;
     ClickLabel* burbaTypeLabel;

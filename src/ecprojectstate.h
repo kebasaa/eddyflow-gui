@@ -100,6 +100,15 @@ struct ProjectGeneralState
     QString start_time = QString();
     QString end_time = QString();
     int hf_meth = 1;
+    int cosp_model = 0;
+    //> Iterative correction: off, and EddyUH's own numbers when switched on.
+    //> A tolerance of zero means "run every pass", which is what EddyUH does
+    //> - its loop has no early exit at all.
+    int corr_iter_meth = 0;
+    int corr_iter_max = 4;
+    qreal corr_iter_tol = 0.0;
+    //> Post-flux despiking (RFlux's despiking(variant="v1")). Off by default.
+    int test_pfd = 0;
     int lf_meth = 1;
     int wpl_meth = 1;
     int foot_meth = 1;
@@ -360,6 +369,43 @@ struct ScreenSettingState
     int out_details = 0;
     int power_of_two = 1;
     int gill_wm_wboost = 1;
+    //> Flux detection limit, Wienhold et al. (1994). Off by default, so an
+    //> existing project keeps its numbers; the two window settings carry
+    //> Wienhold's own values, which is what the engine also defaults to.
+    //> Both sides must agree - see tests/test_detlim_engine_contract_static.py.
+    int detlim_meth = 0;
+    qreal detlim_offset_s = 100.0;
+    qreal detlim_window_s = 50.0;
+    //> Closed-path spectroscopic correction, Peltola et al. (2014). Off, and
+    //> the water channel off within that: correcting a hygrometer against its
+    //> own reading is not part of the published result.
+    int spectro_meth = 0;
+    int spectro_water = 0;
+    //> Baseline-subtracted time-lag selection. Off: it changes which lag is
+    //> picked for every gas.
+    int covmax_debaseline = 0;
+    //> Conditional lag borrowing, and how many detection limits a covariance
+    //> must clear to keep its own lag. Three is Nemitz et al.
+    int tlag_borrow_meth = 0;
+    qreal tlag_borrow_snr = 3.0;
+    //> 0 the flux detection limit, 1 the Lenschow instrument noise.
+    int tlag_borrow_noise = 0;
+    //> 0 the best-resolved tube-mate, 1 the analyser's carbon dioxide.
+    int tlag_borrow_donor = 0;
+    //> Inclinometer tilt: 0 off, 1 position, 2 position and swinging. The
+    //> sensitivity and the lever arm are EddyUH's own literals.
+    int tilt_sensor_meth = 0;
+    qreal tilt_sensor_v_g = 4.0;
+    qreal tilt_arm_x = -1.5;
+    qreal tilt_arm_y = -1.5;
+    qreal tilt_arm_z = -1.5;
+    qreal tilt_lpf_s = 0.0;
+    //> Metek head correction: 0 off, 1 raw data, 2 undo the online 2-D one.
+    int head_corr_meth = 0;
+    QString head_corr_dir;
+    //> Storage-flux cleaning (RFlux's cleanFlux() storage branch). RP-only,
+    //> off by default.
+    int test_stor_clean = 0;
 };
 
 /// \struct ScreenTestState
@@ -375,6 +421,9 @@ struct ScreenTestState
     int test_tl = 0;
     int test_aa = 0;
     int test_ns = 0;
+    /// Extra raw-signal instrument-malfunction diagnostics ported from
+    /// RFlux (AL1, DDI, Qn/MAD-scaled HF5/HF10/HD5/HD10). Off by default.
+    int test_rf = 0;
 };
 
 /// \struct ScreenParamState
@@ -442,6 +491,13 @@ struct ScreenParamState
     qreal aa_lim = 10.0;
     qreal ns_hf_lim = 0.5;
     int despike_vm = 0;
+    //> Consecutive-difference step limits, in each variable's own units.
+    //> Zero is "not stated" and leaves that column undespiked, which is the
+    //> shape EddyUH's dlim has - a NaN entry there means the same.
+    qreal sr_step_u = 10.0;
+    qreal sr_step_v = 10.0;
+    qreal sr_step_w = 5.0;
+    qreal sr_step_ts = 10.0;
 };
 
 /// \struct ScreenTiltState

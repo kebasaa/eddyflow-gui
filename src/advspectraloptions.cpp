@@ -596,6 +596,122 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     horstCombo->setItemData(0, tr("<b>Horst and Lenschow (2009), along-wind, crosswind and vertical:</b> Select this option to account for sensor separations in any direction. Note that correcting for along-wind separations may result in overcorrection, if any time lag compensation method was also selected."), Qt::ToolTipRole);
     horstCombo->setItemData(1, tr("<b>Horst and Lenschow (2009), only crosswind and vertical:</b> Select this option to account for sensor separations only in the crosswind and vertical directions. Recommended when a time lag compensation method is selected."), Qt::ToolTipRole);
 
+    //> The analytic cospectral SHAPE, not a correction method. Every method
+    //> above weights a transfer function by it, so it is a modifier on all of
+    //> them rather than a sixth entry in their list.
+    //> Iterative correction. Under the cospectral model because it is the
+    //> same circle: the model is evaluated at z/L, and z/L is what the
+    //> corrected heat flux produces.
+    corrIterCheckBox = new QCheckBox(tr("Iterate the correction"));
+    corrIterCheckBox->setStyleSheet(QStringLiteral("QCheckBox { margin-left: 40px; }"));
+    const QString corrIterTip = tr("<b>Iterate the correction:</b> The "
+        "analytic cospectrum is evaluated at z/L; z/L comes from the "
+        "corrected sensible heat flux; and that flux is what the spectral "
+        "correction produces. A single pass leaves the three disagreeing - "
+        "the correction was computed at a stability the run then revised."
+        "<br><br>Repeating closes the circle. Each pass re-corrects the same "
+        "raw covariances at the stability the pass before it produced, so "
+        "nothing compounds; what changes is only which z/L the cospectrum "
+        "was evaluated at."
+        "<br><br>Largest effect in strongly non-neutral conditions, where "
+        "the correction factor is most sensitive to stability. On a "
+        "near-neutral forest day it moves the fluxes by hundredths of a "
+        "percent, and the <i>corr_iter_dev</i> column in the full output "
+        "says by how much for every period."
+        "<br><br>This is EddyUH's behaviour (EddyUH.m:722-903), which "
+        "iterates unconditionally. Off here, because a single pass is what "
+        "this program has always done.");
+    corrIterCheckBox->setToolTip(corrIterTip);
+
+    corrIterMaxLabel = new ClickLabel(tr("Passes :"));
+    corrIterMaxSpin = new QSpinBox;
+    corrIterMaxSpin->setRange(1, 20);
+    corrIterMaxSpin->setSingleStep(1);
+    corrIterMaxSpin->setAccelerated(true);
+    corrIterMaxSpin->setToolTip(tr("<b>Passes:</b> How many times to repeat "
+        "the correction. Four is EddyUH's, which runs exactly that many and "
+        "tests nothing. One is the same as switching this off."));
+    corrIterMaxLabel->setToolTip(corrIterMaxSpin->toolTip());
+
+    corrIterTolLabel = new ClickLabel(tr("Stop below :"));
+    corrIterTolSpin = new QDoubleSpinBox;
+    corrIterTolSpin->setDecimals(2);
+    corrIterTolSpin->setRange(0.0, 100.0);
+    corrIterTolSpin->setSingleStep(0.1);
+    corrIterTolSpin->setAccelerated(true);
+    corrIterTolSpin->setSuffix(tr("  [%]"));
+    corrIterTolSpin->setSpecialValueText(tr("run every pass"));
+    corrIterTolSpin->setToolTip(tr("<b>Stop below:</b> Stop early once every "
+        "gas flux moves by less than this between passes."
+        "<br><br>Zero means run every pass, and is the default because it is "
+        "what EddyUH does - its loop has no early exit at all. Setting a "
+        "tolerance is this program's own addition: it saves passes, and it "
+        "changes the answer slightly, because stopping at pass two is not "
+        "the same as stopping at pass four."));
+    corrIterTolLabel->setToolTip(corrIterTolSpin->toolTip());
+
+    cospModelLabel = new ClickLabel(tr("Cospectral model :"));
+    cospModelCombo = new QComboBox;
+    cospModelCombo->addItem(tr("Moncrieff et al. (1997) - the default"));
+    cospModelCombo->addItem(tr("Kaimal et al. (1972)"));
+    cospModelCombo->addItem(tr("Sakai et al. (2001) - rough surfaces"));
+    cospModelCombo->addItem(tr("Su et al. (2003) - forest, non-flat terrain"));
+    cospModelCombo->addItem(tr("Moraes et al. (2008)"));
+    cospModelCombo->addItem(tr("Kristensen et al. (1997)"));
+    const QString cospShared = tr("<br><br>Only the SHAPE matters: the correction "
+        "is a ratio of two integrals of this same curve, so any constant "
+        "scaling it divides out. The Reynolds stress keeps Moncrieff's "
+        "momentum cospectrum whichever option is chosen - the four "
+        "single-form models below are scalar cospectra and have no momentum "
+        "counterpart.");
+    const QString cospNeutral = tr("<br><br><b>No stability dependence.</b> This "
+        "is a single form applied at any z/L. Under stable stratification the "
+        "cospectral peak moves to higher frequency, so a neutral-form model "
+        "puts too little flux there and will understate the high-frequency "
+        "loss.");
+    cospModelCombo->setItemData(0, QString(tr("<b>Moncrieff et al. (1997):</b> The "
+        "curve this program has always integrated against, with separate "
+        "stable and unstable branches. Identical, term for term, to the "
+        "cospectrum Moore (1986) gives and that EddyUH calls CMoore.")
+        + cospShared),
+        Qt::ToolTipRole);
+    cospModelCombo->setItemData(1, QString(tr("<b>Kaimal et al. (1972):</b> The Kansas "
+        "cospectrum, with stable and unstable branches of its own. A "
+        "genuinely different curve from Moncrieff's, though the two agree "
+        "closely - Moncrieff's is a fit to this data.") + cospShared),
+        Qt::ToolTipRole);
+    cospModelCombo->setItemData(2, QString(tr("<b>Sakai et al. (2001):</b> Fitted over "
+        "rough surfaces, where more of the flux sits at low frequency than "
+        "Kaimal's curve allows.") + cospNeutral + cospShared),
+        Qt::ToolTipRole);
+    cospModelCombo->setItemData(3, QString(tr("<b>Su et al. (2003):</b> Fitted over "
+        "two mixed hardwood forests in non-flat terrain.") + cospNeutral
+        + cospShared),
+        Qt::ToolTipRole);
+    cospModelCombo->setItemData(4, QString(tr("<b>Moraes et al. (2008):</b> Fitted "
+        "across differing surface boundary conditions.") + cospNeutral
+        + cospShared),
+        Qt::ToolTipRole);
+    cospModelCombo->setItemData(5, QString(tr("<b>Kristensen et al. (1997):</b> A "
+        "broader curve than the others, with a long low-frequency tail. On "
+        "the test dataset it gives the largest correction of the six.")
+        + cospNeutral + cospShared),
+        Qt::ToolTipRole);
+    const QString cospTip = tr("<b>Cospectral model:</b> The analytic cospectrum "
+        "that every low-pass correction is integrated against. It decides how "
+        "much of the flux is assumed to sit at the frequencies the instrument "
+        "attenuates, and so how large the correction comes out - on the test "
+        "dataset the six models spread the gas correction factors over about "
+        "four percent. It is a modifier on whichever method is selected "
+        "above, not a method of its own, and it has no effect where the "
+        "correction is taken from measured cospectra instead."
+        "<br><br>The library is EddyUH's, from its diagnostic plots; EddyUH "
+        "corrects against measured and fitted cospectra rather than these. "
+        "<b>Moncrieff et al. (1997) is the default</b> and is what this "
+        "program has always used.");
+    cospModelLabel->setToolTip(cospTip);
+    cospModelCombo->setToolTip(cospTip);
+
     ////////////////////////////////////////////////////////////////////////////////
     // NOTE: explicitely disabled
     ghgSystemCorrectionTitle = new QLabel(tr("Data acquisition system correction (only GHG files collected with LI-7550 software 7.6.0 or earlier)"));
@@ -791,6 +907,18 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     spectralTableTitleLayout->addWidget(questionMark_44, 0, Qt::AlignVCenter);
     spectralTableTitleLayout->addStretch();
 
+    //> On the table's own title row rather than with the page-wide button: it
+    //> resets the table and nothing else, and this is where that scope reads.
+    defaultValuesButton = new QPushButton(tr("Restore Default Values"));
+    defaultValuesButton->setProperty("mdButton", true);
+    defaultValuesButton->setMaximumWidth(defaultValuesButton->sizeHint().width());
+    defaultValuesButton->setToolTip(tr("<b>Restore Default Values</b>: Resets "
+                                       "the spectra and cospectra QA/QC table "
+                                       "to its default settings. Each gas "
+                                       "returns to the default for its own "
+                                       "species."));
+    spectralTableTitleLayout->addWidget(defaultValuesButton, 0, Qt::AlignVCenter);
+
     auto spectralTableContainer = new QWidget;
     auto spectralTableLayout = new QVBoxLayout(spectralTableContainer);
     spectralTableLayout->setContentsMargins(0, 0, 0, 0);
@@ -838,21 +966,29 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     settingsLayout->addWidget(horstMethodLabel, 22, 1, Qt::AlignRight);
     settingsLayout->addWidget(horstCombo, 22, 2, 1, 3);
 
-    settingsLayout->addWidget(ghgSystemCorrectionTitle, 23, 0, 1, -1);
-    settingsLayout->addWidget(hfCorrectGhgBaCheck, 24, 0, 1, 2);
-    settingsLayout->addWidget(hfCorrectGhgZohCheck, 25, 0, 1, 2);
-    settingsLayout->addWidget(sonicFrequencyLabel, 25, 1, Qt::AlignRight);
-    settingsLayout->addWidget(sonicFrequency, 25, 2, 1, 1);
+    settingsLayout->addWidget(cospModelLabel, 23, 1, Qt::AlignRight);
+    settingsLayout->addWidget(cospModelCombo, 23, 2, 1, 3);
+    settingsLayout->addWidget(corrIterCheckBox, 24, 0, 1, 2);
+    settingsLayout->addWidget(corrIterMaxLabel, 24, 1, Qt::AlignRight);
+    settingsLayout->addWidget(corrIterMaxSpin, 24, 2);
+    settingsLayout->addWidget(corrIterTolLabel, 24, 3, Qt::AlignRight);
+    settingsLayout->addWidget(corrIterTolSpin, 24, 4);
 
-    settingsLayout->addWidget(spectraExistingRadio, 26, 0, 1, 2);
-    settingsLayout->addWidget(spectraFileBrowse, 26, 1, 1, 4);
-    settingsLayout->addWidget(spectraNonExistingRadio, 27, 0, 1, 2);
+    settingsLayout->addWidget(ghgSystemCorrectionTitle, 25, 0, 1, -1);
+    settingsLayout->addWidget(hfCorrectGhgBaCheck, 26, 0, 1, 2);
+    settingsLayout->addWidget(hfCorrectGhgZohCheck, 27, 0, 1, 2);
+    settingsLayout->addWidget(sonicFrequencyLabel, 27, 1, Qt::AlignRight);
+    settingsLayout->addWidget(sonicFrequency, 27, 2, 1, 1);
 
-    settingsLayout->addWidget(fratiniTitle, 28, 0, 1, -1);
-    settingsLayout->addWidget(fullSpectraNonExistingRadio, 29, 0, 1, 2);
-    settingsLayout->addWidget(fullSpectraExistingRadio, 30, 0, 1, 2);
-    settingsLayout->addWidget(fullSpectraDirBrowse, 30, 1, 1, 4);
-    settingsLayout->addWidget(addSonicCheck, 31, 0, 1, -1);
+    settingsLayout->addWidget(spectraExistingRadio, 28, 0, 1, 2);
+    settingsLayout->addWidget(spectraFileBrowse, 28, 1, 1, 4);
+    settingsLayout->addWidget(spectraNonExistingRadio, 29, 0, 1, 2);
+
+    settingsLayout->addWidget(fratiniTitle, 30, 0, 1, -1);
+    settingsLayout->addWidget(fullSpectraNonExistingRadio, 31, 0, 1, 2);
+    settingsLayout->addWidget(fullSpectraExistingRadio, 32, 0, 1, 2);
+    settingsLayout->addWidget(fullSpectraDirBrowse, 32, 1, 1, 4);
+    settingsLayout->addWidget(addSonicCheck, 33, 0, 1, -1);
     settingsLayout->setColumnStretch(7, 1);
 
     auto settingsGroupLayout = new QHBoxLayout;
@@ -897,6 +1033,9 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             this, &AdvSpectralOptions::updateFilter);
     connect(nBinsLabel, &ClickLabel::clicked, [=]()
             { nBinsSpin->setFocus(); nBinsSpin->selectAll(); });
+    connect(defaultValuesButton, &QPushButton::clicked,
+            this, &AdvSpectralOptions::on_defaultValuesButton_clicked);
+
     connect(nBinsSpin, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &AdvSpectralOptions::updateNBins);
     connect(fftCheckBox, &QCheckBox::toggled, [=](bool checked)
@@ -959,6 +1098,29 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             this, &AdvSpectralOptions::onClickHorstLabel);
     connect(horstCheck, &QCheckBox::toggled,
             this, &AdvSpectralOptions::updateHorst_1);
+    connect(cospModelCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [=](int n){ ecProject_->setGeneralCospModel(n); });
+    //> On the click, not the state change: refresh() blocks the project's
+    //> signals, not the widgets', so a toggled connection would switch the
+    //> loop on in a file the user only opened.
+    connect(corrIterCheckBox, &QCheckBox::clicked,
+            this, [=]()
+            {
+                ecProject_->setGeneralCorrIterMethod(
+                    corrIterCheckBox->isChecked() ? 1 : 0);
+                updateCorrIterAvailability();
+            });
+    connect(corrIterMaxSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [=](int n) { ecProject_->setGeneralCorrIterMax(n); });
+    connect(corrIterTolSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [=](double d) { ecProject_->setGeneralCorrIterTol(d); });
+    connect(corrIterMaxLabel, &ClickLabel::clicked,
+            this, [=]() { corrIterMaxSpin->setFocus(Qt::ShortcutFocusReason); });
+    connect(corrIterTolLabel, &ClickLabel::clicked,
+            this, [=]() { corrIterTolSpin->setFocus(Qt::ShortcutFocusReason); });
+
+    connect(cospModelLabel, &ClickLabel::clicked,
+            this, [=](){ cospModelCombo->showPopup(); });
     connect(horstCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &AdvSpectralOptions::updateHorst_2);
 
@@ -1092,6 +1254,11 @@ void AdvSpectralOptions::reset()
     lfMethodCheck->setChecked(ecProject_->defaultSettings.projectGeneral.lf_meth);
     hfMethodCheck->setChecked(ecProject_->defaultSettings.projectGeneral.hf_meth);
     WidgetUtils::resetComboToItem(hfMethCombo, 0);
+    WidgetUtils::resetComboToItem(cospModelCombo, ecProject_->defaultSettings.projectGeneral.cosp_model);
+    corrIterCheckBox->setChecked(ecProject_->defaultSettings.projectGeneral.corr_iter_meth);
+    corrIterMaxSpin->setValue(ecProject_->defaultSettings.projectGeneral.corr_iter_max);
+    corrIterTolSpin->setValue(ecProject_->defaultSettings.projectGeneral.corr_iter_tol);
+    updateCorrIterAvailability();
     horstMethodLabel->setEnabled(false);
     horstCheck->setEnabled(false);
     horstCheck->setChecked(false);
@@ -1123,23 +1290,13 @@ void AdvSpectralOptions::reset()
     forceEndDatePolicy();
     forceEndTimePolicy();
 
-    qcMinUnstableUstarSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_un_ustar);
-    qcMinUnstableHSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_un_h);
-    qcMinUnstableLESpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_un_le);
-    qcMinStableUstarSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_st_ustar);
-    qcMinStableHSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_st_h);
-    qcMinStableLESpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_st_le);
-    qcMaxUstarSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_max_ustar);
-    qcMaxHSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_max_h);
-    qcMaxLESpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_max_le);
+    //> Every row of the QA/QC table, fixed and per-gas alike. Shared with the
+    //> table's own Restore Default Values button so the two cannot drift.
+    resetSpectralTableToDefault();
 
     minSmplSpin->setValue(ecProject_->defaultSettings.spectraSettings.sa_min_smpl);
 
     setSpectralAssessmentFrequencyCellsEnabled(false);
-
-    // Every per-gas value back to the built-in default for its species, on
-    // its record.
-    resetGasSpectralToDefault();
 
     fullSpectraExistingRadio->setEnabled(false);
     fullSpectraExistingRadio->setChecked(ecProject_->defaultSettings.projectGeneral.full_sp_avail);
@@ -1200,6 +1357,11 @@ void AdvSpectralOptions::refresh()
 
     lfMethodCheck->setChecked(ecProject_->generalLfMethod());
     hfMethodCheck->setChecked(ecProject_->generalHfMethod());
+    cospModelCombo->setCurrentIndex(ecProject_->generalCospModel());
+    corrIterCheckBox->setChecked(ecProject_->generalCorrIterMethod());
+    corrIterMaxSpin->setValue(ecProject_->generalCorrIterMax());
+    corrIterTolSpin->setValue(ecProject_->generalCorrIterTol());
+    updateCorrIterAvailability();
 
     int hfMethod = ecProject_->generalHfMethod();
     switch(hfMethod)
@@ -1833,23 +1995,7 @@ bool AdvSpectralOptions::isFratini()
 
 bool AdvSpectralOptions::hasLi7500FamilyIrga() const
 {
-    const IrgaDescList* irgas = dlProject_->irgas();
-    for (const IrgaDesc& irga : *irgas)
-    {
-        if (isLi7500FamilyIrgaModel(irga.model()))
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool AdvSpectralOptions::isLi7500FamilyIrgaModel(const QString& model)
-{
-    return model == IrgaDesc::getIRGA_MODEL_STRING_2()
-           || model == IrgaDesc::getIRGA_MODEL_STRING_3()
-           || model == IrgaDesc::getIRGA_MODEL_STRING_12()
-           || model == IrgaDesc::getIRGA_MODEL_STRING_14();
+    return IrgaDesc::hasLi7500Family(dlProject_ ? dlProject_->irgas() : nullptr);
 }
 
 void AdvSpectralOptions::maybeWarnMassmanFallback()
@@ -1885,6 +2031,16 @@ void AdvSpectralOptions::onMinSmplLabelClicked()
 void AdvSpectralOptions::updateMinSmpl(int n)
 {
     ecProject_->setSpectraMinSmpl(n);
+}
+
+/// The two numbers describe a loop that is not running otherwise.
+void AdvSpectralOptions::updateCorrIterAvailability()
+{
+    const bool on = corrIterCheckBox->isChecked();
+    corrIterMaxLabel->setEnabled(on);
+    corrIterMaxSpin->setEnabled(on);
+    corrIterTolLabel->setEnabled(on);
+    corrIterTolSpin->setEnabled(on);
 }
 
 void AdvSpectralOptions::onClickHorstLabel()
@@ -2083,6 +2239,51 @@ void AdvSpectralOptions::onGasSpectralChanged(int gasIndex,
     }
     ecProject_->setGasColumns(gases);
 
+}
+
+/// Restore Default Values for the QA/QC table as a whole: the three fixed rows
+/// that come from flat keys, and every per-gas row.
+///
+/// Deliberately NOT the minimum number of samples, which sits below the table
+/// and is not one of its cells - the page-wide reset still covers that.
+void AdvSpectralOptions::resetSpectralTableToDefault()
+{
+    if (!ecProject_) { return; }
+
+    const auto& d = ecProject_->defaultSettings.spectraSettings;
+
+    qcMinUnstableUstarSpin->setValue(d.sa_min_un_ustar);
+    qcMinUnstableHSpin->setValue(d.sa_min_un_h);
+    qcMinUnstableLESpin->setValue(d.sa_min_un_le);
+    qcMinStableUstarSpin->setValue(d.sa_min_st_ustar);
+    qcMinStableHSpin->setValue(d.sa_min_st_h);
+    qcMinStableLESpin->setValue(d.sa_min_st_le);
+    qcMaxUstarSpin->setValue(d.sa_max_ustar);
+    qcMaxHSpin->setValue(d.sa_max_h);
+    qcMaxLESpin->setValue(d.sa_max_le);
+
+    // Every per-gas value back to the built-in default for its species, on
+    // its record.
+    resetGasSpectralToDefault();
+
+    refreshSpectralQaQcTableState();
+}
+
+void AdvSpectralOptions::on_defaultValuesButton_clicked()
+{
+    if (requestSpectralTableReset())
+    {
+        resetSpectralTableToDefault();
+    }
+}
+
+bool AdvSpectralOptions::requestSpectralTableReset()
+{
+    return WidgetUtils::yesNoQuestion(this,
+                tr("Reset Spectral Assessment Settings"),
+                tr("<p>Do you want to reset the spectra and cospectra QA/QC "
+                   "settings to the default settings?</p>"),
+                tr("<p>You cannot undo this action.</p>"));
 }
 
 /// Restore Default Values, for the per-gas spectral settings. Only the

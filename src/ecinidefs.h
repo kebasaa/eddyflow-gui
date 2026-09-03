@@ -119,6 +119,27 @@ namespace EcIni
     //> The pairing list is written as cec_num plus cec_<i>_meth / _co2 /
     //> _h2o / _extra, composed like the gas records rather than named here.
     const auto INI_PROJECT_CEC_NUM = QStringLiteral("cec_num");
+    //> The analytic cospectrum every spectral correction is integrated
+    //> against. 0 = Moncrieff et al. (1997), which is what this program has
+    //> always used; 1 Kaimal et al. (1972), 2 Sakai et al. (2001), 3 Su et al.
+    //> (2003), 4 Moraes et al. (2008), 5 Kristensen et al. (1997).
+    //> [Project] because BOTH applications read it - RP runs the analytic
+    //> methods itself, and FCC never sweeps the RawProcess groups.
+    const auto INI_PROJECT_83   = QStringLiteral("cosp_model");
+    //> Iterative correction. The spectral correction is evaluated at z/L,
+    //> which the corrected heat flux determines, which the correction
+    //> produces. Repeating closes that circle. [Project] because both
+    //> applications run the loop.
+    const auto INI_PROJECT_84   = QStringLiteral("corr_iter_meth");
+    const auto INI_PROJECT_85   = QStringLiteral("corr_iter_max");
+    const auto INI_PROJECT_86   = QStringLiteral("corr_iter_tol");
+    //> Post-flux despiking (RFlux's despiking(variant="v1"), Vitale et al.
+    //> 2020): an STL decomposition of the whole run's NEE/H/LE series with
+    //> a decile-binned Laplace outlier test on the residual, written as a
+    //> separate output file after FCC finishes. [Project] because FCC.SNTags
+    //> and FCC.SCTags are both completely full below their record origins;
+    //> FCC is still the only reader.
+    const auto INI_PROJECT_87   = QStringLiteral("test_pfd");
 
     const auto INIGROUP_SPEC_SETTINGS = QStringLiteral("FluxCorrection_SpectralAnalysis_General");
     const auto INI_SPEC_SETTINGS_0    = QStringLiteral("sa_start_date");
@@ -312,6 +333,60 @@ namespace EcIni
     const auto INI_SCREEN_SETTINGS_99   = QStringLiteral("out_qc_details");
     const auto INI_SCREEN_SETTINGS_100  = QStringLiteral("power_of_two");
     const auto INI_SCREEN_SETTINGS_101  = QStringLiteral("gill_wm_wboost");
+    //> Flux detection limit, Wienhold et al. (1994). RawProcess_Settings and
+    //> not [Project]: RP computes the limit and it travels to FCC inside the
+    //> ex record, so FCC never reads these keys and does not need to see the
+    //> group. The two window settings carry Wienhold's own values.
+    const auto INI_SCREEN_SETTINGS_102  = QStringLiteral("detlim_meth");
+    const auto INI_SCREEN_SETTINGS_103  = QStringLiteral("detlim_offset_s");
+    const auto INI_SCREEN_SETTINGS_104  = QStringLiteral("detlim_window_s");
+    //> Closed-path spectroscopic correction, Peltola et al. (2014), applied
+    //> point by point. RawProcess_Settings because it acts on the raw series,
+    //> which only RP holds; FCC never redoes it.
+    const auto INI_SCREEN_SETTINGS_105  = QStringLiteral("spectro_meth");
+    const auto INI_SCREEN_SETTINGS_106  = QStringLiteral("spectro_water");
+    //> Modifier on covariance maximisation: choose the lag by the largest
+    //> departure from the chord across the search window, not the largest
+    //> absolute covariance.
+    const auto INI_SCREEN_SETTINGS_107  = QStringLiteral("covmax_debaseline");
+    //> Nemitz et al. (2018) conditional lag borrowing. Needs detlim_meth on,
+    //> since there is nothing to compare a covariance against otherwise.
+    const auto INI_SCREEN_SETTINGS_108  = QStringLiteral("tlag_borrow_meth");
+    const auto INI_SCREEN_SETTINGS_109  = QStringLiteral("tlag_borrow_snr");
+    //> Which noise floor a covariance is judged against, and who a gas that
+    //> fails borrows from. 0 on either is this engine's own choice, which is
+    //> the default; 1 is EddyUH's.
+    const auto INI_SCREEN_SETTINGS_110  = QStringLiteral("tlag_borrow_noise");
+    const auto INI_SCREEN_SETTINGS_111  = QStringLiteral("tlag_borrow_donor");
+
+    //> Two hardware corrections applied to the raw wind before any rotation.
+    //> The inclinometer reads its angles from ordinary extra raw columns
+    //> named theta, phi and psi, so there is nothing here to say where they
+    //> are - only how to turn a voltage into an angle.
+    const auto INI_SCREEN_SETTINGS_112  = QStringLiteral("tilt_sensor_meth");
+    const auto INI_SCREEN_SETTINGS_113  = QStringLiteral("tilt_sensor_v_g");
+    const auto INI_SCREEN_SETTINGS_114  = QStringLiteral("tilt_arm_x");
+    const auto INI_SCREEN_SETTINGS_115  = QStringLiteral("tilt_arm_y");
+    const auto INI_SCREEN_SETTINGS_116  = QStringLiteral("tilt_arm_z");
+    const auto INI_SCREEN_SETTINGS_117  = QStringLiteral("tilt_lpf_s");
+    //> The Metek look-up tables are that company's data and are not shipped,
+    //> so the directory holding them is a setting rather than a fixed path.
+    const auto INI_SCREEN_SETTINGS_118  = QStringLiteral("head_corr_meth");
+    const auto INI_SCREEN_SETTINGS_119  = QStringLiteral("head_corr_dir");
+    //> Storage-flux cleaning (RFlux's cleanFlux() storage branch, Vitale et
+    //> al. 2020): a Tukey boxplot outlier test binned by time-of-day plus
+    //> interpolation, on every configured gas's storage term, written as a
+    //> separate output file after RP finishes. RP-only - it is RP.SCTags(21),
+    //> read (like every RP.SCTags/SNTags key) from wherever the
+    //> [RawProcess_*] block of sections falls in the file, never from
+    //> [Project] - ReadIniRP's key='RawProcess' scan starts at the first
+    //> [RawProcess_*] header and stops at the first section after that
+    //> is not one, so anything meant for SCTags/SNTags has to sit inside
+    //> that contiguous run. RawProcess_Settings rather than
+    //> RawProcess_Tests, alongside covmax_debaseline and kin: not a
+    //> screening-test flag, so grouping it with test_sr/test_rf there
+    //> would misdescribe what it does.
+    const auto INI_SCREEN_SETTINGS_120  = QStringLiteral("test_stor_clean");
 
     const auto INIGROUP_SCREEN_TESTS = QStringLiteral("RawProcess_Tests");
     const auto INI_SCREEN_TESTS_0    = QStringLiteral("test_sr");
@@ -323,6 +398,7 @@ namespace EcIni
     const auto INI_SCREEN_TESTS_6    = QStringLiteral("test_tl");
     const auto INI_SCREEN_TESTS_7    = QStringLiteral("test_aa");
     const auto INI_SCREEN_TESTS_8    = QStringLiteral("test_ns");
+    const auto INI_SCREEN_TESTS_9    = QStringLiteral("test_rf");
 
     const auto INIGROUP_SCREEN_PARAM = QStringLiteral("RawProcess_ParameterSettings");
     const auto INI_SCREEN_PARAM_0    = QStringLiteral("sr_num_spk");
@@ -386,6 +462,14 @@ namespace EcIni
     const auto INI_SCREEN_PARAM_58   = QStringLiteral("tl_def_ch4");
     const auto INI_SCREEN_PARAM_59   = QStringLiteral("tl_def_gas4");
     const auto INI_SCREEN_PARAM_60   = QStringLiteral("despike_vm");
+    //> Consecutive-difference despiking, EddyUH's spi_method 1. Absolute step
+    //> limits in each variable's own units, so four keys rather than the two
+    //> the Vickers sigma multipliers share: a kelvin is not a metre per
+    //> second.
+    const auto INI_SCREEN_PARAM_61   = QStringLiteral("sr_step_u");
+    const auto INI_SCREEN_PARAM_62   = QStringLiteral("sr_step_v");
+    const auto INI_SCREEN_PARAM_63   = QStringLiteral("sr_step_w");
+    const auto INI_SCREEN_PARAM_64   = QStringLiteral("sr_step_ts");
 
     const auto INIGROUP_SCREEN_TILT   = QStringLiteral("RawProcess_TiltCorrection_Settings");
     const auto INI_SCREEN_TILT_0      = QStringLiteral("pf_start_date");

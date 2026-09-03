@@ -45,8 +45,23 @@ namespace {
 /// Metek, Young and LI-COR key is what EddyPro wrote - which is why a legacy
 /// project comes up correctly everywhere except on a Campbell site, where the
 /// model resolves to nothing and the instrument silently disappears.
-QString normalizedCampbellModelKey(const QString& key)
+QString normalizedModelKey(const QString& key)
 {
+    //> Metek, renamed for the opposite reason to Campbell's below: these were
+    //> never the engine's spelling at all, so a file carrying one was written
+    //> by this interface and by nothing else. Migrated on read so those files
+    //> keep opening; what gets written now is the spelling the engine and
+    //> LI-COR both use.
+    static const QHash<QString, QString> kMetekModelKeys = {
+        { QStringLiteral("u3amp"),    QStringLiteral("usoni3_classa_mp") },
+        { QStringLiteral("u3cagemp"), QStringLiteral("usoni3_cage_mp")   },
+    };
+    const auto metek = kMetekModelKeys.constFind(key);
+    if (metek != kMetekModelKeys.constEnd())
+    {
+        return metek.value();
+    }
+
     if (key == QStringLiteral("campbell_irgason"))
     {
         return QStringLiteral("csi_irgason_sonic");
@@ -294,15 +309,30 @@ const QString DlProject::getANEM_MODEL_STRING_13()
     return s;
 }
 
+//> `usoni3_classa_mp`, not `u3amp`. The short spellings were this interface's
+//> alone: the engine's whitelist has never held them, and LI-COR's own
+//> SmartFlux writes `usoni3_classa_mp_1` into every .ghg it produces. So a
+//> Metek site configured here wrote a metadata the engine REFUSED - "Invalid
+//> metadata", fatal error 23, execution aborted - and a genuine .ghg opened
+//> here came back with no anemometer model at all, which a save then wrote
+//> out as an empty key.
+//>
+//> Nothing caught it because no fixture on either side used a Metek. The one
+//> archive that does, base_ghg_licor, only ever reached the engine - which
+//> reads the file's own spelling and never asks this interface what it would
+//> have written.
+//>
+//> The old spellings are still READ, see normalizedModelKey, so a project
+//> written by an earlier release still opens.
 const QString DlProject::getANEM_MODEL_STRING_14()
 {
-    static const QString s(QStringLiteral("u3amp"));
+    static const QString s(QStringLiteral("usoni3_classa_mp"));
     return s;
 }
 
 const QString DlProject::getANEM_MODEL_STRING_15()
 {
-    static const QString s(QStringLiteral("u3cagemp"));
+    static const QString s(QStringLiteral("usoni3_cage_mp"));
     return s;
 }
 
@@ -603,6 +633,17 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
     // instruments section
     project_state_.anemometerList.clear();
     project_state_.irgaList.clear();
+    //> col_<n>_instrument refers to an instrument by its MODEL STRING, not by
+    //> its block number, so an ef_model override renames something the columns
+    //> are still pointing at. Without this the instrument list says li7500a_1
+    //> while every column still says generic_open_path_1, and the file that
+    //> gets saved is internally inconsistent - the engine rejects it outright
+    //> with "at least one variable is associated with an inexistent
+    //> instrument", naming a column rather than the instrument.
+    //>
+    //> Keyed on the raw values including their trailing instance counter,
+    //> because that counter is part of what a column writes.
+    QHash<QString, QString> standInToReal;
     project_ini.beginGroup(DlIni::INIGROUP_INSTRUMENTS);
         // iterate through instrument list
         int numInstr = countInstruments(project_ini.allKeys());
@@ -617,7 +658,30 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
             if (instrType == InstrumentType::ANEM)
             {
                 AnemDesc anem;
-                QString anemModel = project_ini.value(prefix + DlIni::INI_ANEM_2).toString().remove(QRegularExpression(QStringLiteral("_\\d*$")));
+                auto anemKeys = instrumentModelKeys(project_ini, prefix,
+                                                    DlIni::INI_ANEM_2);
+                //> An ef_model naming a sonic NEWER than this build resolves
+                //> to nothing, and taking it would leave the row with no model
+                //> where the stand-in would at least have worked. The stand-in
+                //> is by construction a model this build knows, so fall back
+                //> to it and stop treating the block as overridden.
+                if (anemKeys.overridden
+                    && fromIniAnemModel(anemKeys.effective).isEmpty())
+                {
+                    anemKeys.effective = anemKeys.standIn;
+                    anemKeys.rawEffective = anemKeys.rawStandIn;
+                    anemKeys.overridden = false;
+                }
+                //> Repoint the columns that named the stand-in. Recorded even
+                //> though the instrument list is what changes, because the
+                //> columns are read further down and by then the block this
+                //> came from is out of scope.
+                if (anemKeys.overridden)
+                {
+                    standInToReal.insert(anemKeys.rawStandIn, anemKeys.rawEffective);
+                }
+                const bool anemStoodIn = anemKeys.overridden;
+                QString anemModel = anemKeys.effective;
                 if (anemModel != canonicalModelKey(anemModel))
                 {
                     legacyInstrumentSlugs = true;
@@ -625,6 +689,23 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
 
                 anem.setManufacturer(fromIniAnemManufacturer(project_ini.value(prefix + DlIni::INI_ANEM_1, QString()).toString()));
                 anem.setModel(fromIniAnemModel(anemModel));
+
+                //> The manufacturer in the file describes the STAND-IN, not
+                //> this instrument, so it is re-derived rather than believed.
+                //> Only when ef_model actually overrode something: on every
+                //> classic file the manufacturer as written is the answer, and
+                //> re-deriving it there would quietly rewrite files this has
+                //> no business touching. Left alone if the model is one no
+                //> list claims, so an unrecognised model degrades to what the
+                //> file said instead of to nothing.
+                if (anemStoodIn)
+                {
+                    const auto firm = AnemDesc::manufacturerForModel(anem.model());
+                    if (!firm.isEmpty())
+                    {
+                        anem.setManufacturer(firm);
+                    }
+                }
                 anem.setSwVersion(project_ini.value(prefix + DlIni::INI_ANEM_16, QString()).toString().trimmed());
                 anem.setId(project_ini.value(prefix + DlIni::INI_ANEM_4, QString()).toString());
 
@@ -673,7 +754,30 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
             else if (instrType == InstrumentType::IRGA)
             {
                 IrgaDesc irga;
-                QString irgaModel = project_ini.value(prefix + DlIni::INI_IRGA_1).toString().remove(QRegularExpression(QStringLiteral("_\\d*$")));
+                auto irgaKeys = instrumentModelKeys(project_ini, prefix,
+                                                    DlIni::INI_IRGA_1);
+                //> See the anemometer branch: an analyser this build has never
+                //> heard of falls back to the stand-in rather than to nothing.
+                //> That is the format working as intended - it is built for a
+                //> reader that does not recognise the instrument, and one day
+                //> this is that reader.
+                if (irgaKeys.overridden
+                    && fromIniIrgaModel(irgaKeys.effective).isEmpty())
+                {
+                    irgaKeys.effective = irgaKeys.standIn;
+                    irgaKeys.rawEffective = irgaKeys.rawStandIn;
+                    irgaKeys.overridden = false;
+                }
+                //> Repoint the columns that named the stand-in. Recorded even
+                //> though the instrument list is what changes, because the
+                //> columns are read further down and by then the block this
+                //> came from is out of scope.
+                if (irgaKeys.overridden)
+                {
+                    standInToReal.insert(irgaKeys.rawStandIn, irgaKeys.rawEffective);
+                }
+                const bool irgaStoodIn = irgaKeys.overridden;
+                QString irgaModel = irgaKeys.effective;
                 if (irgaModel != canonicalModelKey(irgaModel))
                 {
                     legacyInstrumentSlugs = true;
@@ -681,6 +785,20 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
 
                 irga.setManufacturer(fromIniIrgaManufacturer(project_ini.value(prefix + DlIni::INI_IRGA_0, QString()).toString()));
                 irga.setModel(fromIniIrgaModel(irgaModel));
+
+                //> See the anemometer branch above: the manufacturer beside a
+                //> stand-in describes the stand-in. An EC150 declared as
+                //> generic_open_path says "Other", and a row reading
+                //> Other / EC150 would not even offer EC150 in its dropdown,
+                //> which is filtered by the manufacturer next to it.
+                if (irgaStoodIn)
+                {
+                    const auto firm = IrgaDesc::manufacturerForModel(irga.model());
+                    if (!firm.isEmpty())
+                    {
+                        irga.setManufacturer(firm);
+                    }
+                }
 
                 // sw version
                 auto sw_version_loading = project_ini.value(prefix + DlIni::INI_IRGA_16, QString()).toString();
@@ -773,7 +891,14 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
                 var.setVariable(fromIniVariableVar(varStr));
             }
 
-            var.setInstrument(fromIniVariableInstrument(project_ini.value(prefix + DlIni::INI_VARDESC_INSTRUMENT, QString()).toString()));
+            //> Translated through the stand-in map first: a column naming
+            //> generic_open_path_1 in an extended .ghg means the instrument
+            //> that block really describes. Empty map on every classic file,
+            //> so the lookup is a no-op there.
+            auto varInstr = project_ini.value(
+                prefix + DlIni::INI_VARDESC_INSTRUMENT, QString()).toString();
+            varInstr = standInToReal.value(varInstr, varInstr);
+            var.setInstrument(fromIniVariableInstrument(varInstr));
 
             if ((!VariableDesc::isGasVariable(fromIniVariableVar(varStr))
                 && !VariableDesc::isCustomVariable(fromIniVariableVar(varStr)))
@@ -849,13 +974,25 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
                     isVersionCompatible = false;
                 }
 
-                qreal aValue = (project_ini.value(prefix + DlIni::INI_VARDESC_B_VALUE).toReal()
-                                - project_ini.value(prefix + DlIni::INI_VARDESC_A_VALUE).toReal()) /
-                                minMaxValue;
+                //> zero_fullscale maps the input range [min, max] onto the
+                //> output range [a, b], which the engine applies as
+                //>     out = ((b - a) / (max - min)) * (in - min) + a
+                //> Rearranged into the gain/offset form this file stores:
+                //>     gain   = (b - a) / (max - min)
+                //>     offset = a - gain*min = (a*max - b*min) / (max - min)
+                //>
+                //> The offset used to read (b*max - max*min) / (max - min),
+                //> which is neither of those. On min=0, max=5 V, a=0,
+                //> b=3000 ppm it produced 600*in + 3000 - reading 3000 ppm at
+                //> 0 V - where the engine's own formula gives 600*in. The gain
+                //> was right, so the error was a pure offset: every value
+                //> shifted by a constant, which is the shape that survives a
+                //> plausibility check.
+                const qreal zfsA = project_ini.value(prefix + DlIni::INI_VARDESC_A_VALUE).toReal();
+                const qreal zfsB = project_ini.value(prefix + DlIni::INI_VARDESC_B_VALUE).toReal();
 
-                qreal bValue = (project_ini.value(prefix + DlIni::INI_VARDESC_B_VALUE).toReal()
-                                    * project_ini.value(prefix + DlIni::INI_VARDESC_MAX_VALUE).toReal()
-                                - maxValue * minValue) / minMaxValue;
+                qreal aValue = (zfsB - zfsA) / minMaxValue;
+                qreal bValue = (zfsA * maxValue - zfsB * minValue) / minMaxValue;
 
                 var.setOutputUnit(fromIniVariableMeasureUnit(project_ini.value(prefix + DlIni::INI_VARDESC_UNIT_OUT, QString()).toString()));
                 var.setAValue(aValue);
@@ -994,6 +1131,11 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
             //> -9999 for a file written before the key existed, which is what
             //> the engine assumes for such a file anyway.
             var.setErrorValue(project_ini.value(prefix + DlIni::INI_VARDESC_ERROR_VALUE, -9999.0).toReal());
+            //> Absent means zero, which makes the correction the identity -
+            //> the right reading of a metadata file written before these
+            //> keys existed, which declares no analyser characterisation.
+            var.setSpectroA(project_ini.value(prefix + DlIni::INI_VARDESC_SPECTRO_A, 0.0).toReal());
+            var.setSpectroB(project_ini.value(prefix + DlIni::INI_VARDESC_SPECTRO_B, 0.0).toReal());
             addVariable(var);
         }
     project_ini.endGroup();
@@ -1182,6 +1324,18 @@ bool DlProject::saveProject(const QString& filename)
     // instruments section
     project_ini.beginGroup(DlIni::INIGROUP_INSTRUMENTS);
         // firstly remove all previous keys because they are variable in number
+        //
+        //> This also drops instr_<K>_ef_model, and that is deliberate. The
+        //> stand-in pair exists solely so an ARCHIVE stays readable by
+        //> EddyPro, which refuses instruments it cannot name. A standalone
+        //> .metadata is under no such obligation: loadProject has already put
+        //> the real instrument in the list, so what is written here names it
+        //> in `model` outright and ef_model has nothing left to say.
+        //>
+        //> So a user moving off a .ghg's embedded metadata onto their own file
+        //> gets a clean file describing their real analyser. Do not "fix" this
+        //> by preserving the key: a file carrying both a real model and an
+        //> ef_model would describe the same instrument twice, differently.
         project_ini.remove(QString());
 
         // iterate through the instrument lists
@@ -1310,6 +1464,10 @@ bool DlProject::saveProject(const QString& filename)
     // variables section
     project_ini.beginGroup(DlIni::INIGROUP_VARDESC);
         // firstly remove all previous keys because they are variable in number
+        //
+        //> Drops ghg_format_version with them, for the reason given at the
+        //> [Instruments] wipe above: the file being written is not an extended
+        //> .ghg and has no version of that format to declare.
         project_ini.remove(QString());
         project_ini.setValue(DlIni::INI_VARDESC_FIELDSEP, project_state_.varDesc.separator);
         project_ini.setValue(DlIni::INI_VARDESC_HEADER_ROWS, project_state_.varDesc.header_rows);
@@ -1349,10 +1507,14 @@ bool DlProject::saveProject(const QString& filename)
                                  toIniVariableMeasureType(var.measureType()));
             project_ini.setValue(prefix + DlIni::INI_VARDESC_UNIT_IN,
                                  toIniVariableMeasureUnit(var.inputUnit()));
-            project_ini.setValue(prefix + DlIni::INI_VARDESC_MIN_VALUE,
-                                 QString::number(var.minValue(), 'f', 6));
-            project_ini.setValue(prefix + DlIni::INI_VARDESC_MAX_VALUE,
-                                 QString::number(var.maxValue(), 'f', 6));
+            //> min_value/max_value are deliberately not written any more.
+            //> They are the input endpoints of zero_fullscale, the legacy
+            //> conversion this interface has not offered since it dropped
+            //> the type from conversionTypeStringList() - every file it
+            //> saves is gain_offset or none, so both keys were written as a
+            //> constant 0.000000 on every column of every file. They are
+            //> still READ above, because a legacy file has to be migrated
+            //> before they can be dropped from it.
             project_ini.setValue(prefix + DlIni::INI_VARDESC_CONVERSION,
                                  toIniVariableConversionType(var.conversionType()));
             project_ini.setValue(prefix + DlIni::INI_VARDESC_UNIT_OUT,
@@ -1369,6 +1531,10 @@ bool DlProject::saveProject(const QString& filename)
                                  QString::number(var.maxTimelag(), 'f', 2));
             project_ini.setValue(prefix + DlIni::INI_VARDESC_ERROR_VALUE,
                                  QString::number(var.errorValue(), 'f', 4));
+            project_ini.setValue(prefix + DlIni::INI_VARDESC_SPECTRO_A,
+                                 QString::number(var.spectroA(), 'f', 4));
+            project_ini.setValue(prefix + DlIni::INI_VARDESC_SPECTRO_B,
+                                 QString::number(var.spectroB(), 'f', 4));
             ++k;
         }
     project_ini.endGroup();
@@ -1904,10 +2070,36 @@ QString DlProject::toIniVariableInstrument(const QString& s)
     {
         if (s != QLatin1String("Other"))
         {
-            QString numberStr = s.split(QLatin1Char(':')).at(0);
-            QString modelStr = s.split(QLatin1Char(':')).at(1);
-            QString instrType = numberStr.split(QLatin1Char(' ')).at(0);
-            QString number = numberStr.split(QLatin1Char(' ')).at(1);
+            //> "Sonic 1: HS-50" - a type, a space, a number, a colon, a
+            //> model. Anything else is not a label this can convert.
+            //>
+            //> The pieces used to be indexed straight out of the split with
+            //> no check, so a label with no colon, or none in the part before
+            //> it, ran off the end of a QStringList and took the application
+            //> down. Not on some exotic path either: this is called from
+            //> saveProject, so a hand-edited metadata file - or one written by
+            //> anything that did not know the exact form - crashed the save
+            //> instead of being refused. src/eddyuhimport.cpp hit it for real
+            //> and works around it by only ever emitting this form.
+            //>
+            //> A malformed label now converts to nothing, which is what the
+            //> empty-input branch below already returns and what the file
+            //> means by a column with no instrument.
+            const auto halves = s.split(QLatin1Char(':'));
+            const auto head = halves.value(0).split(QLatin1Char(' '));
+            const QString modelStr = halves.value(1);
+            const QString instrType = head.value(0);
+            const QString number = head.value(1);
+            //> The number too, not only the two counts: " : " splits into two
+            //> halves and two words and passes a count check, then builds the
+            //> bare "_" - which is no more a usable id than a crash was.
+            //> An empty MODEL is deliberately still allowed: "_1" is what an
+            //> instrument with no model chosen writes, and it has always read
+            //> back that way.
+            if (halves.size() < 2 || head.size() < 2 || number.isEmpty())
+            {
+                return QString();
+            }
             QString model;
             if (instrType == tr("Sonic"))
             {
@@ -1939,9 +2131,23 @@ QString DlProject::fromIniVariableInstrument(const QString& s)
     {
         if (s != QStringLiteral("other"))
         {
-            int index = s.lastIndexOf(QLatin1Char('_'));
-            QString number = s.mid(index + 1);
-            QString modelStr = s.left(index);
+            const int index = s.lastIndexOf(QLatin1Char('_'));
+            //> The same assumption in the other direction, and the same fix.
+            //> This one does not crash - QString::left(-1) hands back the
+            //> whole string rather than throwing - but with no underscore to
+            //> split on it puts the model in both halves and builds a label
+            //> like "Sonic li7200: LI-7200", which then converts back to
+            //> something different again. Refused rather than garbled.
+            //>
+            //> Only a missing underscore is refused, not one at position
+            //> zero: "_1" is what an instrument with no model chosen writes,
+            //> and it still reads back the way it always has.
+            if (index < 0)
+            {
+                return QString();
+            }
+            const QString number = s.mid(index + 1);
+            const QString modelStr = s.left(index);
 
             InstrumentType instrType = getInstrumentTypeFromModel(modelStr);
             if (instrType == InstrumentType::ANEM)
@@ -1995,12 +2201,12 @@ QString DlProject::fromIniAnemManufacturer(const QString& s)
 
 QString DlProject::canonicalModelKey(const QString& model)
 {
-    return normalizedCampbellModelKey(model);
+    return normalizedModelKey(model);
 }
 
 const QString DlProject::fromIniAnemModel(const QString& s)
 {
-    const QString model = normalizedCampbellModelKey(s);
+    const QString model = normalizedModelKey(s);
 
     if (model == DlProject::getANEM_MODEL_STRING_0())
     {
@@ -2118,7 +2324,7 @@ QString DlProject::fromIniAnemWindFormat(const QString& s)
 
 QString DlProject::fromIniAnemNorthAlign(const QString &model, const QString &s)
 {
-    const QString modelKey = normalizedCampbellModelKey(model);
+    const QString modelKey = normalizedModelKey(model);
 
     // axis
     if (s == DlProject::ANEM_NORTH_ALIGN_STRING_0)
@@ -2487,6 +2693,36 @@ DlProject::InstrumentType DlProject::getInstrumentType(const QSettings& iniGroup
     return InstrumentType::UNDEFINED;
 }
 
+/// \brief What an instr_<K>_* block says it is, both ways round.
+///
+/// An extended .ghg describes an instrument EddyPro cannot name twice: a
+/// generic stand-in in `model`, which EddyPro validates, and the truth in
+/// `ef_model`, which it ignores. Preferring the latter is the whole of what
+/// this program has to do differently, and it is the same precedence the
+/// engine applies in ReadMetadataFile.
+///
+/// The category is NOT reconsidered: a stand-in is always the MATCHING generic
+/// - generic_open_path for an analyser, generic_sonic for a sonic - so
+/// getInstrumentType, which reads key presence rather than the model, lands in
+/// the right branch either way.
+DlProject::ModelKeys DlProject::instrumentModelKeys(const QSettings& iniGroup,
+                                                    const QString& prefix,
+                                                    const QString& modelKey)
+{
+    static const QRegularExpression indexSuffix(QStringLiteral("_\\d*$"));
+
+    ModelKeys keys;
+    keys.rawStandIn = iniGroup.value(prefix + modelKey).toString();
+    keys.standIn = QString(keys.rawStandIn).remove(indexSuffix);
+
+    const auto ef = iniGroup.value(prefix + DlIni::INI_INSTR_EF_MODEL,
+                                   QString()).toString().trimmed();
+    keys.overridden = !ef.isEmpty();
+    keys.rawEffective = keys.overridden ? ef : keys.rawStandIn;
+    keys.effective = QString(keys.rawEffective).remove(indexSuffix);
+    return keys;
+}
+
 DlProject::InstrumentType DlProject::getInstrumentTypeFromModel(const QString& model)
 {
     if (!fromIniIrgaModel(model).isEmpty())
@@ -2526,7 +2762,7 @@ QString DlProject::fromIniIrgaManufacturer(const QString& s)
 
 QString DlProject::fromIniIrgaModel(const QString& s)
 {
-    const QString model = normalizedCampbellModelKey(s);
+    const QString model = normalizedModelKey(s);
 
     if (model == DlProject::IRGA_MODEL_STRING_0)
     {

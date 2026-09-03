@@ -53,8 +53,8 @@ class QStringLiteral;
 /// \brief Contains global string literals
 namespace Defs
 {
-    const auto APP_VERSION = 0x080000;
-    const auto APP_VERSION_STR = QStringLiteral("8.0.0");
+    const auto APP_VERSION = 0x080100;
+    const auto APP_VERSION_STR = QStringLiteral("8.1.0");
     const auto APP_STAGE_STR = QStringLiteral(""); // -rc1
 
     //> 5.0.0 is the record format: gases, cell measurements and diagnostics
@@ -312,6 +312,7 @@ namespace Defs
     const auto CONF_GEN_RECENTFILES   = QStringLiteral("/recentfiles");
     const auto CONF_GEN_RECENTNUM     = QStringLiteral("/recentnum");
     const auto CONF_GEN_ENV           = QStringLiteral("/env");
+    const auto CONF_GEN_PARALLEL_PREPASS = QStringLiteral("/parallelprepass");
 
     const auto CONFGROUP_PROJECT        = QStringLiteral("/project");
     const auto CONF_PROJ_DEFAULT_PATH   = QStringLiteral("/default_data_path");

@@ -473,6 +473,46 @@ bool IrgaDesc::isALicorModel(const QString& model)
              || (model == getIRGA_MODEL_STRING_14()));
 }
 
+/// \brief Which manufacturer makes this model, or empty if nothing does.
+///
+/// Needed by the extended .ghg: a stand-in declares the manufacturer that goes
+/// with the STAND-IN, so an EC155 pretending to be a generic closed path says
+/// "Other". Believing that alongside the real model would leave the row
+/// inconsistent AND the real model unofferable, because the model combobox is
+/// filtered by the manufacturer beside it (IrgaDelegate::createEditor).
+///
+/// Asks the per-manufacturer lists rather than carrying a second table, so a
+/// model added to one of them is answered for here without being added twice -
+/// which is exactly the drift a parallel table invites.
+const QString IrgaDesc::manufacturerForModel(const QString& model)
+{
+    if (model.isEmpty())
+    {
+        return QString();
+    }
+    if (licorModelStringList().contains(model))
+    {
+        return getIRGA_MANUFACTURER_STRING_0();
+    }
+    if (campbellIrgaModelStringList().contains(model))
+    {
+        return getIRGA_MANUFACTURER_STRING_2();
+    }
+    if (miroModelStringList().contains(model))
+    {
+        return getIRGA_MANUFACTURER_STRING_3();
+    }
+    if (aerodyneModelStringList().contains(model))
+    {
+        return getIRGA_MANUFACTURER_STRING_4();
+    }
+    if (otherModelStringList().contains(model))
+    {
+        return getIRGA_MANUFACTURER_STRING_1();
+    }
+    return QString();
+}
+
 bool IrgaDesc::isWellNamed(const IrgaDesc& irga)
 {
     const auto model = irga.model();
@@ -637,10 +677,7 @@ bool IrgaDesc::isGoodIrga(const IrgaDesc &irga)
     qreal kWater = irga.kWater();
     qreal kOxygen = irga.kOxygen();
 
-    if ((model == getIRGA_MODEL_STRING_8())
-        || (model == getIRGA_MODEL_STRING_9())
-        || (model == getIRGA_MODEL_STRING_10())
-        || (model == getIRGA_MODEL_STRING_11()))
+    if (hasExtinctionCoefficients(model))
     {
         isGoodKorLAnalyzer = (kWater > 0) && (kOxygen > 0);
     }
@@ -658,6 +695,28 @@ bool IrgaDesc::isGoodIrga(const IrgaDesc &irga)
             && isGoodKorLAnalyzer);
 }
 
+bool IrgaDesc::isLi7500FamilyModel(const QString& model)
+{
+    return (model == getIRGA_MODEL_STRING_2()    // li7500
+             || model == getIRGA_MODEL_STRING_3()    // li7500a
+             || model == getIRGA_MODEL_STRING_12()   // li7500rs
+             || model == getIRGA_MODEL_STRING_14());  // li7500ds
+}
+
+bool IrgaDesc::hasLi7500Family(const QList<IrgaDesc>* irgas)
+{
+    if (!irgas) { return false; }
+
+    for (const IrgaDesc& irga : *irgas)
+    {
+        if (isLi7500FamilyModel(irga.model()))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool IrgaDesc::isOpenPathModel(const QString& model)
 {
     return (model == IrgaDesc::getIRGA_MODEL_STRING_2()
@@ -670,4 +729,37 @@ bool IrgaDesc::isOpenPathModel(const QString& model)
              || model == IrgaDesc::getIRGA_MODEL_STRING_14()
              || model == IrgaDesc::getIRGA_MODEL_STRING_15()
              || model == IrgaDesc::getIRGA_MODEL_STRING_16());
+}
+
+//> The set the engine's read_metadata_file.f90 reads hpath_length,
+//> vpath_length and tau from the .metadata file for. Every other model has
+//> its geometry hardcoded in retrieve_sensor_params.f90, so letting a user
+//> type one in would be misleading. Keep this in step with that select case.
+bool IrgaDesc::needsPathGeometry(const QString& model)
+{
+    return (model == IrgaDesc::getIRGA_MODEL_STRING_6()   // generic_open_path
+             || model == IrgaDesc::getIRGA_MODEL_STRING_7()   // generic_closed_path
+             || model == IrgaDesc::getIRGA_MODEL_STRING_8()   // open_path_krypton
+             || model == IrgaDesc::getIRGA_MODEL_STRING_9()   // open_path_lyman
+             || model == IrgaDesc::getIRGA_MODEL_STRING_10()   // closed_path_krypton
+             || model == IrgaDesc::getIRGA_MODEL_STRING_11()   // closed_path_lyman
+             || model == IrgaDesc::getIRGA_MODEL_STRING_15()   // csi_ec150
+             || model == IrgaDesc::getIRGA_MODEL_STRING_16()   // csi_irgason_irga
+             || model == IrgaDesc::getIRGA_MODEL_STRING_17()   // miro_mga1_5
+             || model == IrgaDesc::getIRGA_MODEL_STRING_18()   // miro_mga4_6
+             || model == IrgaDesc::getIRGA_MODEL_STRING_19()   // miro_mga9_10
+             || model == IrgaDesc::getIRGA_MODEL_STRING_20()   // aerodyne_tildas
+             || model == IrgaDesc::getIRGA_MODEL_STRING_21()   // miro_mgai_n2o
+             || model == IrgaDesc::getIRGA_MODEL_STRING_22()   // csi_ec155
+             || model == IrgaDesc::getIRGA_MODEL_STRING_23());   // csi_tga200a
+}
+
+//> The krypton and Lyman-alpha hygrometers, the one branch of that same
+//> select case that also reads kw and ko.
+bool IrgaDesc::hasExtinctionCoefficients(const QString& model)
+{
+    return (model == IrgaDesc::getIRGA_MODEL_STRING_8()   // open_path_krypton
+             || model == IrgaDesc::getIRGA_MODEL_STRING_9()   // open_path_lyman
+             || model == IrgaDesc::getIRGA_MODEL_STRING_10()   // closed_path_krypton
+             || model == IrgaDesc::getIRGA_MODEL_STRING_11());   // closed_path_lyman
 }

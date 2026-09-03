@@ -59,6 +59,7 @@ class QTabBar;
 class QToolBox;
 
 class ClickLabel;
+class DetlimSettingsDialog;
 class DlProject;
 class EcProject;
 
@@ -87,6 +88,10 @@ protected:
 private slots:
     void refresh();
 
+    /// Open the flux detection limit dialog, non-modally, as the CEC and PWB
+    /// buttons open theirs.
+    void showDetlimSettingsDialog();
+
     void on_spikeRemCheckBox_clicked(bool checked);
     void on_amplitudeResCheckBox_clicked(bool checked);
     void on_dropoutsCheckBox_clicked(bool checked);
@@ -112,6 +117,7 @@ private slots:
     void updateTestTl(bool b);
     void updateTestAa(bool b);
     void updateTestNs(bool b);
+    void updateTestRf(bool b);
 
     void updateParamSrNumSpk(int n);
     void updateParamSrULim(double n);
@@ -253,7 +259,7 @@ private:
 
     //> Which per-gas setting a value belongs to. Used only to pick the
     //> built-in default for a gas that has none of its own.
-    enum class GasParam { SrLim, AlMin, AlMax, DsHf, DsSf, TlDef };
+    enum class GasParam { SrLim, StepLim, AlMin, AlMax, DsHf, DsSf, TlDef };
 
     void createTabWidget();
     void rebuildGasRows();
@@ -280,6 +286,19 @@ private:
     QWidget* tab0;
     QRadioButton *vickersDespikingRadio;
     QRadioButton *mauderDespikingRadio;
+    //> EddyUH's spi_method 1. Its parameters are absolute step limits, which
+    //> share nothing with the sigma multipliers the other two use, so it
+    //> carries its own four sonic spins and its own per-gas column.
+    QRadioButton *stepDespikingRadio;
+    ClickLabel* stepLabel_u;
+    ClickLabel* stepLabel_v;
+    ClickLabel* stepLabel_w;
+    ClickLabel* stepLabel_ts;
+    QDoubleSpinBox* stepSpin_u;
+    QDoubleSpinBox* stepSpin_v;
+    QDoubleSpinBox* stepSpin_w;
+    QDoubleSpinBox* stepSpin_ts;
+    QString stepGasTip_;
     QButtonGroup* despikingRadioGroup;
     QLabel* spikeGraphLabel;
     QSpinBox* despSpin_1;
@@ -356,6 +375,19 @@ private:
     QCheckBox* timeLagCheckBox;
     QCheckBox* attackAngleCheckBox;
     QCheckBox* nonSteadyCheckBox;
+    //> Not part of the Vickers & Mahrt (1997) nine above, and deliberately
+    //> outside checkbox_list/areAllCheckedTests/selectAllTest: it has no
+    //> parameter page of its own and "select all" restoring project
+    //> defaults should not silently turn it on.
+    QCheckBox* rfluxDiagCheckBox;
+    //> Same reasoning as rfluxDiagCheckBox above: not one of the Vickers &
+    //> Mahrt (1997) raw-data tests (it runs once, on the finished flux
+    //> series), so it stays out of checkbox_list/areAllCheckedTests/
+    //> selectAllTest too.
+    QCheckBox* postFluxDespikeCheckBox;
+    //> Same reasoning again: RP-only whole-run post-pass, not one of the
+    //> Vickers & Mahrt (1997) raw-data tests.
+    QCheckBox* storCleanCheckBox;
 
     QCheckBox* selectAllCheckBox;
     QPushButton* defaultValuesButton;
@@ -414,6 +446,13 @@ private:
     ClickLabel* securityCoeffLabel;
     QDoubleSpinBox* securityCoeffSpin;
 
+    //> Flux detection limit, Wienhold et al. (1994). A button rather than
+    //> inline controls: the grid this sits in reserves column 0 for the
+    //> random-error checkbox and pins its stretch at the row below the last
+    //> live control, so the method plus its two windows go in a dialog.
+    QPushButton* detlimSettingsButton;
+    DetlimSettingsDialog* detlimDialog_{};
+
     //> The four grids that carry generated gas rows. Held because the rows,
     //> and everything the grid places below them, are positioned in
     //> rebuildGasRows() rather than at construction.
@@ -431,6 +470,7 @@ private:
     QString dsSoftTip_;
 
     QVector<GasRow> srRows_;        //< spike plausibility range
+    QVector<GasRow> stepRows_;      //< consecutive-difference step limit
     QVector<GasPairRow> alRows_;    //< absolute limits, min and max
     QVector<GasPairRow> dsRows_;    //< discontinuities, hard and soft flag
     QVector<GasRow> tlRows_;        //< nominal time lag

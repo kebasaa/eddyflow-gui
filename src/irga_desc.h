@@ -176,6 +176,11 @@ public:
     static const QStringList miroModelStringList();
     static const QStringList aerodyneModelStringList();
 
+    //> Which manufacturer makes this model, empty if none does. Used where a
+    //> model arrives without a manufacturer to be trusted beside it - see the
+    //> extended .ghg stand-in in DlProject::loadProject.
+    static const QString manufacturerForModel(const QString& model);
+
     static bool isWellNamed(const IrgaDesc& irga);
     static bool hasGoodSeparations(const IrgaDesc& irga);
     static bool isAGoodClosedPath(const IrgaDesc& irga);
@@ -184,6 +189,27 @@ public:
     static bool isGoodIrga(const IrgaDesc& irga);
 
     static bool isOpenPathModel(const QString &model);
+
+    //> Whether the engine takes this model's path lengths and response
+    //> time from the .metadata file instead of hardcoding them. Mirrors the
+    //> select case in the engine's read_metadata_file.f90 - the two lists
+    //> drifted apart once already, leaving EC150, IRGASON and the TILDAS
+    //> uneditable while the engine still read their geometry from the file.
+    static bool needsPathGeometry(const QString& model);
+    //> Whether this model needs the water and oxygen extinction
+    //> coefficients - the krypton and Lyman-alpha hygrometers, which are
+    //> the only branch of that same select case to read kw and ko.
+    static bool hasExtinctionCoefficients(const QString& model);
+
+    //> The LI-7500 family, which is the set the engine matches with
+    //> index(model, 'li7500') /= 0 when it decides whether the instrument
+    //> sensible heat (Burba) terms can be computed at all.
+    static bool isLi7500FamilyModel(const QString& model);
+    /// Whether any analyser in the list is one. Both the processing page
+    /// (Burba) and the spectral page (Massman fallback) ask this, and they
+    /// asked it with their own copy of the loop until this existed - so the
+    /// two could agree on the model set and still disagree on the answer.
+    static bool hasLi7500Family(const QList<IrgaDesc>* irgas);
 
 private:
     static bool isALicorModel(const QString& model);

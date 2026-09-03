@@ -139,7 +139,9 @@ public:
                  qreal nomTimelag,
                  qreal minTimelag,
                  qreal maxTimelag,
-                 qreal errorValue
+                 qreal errorValue,
+                 qreal spectroA,
+                 qreal spectroB
                  );
 
     VariableDesc(const VariableDesc& fileDesc);
@@ -215,6 +217,19 @@ public:
     qreal errorValue() const;
     void setErrorValue(qreal v);
 
+    //> Spectroscopic coefficients after Peltola et al. (2014): water vapour
+    //> broadens this column's absorption lines, so the analyser's sensitivity
+    //> scales as 1 + a*chi_q + b*chi_q^2 and the correction is a division by
+    //> that. Both zero - the default - makes it the identity, which is what
+    //> every metadata file written before these keys existed says.
+    //>
+    //> Not the aValue and bValue above, which are the linear calibration gain
+    //> and offset and have nothing to do with this.
+    qreal spectroA() const;
+    void setSpectroA(qreal v);
+    qreal spectroB() const;
+    void setSpectroB(qreal v);
+
     qreal maxTimelag() const;
     void setMaxTimelag(qreal l);
 
@@ -284,6 +299,8 @@ private:
     qreal minTimelag_;
     qreal maxTimelag_;
     qreal errorValue_;
+    qreal spectroA_;
+    qreal spectroB_;
 };
 
 using VariableDescList = QList<VariableDesc>;
@@ -369,6 +386,18 @@ inline qreal VariableDesc::errorValue() const
 
 inline void VariableDesc::setErrorValue(qreal v)
     { errorValue_ = v; }
+
+inline qreal VariableDesc::spectroA() const
+    { return spectroA_; }
+
+inline void VariableDesc::setSpectroA(qreal v)
+    { spectroA_ = v; }
+
+inline qreal VariableDesc::spectroB() const
+    { return spectroB_; }
+
+inline void VariableDesc::setSpectroB(qreal v)
+    { spectroB_ = v; }
 
 inline qreal VariableDesc::nomTimelag() const
     { return nomTimelag_; }

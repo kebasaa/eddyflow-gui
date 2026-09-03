@@ -24,6 +24,8 @@
 
 #include "advoutputoptions.h"
 
+#include <QScopeGuard>
+
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QComboBox>
@@ -917,14 +919,22 @@ void AdvOutputOptions::setSmartfluxUI()
     {
         if (on)
         {
-            oldEnabled.push_back(w->isEnabled());
+            //> Only the first entry into the mode records anything. A second
+            //> one would otherwise save the disabled state this loop just
+            //> imposed, and hand that back as the "original" on the way out.
+            if (!oldEnabled.contains(w)) { oldEnabled.insert(w, w->isEnabled()); }
             w->setDisabled(on);
         }
         else
         {
-            w->setEnabled(oldEnabled.at(static_cast<unsigned long>(enableableWidgets.indexOf(w))));
+            //> A widget with nothing recorded was created after the mode was
+            //> entered - a per-gas box from a project loaded since. Enabled is
+            //> the right answer for it; the availability helpers below settle
+            //> what it should actually be.
+            w->setEnabled(oldEnabled.value(w, true));
         }
     }
+    if (!on) { oldEnabled.clear(); }
 
     QWidgetList visibleWidgets;
     visibleWidgets << fullSelectionButton
@@ -939,14 +949,22 @@ void AdvOutputOptions::setSmartfluxUI()
     {
         if (on)
         {
-            oldVisible.push_back(w->isEnabled());
+            //> !isHidden(), not isEnabled() - this map is about visibility, and
+            //> storing the wrong property meant a widget that happened to be
+            //> disabled came back hidden. isHidden() rather than isVisible()
+            //> because the Advanced page is usually not the current one when
+            //> the mode is entered, and isVisible() is false for every widget
+            //> on a page that is not showing - which would restore the whole
+            //> group hidden.
+            if (!oldVisible.contains(w)) { oldVisible.insert(w, !w->isHidden()); }
             w->setHidden(on);
         }
         else
         {
-            w->setVisible(oldVisible.at(static_cast<unsigned long>(visibleWidgets.indexOf(w))));
+            w->setVisible(oldVisible.value(w, true));
         }
     }
+    if (!on) { oldVisible.clear(); }
 
     // block project modified() signal
     bool oldmod = false;
@@ -1092,6 +1110,21 @@ void AdvOutputOptions::reset()
 
 void AdvOutputOptions::refresh()
 {
+    //> Re-entrant by construction, and it used to recurse until the stack was
+    //> gone. The tail helpers below run AFTER the signal guard is lifted, and
+    //> they write the project: in SmartFlux mode
+    //> updateSpectralAssessmentCreationAvailability calls setSpectraFluxRunMode
+    //> unconditionally, whose updateInfo() is connected straight back to this
+    //> function. Loading a project in SmartFlux mode entered that loop and the
+    //> process died of a stack overflow with no dialog.
+    //>
+    //> The setter is guarded now too, but this is the structural half: forty
+    //> other EcProject setters announce a change whether or not one happened,
+    //> and any of them reached from here would close the same loop.
+    if (refreshing_) { return; }
+    refreshing_ = true;
+    const auto refreshDone = qScopeGuard([this]{ refreshing_ = false; });
+
     // save the modified flag to prevent side effects of setting widgets
     bool oldmod = ecProject_->modified();
     ecProject_->blockSignals(true);

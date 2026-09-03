@@ -1029,13 +1029,7 @@ const QString kH2oSlug = QStringLiteral("h2o");
 //> EcProject::writeEddyProCompatibleKeys().
 } // namespace
 
-/// Whether the project has any H2O to offer.
 
-/// Canonical instrument id of the analyser measuring  rawColumn.
-///
-/// Read from the metadata rather than parsed out of the table's display text:
-/// the label is translated and formatted for reading, while the id is what
-/// both the project file and the same-analyser rule match on.
 /// Species of the gas in the open slot, as a slug.
 ///
 /// Read from the record rather than from a combo's current text, which is
@@ -1056,6 +1050,11 @@ QString BasicSettingsPage::openGasSpecies() const
     return ecProject_->gasColumns().at(slot).slug;
 }
 
+/// Canonical instrument id of the analyser measuring \a rawColumn.
+///
+/// Read from the metadata rather than parsed out of the table's display text:
+/// the label is translated and formatted for reading, while the id is what
+/// both the project file and the same-analyser rule match on.
 QString BasicSettingsPage::canonicalInstrumentForColumn(int rawColumn) const
 {
     if (!dlProject_ || rawColumn <= 0) { return QString(); }
@@ -1086,13 +1085,7 @@ int BasicSettingsPage::firstGasColumn(const QString& slug) const
     return -1;
 }
 
-/// Add a measurement of  slug at  rawColumn.
-///
-/// The first four record positions are the historical slots and stay put even
-/// when empty, because the engine maps record i to gas slot firstGas+i-1;
-/// reordering them would move each gas's settings onto a different species.
-/// Additional measurements are appended after those four.
-/// Why a gas measured on  rawColumn cannot be added, empty if it can.
+/// Why a gas measured on \a rawColumn cannot be added, empty if it can.
 ///
 /// Checked before the record is created rather than after: the engine reads
 /// only the first MaxNumGases records and the first MaxGasesPerInstrument per
@@ -1135,6 +1128,12 @@ QString BasicSettingsPage::gasLimitBlockReason(int rawColumn) const
     return QString();
 }
 
+/// Add a measurement of \a slug at \a rawColumn.
+///
+/// The first four record positions are the historical slots and stay put even
+/// when empty, because the engine maps record i to gas slot firstGas+i-1;
+/// reordering them would move each gas's settings onto a different species.
+/// Additional measurements are appended after those four.
 void BasicSettingsPage::addGasRecord(const QString& slug, int rawColumn)
 {
     if (!ecProject_ || slug.isEmpty() || rawColumn <= 0) { return; }
@@ -1324,6 +1323,7 @@ void BasicSettingsPage::removeGasRecord(const QString& slug, int rawColumn)
     ecProject_->setGasColumns(gases);
 }
 
+/// Whether the project has any H2O to offer.
 bool BasicSettingsPage::hasMoistureCandidates() const
 {
     if (!ecProject_) { return false; }
@@ -1862,7 +1862,10 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
                                 "This is also the file's own completeness "
                                 "threshold, and the allowance for every "
                                 "instrument that is not given one of its own "
-                                "below."));
+                                "under <i>Missing samples allowance, per "
+                                "instrument</i>, which is listed below once a "
+                                "metadata file describing the instruments has "
+                                "been loaded."));
     maxLackSpin = new QSpinBox;
     maxLackSpin->setRange(0, 99);
     maxLackSpin->setSingleStep(1);
@@ -3716,41 +3719,45 @@ void BasicSettingsPage::parseBiomMetadata()
                             + tr("Column # ")
                             + QString::number(bi.col_);
 
-        if (bi.type_.contains(BiomMetadataReader::getVAR_TA()))
+        //> Asked of the whole base name rather than by substring. RG and
+        //> SW_IN are the same measurement and both land on Global Radiation;
+        //> LW_IN and LWIN likewise on the longwave row.
+        switch (BiomMetadataReader::varType(bi.type_))
         {
-            varString.prepend(tr("Ambient Temperature '"));
-            airTRefCombo->setEnabled(true);
-            airTRefCombo->addItem(varString, bi.col_ + 1000);
-        }
-        else if (bi.type_.contains(BiomMetadataReader::getVAR_PA()))
-        {
-            varString.prepend(tr("Ambient Pressure '"));
-            airPRefCombo->setEnabled(true);
-            airPRefCombo->addItem(varString, bi.col_ + 1000);
-        }
-        else if (bi.type_.contains(BiomMetadataReader::getVAR_RH()))
-        {
-            varString.prepend(tr("Ambient Relative Humidity '"));
-            rhCombo->setEnabled(true);
-            rhCombo->addItem(varString, bi.col_);
-        }
-        else if (bi.type_.contains(BiomMetadataReader::getVAR_RG()))
-        {
-            varString.prepend(tr("Global Radiation '"));
-            rgCombo->setEnabled(true);
-            rgCombo->addItem(varString, bi.col_);
-        }
-        else if (bi.type_.contains(BiomMetadataReader::getVAR_LWIN()))
-        {
-            varString.prepend(tr("Longwave Incoming Radiation '"));
-            lwinCombo->setEnabled(true);
-            lwinCombo->addItem(varString, bi.col_);
-        }
-        else if (bi.type_.contains(BiomMetadataReader::getVAR_PPFD()))
-        {
-            varString.prepend(tr("Photosynthetically Active Radiation '"));
-            ppfdCombo->setEnabled(true);
-            ppfdCombo->addItem(varString, bi.col_);
+            case BiomMetadataReader::VarType::AirTemperature:
+                varString.prepend(tr("Ambient Temperature '"));
+                airTRefCombo->setEnabled(true);
+                //> Offset by 1000 to mark it as a biomet column rather than a
+                //> raw one, the way this combo has always distinguished them.
+                airTRefCombo->addItem(varString, bi.col_ + 1000);
+                break;
+            case BiomMetadataReader::VarType::AirPressure:
+                varString.prepend(tr("Ambient Pressure '"));
+                airPRefCombo->setEnabled(true);
+                airPRefCombo->addItem(varString, bi.col_ + 1000);
+                break;
+            case BiomMetadataReader::VarType::RelativeHumidity:
+                varString.prepend(tr("Ambient Relative Humidity '"));
+                rhCombo->setEnabled(true);
+                rhCombo->addItem(varString, bi.col_);
+                break;
+            case BiomMetadataReader::VarType::GlobalRadiation:
+                varString.prepend(tr("Global Radiation '"));
+                rgCombo->setEnabled(true);
+                rgCombo->addItem(varString, bi.col_);
+                break;
+            case BiomMetadataReader::VarType::LongwaveIncoming:
+                varString.prepend(tr("Longwave Incoming Radiation '"));
+                lwinCombo->setEnabled(true);
+                lwinCombo->addItem(varString, bi.col_);
+                break;
+            case BiomMetadataReader::VarType::Par:
+                varString.prepend(tr("Photosynthetically Active Radiation '"));
+                ppfdCombo->setEnabled(true);
+                ppfdCombo->addItem(varString, bi.col_);
+                break;
+            case BiomMetadataReader::VarType::Unknown:
+                break;
         }
     }
 
@@ -4142,7 +4149,7 @@ void BasicSettingsPage::filterVariables()
     }
 }
 
-/// Remove every candidate for  role whose label satisfies  drop.
+/// Remove every candidate for \a role whose label satisfies \a drop.
 ///
 /// "None" placeholders are never removed, and the list is walked backwards so
 /// that a removal cannot skip the entry after it.
@@ -5880,21 +5887,31 @@ void BasicSettingsPage::refreshInstrMaxLackRows()
         delete item;
     }
 
-    struct Row { QString label; };
+    //> Model first, id as a qualifier - not the other way round. An id is free
+    //> text and is very often a bare number, so leading with it produced rows
+    //> labelled "0" that named nothing the user could recognise, and gave no
+    //> clue whether they were looking at a sonic or an analyser.
+    const auto describe = [](const QString& model, const QString& id,
+                             const QString& fallback)
+    {
+        auto name = model.trimmed();
+        if (name.isEmpty()) { name = fallback; }
+        const auto tag = id.trimmed();
+        if (tag.isEmpty()) { return name; }
+        return QStringLiteral("%1 (%2)").arg(name, tag);
+    };
+
+    struct Row { QString label; QString category; };
     QList<Row> rows;
     for (const auto& anem : *dlProject_->anems())
     {
-        auto name = anem.id().trimmed();
-        if (name.isEmpty()) { name = anem.model().trimmed(); }
-        if (name.isEmpty()) { name = tr("Anemometer"); }
-        rows.append({name});
+        rows.append({describe(anem.model(), anem.id(), tr("Anemometer")),
+                     tr("Anemometers")});
     }
     for (const auto& irga : *dlProject_->irgas())
     {
-        auto name = irga.id().trimmed();
-        if (name.isEmpty()) { name = irga.model().trimmed(); }
-        if (name.isEmpty()) { name = tr("Gas analyzer"); }
-        rows.append({name});
+        rows.append({describe(irga.model(), irga.id(), tr("Gas analyzer")),
+                     tr("Gas analyzers")});
     }
 
     //> Nothing to show without a metadata file.
@@ -5926,13 +5943,33 @@ void BasicSettingsPage::refreshInstrMaxLackRows()
 
     auto title = new QLabel(tr("Missing samples allowance, per instrument :"),
                             instrLackContainer_);
+    //> Styled as a section header, like the other headings on this page: the
+    //> block appears only once a metadata file is loaded, and an unstyled line
+    //> of text among the spin boxes above it read as part of them.
+    title->setProperty("groupLabel", true);
     title->setToolTip(tip);
     instrLackLayout_->addWidget(title, 0, 0, 1, 2);
 
     int row = 1;
     int slot = 1;
+    QString currentCategory;
     for (const auto& r : rows)
     {
+        //> Anemometers first, then analysers - the order the slots are keyed
+        //> in. Said out loud so a sonic cannot be mistaken for an analyser.
+        if (r.category != currentCategory)
+        {
+            currentCategory = r.category;
+            auto heading = new QLabel(currentCategory, instrLackContainer_);
+            //> An objectName, not a property: the stylesheet selects it
+            //> as QLabel#citeLabel. Grey, so the heading reads as a
+            //> divider rather than as another instrument.
+            heading->setObjectName(QStringLiteral("citeLabel"));
+            heading->setToolTip(tip);
+            instrLackLayout_->addWidget(heading, row, 0, 1, 2, Qt::AlignLeft);
+            ++row;
+        }
+
         auto label = new QLabel(r.label, instrLackContainer_);
         label->setToolTip(tip);
 
@@ -7068,14 +7105,21 @@ void BasicSettingsPage::setSmartfluxUI(bool on)
     {
         if (on)
         {
-            oldEnabled.push_back(w->isEnabled());
+            //> Only the first entry records anything, or a second would save
+            //> the disabled state this loop just imposed and call it original.
+            if (!oldEnabled.contains(w)) { oldEnabled.insert(w, w->isEnabled()); }
             w->setDisabled(on);
         }
         else
         {
-            w->setEnabled(oldEnabled.at(static_cast<unsigned long>(widgets.indexOf(w))));
+            //> Nothing recorded means the mode was never entered - which is
+            //> the state the program starts in, since the persisted SmartFlux
+            //> flag is written but never read back. Enabled is the right
+            //> answer, and it is what the positional vector used to abort on.
+            w->setEnabled(oldEnabled.value(w, true));
         }
     }
+    if (!on) { oldEnabled.clear(); }
 
     if (on)
     {

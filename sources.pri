@@ -17,6 +17,7 @@ HEADERS += \
     src/cecpairmodel.h \
     src/cecsettingsdialog.h \
     src/clicklabel.h \
+    src/detlimsettingsdialog.h \
     src/configstate.h \
     src/customcombomodel.h \
     src/customheader.h \
@@ -27,6 +28,8 @@ HEADERS += \
     src/dlinstrtab.h \
     src/dlproject.h \
     src/dlprojectstate.h \
+    src/matfile.h \
+    src/eddyuhimport.h \
     src/dlrawfiledesctab.h \
     src/dlsitetab.h \
     src/docchooser.h \
@@ -128,12 +131,15 @@ SOURCES +=  \
     src/cecpairmodel.cpp \
     src/cecsettingsdialog.cpp \
     src/clicklabel.cpp \
+    src/detlimsettingsdialog.cpp \
     src/customcombomodel.cpp \
     src/customheader.cpp \
     src/customsplashscreen.cpp \
     src/dlinidialog.cpp \
     src/dlinstrtab.cpp \
     src/dlproject.cpp \
+    src/matfile.cpp \
+    src/eddyuhimport.cpp \
     src/dlrawfiledesctab.cpp \
     src/dlsitetab.cpp \
     src/docchooser.cpp \

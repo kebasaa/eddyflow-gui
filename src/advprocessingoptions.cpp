@@ -54,6 +54,8 @@
 #include "ecproject.h"
 #include "fileutils.h"
 #include "infomessage.h"
+#include "irga_desc.h"
+#include "dirbrowsewidget.h"
 #include "planarfitsettingsdialog.h"
 #include "pwbtimelagsettingsdialog.h"
 #include "richtextcheckbox.h"
@@ -159,6 +161,175 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     aoaMethCombo->setItemData(2, tr("<b>Wind tunnel calibration:</b> Select this option to apply the angle-of-attack correction according to the method described in the referenced paper, which makes use of a wind tunnel calibration instead of the field calibration."), Qt::ToolTipRole);
     aoaMethCombo->setEnabled(false);
 
+    //> Two hardware corrections that run on the raw wind before any
+    //> rotation, so they sit above it here as well as in the engine.
+    headCorrCheckBox = new RichTextCheckBox;
+    headCorrCheckBox->setText(tr("Metek USA-1 head correction (three-dimensional flow distortion)"));
+    headCorrCheckBox->setToolTip(tr("<b>Metek USA-1 head correction:</b> The "
+        "transducers and their supports deflect the flow before the sonic "
+        "measures it, by an amount that depends on where the wind comes from. "
+        "Metek measured that in a wind tunnel and published three tables of "
+        "Fourier coefficients over elevation angle - one each for the wind "
+        "speed, the azimuth and the elevation - evaluated at three, six and "
+        "nine times the azimuth. Applied sample by sample to the raw wind, "
+        "before the inclinometer correction and any axis rotation."
+        "<br><br><b>The tables are not shipped with EddyFlow.</b> They are "
+        "Metek GmbH's measurements, which EddyUH redistributes under the "
+        "University of Helsinki's own agreement; this program cannot. Point "
+        "the directory below at your own copy of <i>phicorr.dat</i>, "
+        "<i>ucorr.dat</i> and <i>alphacorr.dat</i>. Without all three the "
+        "correction declines and says so in the run log, and the fluxes come "
+        "out as if it had never been switched on."
+        "<br><br>Applies to one-inner-bar USA-1 models only, which is what "
+        "the tables were measured on. Nothing checks that, because nothing in "
+        "the metadata distinguishes the variants."));
+
+    headCorrMethLabel = new ClickLabel(tr("Applies to :"));
+    headCorrMethCombo = new QComboBox;
+    headCorrMethCombo->addItem(tr("Raw, uncorrected data"));
+    headCorrMethCombo->addItem(tr("Data already carrying Metek's online 2-D correction"));
+    headCorrMethCombo->setItemData(0, tr("<b>Raw, uncorrected data:</b> The "
+        "logger applied nothing, so the three-dimensional correction is "
+        "applied to the wind as recorded."), Qt::ToolTipRole);
+    headCorrMethCombo->setItemData(1, tr("<b>Data already carrying Metek's "
+        "online 2-D correction:</b> The sonic's own two-dimensional "
+        "correction is first undone, with the closed form Metek publishes for "
+        "it, and the full three-dimensional correction applied to what is "
+        "left."
+        "<br><br>Applying the three-dimensional correction on top of the "
+        "two-dimensional one without removing it would count the horizontal "
+        "part twice. If you are unsure which your logger wrote, the sonic's "
+        "configuration says so - guessing costs a percent or so of the "
+        "horizontal wind."), Qt::ToolTipRole);
+    headCorrMethLabel->setToolTip(headCorrMethCombo->itemData(0, Qt::ToolTipRole).toString());
+
+    headCorrDirLabel = new ClickLabel(tr("Table directory :"));
+    headCorrDirBrowse = new DirBrowseWidget;
+    headCorrDirBrowse->setDialogTitle(tr("Select the Metek Head Correction Table Directory"));
+    headCorrDirBrowse->setToolTip(tr("<b>Table directory:</b> The folder "
+        "holding <i>phicorr.dat</i>, <i>ucorr.dat</i> and "
+        "<i>alphacorr.dat</i>, each twenty comma-separated rows of elevation "
+        "from -50 to +45 degrees in steps of five, carrying the elevation and "
+        "then C0, C3, S3, C6, S6, C9 and S9."
+        "<br><br>Read once per run rather than once per averaging period. A "
+        "directory missing any of the three, or holding a file with fewer "
+        "than twenty rows, declines the correction for the whole run and says "
+        "so in the log rather than correcting some periods and not others."));
+    headCorrDirLabel->setToolTip(headCorrDirBrowse->toolTip());
+
+    tiltSensorCheckBox = new RichTextCheckBox;
+    tiltSensorCheckBox->setText(tr("Inclinometer tilt correction (fast inclination channels)"));
+    tiltSensorCheckBox->setToolTip(tr("<b>Inclinometer tilt correction:</b> A "
+        "mast that leans, or sways, tilts the sonic with it. A planar fit or "
+        "a double rotation removes the <i>mean</i> tilt over an averaging "
+        "period; neither can remove a tilt that changes <i>within</i> one. An "
+        "inclinometer logged at the same rate as the wind can, sample by "
+        "sample, and that is what this does."
+        "<br><br><b>Where the angles come from.</b> Ordinary extra raw "
+        "columns named <i>theta</i>, <i>phi</i> and <i>psi</i>, declared in "
+        "the <b>Raw File Description</b> like any other channel. There is "
+        "nothing to configure here about which column is which - the name is "
+        "the whole of it, because there is only one sonic. A channel that is "
+        "absent contributes a zero angle, which leaves that axis alone; if "
+        "none of the three is found the correction is skipped and says so."
+        "<br><br>The channels hold the inclinometer's <i>output voltage</i>, "
+        "not an angle. The angle is -asin(V / sensitivity)."
+        "<br><br><b>psi is always zero</b>, even when a psi column exists. "
+        "EddyUH reads it and then overwrites it with zeros, commenting "
+        "&quot;not measured&quot;; the rotation matrix and the swinging term "
+        "are both built "
+        "on that assumption. So this is a two-angle correction with three "
+        "channels declared."
+        "<br><br>Runs on the raw wind, before any axis rotation, which "
+        "expects a series already in the sonic's true frame."));
+
+    tiltSensorMethLabel = new ClickLabel(tr("Correct for :"));
+    tiltSensorMethCombo = new QComboBox;
+    tiltSensorMethCombo->addItem(tr("Position"));
+    tiltSensorMethCombo->addItem(tr("Position and swinging"));
+    tiltSensorMethCombo->setItemData(0, tr("<b>Position:</b> Rotates the "
+        "measured wind vector by the inclination of the moment. This is the "
+        "part of the correction that is unambiguously right, and the one to "
+        "use unless you have a reason not to."), Qt::ToolTipRole);
+    tiltSensorMethCombo->setItemData(1, tr("<b>Position and swinging:</b> "
+        "Adds a term for the motion of the sonic head itself as the mast "
+        "swings, built from the lever arm below and the time derivatives of "
+        "the angles."
+        "<br><br><b>That term is a single number, added to u, v and w "
+        "alike.</b> EddyUH writes it as a dot product, where the velocity of "
+        "a point on a rotating body is a cross product and would give three "
+        "different components (EddyUH_tiltangle.m:104). The units survive - "
+        "radians per second times metres is metres per second - which is why "
+        "it is easy to miss. EddyFlow reproduces it as written, because this "
+        "option exists to reproduce EddyUH's numbers and a silently corrected "
+        "version would reproduce nothing."
+        "<br><br>If you want the physical correction rather than EddyUH's, "
+        "use <i>Position</i> and treat this mode as unavailable. Adjusting "
+        "the lever arm will not help - no arm turns a scalar into a "
+        "vector."), Qt::ToolTipRole);
+    tiltSensorMethLabel->setToolTip(tiltSensorMethCombo->itemData(1, Qt::ToolTipRole).toString());
+
+    tiltSensorVgLabel = new ClickLabel(tr("Sensitivity :"));
+    tiltSensorVgSpin = new QDoubleSpinBox;
+    tiltSensorVgSpin->setDecimals(4);
+    tiltSensorVgSpin->setRange(0.0001, 1000.0);
+    tiltSensorVgSpin->setSingleStep(0.1);
+    tiltSensorVgSpin->setAccelerated(true);
+    tiltSensorVgSpin->setSuffix(tr("  [V/g]"));
+    tiltSensorVgSpin->setToolTip(tr("<b>Sensitivity:</b> Volts per g of the "
+        "inclinometer, which is what turns the logged voltage into an angle: "
+        "-asin(V / sensitivity). Four is the value EddyUH uses, as a literal "
+        "rather than a setting; check your inclinometer's data sheet before "
+        "trusting it."
+        "<br><br>A reading past full scale is clamped to plus or minus a "
+        "right angle rather than allowed to produce a value the arc sine "
+        "cannot take, which would otherwise spread through every wind "
+        "component of that sample."));
+    tiltSensorVgLabel->setToolTip(tiltSensorVgSpin->toolTip());
+
+    tiltLpfLabel = new ClickLabel(tr("Smoothing :"));
+    tiltLpfSpin = new QDoubleSpinBox;
+    tiltLpfSpin->setDecimals(2);
+    tiltLpfSpin->setRange(0.0, 600.0);
+    tiltLpfSpin->setSingleStep(0.5);
+    tiltLpfSpin->setAccelerated(true);
+    tiltLpfSpin->setSuffix(tr("  [s]"));
+    tiltLpfSpin->setSpecialValueText(tr("no smoothing"));
+    tiltLpfSpin->setToolTip(tr("<b>Smoothing:</b> A centred running mean over "
+        "the angle series, in seconds, to keep the inclinometer's own noise "
+        "out of the correction. Zero, the default, applies none."
+        "<br><br>Smoothing the angle is not the same as smoothing the wind: "
+        "it removes noise from what the mast is <i>believed</i> to be doing, "
+        "not from what the sonic measured. Too long a window also removes the "
+        "genuine sway this correction exists to catch, so keep it short "
+        "against the swinging period."));
+    tiltLpfLabel->setToolTip(tiltLpfSpin->toolTip());
+
+    const auto armTip = tr("<b>Lever arm:</b> The vector from the point the "
+        "mast pivots about to the sonic head, in metres, in the sonic's own "
+        "axes. Used only by <i>Position and swinging</i>; <i>Position</i> "
+        "ignores it entirely."
+        "<br><br>-1.5 on each axis is EddyUH's own literal, which is a "
+        "starting point and not a measurement of your mast. A wrong arm adds "
+        "a velocity that is not there.");
+    tiltArmLabel = new ClickLabel(tr("Lever arm :"));
+    tiltArmLabel->setToolTip(armTip);
+    tiltArmXLabel = new QLabel(tr("x"));
+    tiltArmYLabel = new QLabel(tr("y"));
+    tiltArmZLabel = new QLabel(tr("z"));
+    tiltArmXSpin = new QDoubleSpinBox;
+    tiltArmYSpin = new QDoubleSpinBox;
+    tiltArmZSpin = new QDoubleSpinBox;
+    for (auto* spin : {tiltArmXSpin, tiltArmYSpin, tiltArmZSpin})
+    {
+        spin->setDecimals(3);
+        spin->setRange(-100.0, 100.0);
+        spin->setSingleStep(0.1);
+        spin->setAccelerated(true);
+        spin->setSuffix(tr("  [m]"));
+        spin->setToolTip(armTip);
+    }
+
     rotCheckBox = new RichTextCheckBox;
     rotCheckBox->setToolTip(tr("<b>Axis rotation for tilt correction:</b> Select the appropriate method for compensating anemometer tilt with respect to local streamlines. Uncheck the box to <i>not perform</i> any rotation (not recommnended). If your site has a complex or sloping topography, a planar-fit method is advisable. Click on the <b><i>Planar Fit Settings...</i></b> to configure the procedure."));
     rotCheckBox->setText(tr("Axis rotations for tilt correction"));
@@ -247,9 +418,11 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     qcMethodCombo->addItem(tr("Mauder and Foken (2004) (0-1-2 system)"));
     qcMethodCombo->addItem(tr("Foken (2003) (1 to 9 system)"));
     qcMethodCombo->addItem(tr("Goeckede et al. (2004) (1 to 5 system)"));
+    qcMethodCombo->addItem(tr("Vitale et al. (2020) (0-1-2 severity system)"));
     qcMethodCombo->setItemData(0, tr("<b>Mauder and Foken 2004:</b> Policy described in the documentation of the TK2 Eddy Covariance software that also constituted the standard of the CarboEurope IP project and is widely adopted. \"0\" means high quality fluxes, \"1\" means fluxes are ok for budget analysis, \"2\" fluxes should be discarded from the result dataset."), Qt::ToolTipRole);
     qcMethodCombo->setItemData(1, tr("<b>Foken 2003:</b> A system based on 9 quality grades. \"1\" is best, \"9\" is worst. The system of Mauder and Foken (2004) and of Goeckede et al. (2006) are based on a rearrangement of these system."), Qt::ToolTipRole);
     qcMethodCombo->setItemData(2, tr("<b>Goeckede et al., 2004:</b> A system based on 5 quality grades. \"1\" is best, \"5\" is worst."), Qt::ToolTipRole);
+    qcMethodCombo->setItemData(3, tr("<b>Vitale et al. (2020), Biogeosciences:</b> \"0\" (ok), \"1\" (moderate) or \"2\" (severe), from a wider net of tests than the three systems above: the ITC deviation always, plus - on a project that does <i>not</i> hand spectral corrections off to FCC (roughly: uses only the two built-in analytic cospectral models rather than an empirical one) - Mahrt's (1998) nonstationarity ratio, the always-on KID test, and, when <i>Extra raw-signal diagnostics (RFlux)</i> is also enabled, its AL1/DDI/HF/HD/DIP tests. On the more common project that <i>does</i> hand off to FCC, this system currently runs on the ITC deviation alone - the wider set needs raw-signal diagnostics FCC does not yet receive back from the RP output it reads. \"2\" (severe) wins over \"1\" (moderate) wherever a period trips both. Adapted from RFlux's cleanFlux(): its own low-signal-resolution and physical-range tests have no EddyFlow equivalent yet and are not part of this grade, and its wind-sector exclusion is folded in only once EddyFlow supports time-varying sectors."), Qt::ToolTipRole);
 
     fpCheckBox = new RichTextCheckBox;
     fpCheckBox->setToolTip(tr("<b>Footprint estimation:</b> Select whether to calculate flux footprint estimations and which method should be used. Flux crosswind-integrated footprints are provided as distances from the tower contributing for 10%, 30%, 50%, 70% and 90% to measured fluxes. Also, the location of the peak contribution is given."));
@@ -284,6 +457,130 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     wplCheckBox->setText(tr("Compensate density fluctuations (WPL terms)"));
     wplCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Converting_to_Mixing_Ratio.html"));
 
+    covmaxDebaselineCheckBox = new RichTextCheckBox;
+    covmaxDebaselineCheckBox->setText(tr("Subtract the cross-covariance baseline"));
+    covmaxDebaselineCheckBox->setToolTip(tr("<b>Subtract the cross-covariance "
+        "baseline:</b> Choose the time lag by the largest departure of the "
+        "cross-covariance from the straight line joining the two ends of the search "
+        "window, rather than by its largest absolute value. A weak flux often sits on a "
+        "sloping cross-covariance - from a trend, or from a neighbouring stronger "
+        "correlation - and the plain maximum then lands on whichever end the slope is "
+        "highest at instead of on the peak."
+        "<br><br>This changes <b>which lag is selected</b>, and nothing about the "
+        "covariance reported there: the flux at the chosen lag is computed exactly as "
+        "before. Off by default."
+        "<br><br>Note that with the baseline removed the two ends of the window score "
+        "zero by construction, so the maximum can never land on an end - which means "
+        "<i>Covariance maximization with default</i> stops falling back to the nominal "
+        "lag. For a weak flux that safety net is worth replacing rather than simply "
+        "losing."));
+
+    tlagBorrowCheckBox = new RichTextCheckBox;
+    tlagBorrowCheckBox->setText(tr("Borrow a tube-mate's lag below the detection limit"));
+    tlagBorrowCheckBox->setToolTip(tr("<b>Borrow a tube-mate's lag below the "
+        "detection limit:</b> Gases drawn down one tube share a transport delay. A "
+        "species whose cross-covariance peak cannot be told from noise has nothing of "
+        "its own to detect, so it takes the lag of a gas on the same analyser that "
+        "resolved its peak - the best-resolved one, not the first in the list "
+        "(Nemitz et al., 2018)."
+        "<br><br>It also fires when the maximum lands on an end of the search window, "
+        "where a maximisation goes when there is no interior peak to find."
+        "<br><br><b>Requires the flux detection limit</b>, under Statistical Analysis: "
+        "without it there is nothing to compare a covariance against, and this control "
+        "stays greyed. Water is never borrowed for or from - its lag is the one every "
+        "other gas's water covariance is taken at. A borrowed lag is flagged in "
+        "<i>&lt;gas&gt;_def_timelag</i> and the donor is named in the run log. "
+        "Off by default."));
+
+    tlagBorrowSnrLabel = new ClickLabel(tr("Detection limits to clear :"));
+    tlagBorrowSnrLabel->setToolTip(tr("<b>Detection limits to clear:</b> How far above "
+        "its detection limit a gas's covariance must stand to keep its own time lag. "
+        "Three is the value Nemitz et al. use. Lower means fewer gases borrow; higher "
+        "means more."));
+    tlagBorrowSnrSpin = new QDoubleSpinBox;
+    tlagBorrowSnrSpin->setDecimals(1);
+    tlagBorrowSnrSpin->setRange(0.1, 100.0);
+    tlagBorrowSnrSpin->setSingleStep(0.5);
+    tlagBorrowSnrSpin->setAccelerated(true);
+    tlagBorrowSnrSpin->setToolTip(tlagBorrowSnrLabel->toolTip());
+
+    //> Which noise floor, and which donor. Both default to this program's
+    //> own choice; the second entry on each is what EddyUH does, and both
+    //> say so, because "EddyUH's" is the reason anyone would pick it.
+    tlagBorrowNoiseLabel = new ClickLabel(tr("Judged against :"));
+    tlagBorrowNoiseCombo = new QComboBox;
+    tlagBorrowNoiseCombo->addItem(tr("The flux detection limit"));
+    tlagBorrowNoiseCombo->addItem(tr("Lenschow instrument noise (EddyUH)"));
+    tlagBorrowNoiseCombo->setItemData(0, tr("<b>The flux detection limit:</b> "
+        "The scatter of the cross-covariance far from its peak, where there "
+        "is no flux - so it measures what the covariance itself does with "
+        "nothing in it. Requires the detection limit to be switched on, under "
+        "<i>Statistical Analysis</i>."), Qt::ToolTipRole);
+    tlagBorrowNoiseCombo->setItemData(1, tr("<b>Lenschow instrument noise:</b> "
+        "The step in the autocovariance at zero lag, which is the analyser's "
+        "own white noise. This is what EddyUH actually divides by "
+        "(EddyUH_SC_Flux2.m:325), although its own comment there calls it a "
+        "detection limit."
+        "<br><br>Measured from the series in hand, so it needs nothing else "
+        "switched on - and being a smaller floor than the detection limit, it "
+        "lets more gases keep their own lag."), Qt::ToolTipRole);
+    tlagBorrowNoiseLabel->setToolTip(tlagBorrowNoiseCombo->itemData(0, Qt::ToolTipRole).toString());
+
+    tlagBorrowDonorLabel = new ClickLabel(tr("Borrow from :"));
+    tlagBorrowDonorCombo = new QComboBox;
+    tlagBorrowDonorCombo->addItem(tr("The best-resolved gas on the analyser"));
+    tlagBorrowDonorCombo->addItem(tr("The analyser's carbon dioxide (EddyUH)"));
+    tlagBorrowDonorCombo->setItemData(0, tr("<b>The best-resolved gas on the "
+        "analyser:</b> Ranks the eligible tube-mates by how far each stands "
+        "above the noise and takes the strongest. Taking the first in metadata "
+        "order instead produces pairings that read backwards - carbon dioxide, "
+        "the strongest flux on the analyser, taking its lag from nitrous "
+        "oxide."), Qt::ToolTipRole);
+    tlagBorrowDonorCombo->setItemData(1, tr("<b>The analyser's carbon "
+        "dioxide:</b> What EddyUH does, hard-coded by variable name with no "
+        "user switch. Usually the best-resolved channel on a trace-gas "
+        "analyser anyway, with the merit of being the same donor in every "
+        "period - a lag population that does not change donor halfway through "
+        "the day is easier to defend."
+        "<br><br>Carbon dioxide can then never borrow, since it would be "
+        "borrowing from itself. If the analyser measures no carbon dioxide, or "
+        "its carbon dioxide did not clear the threshold either, nothing is "
+        "borrowed - another instrument's gas shares no tube with this one and "
+        "is not a substitute."), Qt::ToolTipRole);
+    tlagBorrowDonorLabel->setToolTip(tlagBorrowDonorCombo->itemData(1, Qt::ToolTipRole).toString());
+
+    spectroCheckBox = new RichTextCheckBox;
+    spectroCheckBox->setText(tr("Remove the spectroscopic effect of water vapour"));
+    spectroCheckBox->setToolTip(tr("<b>Remove the spectroscopic effect of water vapour:</b> "
+        "Water vapour broadens the absorption lines a laser analyser measures, so the mixing "
+        "ratio it reports depends on humidity beyond simple dilution. Each affected column is "
+        "divided, sample by sample, by 1 + <i>a</i>&#183;&#967;<sub>q</sub> + "
+        "<i>b</i>&#183;&#967;<sub>q</sub>&#178;, using the water its own analyser read at the "
+        "same instant (Peltola et al., 2014; applied point by point after Chen et al., 2010). "
+        "<br><br>Enter <i>a</i> and <i>b</i> per column in the <b>Raw File Description</b>; "
+        "a column that leaves them at zero is not touched, and neither is an open-path "
+        "analyser. This is independent of the density compensation above - the bias is in "
+        "what the instrument reported, whether or not WPL is applied. Off by default."
+        "<br><br><b>Coefficients here are spectroscopic only.</b> EddyUH and the Rella "
+        "(2010) tables it ships use a convention in which the dilution is folded into the "
+        "same polynomial, so that <i>a</i> = &minus;1, <i>b</i> = 0 means pure dilution and "
+        "no spectroscopy. EddyFlow corrects the density separately, so the identity here is "
+        "<i>a</i> = <i>b</i> = 0. To carry a published value across, add one to <i>a</i>: an "
+        "EddyUH <i>a</i> of &minus;1.39 becomes &minus;0.39 here. Typing the EddyUH value "
+        "unchanged would count the dilution twice."));
+
+    spectroWaterCheckBox = new RichTextCheckBox;
+    spectroWaterCheckBox->setText(tr("Also correct the water channel (EddyUH form, unpublished)"));
+    spectroWaterCheckBox->setToolTip(tr("<b>Also correct the water channel:</b> Applies the same "
+        "division to each hygrometer against <i>its own</i> reading, which is self-broadening. "
+        "<br><br><b>This is not part of the published Peltola et al. (2014) result</b>, which "
+        "derives the effect of water on <i>another</i> gas's absorption lines. EddyUH corrects "
+        "the water channel too, using a coefficient whose derivation its own source comment "
+        "states is not published anywhere; this offers the same idea in the point-by-point form "
+        "used for every other column. Select it deliberately, and report that you did. "
+        "Off by default, and it does nothing unless the correction above is on and the "
+        "hygrometer's own coefficients are non-zero."));
+
     //> Lit only in the inconsistent state - the partition on, the correction it
     //> depends on off. A warning icon that is usually on is one nobody reads.
     wplWarningLabel = new QLabel;
@@ -301,7 +598,8 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
 
     // burba correction
     burbaCorrCheckBox = new RichTextCheckBox;
-    burbaCorrCheckBox->setToolTip(tr("<b>Add instrument sensible heat components, only for LI-7500:</b> Only applies to the LI-7500. It takes into account air density fluctuations due to temperature fluctuations induced by heat exchange processes at the instrument surfaces, as from Burba et al. (2008)."));
+    burbaAvailableTooltip_ = tr("<b>Add instrument sensible heat components, only for LI-7500:</b> Only applies to the LI-7500. It takes into account air density fluctuations due to temperature fluctuations induced by heat exchange processes at the instrument surfaces, as from Burba et al. (2008).");
+    burbaCorrCheckBox->setToolTip(burbaAvailableTooltip_);
     burbaCorrCheckBox->setText(tr("Add instrument sensible heat components, only for LI-7500 "));
     burbaCorrCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Calculating_Off-season_Uptake_Correction.html"));
 
@@ -358,6 +656,22 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     auto qcTitle = new QLabel(tr("Other options"));
     qcTitle->setProperty("groupLabel", true);
 
+    parallelPrepassCheckBox = new RichTextCheckBox;
+    parallelPrepassCheckBox->setText(tr("Parallelise the planar fit and time lag pre-passes"));
+    parallelPrepassCheckBox->setToolTip(tr("<b>Parallelise the planar fit and "
+        "time lag pre-passes:</b> Before it computes any flux, EddyFlow may walk "
+        "every averaging period once to fit the planar fit planes, or to optimise "
+        "the time lags. On a long dataset that walk dominates the run. Each period "
+        "in it is independent of the others, so the range is split across the "
+        "processor cores and the pieces joined back together in order."
+        "<br><br>This does <b>not change the results</b>: the planar fit "
+        "coefficients and the optimised time lags come out identical to a run "
+        "without it. It has no effect on a project that runs no pre-pass, nor on "
+        "the flux computation itself, which is not split."
+        "<br><br>This is a setting for <i>this computer</i>, not for the project: "
+        "it is remembered between sessions but is not saved into the project file, "
+        "so a colleague opening the same project decides it for themselves."));
+
     auto hrLabel = new QLabel;
     hrLabel->setObjectName(QStringLiteral("hrLabel"));
     auto hrLabel_2 = new QLabel;
@@ -373,6 +687,17 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     qBox_2->addStretch();
 
 //
+    auto tiltArmLayout = new QHBoxLayout;
+    tiltArmLayout->addWidget(tiltArmXLabel, 0, Qt::AlignRight);
+    tiltArmLayout->addWidget(tiltArmXSpin, 1);
+    tiltArmLayout->addStretch(1);
+    tiltArmLayout->addWidget(tiltArmYLabel, 0, Qt::AlignRight);
+    tiltArmLayout->addWidget(tiltArmYSpin, 1);
+    tiltArmLayout->addStretch(1);
+    tiltArmLayout->addWidget(tiltArmZLabel, 0, Qt::AlignRight);
+    tiltArmLayout->addWidget(tiltArmZSpin, 1);
+    tiltArmLayout->addStretch(1);
+
     auto settingsLayout = new QGridLayout;
     settingsLayout->addWidget(rawProcessingTitle, 0, 0);
     settingsLayout->addLayout(qBox_1, 1, 0, 1, 2);
@@ -381,21 +706,44 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     settingsLayout->addWidget(aoaCheckBox, 3, 0);
     settingsLayout->addWidget(aoaMethLabel, 3, 1, Qt::AlignRight);
     settingsLayout->addWidget(aoaMethCombo, 3, 2);
-    settingsLayout->addWidget(rotCheckBox, 4, 0);
-    settingsLayout->addWidget(rotMethLabel, 4, 1, Qt::AlignRight);
-    settingsLayout->addWidget(rotMethCombo, 4, 2);
-    settingsLayout->addWidget(pfSettingsButton, 4, 3);
-    settingsLayout->addLayout(qBox_2, 5, 0);
-    settingsLayout->addWidget(detrendMethLabel, 5, 1, Qt::AlignRight);
-    settingsLayout->addWidget(detrendCombo, 5, 2);
-    settingsLayout->addWidget(timeConstantLabel, 6, 1, Qt::AlignRight);
-    settingsLayout->addWidget(timeConstantSpin, 6, 2);
-    settingsLayout->addWidget(timeLagCheckBox, 7, 0);
-    settingsLayout->addWidget(timeLagMethodLabel, 7, 1, Qt::AlignRight);
-    settingsLayout->addWidget(timeLagMethodCombo, 7, 2);
-    settingsLayout->addWidget(tlSettingsButton, 7, 3);
-    settingsLayout->addWidget(hrLabel, 8, 0, 1, 4);
-    settingsLayout->addWidget(wplTitle, 9, 0);
+    settingsLayout->addWidget(headCorrCheckBox, 4, 0);
+    settingsLayout->addWidget(headCorrMethLabel, 4, 1, Qt::AlignRight);
+    settingsLayout->addWidget(headCorrMethCombo, 4, 2);
+    settingsLayout->addWidget(headCorrDirLabel, 5, 1, Qt::AlignRight);
+    settingsLayout->addWidget(headCorrDirBrowse, 5, 2, 1, 2);
+    settingsLayout->addWidget(tiltSensorCheckBox, 6, 0);
+    settingsLayout->addWidget(tiltSensorMethLabel, 6, 1, Qt::AlignRight);
+    settingsLayout->addWidget(tiltSensorMethCombo, 6, 2);
+    settingsLayout->addWidget(tiltSensorVgLabel, 7, 1, Qt::AlignRight);
+    settingsLayout->addWidget(tiltSensorVgSpin, 7, 2);
+    settingsLayout->addWidget(tiltLpfLabel, 8, 1, Qt::AlignRight);
+    settingsLayout->addWidget(tiltLpfSpin, 8, 2);
+    settingsLayout->addWidget(tiltArmLabel, 9, 1, Qt::AlignRight);
+    settingsLayout->addLayout(tiltArmLayout, 9, 2, 1, 2);
+    settingsLayout->addWidget(rotCheckBox, 10, 0);
+    settingsLayout->addWidget(rotMethLabel, 10, 1, Qt::AlignRight);
+    settingsLayout->addWidget(rotMethCombo, 10, 2);
+    settingsLayout->addWidget(pfSettingsButton, 10, 3);
+    settingsLayout->addLayout(qBox_2, 11, 0);
+    settingsLayout->addWidget(detrendMethLabel, 11, 1, Qt::AlignRight);
+    settingsLayout->addWidget(detrendCombo, 11, 2);
+    settingsLayout->addWidget(timeConstantLabel, 12, 1, Qt::AlignRight);
+    settingsLayout->addWidget(timeConstantSpin, 12, 2);
+    settingsLayout->addWidget(timeLagCheckBox, 13, 0);
+    settingsLayout->addWidget(timeLagMethodLabel, 13, 1, Qt::AlignRight);
+    settingsLayout->addWidget(timeLagMethodCombo, 13, 2);
+    settingsLayout->addWidget(tlSettingsButton, 13, 3);
+    //> Indented under the method it modifies, in the combo's own column.
+    settingsLayout->addWidget(covmaxDebaselineCheckBox, 14, 2, 1, 2);
+    settingsLayout->addWidget(tlagBorrowCheckBox, 15, 2, 1, 2);
+    settingsLayout->addWidget(tlagBorrowSnrLabel, 16, 1, Qt::AlignRight);
+    settingsLayout->addWidget(tlagBorrowSnrSpin, 16, 2);
+    settingsLayout->addWidget(tlagBorrowNoiseLabel, 17, 1, Qt::AlignRight);
+    settingsLayout->addWidget(tlagBorrowNoiseCombo, 17, 2, 1, 2);
+    settingsLayout->addWidget(tlagBorrowDonorLabel, 18, 1, Qt::AlignRight);
+    settingsLayout->addWidget(tlagBorrowDonorCombo, 18, 2, 1, 2);
+    settingsLayout->addWidget(hrLabel, 19, 0, 1, 4);
+    settingsLayout->addWidget(wplTitle, 20, 0);
     //> One cell, not two: column 0 is as wide as its widest widget, so the
     //> icon in a neighbouring cell would sit far off to the right of the text
     //> it belongs to. Same shape as qBox_2 above.
@@ -403,24 +751,45 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     wplBox->addWidget(wplCheckBox);
     wplBox->addWidget(wplWarningLabel);
     wplBox->addStretch();
-    settingsLayout->addLayout(wplBox, 10, 0);
-    settingsLayout->addWidget(burbaCorrCheckBox, 11, 0);
-    settingsLayout->addWidget(burbaTypeLabel, 12, 0, 1, 1, Qt::AlignRight);
-    settingsLayout->addWidget(burbaSimpleRadio, 12, 1);
-    settingsLayout->addWidget(burbaMultiRadio, 13, 1);
-    settingsLayout->addWidget(burbaParamWidget, 14, 0, 1, 4);
-    settingsLayout->addWidget(defaultContainer, 15, 0, 1, 4);
-    settingsLayout->addWidget(hrLabel_2, 16, 0, 1, 4);
-    settingsLayout->addWidget(qcTitle, 22, 0);
-    settingsLayout->addWidget(qcCheckBox, 23, 0);
-    settingsLayout->addWidget(qcLabel, 23, 1, Qt::AlignRight);
-    settingsLayout->addWidget(qcMethodCombo, 23, 2);
-    settingsLayout->addWidget(fpCheckBox, 24, 0);
-    settingsLayout->addWidget(fpLabel, 24, 1, Qt::AlignRight);
-    settingsLayout->addWidget(fpMethodCombo, 24, 2);
-    settingsLayout->addWidget(cecCheckBox,    25, 0);
-    settingsLayout->addWidget(cecSettingsButton, 25, 3);
-    settingsLayout->setRowStretch(27, 1);
+    settingsLayout->addLayout(wplBox, 21, 0);
+    //> Beside WPL because both are about what the analyser really saw, but
+    //> deliberately not gated on it: WPL is a density correction and this is
+    //> an optical one, and the bias is there whether or not densities are
+    //> being compensated.
+    settingsLayout->addWidget(spectroCheckBox, 22, 0);
+    settingsLayout->addWidget(spectroWaterCheckBox, 23, 0);
+    settingsLayout->addWidget(burbaCorrCheckBox, 24, 0);
+    settingsLayout->addWidget(burbaTypeLabel, 25, 0, 1, 1, Qt::AlignRight);
+    settingsLayout->addWidget(burbaSimpleRadio, 25, 1);
+    settingsLayout->addWidget(burbaMultiRadio, 26, 1);
+    settingsLayout->addWidget(burbaParamWidget, 27, 0, 1, 4);
+    settingsLayout->addWidget(defaultContainer, 28, 0, 1, 4);
+    //> Between the corrections block and the quality-control one. It sat at
+    //> row 16, with slack rows between it and the quality-control block
+    //> below; the controls inserted above have taken that slack up, and a
+    //> rule drawn across an occupied row overlays the widget there.
+    settingsLayout->addWidget(hrLabel_2, 29, 0, 1, 4);
+    settingsLayout->addWidget(qcTitle, 30, 0);
+    settingsLayout->addWidget(qcCheckBox, 31, 0);
+    settingsLayout->addWidget(qcLabel, 31, 1, Qt::AlignRight);
+    settingsLayout->addWidget(qcMethodCombo, 31, 2);
+    settingsLayout->addWidget(fpCheckBox, 32, 0);
+    settingsLayout->addWidget(fpLabel, 32, 1, Qt::AlignRight);
+    settingsLayout->addWidget(fpMethodCombo, 32, 2);
+    //> On the checkbox's own row, beside its settings button, the way every
+    //> other option carrying one sits. It used to be added at row 27, which the
+    //> Burba parameter stack already spans: two widgets in one cell overlap,
+    //> and the one added later is painted over what is underneath it - here,
+    //> the tab bar, which is why the day/night tabs could not be clicked.
+    settingsLayout->addWidget(cecCheckBox, 33, 0);
+    settingsLayout->addWidget(cecSettingsButton, 33, 3);
+    //> Last in the group: it is about how the run is computed rather than
+    //> about what is computed, so it sits below the options that change the
+    //> numbers rather than among them.
+    settingsLayout->addWidget(parallelPrepassCheckBox, 34, 0, 1, 4);
+    //> On an empty trailing row: row 27 carries the Burba stack, and giving the
+    //> stretch to an occupied row lets that block absorb the slack instead.
+    settingsLayout->setRowStretch(35, 1);
     settingsLayout->setColumnStretch(4, 1);
 
 //    auto overallFrame = new QWidget;
@@ -560,6 +929,18 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
                 }
             });
 
+    //> Burba availability is the only thing on this page that depends on the
+    //> METADATA rather than on the project, and no other Advanced page listens
+    //> to DlProject at all - so adding an analyser in the Metadata File Editor
+    //> would otherwise leave the box greyed until the project was reopened.
+    if (dlProject_)
+    {
+        connect(dlProject_, &DlProject::projectChanged,
+                this, &AdvProcessingOptions::updateBurbaAvailability);
+        connect(dlProject_, &DlProject::projectModified,
+                this, &AdvProcessingOptions::updateBurbaAvailability);
+    }
+
     connect(wplCheckBox, &RichTextCheckBox::clicked,
             this, &AdvProcessingOptions::warnWplOffWithCec);
     connect(wplCheckBox, &RichTextCheckBox::toggled,
@@ -570,6 +951,118 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             this, &AdvProcessingOptions::updateBurbaGroup);
     connect(wplCheckBox, &RichTextCheckBox::toggled,
             [=](bool b){ burbaCorrCheckBox->setEnabled(b); });
+    //> On the click, not the state change - the same rule the WPL and CEC
+    //> boxes above follow. refresh() blocks the project's signals, not the
+    //> widgets', so a state-change connection fires while a project is being
+    //> loaded and would switch the correction on in a file the user only
+    //> opened.
+    connect(covmaxDebaselineCheckBox, &RichTextCheckBox::clicked,
+            this, [=]()
+            {
+                ecProject_->setScreenCovmaxDebaseline(
+                    covmaxDebaselineCheckBox->isChecked() ? 1 : 0);
+            });
+    //> Straight into the application preferences. Unlike every other control
+    //> on this page this one is not part of the project, so it neither dirties
+    //> the project nor travels with it.
+    connect(parallelPrepassCheckBox, &RichTextCheckBox::clicked,
+            this, [=]()
+            {
+                configState_->general.parallelPrepass =
+                    parallelPrepassCheckBox->isChecked();
+            });
+    connect(tlagBorrowCheckBox, &RichTextCheckBox::clicked,
+            this, [=]()
+            {
+                ecProject_->setScreenTlagBorrowMethod(
+                    tlagBorrowCheckBox->isChecked() ? 1 : 0);
+                updateTlagBorrowAvailability();
+            });
+    connect(tlagBorrowSnrSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [=](double d) { ecProject_->setScreenTlagBorrowSnr(d); });
+    connect(tlagBorrowNoiseCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [=](int n)
+            {
+                ecProject_->setScreenTlagBorrowNoise(n);
+                updateTlagBorrowAvailability();
+            });
+    connect(tlagBorrowDonorCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [=](int n) { ecProject_->setScreenTlagBorrowDonor(n); });
+    //> clicked, not toggled: refresh() blocks the project's signals and
+    //> not the widgets', so a toggled connection writes the file back while
+    //> the page is only being redrawn.
+    connect(headCorrCheckBox, &RichTextCheckBox::clicked,
+            this, [=]()
+            {
+                ecProject_->setScreenHeadCorrMeth(
+                    headCorrCheckBox->isChecked()
+                        ? headCorrMethCombo->currentIndex() + 1
+                        : 0);
+                updateSonicHardwareAvailability();
+            });
+    connect(headCorrMethCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [=](int n)
+            {
+                if (headCorrCheckBox->isChecked())
+                {
+                    ecProject_->setScreenHeadCorrMeth(n + 1);
+                }
+            });
+    connect(headCorrMethLabel, &ClickLabel::clicked,
+            this, &AdvProcessingOptions::onClickHeadCorrMethLabel);
+    connect(headCorrDirBrowse, &DirBrowseWidget::pathChanged,
+            this, [=](const QString& path)
+            { ecProject_->setScreenHeadCorrDir(path); });
+    connect(headCorrDirBrowse, &DirBrowseWidget::pathSelected,
+            this, [=](const QString& path)
+            { ecProject_->setScreenHeadCorrDir(path); });
+
+    connect(tiltSensorCheckBox, &RichTextCheckBox::clicked,
+            this, [=]()
+            {
+                ecProject_->setScreenTiltSensorMeth(
+                    tiltSensorCheckBox->isChecked()
+                        ? tiltSensorMethCombo->currentIndex() + 1
+                        : 0);
+                updateSonicHardwareAvailability();
+            });
+    connect(tiltSensorMethCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [=](int n)
+            {
+                if (tiltSensorCheckBox->isChecked())
+                {
+                    ecProject_->setScreenTiltSensorMeth(n + 1);
+                }
+                //> The arm is only read by the swinging mode, so it greys
+                //> with the choice rather than with the checkbox.
+                updateSonicHardwareAvailability();
+            });
+    connect(tiltSensorMethLabel, &ClickLabel::clicked,
+            this, &AdvProcessingOptions::onClickTiltSensorMethLabel);
+    connect(tiltSensorVgSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [=](double d) { ecProject_->setScreenTiltSensorVg(d); });
+    connect(tiltLpfSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [=](double d) { ecProject_->setScreenTiltLpfS(d); });
+    connect(tiltArmXSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [=](double d) { ecProject_->setScreenTiltArmX(d); });
+    connect(tiltArmYSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [=](double d) { ecProject_->setScreenTiltArmY(d); });
+    connect(tiltArmZSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, [=](double d) { ecProject_->setScreenTiltArmZ(d); });
+
+    connect(spectroCheckBox, &RichTextCheckBox::clicked,
+            this, [=]()
+            {
+                const bool on = spectroCheckBox->isChecked();
+                ecProject_->setScreenSpectroMethod(on ? 1 : 0);
+                spectroWaterCheckBox->setEnabled(on);
+            });
+    connect(spectroWaterCheckBox, &RichTextCheckBox::clicked,
+            this, [=]()
+            {
+                ecProject_->setScreenSpectroWater(
+                    spectroWaterCheckBox->isChecked() ? 1 : 0);
+            });
     connect(burbaCorrCheckBox, &RichTextCheckBox::toggled, [=](bool checked)
             { ecProject_->setScreenBuCorr(checked); });
     connect(burbaCorrCheckBox, &RichTextCheckBox::toggled,
@@ -728,6 +1221,7 @@ void AdvProcessingOptions::updateTlagMeth_1(bool b)
     {
         ecProject_->setScreenTlagMeth(0);
     }
+    updateCovmaxDebaselineAvailability();
 }
 
 void AdvProcessingOptions::updateTlagMeth_2(int n)
@@ -736,6 +1230,98 @@ void AdvProcessingOptions::updateTlagMeth_2(int n)
 
     // timelag optimization button
     tlSettingsButton->setEnabled(n == 3 || n == 4);
+    updateCovmaxDebaselineAvailability();
+}
+
+/// The borrowing test divides a covariance by a detection limit, so without
+/// one there is nothing to decide. The engine refuses the same combination;
+/// this is the interface saying so before the run rather than after it.
+///
+/// detlim_meth lives on the Statistical Analysis page, so this control can be
+/// greyed by something changed on a different tab - which is why the tooltip
+/// names where to switch it on.
+///
+/// Both corrections carry parameters that only one of their modes reads, so
+/// the greying is finer than a single checkbox: the lever arm is meaningless
+/// under plain position correction and says so by being unavailable, rather
+/// than sitting there inviting a number nothing will use.
+void AdvProcessingOptions::updateSonicHardwareAvailability()
+{
+    const bool head = headCorrCheckBox->isChecked();
+    headCorrMethLabel->setEnabled(head);
+    headCorrMethCombo->setEnabled(head);
+    headCorrDirLabel->setEnabled(head);
+    headCorrDirBrowse->setEnabled(head);
+
+    const bool tilt = tiltSensorCheckBox->isChecked();
+    tiltSensorMethLabel->setEnabled(tilt);
+    tiltSensorMethCombo->setEnabled(tilt);
+    tiltSensorVgLabel->setEnabled(tilt);
+    tiltSensorVgSpin->setEnabled(tilt);
+    tiltLpfLabel->setEnabled(tilt);
+    tiltLpfSpin->setEnabled(tilt);
+
+    const bool swinging = tilt && tiltSensorMethCombo->currentIndex() == 1;
+    tiltArmLabel->setEnabled(swinging);
+    tiltArmXLabel->setEnabled(swinging);
+    tiltArmYLabel->setEnabled(swinging);
+    tiltArmZLabel->setEnabled(swinging);
+    tiltArmXSpin->setEnabled(swinging);
+    tiltArmYSpin->setEnabled(swinging);
+    tiltArmZSpin->setEnabled(swinging);
+}
+
+void AdvProcessingOptions::onClickHeadCorrMethLabel()
+{
+    if (headCorrMethCombo->isEnabled())
+    {
+        headCorrMethCombo->showPopup();
+    }
+}
+
+void AdvProcessingOptions::onClickTiltSensorMethLabel()
+{
+    if (tiltSensorMethCombo->isEnabled())
+    {
+        tiltSensorMethCombo->showPopup();
+    }
+}
+
+void AdvProcessingOptions::updateTlagBorrowAvailability()
+{
+    //> Only ONE of the two floors needs something else switched on. The
+    //> detection limit is computed elsewhere and read back, so asking for it
+    //> without it would divide by a number nothing produced; the Lenschow
+    //> noise is measured from the series in hand. The engine draws the same
+    //> distinction, which is what lets EddyUH's combination stand alone.
+    const bool needsLimit = ecProject_->screenTlagBorrowNoise() == 0;
+    const bool haveLimit = ecProject_->screenDetlimMethod() > 0;
+    const bool usable = haveLimit || !needsLimit;
+
+    tlagBorrowCheckBox->setEnabled(usable);
+    const bool on = usable && tlagBorrowCheckBox->isChecked();
+    tlagBorrowSnrLabel->setEnabled(on);
+    tlagBorrowSnrSpin->setEnabled(on);
+    tlagBorrowDonorLabel->setEnabled(on);
+    tlagBorrowDonorCombo->setEnabled(on);
+
+    //> The floor itself stays reachable whenever borrowing is ticked, even
+    //> when the current choice is the unavailable one - otherwise a user
+    //> whose detection limit is off would find the control that fixes it
+    //> greyed out along with everything else.
+    const bool ticked = tlagBorrowCheckBox->isChecked();
+    tlagBorrowNoiseLabel->setEnabled(ticked);
+    tlagBorrowNoiseCombo->setEnabled(ticked);
+}
+
+/// The baseline subtraction only means anything to a method that maximises a
+/// covariance: tlag_meth 2 and 3, which are combo rows 1 and 2. Constant does
+/// not search, and the optimiser and the block-bootstrap choose their lags by
+/// other machinery entirely.
+void AdvProcessingOptions::updateCovmaxDebaselineAvailability()
+{
+    const auto meth = ecProject_->screenTlagMeth();
+    covmaxDebaselineCheckBox->setEnabled(meth == 2 || meth == 3);
 }
 
 void AdvProcessingOptions::onClickDetrendCombo(int newDetrendMethod)
@@ -891,6 +1477,29 @@ void AdvProcessingOptions::reset()
     cecSettingsButton->setEnabled(false);
 
     wplCheckBox->setChecked(ecProject_->defaultSettings.projectGeneral.wpl_meth);
+    tlagBorrowCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.tlag_borrow_meth);
+    tlagBorrowSnrSpin->setValue(ecProject_->defaultSettings.screenSetting.tlag_borrow_snr);
+    WidgetUtils::resetComboToItem(tlagBorrowNoiseCombo,
+        ecProject_->defaultSettings.screenSetting.tlag_borrow_noise);
+    WidgetUtils::resetComboToItem(tlagBorrowDonorCombo,
+        ecProject_->defaultSettings.screenSetting.tlag_borrow_donor);
+    updateTlagBorrowAvailability();
+    headCorrCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.head_corr_meth > 0);
+    WidgetUtils::resetComboToItem(headCorrMethCombo,
+        qMax(0, ecProject_->defaultSettings.screenSetting.head_corr_meth - 1));
+    headCorrDirBrowse->setPath(ecProject_->defaultSettings.screenSetting.head_corr_dir);
+    tiltSensorCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.tilt_sensor_meth > 0);
+    WidgetUtils::resetComboToItem(tiltSensorMethCombo,
+        qMax(0, ecProject_->defaultSettings.screenSetting.tilt_sensor_meth - 1));
+    tiltSensorVgSpin->setValue(ecProject_->defaultSettings.screenSetting.tilt_sensor_v_g);
+    tiltLpfSpin->setValue(ecProject_->defaultSettings.screenSetting.tilt_lpf_s);
+    tiltArmXSpin->setValue(ecProject_->defaultSettings.screenSetting.tilt_arm_x);
+    tiltArmYSpin->setValue(ecProject_->defaultSettings.screenSetting.tilt_arm_y);
+    tiltArmZSpin->setValue(ecProject_->defaultSettings.screenSetting.tilt_arm_z);
+    updateSonicHardwareAvailability();
+    spectroCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.spectro_meth);
+    spectroWaterCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.spectro_water);
+    spectroWaterCheckBox->setEnabled(ecProject_->defaultSettings.screenSetting.spectro_meth);
 
     setBurbaDefaultValues();
 
@@ -898,6 +1507,12 @@ void AdvProcessingOptions::reset()
     burbaCorrCheckBox->setChecked(false);
 
     enableBurbaCorrectionArea(false);
+    //> setEnabled(true) above is the default for a project that CAN have the
+    //> correction. Whether this one can depends on the metadata, which a
+    //> reset does not touch - so without this, resetting a project with no
+    //> LI-7500 handed back a clickable box for a correction the engine drops.
+    //> Every other path that can change the answer already ends here.
+    updateBurbaAvailability();
 
     burbaSimpleRadio->setChecked(true);
     burbaParamWidget->setCurrentIndex(0);
@@ -979,6 +1594,29 @@ void AdvProcessingOptions::refresh()
         timeLagMethodCombo->setCurrentIndex(0);
     }
     tlSettingsButton->setEnabled(ecProject_->screenTlagMeth() == 4 || ecProject_->screenTlagMeth() == 5);
+    covmaxDebaselineCheckBox->setChecked(ecProject_->screenCovmaxDebaseline());
+    parallelPrepassCheckBox->setChecked(configState_->general.parallelPrepass);
+    tlagBorrowCheckBox->setChecked(ecProject_->screenTlagBorrowMethod());
+    tlagBorrowSnrSpin->setValue(ecProject_->screenTlagBorrowSnr());
+    tlagBorrowNoiseCombo->setCurrentIndex(ecProject_->screenTlagBorrowNoise());
+    tlagBorrowDonorCombo->setCurrentIndex(ecProject_->screenTlagBorrowDonor());
+    updateTlagBorrowAvailability();
+    updateCovmaxDebaselineAvailability();
+
+    //> Zero is off, so the combo carries the mode minus one and is left
+    //> where it was when the correction is off - a project that has never
+    //> used it opens on the first mode rather than on nothing.
+    headCorrCheckBox->setChecked(ecProject_->screenHeadCorrMeth() > 0);
+    headCorrMethCombo->setCurrentIndex(qMax(0, ecProject_->screenHeadCorrMeth() - 1));
+    headCorrDirBrowse->setPath(ecProject_->screenHeadCorrDir());
+    tiltSensorCheckBox->setChecked(ecProject_->screenTiltSensorMeth() > 0);
+    tiltSensorMethCombo->setCurrentIndex(qMax(0, ecProject_->screenTiltSensorMeth() - 1));
+    tiltSensorVgSpin->setValue(ecProject_->screenTiltSensorVg());
+    tiltLpfSpin->setValue(ecProject_->screenTiltLpfS());
+    tiltArmXSpin->setValue(ecProject_->screenTiltArmX());
+    tiltArmYSpin->setValue(ecProject_->screenTiltArmY());
+    tiltArmZSpin->setValue(ecProject_->screenTiltArmZ());
+    updateSonicHardwareAvailability();
 
     qcCheckBox->setChecked(ecProject_->generalQcfMeth());
     if (ecProject_->generalQcfMeth())
@@ -1005,21 +1643,27 @@ void AdvProcessingOptions::refresh()
     updateCecAvailability();
 
     wplCheckBox->setChecked(ecProject_->generalWplMeth());
+    spectroCheckBox->setChecked(ecProject_->screenSpectroMethod());
+    spectroWaterCheckBox->setChecked(ecProject_->screenSpectroWater());
+    //> The water switch is meaningless on its own.
+    spectroWaterCheckBox->setEnabled(ecProject_->screenSpectroMethod());
 
     burbaCorrCheckBox->setChecked(ecProject_->screenBuCorr());
     burbaCorrCheckBox->setEnabled(ecProject_->generalWplMeth());
 
     burbaRadioGroup->buttons().at(ecProject_->screenBuMulti())->setChecked(true);
 
+    //> The stack page follows the project, because which regression is in force
+    //> IS a project setting. Which of that page's day/night tabs is on top is
+    //> not: it is where the user last was, and forcing it back to Day here sent
+    //> them there again on every refresh.
     burbaParamWidget->setCurrentIndex(ecProject_->screenBuMulti());
-    burbaSimpleTab->setCurrentIndex(0);
-    burbaMultiTab->setCurrentIndex(0);
 
-    burbaTypeLabel->setEnabled(wplCheckBox->isChecked() && burbaCorrCheckBox->isChecked());
-    burbaSimpleRadio->setEnabled(wplCheckBox->isChecked() && burbaCorrCheckBox->isChecked());
-    burbaParamWidget->setEnabled(wplCheckBox->isChecked() && burbaCorrCheckBox->isChecked());
-    burbaMultiTab->setEnabled(wplCheckBox->isChecked() && burbaCorrCheckBox->isChecked());
-    setDefaultsButton->setEnabled(wplCheckBox->isChecked() && burbaCorrCheckBox->isChecked());
+    enableBurbaCorrectionArea(wplCheckBox->isChecked()
+                              && burbaCorrCheckBox->isChecked());
+    //> Last, so it can override the two lines above: without an LI-7500 the box
+    //> goes off and stays off, whatever the project said.
+    updateBurbaAvailability();
 
     lDayBotGain->setText(QString::number(ecProject_->screenLDayBotGain(), 'f', 3));
     lDayBotOffset->setText(QString::number(ecProject_->screenLDayBotOffset(), 'f', 2));
@@ -1287,7 +1931,16 @@ void AdvProcessingOptions::updateCecAvailability()
         QSignalBlocker blocker(cecCheckBox);
         cecCheckBox->setChecked(false);
         cecSettingsButton->setEnabled(false);
-        ecProject_->setGeneralCecMeth(0);
+        //> Only when it actually says otherwise. EcProject::loadEcProject()
+        //> calls setModified(false) BEFORE it emits ecProjectChanged(), and
+        //> refresh() - which lands on this - is what that signal drives. So
+        //> writing the 0 that is already there marks a project modified purely
+        //> for having been opened, and a site that measures only one of the two
+        //> species hits this on every single load.
+        if (ecProject_->generalCecMeth() != 0)
+        {
+            ecProject_->setGeneralCecMeth(0);
+        }
         return;
     }
 
@@ -1317,7 +1970,12 @@ void AdvProcessingOptions::setSmartfluxUI()
     //> toggle they hand back the first cycle's values; updateCecAvailability
     //> derives the right state from the records every time, so there is
     //> nothing worth remembering.
-    if (on) { ecProject_->setGeneralCecMeth(0); }
+    //> Same guard, same reason: entering the mode with the partition already
+    //> off is not a change to the project.
+    if (on && ecProject_->generalCecMeth() != 0)
+    {
+        ecProject_->setGeneralCecMeth(0);
+    }
     updateCecAvailability();
 
     timeLagMethodCombo->setItemData(4,
@@ -1715,8 +2373,10 @@ void AdvProcessingOptions::enableBurbaCorrectionArea(bool b)
     burbaTypeLabel->setEnabled(b);
     burbaSimpleRadio->setEnabled(b);
     burbaMultiRadio->setEnabled(b);
+    //> The stack, not the tab widgets inside it: disabling a parent already
+    //> disables its children, and naming only one of the two tab widgets left
+    //> the other relying on that cascade anyway.
     burbaParamWidget->setEnabled(b);
-    burbaMultiTab->setEnabled(b);
     setDefaultsButton->setEnabled(b);
 }
 
@@ -1731,6 +2391,67 @@ void AdvProcessingOptions::updateBurbaGroup(bool b)
 {
     burbaCorrCheckBox->setEnabled(b);
     enableBurbaCorrectionArea(b && burbaCorrCheckBox->isChecked());
+    //> After the WPL gate, not before: this can only ever take the box further
+    //> off, and it must have the last word on whether it is enabled.
+    updateBurbaAvailability();
+}
+
+/// Burba terms need an LI-7500 family analyser, and the engine says so itself:
+/// OverrideSettings() forces bu_corr to 'none' when no gas column names one, so
+/// a project that ticks this box without one is asking for a correction that is
+/// then silently dropped. Greyed here instead, and the setting cleared with it,
+/// so the interface and the run agree on what is going to happen.
+///
+/// Deliberately no SmartFlux veto, unlike updateCecAvailability() above. The
+/// engine clears bu_corr in exactly three places - configure_for_express.f90,
+/// configure_for_md_retrieval.f90 and the LI-7500 test in
+/// override_settings.f90 - and none of them is the embedded run environment.
+/// SmartFlux is also the case where the correction matters most, being paired
+/// with the open-path head it describes.
+void AdvProcessingOptions::updateBurbaAvailability()
+{
+    const auto hasLi7500 = hasLi7500FamilyIrga();
+
+    //> The density correction still gates it: an unavailable Burba stays
+    //> unavailable, but an available one is only offered while WPL is on.
+    const auto enabled = hasLi7500 && wplCheckBox->isChecked();
+
+    burbaCorrCheckBox->setEnabled(enabled);
+    burbaCorrCheckBox->setToolTip(hasLi7500
+        ? burbaAvailableTooltip_
+        : tr("<b>Add instrument sensible heat components, only for LI-7500:</b> "
+             "Unavailable. The correction describes the heat exchange at the "
+             "surfaces of an LI-7500 open-path head, so it applies only "
+             "to that family of analyzers - and none is configured in the "
+             "metadata. Add one in the Metadata File Editor to enable it."));
+
+    if (!hasLi7500)
+    {
+        QSignalBlocker blocker(burbaCorrCheckBox);
+        burbaCorrCheckBox->setChecked(false);
+        //> Only when it actually says otherwise. The setter marks the project
+        //> modified unconditionally, and this runs on every metadata read - so
+        //> writing the 0 that is already there would mark a project dirty for
+        //> no reason other than having been opened.
+        if (ecProject_->screenBuCorr() != 0)
+        {
+            ecProject_->setScreenBuCorr(0);
+        }
+        enableBurbaCorrectionArea(false);
+        return;
+    }
+
+    enableBurbaCorrectionArea(enabled && burbaCorrCheckBox->isChecked());
+}
+
+/// Asked of every analyser the metadata describes, which is the same set the
+/// engine walks. The walk itself lives in IrgaDesc, so this page and the
+/// spectral page cannot answer it differently.
+bool AdvProcessingOptions::hasLi7500FamilyIrga() const
+{
+    if (!dlProject_) { return false; }
+
+    return IrgaDesc::hasLi7500Family(dlProject_->irgas());
 }
 
 void AdvProcessingOptions::createQuestionMark()

@@ -1,3 +1,479 @@
+8.1.0 (2026-08-22)
+
+    GUI:
+	- New feature: The Burba instrument sensible heat correction is greyed out, and
+	               its setting cleared, on a project whose metadata describes no
+	               LI-7500 family analyser.
+	               The engine already refuses it in that case - OverrideSettings walks
+	               every gas column and forces bu_corr to 'none' if none names a model
+	               containing li7500 - but it does so SILENTLY, with no warning number,
+	               unlike the conditional eddy covariance partition which at least says
+	               Warning(114). So the box could be ticked, saved, and run, and the
+	               correction quietly not happen. Now the interface and the run agree.
+	               The model set is exactly the engine's four open-path variants -
+	               LI-7500, LI-7500A, LI-7500RS, LI-7500DS. LI-7200 and LI-7700 do not
+	               qualify, which is what the engine's substring test already implies.
+	               This is the only control on the Advanced pages that depends on the
+	               METADATA rather than on the project, so it listens to DlProject:
+	               adding an analyser in the Metadata File Editor enables the box
+	               without reopening the project.
+	               No SmartFlux veto, unlike the partition. The engine clears bu_corr in
+	               exactly three places - express mode, metadata retrieval, and the
+	               LI-7500 test itself - and none of them is the embedded run
+	               environment; SmartFlux is also the case where the correction matters
+	               most, being paired with the open-path head it describes.
+	               The list walk behind it now lives in IrgaDesc, because the spectral
+	               page asks the same question for its Massman fallback and the two had
+	               a copy each: they agreed on which models count and could still have
+	               disagreed on the answer.
+	- New feature: Advanced Settings > Processing Options > Other options gains
+	               "Parallelise the planar fit and time lag pre-passes", which passes
+	               the engine's new -j switch when a run is started.
+	               Before it computes any flux the engine may walk every averaging
+	               period once, to fit the planar fit planes or to optimise the time
+	               lags. Each period in that walk is independent of the others, so it
+	               is split across the processor cores; the results are identical to a
+	               serial run.
+	               The state lives in the application preferences, not in the project.
+	               How many cores this computer should give the engine has nothing to
+	               do with the site being processed, so there is no new ini key, the
+	               generated tag tables do not move, and ecproject.cpp is untouched.
+	               -j is passed in BOTH states, "0" for auto-detect and "1" for serial:
+	               the engine's own default with no -j is to use every core, so an
+	               unticked box that passed nothing would do nothing.
+	               Off by default until the serial-versus-parallel equivalence runs are
+	               signed off; only the two eddyflow_rp launches get it, since FCC has
+	               no pre-pass and metadata retrieval never reaches one.
+	- Fix: The day and night tabs of the Burba multiple-regression parameters
+       could not be clicked. The Conditional Eddy Covariance checkbox was
+       added to the grid at row 27, which the Burba parameter stack already
+       spans: two widgets in one cell overlap, and the one added later is
+       painted over what is underneath it - here, the tab bar. The checkbox
+       now sits on row 33, beside its own settings button, the way every
+       other option carrying one does.
+       The layout stretch moves off row 27 for the same reason. Giving it to
+       a row that holds a widget lets that block absorb the slack instead of
+       the empty space below the group.
+	- Fix: An imported EddyUH project could not be run. It carried no gas records,
+       no master sonic, no column selection and no external-metadata flag, so
+       the engine found no gas analyser, reported an acquisition frequency of
+       zero, parsed no record from any raw file, and ended with "EddyFlow was
+       not able to process any raw file" - which names none of that. Five
+       things were missing, each found by running the imported project:
+         * use_pfile. An EddyUH project always describes generic ASCII files,
+           which carry no embedded metadata, so the pair's metadata file is
+           the only description of the columns there is. Without the flag the
+           engine never opens it.
+         * The gas and cell records. The metadata says what a column IS; the
+           project says which columns the run should USE. In the interface
+           these are filled by the metadata read that follows an import; they
+           are now built by the importer as well, so a project converted
+           without a window open is runnable.
+         * master_sonic. One sonic, nothing to choose between - but left
+           empty the engine has no wind at all.
+         * col_ts, col_air_t and col_air_p. Their state default is -1,
+           "nothing decided", which the engine reads as no selection at all.
+           Zero is "nothing selected here", which is what a project that
+           describes its columns through the records means.
+         * pr_start_time and pr_end_time. The engine honours a date range
+           only when the subset flag is on AND both times are set; with
+           either empty it silently processes every file it can find.
+       The interface also now emits its metadata-read request after an EddyUH
+       import, as it already did after an EddyPro one, so the Basic Settings
+       page agrees with the records the conversion wrote.
+	- New feature: The importer carries EddyUH's despiking across. spi_method 1
+       is its consecutive-difference test, which is what despike_vm 1 does
+       here, and dlim carries the per-column step limits - one per USED column
+       in Columnorder's order, not one per raw column. A NaN limit means the
+       column states none and is left undespiked. The wind and sonic
+       temperature limits go on the project; a gas limit goes on its record,
+       in that gas's own concentration unit.
+       MaxNoSpikes is deliberately NOT carried across: EddyUH's is how many
+       spikes a period may contain, EddyFlow's sr_num_spk is how many
+       consecutive outliers make one spike. Similar names, different
+       quantities. Reported instead.
+       The importer also now says that EddyUH states no absolute limits for
+       any gas - its dlim values are a different test - so the absolute-limits
+       screening will not run unless the user sets them.
+	- Note: The imported project was run end to end against a month of CH-LAE
+       raw data and compared with the EddyUH flux file for the same month.
+       On the 168 half-hourly periods that do not contain the site's hourly
+       calibration, agreement is close: CO2 R2 0.983 on the MGA and 0.981 on
+       the LI-7200, water 0.994 and 0.970, nitrous oxide 0.854, carbonyl
+       sulfide 0.852, sensible heat 0.877, the w-Ts covariance 0.874, wind
+       speed 1.000 - slopes between 0.91 and 1.18 throughout.
+       On the 168 periods that DO contain the calibration, agreement
+       collapses to R2 0.04-0.07. The valve opens for about two minutes every
+       hour and carbonyl sulfide reaches 2e10 nmol/mol; EddyUH screened those
+       periods out, and how it did so is not in its project files. This is the
+       clearest illustration of what the import report warns about.
+       Two departures from the EddyUH project were needed for the comparison
+       and are NOT importer faults: the raw files here are 20 Hz where the
+       project says 10 - EddyUH read a decimated copy that is not on this
+       machine - and absolute limits had to be set by hand, EddyUH having
+       none. Told 10 Hz against 20 Hz files, EddyFlow uses only the first half
+       of every averaging period.
+	- New feature: File > Import EddyUH Project. Reads an EddyUH project - the
+       preproc_ file, with its lag, planar fit and response time siblings
+       found beside it by stem - and fills an EddyFlow project and metadata
+       pair. Nothing is written until you save, as with the EddyPro import:
+       opening a project to look at it is not consent to write two files.
+       What comes across: the site, the measurement height, the boom
+       direction, the averaging interval and file length, the sampling rate,
+       the raw file path and name template, the delimiter, the header rows and
+       the timestamp convention, the rotation and detrending choices, the
+       instruments with their tube geometry and separations, every raw column
+       with its variable, unit, measure type and conversion, and the per-gas
+       lag windows.
+       What cannot come across is listed in the dialog after every import, and
+       the list is never empty. EddyUH collects its flux-time options afresh
+       at every run and writes them only to the text log beside the fluxes, so
+       the spectral correction method, the cospectral model, the peak-frequency
+       parameterisation, the time-lag method, the data screening and the
+       footprint model are simply not in the project files. Nor is the
+       longitude, nor the anemometer's north alignment.
+       Some things are assumed rather than read, and each says so: an EddyUH
+       inlet separation is one unsigned scalar where EddyFlow wants a signed
+       northward and eastward pair, so it goes on the northward axis; a name
+       like "Aerodyne cw-QCL" gives a manufacturer but not a model.
+       One field is deliberately NOT imported. EddyUH stores a path length per
+       gas analyser and uses it in no calculation - only the sonic's reaches
+       EddyUH_TF.m - so its value is unchecked, and the supplied project holds
+       76 for one analyser and 0.125 for the other, an optical path against a
+       physical one. EddyFlow's spectral correction does use it, so importing
+       it would turn a number that meant nothing into one that changes the
+       answer.
+       A raw column no instrument claims becomes Ignore rather than being
+       dropped, which would shift every column after it by one. An
+       unrecognised instrument or variable name is reported and left unset
+       rather than guessed at.
+       A one-dimensional rotation switches rotations OFF rather than being
+       promoted to a double rotation, which would additionally null the
+       vertical wind - the thing the project chose not to do.
+       Verified against the supplied CH-LAE project: 398 of 483 metadata keys
+       identical to the hand-built pair for the same site. Every difference is
+       accounted for - the two projects name the trace-gas analyser
+       differently and list the two analysers in opposite order, the hand-built
+       one describes a raw file with four header rows against EddyUH's one,
+       and the hand-built one predates the spectroscopic keys. The lag windows
+       come across exactly: 16 +/- 1 s and 17 +/- 5 s on the QCL, 0.6 +/- 0.5 s
+       and 4 +/- 4 s on the LI-7200.
+       Pinned by tests/test_eddyuh_import_static.py.
+	- Fix: MATLAB's ...StringList() accessors in this application are sorted
+       alphabetically before they are returned, so the position of a string in
+       one is not the number of the accessor that produced it. The first
+       version of this importer indexed them, which turned raw column 1 into
+       AGC and a Gill HS into an 81000RE - silently, in a file that looked
+       plausible. Every lookup now calls its accessor directly.
+	- Note: DlProject::toIniVariableInstrument splits a column's instrument
+       label on a colon and then on a space and takes element 1 of each
+       without checking, so a label not of the form "Sonic 1: HS-50" does not
+       produce a wrong file - it crashes the save. The importer produces that
+       form, and "Other" where it cannot. The underlying fragility is not
+       fixed here.
+	- New feature: "Metek USA-1 head correction" and "Inclinometer tilt correction"
+       on the Advanced Processing Options page, between the angle-of-attack
+       correction and the axis rotations - which is where they run. Write the
+       engine's new head_corr_meth, head_corr_dir, tilt_sensor_meth,
+       tilt_sensor_v_g, tilt_arm_x/y/z and tilt_lpf_s.
+       Both keys are three-valued with off folded in, so each checkbox writes
+       its combo's index plus one and zero when unticked. The loader refuses
+       anything outside 0..2 by falling back to OFF rather than to one of the
+       two corrections: guessing wrong here rewrites the wind itself.
+       The lever arm greys with the MODE, not with the checkbox, because plain
+       position correction never reads it and a live box invites a number that
+       will be ignored.
+       The labels cannot explain why a planar fit is not already enough, so the
+       tooltips do: a rotation removes the mean tilt over a period, and this
+       removes a tilt that changes within one. They also say where the angle
+       columns come from - theta, phi and psi, declared in the Raw File
+       Description like any other channel, there being no control for it here -
+       that the columns hold volts rather than angles, and that psi is read and
+       then thrown away.
+       The Metek tooltip says plainly that the tables are Metek GmbH's data,
+       are not shipped, and that without all three files the correction
+       declines - otherwise a user ticks the box, walks away, and gets an
+       unchanged answer with no indication why.
+       The swinging mode's tooltip says that EddyUH adds a scalar where the
+       physics wants a vector, and that adjusting the lever arm will not fix
+       it. A user comparing against EddyUH wants that mode; a user who is not
+       wants to avoid it; neither can tell from a label reading "Position and
+       swinging".
+       The page's grid grew six rows, so everything below the angle-of-attack
+       correction moved down six.
+       Pinned by tests/test_sonic_hardware_contract_static.py.
+	- New feature: "Iterate the correction" on the Spectral Corrections page, under the
+	       cospectral model, with a passes spin and a tolerance spin greyed with it.
+	       Writes the engine's new corr_iter_meth, corr_iter_max and corr_iter_tol.
+	       The checkbox label cannot explain why anything needs iterating, so the
+	       tooltip does: the cospectrum is evaluated at z/L, z/L comes from the
+	       corrected heat flux, and that flux is what the correction produces. It
+	       also says that nothing compounds between passes - the obvious worry
+	       about repeating a correction - where the effect is largest, and that the
+	       corr_iter_dev column reports the outcome per period.
+	       A tolerance of zero shows as "run every pass" rather than a bare 0,
+	       because in a box labelled "stop below" a zero reads as "stop at once".
+	       Zero is the default and it is what EddyUH does; the tolerance tooltip
+	       says plainly that setting one departs from EddyUH and changes the
+	       answer, since stopping at pass two is not stopping at pass four.
+	       The loader keeps a zero tolerance and refuses only a negative one, and
+	       refuses a pass count below one - which is what "off" already means.
+	       Pinned by tests/test_corr_iteration_contract_static.py.
+	- Fix: Two combos under the lag-borrowing checkbox: "Judged against" chooses
+	       the noise floor, "Borrow from" chooses the donor. Both default to this
+	       program's own choice, and the second entry on each says "(EddyUH)",
+	       because being EddyUH's is the reason anyone would pick it.
+	       It corrects a fidelity error: EddyUH judges a covariance against the
+	       Lenschow instrument noise and borrows from the analyser's carbon
+	       dioxide, where the original port used the Wienhold detection limit and
+	       the best-resolved tube-mate.
+	       The detection-limit dependency is conditional now. Only that floor is
+	       computed elsewhere, so only that floor needs the setting on the
+	       Statistical Analysis page switched on; the Lenschow floor is measured
+	       from the series in hand. The noise combo itself stays enabled whenever
+	       borrowing is ticked, even when the current choice is the unavailable
+	       one - greying it along with everything else would strand a user whose
+	       detection limit is off, because the control that fixes it is the one
+	       they could not reach.
+	       The carbon-dioxide tooltip states the two consequences the label
+	       cannot: carbon dioxide can then never borrow, since it would be
+	       borrowing from itself, and an analyser that measures none borrows
+	       nothing at all.
+	       An out-of-range value from a later version falls back to our own choice
+	       rather than silently switching to EddyUH's. Both settings join the
+	       comparison that marks a computed dataset stale.
+	       The Processing Options grid grew two rows, so everything below the
+	       borrowing block moved down two - including the quality-control block,
+	       which would otherwise have collided with the rule above it.
+	       Pinned by tests/test_tlag_borrow_contract_static.py.
+	- New feature: Lenschow et al. (2000) joins the random uncertainty menu as a fourth
+	       entry, writing the engine's ru_meth = 5. It estimates the analyser's own
+	       white noise from the step in the autocovariance at zero lag.
+	       Its tooltip carries the three things the menu itself cannot show. That
+	       this is the INSTRUMENT's noise, not a sampling error like the two above
+	       it and not a resolvability floor like Billesbach - four entries all
+	       producing a number in the same units, answering three different
+	       questions. That it DECLINES a period when its assumption fails, so a
+	       column of missing values is the method working rather than the run
+	       failing. And that its five-lag window is fixed in samples, so it spans
+	       half as long at 20 Hz as at 10.
+	       The stored value is 5 on row 3: the row and the method number have not
+	       run in step since 3 became Mahrt, and nothing here derives one from the
+	       other.
+	       Pinned by tests/test_lenschow_noise_contract_static.py.
+	- New feature: A third despiking method on the Statistical Analysis page,
+	       "Consecutive difference (EddyUH)", writing despike_vm = 2. It replaces a
+	       sample that steps further from the one before it than a stated limit, and
+	       counts it as a spike.
+	       Its settings sit in a column of their own rather than beside the existing
+	       ones, because they are a different kind of number: the two methods above
+	       take sigma multipliers and this one takes ABSOLUTE limits in each
+	       variable's own unit. Side by side in the same column would invite reading
+	       one as the other. Four sonic spins - u, v, w and sonic temperature, since
+	       a kelvin is not a metre per second - and a step column in the per-gas
+	       table beside the plausibility one.
+	       The radio's id IS the ini value: 0, 1, 2, with 2 for the new arm.
+	       Renumbering the group to keep its rows contiguous would silently change
+	       the method of every project that states one, so the third button carries
+	       id 2 and the refresh falls back to Vickers for anything it does not know.
+	       A limit of zero shows as "not despiked" rather than a bare 0, on every one
+	       of those spins, because that is what it means and because the engine will
+	       then pass the column over and say so in the run log. The per-gas default
+	       is zero deliberately: an absolute step cannot be guessed from the species
+	       when the unit belongs to the column. The four sonic defaults are EddyUH's
+	       own values for the CH-LAE project - 10, 10, 5 and 10.
+	       The method and all four limits join the comparison that marks a computed
+	       dataset stale, since despiking changes the series everything later is
+	       computed from.
+	       Pinned by tests/test_despike_step_contract_static.py.
+	- New feature: A "Cospectral model" choice under the low-pass correction methods on
+	       the Spectral Corrections page, writing the engine's new cosp_model.
+	       Six curves: Moncrieff et al. (1997) - the default, and what this
+	       program has always used - plus Kaimal et al. (1972), Sakai et al.
+	       (2001), Su et al. (2003), Moraes et al. (2008) and Kristensen et al.
+	       (1997). Each row carries its own citation tooltip.
+	       It sits directly under a list of correction METHODS, which is exactly
+	       why the tooltip opens by saying it is a modifier on whichever of them
+	       is selected and not a seventh entry: it changes the shape they are all
+	       integrated against, and on the test fixture that moves the gas
+	       correction factors by about four percent between the extremes.
+	       The tooltips carry the three things a reader could not get from the
+	       names. That the Reynolds stress keeps Moncrieff's momentum cospectrum
+	       whichever is chosen, because four of the six are scalar cospectra with
+	       no momentum form. That those four have no stability branch either, so
+	       under stable stratification they understate the high-frequency loss.
+	       And that the library is EddyUH's diagnostic curves rather than
+	       EddyUH's method - EddyUH corrects against measured and fitted
+	       cospectra - so picking one is not reproducing EddyUH.
+	       The combo row IS the ini value, with no mapping in between, so the
+	       engine's decode table is not duplicated here. An out-of-range value
+	       from a later version falls back to the default on load rather than
+	       leaving the combo showing Moncrieff while the file says otherwise.
+	       Pinned by tests/test_cosp_model_contract_static.py.
+	- New feature: "Borrow a tube-mate's lag below the detection limit" and its "Detection
+	       limits to clear" threshold, beside the baseline checkbox, writing the
+	       engine's new tlag_borrow_meth and tlag_borrow_snr. A species whose
+	       cross-covariance peak cannot be told from noise takes the lag of the
+	       best-resolved gas on the same analyser rather than a nominal one
+	       (Nemitz et al., 2018). Default 3.0 detection limits, the paper's value.
+	       Both controls are greyed until the flux detection limit is on, because
+	       the test has nothing to compare against without it - and since that
+	       setting lives on the <i>Statistical Analysis</i> page, the tooltip names
+	       where to switch it on rather than leaving the user to hunt for what
+	       disabled a control on this one. The engine refuses the same combination
+	       independently, so a hand-written project cannot get past it either.
+	       The tooltip also states the two things a reader would otherwise have to
+	       find out from a run: that water is never borrowed for or from, and that
+	       a borrowed lag is flagged in <i>&lt;gas&gt;_def_timelag</i> with the
+	       donor named in the run log. Off by default. Pinned by
+	       tests/test_tlag_borrow_contract_static.py.
+	- New feature: "Subtract the cross-covariance baseline", under the time-lag method
+	       it modifies, writing the engine's new covmax_debaseline. It chooses the lag
+	       by the largest departure from the straight line joining the two ends of the
+	       search window rather than by the largest absolute covariance, which is what
+	       a weak flux on a sloping cross-covariance needs. Greyed unless the method
+	       is one of the two that maximise a covariance - Constant does not search,
+	       and the optimiser and the block-bootstrap choose their lags by other
+	       machinery.
+	       The tooltip says explicitly that it changes <b>which lag is selected</b>
+	       and nothing about the covariance reported there, because a checkbox in the
+	       corrections half of that page reads like a correction otherwise. It also
+	       warns that with the baseline removed the window ends score zero by
+	       construction, so the maximum can never land on one - which means
+	       <i>Covariance maximization with default</i> stops falling back to the
+	       nominal lag. Off by default.
+	- Fix: The spectroscopic coefficient tooltips say that the values are spectroscopic
+	       only, and how to convert a published one. EddyUH divides by the same
+	       polynomial but folds the dilution into it - its a = -1 is pure dilution -
+	       while EddyFlow corrects the density separately and its identity is zero.
+	       Someone holding a Rella (2010) number and a box to type it into had nothing
+	       telling them the two are not the same quantity, and entering it unchanged
+	       would count the dilution twice. Both the Processing Options checkbox and the
+	       Spectroscopic a column header now say so, and give the rule: add one to the
+	       EddyUH value. Pinned by tests/test_spectroscopic_contract_static.py.
+	- New feature: "Remove the spectroscopic effect of water vapour", on the Processing
+	       Options page beside the density compensation, writing the engine's new
+	       spectro_meth. Water broadens the absorption lines a laser analyser
+	       measures, so each affected column is divided sample by sample by
+	       1 + a*chi_q + b*chi_q^2, using the water its own analyser read at the same
+	       instant. Deliberately not gated on WPL, and the tooltip says why: WPL is a
+	       density correction and this is an optical one, and the bias is in what the
+	       instrument reported whether or not densities are being compensated.
+	       The per-column a and b are two new rows in the Raw File Description, named
+	       Spectroscopic a and b so that nobody confuses them with Gain value and
+	       Offset value directly above, which are the linear calibration and have
+	       nothing to do with this - both tooltips say so. Zero, the default, leaves
+	       the column untouched.
+	- New feature: "Also correct the water channel (EddyUH form, unpublished)", beneath
+	       it and greyed until it is switched on. It applies the same division to each
+	       hygrometer against its own reading, which is self-broadening. The tooltip
+	       states plainly that this is <b>not part of the published Peltola et al.
+	       (2014) result</b>, that EddyUH does it with a coefficient whose derivation
+	       its own source says is not published anywhere, and that it should be
+	       selected deliberately and reported. Off by default.
+	- New feature: Billesbach (2011) joins the random uncertainty menu, writing the
+	       engine's ru_meth = 4. It estimates a noise floor by reordering each scalar
+	       at random twenty times and averaging the covariance that survives: what
+	       is left after the shuffle was produced by noise alone. The tooltip says
+	       plainly that this is a noise floor and not a sampling error - it answers
+	       whether a flux is resolvable rather than how uncertain it is, and is
+	       systematically smaller than the other two - because the three sit in one
+	       menu and nothing else on the page would tell you they answer different
+	       questions.
+	- Fix: The random uncertainty menu maps to ru_meth by stored value rather than by
+	       row number. It was read as currentIndex() + 1, which held only while the
+	       menu listed exactly the first two methods: the engine's 3 is Mahrt (1998),
+	       which the menu does not offer because the engine computes it
+	       unconditionally, so the third entry is Billesbach at 4 and its position
+	       says nothing about its value. Left as arithmetic, adding the entry would
+	       have selected Mahrt while displaying Billesbach - no error, just a
+	       different method running under the wrong name. Four sites did it; all four
+	       now go through item data, and a project holding a value the menu does not
+	       list leaves the row alone instead of blanking it.
+	- New feature: A "Flux Detection Limit..." dialog, on the Statistical Analysis
+	       page beneath the random uncertainty group, writing the engine's new
+	       detlim_meth, detlim_offset_s and detlim_window_s. It estimates the noise
+	       floor of each gas's covariance with vertical wind after Wienhold et al.
+	       (1994), by measuring the scatter of the cross-covariance function away
+	       from its peak: a flux smaller than its detection limit cannot be told
+	       from zero. Worth having for weak-flux species - on the test dataset
+	       carbonyl sulfide clears three times its limit in 10 half-hours out of 48.
+	       Off by default, and switching it on changes no flux: it only reports the
+	       limit alongside. The two window settings offer Wienhold's own values, 100
+	       s and 50 s, so that enabling the feature reproduces the published method
+	       rather than something chosen here; tests/test_detlim_engine_contract_static.py
+	       compares them against the engine's literals so the two cannot drift.
+	       A dialog rather than controls on the page itself: that grid reserves its
+	       first column for the random-error checkbox and pins a stretch below the
+	       last live row, so a method plus two dependent windows does not sit in it
+	       without a rebuild.
+	       It is deliberately independent of the random uncertainty checkbox above
+	       it - unlike the CEC significance test, which needs a random error to
+	       compare against. These two answer different questions, how uncertain is
+	       this flux against can this flux be told from zero, and either is useful
+	       without the other.
+	       The dialog warns when the window is as wide as its own offset or wider,
+	       which is the one way to configure this so that it measures the flux
+	       instead of the noise under it. The engine refuses that combination and
+	       falls back to the defaults; the warning is the same rule, shown while the
+	       numbers are being set rather than afterwards in the log.
+	- New feature: A checkbox for the engine's new test_rf (Advanced Settings ->
+	               Statistical Analysis, "Extra raw-signal diagnostics (RFlux)"),
+	               off by default. Adapted from RFlux's inst_prob_test() (Vitale
+	               et al. 2020, Biogeosciences) - lag-1 autocorrelation, the
+	               discrete/dominant-value test, robust-scaled spike counts, and
+	               (added after this checkbox first landed) Hartigan's dip test
+	               p-value for multimodality (Hartigan & Hartigan 1985), cited
+	               separately from the RFlux tests in its own tooltip line since
+	               it has its own, older, more precise reference.
+	               Deliberately outside checkbox_list/areAllCheckedTests/
+	               selectAllTest and the toolbox: it has no parameter page of its
+	               own, and "select all" restoring project defaults should not
+	               silently turn on a diagnostic that widens the output file.
+	               Wired through all four places a screen-test flag needs:
+	               saveEcProject, loadEcProject, the fuzzyCompare chain and
+	               newEcProject - the last being where PWB's own flag was missed
+	               entirely when it was added.
+	- New feature: A checkbox for the engine's new test_pfd (Advanced Settings ->
+	               Statistical Analysis, "Post-flux despiking (STL)"), off by
+	               default. Adapted from RFlux's despiking(variant="v1"): unlike
+	               the raw-signal tests above it, this one runs once per run,
+	               after every flux is computed, on the finished half-hourly
+	               NEE/H/LE series rather than on raw high-frequency data - so it
+	               is wired through generalTestPfd()/setGeneralTestPfd() in the
+	               [Project] general settings, not the per-test screenTest
+	               family the raw-data checkboxes above use.
+	               Deliberately outside checkbox_list/areAllCheckedTests/
+	               selectAllTest, for the same reason test_rf is: it has no
+	               parameter page of its own, and it needs at least 20 periods
+	               and 4 periods/day to run at all, so "select all" silently
+	               turning it on would be misleading on a short project.
+	               Wired through the same four places as every other project
+	               setting: ecproject.h's getter/setter, saveEcProject,
+	               loadEcProject and newEcProject. Not part of fuzzyCompare, for
+	               the same reason corr_iter_meth is not - it runs as a
+	               standalone post-pass over already-written output, so it
+	               cannot make a computed dataset stale.
+	- New feature: A fourth entry in the Quality check combo (Advanced
+	               Settings -> Processing Options), "Vitale et al. (2020)
+	               (0-1-2 severity system)", for the engine's new qc_meth
+	               option. A plain fourth qcMethodCombo item, the same shape
+	               as the three it joins - no new checkbox, no new ecproject
+	               field, since qcflag_meth/generalQcMeth() already carry any
+	               integer the engine's select case accepts. The tooltip
+	               names what feeds it - the ITC deviation always, and, on
+	               a project that does not hand spectral corrections off
+	               to FCC, Mahrt's 1998 nonstationarity ratio, the always-
+	               on KID test and (when Extra raw-signal diagnostics is
+	               also on) AL1/DDI/HF/HD/DIP too - and says plainly both
+	               what RFlux's cleanFlux() this leaves out
+	               (low-signal-resolution, physical-range) and that the
+	               wider set drops to ITC-only on the more common project
+	               that does hand off to FCC, rather than implying either
+	               parity with cleanFlux() or that the wider set always
+	               applies. That second caveat was missing from the
+	               tooltip's first wording; corrected once discovered.
+
 8.0.0 (2026-08-20)
 
     GUI:

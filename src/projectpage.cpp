@@ -109,7 +109,7 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
     binaryFileTypeRadio = new QRadioButton(tr("Generic binary"));
     binaryFileTypeRadio->setToolTip(tr("<b>Generic binary:</b> Generic binary (unformatted) raw data files. Limited to fixed-length binary words that contain data stored as single precision (real) numbers."));
 
-    fileTypeRadioGroup = new QButtonGroup;
+    fileTypeRadioGroup = new QButtonGroup(this);
     fileTypeRadioGroup->addButton(ghgFileTyperRadio, 0);
     fileTypeRadioGroup->addButton(asciiFileTypeRadio, 1);
     fileTypeRadioGroup->addButton(tobFileTypeRadio, 2);
@@ -624,10 +624,23 @@ void ProjectPage::refresh()
     dynamicMdFileBrowse->setEnabled(dynamicMdCheckBox->isChecked());
 
     int useBiom = ecProject_->generalUseBiomet();
-    biomDataCheckBox->setChecked(useBiom);
-    if (useBiom)
+
+    //> By id rather than by position in buttons(). The ids are stated when the
+    //> buttons are added, and buttons() is not documented to hand them back in
+    //> that order - but the deciding reason is that button() answers with
+    //> nullptr for a value the group has no button for, where at() walks off
+    //> the end of the list. generalUseBiomet is read straight from the project
+    //> file, so a hand-edited or truncated one puts any integer here.
+    auto* biomButton = (useBiom > 0) ? biomRadioGroup->button(useBiom - 1)
+                                     : nullptr;
+
+    //> Only a value the group can actually show counts as biomet being on.
+    //> Ticking the box for an unusable one left every radio clear underneath it.
+    biomDataCheckBox->setChecked(biomButton != nullptr);
+
+    if (biomButton)
     {
-        biomRadioGroup->buttons().at(useBiom - 1)->setChecked(true);
+        biomButton->setChecked(true);
     }
     else
     {
@@ -638,7 +651,6 @@ void ProjectPage::refresh()
         else
         {
             biomExtFileRadio->click();
-//            biomRadioGroup->buttons().at(1)->setChecked(true);
         }
     }
     biometExtFileBrowse->setPath(ecProject_->generalBiomFile());

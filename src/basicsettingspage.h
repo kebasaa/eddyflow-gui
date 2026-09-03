@@ -32,6 +32,7 @@
 #include <QVector>
 
 #include <functional>
+#include <QHash>
 #include <QWidget>
 
 #include <vector>
@@ -216,7 +217,10 @@ private:
     static const QString FLAG_POLICY_STRING_0;
     static const QString FLAG_POLICY_STRING_1;
 
-    std::vector<bool> oldEnabled {};
+    //> Keyed by the widget rather than by position, and cleared as it is
+    //> consumed. The positional vector it replaces was never cleared, so the
+    //> second exit from SmartFlux mode handed back the first entry's values.
+    QHash<QWidget*, bool> oldEnabled {};
 
     QPushButton* questionMark_1;
     QPushButton* questionMark_2;

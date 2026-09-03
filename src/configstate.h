@@ -49,6 +49,13 @@ struct GenConfigState
 {
     bool loadlastproject = false;
     bool showsplash = true;
+    //> Whether eddyflow_rp may split its planar-fit and time-lag pre-passes
+    //> across worker processes. A machine preference rather than a project
+    //> one - it says how many cores this computer should give the engine,
+    //> which is nothing to do with the site being processed - so it lives
+    //> here and is passed on the command line, not written into the
+    //> .eddyflow. Off until the equivalence runs are signed off.
+    bool parallelPrepass = false;
     int recentnum = 4;
     QString env = QString();
     QStringList recentfiles = QStringList();

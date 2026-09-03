@@ -143,6 +143,12 @@ public:
     void setGeneralStartTime(const QString &t);
     void setGeneralEndTime(const QString &t);
     void setGeneralHfMethod(int n);
+    void setGeneralCospModel(int n);
+    void setGeneralCorrIterMethod(int n);
+    void setGeneralCorrIterMax(int n);
+    void setGeneralCorrIterTol(double d);
+    void setGeneralTestPfd(int n);
+    void setScreenTestStorClean(int n);
     void setGeneralLfMethod(int n);
     void setGeneralWplMeth( int n);
     void setGeneralFpMeth(int n);
@@ -235,6 +241,24 @@ public:
     void setScreenVOffset(double d);
     void setScreenWOffset(double d);
     void setScreenWBoost(int n);
+    void setScreenDetlimMethod(int n);
+    void setScreenSpectroMethod(int n);
+    void setScreenSpectroWater(int n);
+    void setScreenCovmaxDebaseline(int n);
+    void setScreenTlagBorrowMethod(int n);
+    void setScreenTlagBorrowSnr(double d);
+    void setScreenTlagBorrowNoise(int n);
+    void setScreenTlagBorrowDonor(int n);
+    void setScreenTiltSensorMeth(int n);
+    void setScreenTiltSensorVg(double d);
+    void setScreenTiltArmX(double d);
+    void setScreenTiltArmY(double d);
+    void setScreenTiltArmZ(double d);
+    void setScreenTiltLpfS(double d);
+    void setScreenHeadCorrMeth(int n);
+    void setScreenHeadCorrDir(const QString& s);
+    void setScreenDetlimOffset(double d);
+    void setScreenDetlimWindow(double d);
     void setScreenFlowDistortion(int n);
     void setScreenCrossWind(int n);
     void setScreenRotMethod(int n);
@@ -346,6 +370,7 @@ public:
     void setScreenTestTl(int l);
     void setScreenTestAa(int l);
     void setScreenTestNs(int l);
+    void setScreenTestRf(int l);
 
     void setScreenParamSrNumSpk(int n);
     void setScreenParamSrHfLim(double n);
@@ -398,6 +423,10 @@ public:
     void setScreenParamDsSfGas4(double n);
     void setScreenParamDsSfVar(double n);
     void setScreenParamDespikeVm(int n);
+    void setScreenParamSrStepU(double d);
+    void setScreenParamSrStepV(double d);
+    void setScreenParamSrStepW(double d);
+    void setScreenParamSrStepTs(double d);
     void setScreenParamTlHfLim(double n);
     void setScreenParamTlSfLim(double n);
     void setScreenParamTlDefCo2(double n);
@@ -599,6 +628,12 @@ public:
     const QString& generalStartTime() const { return ec_project_state_.projectGeneral.start_time; }
     const QString& generalEndTime() const { return ec_project_state_.projectGeneral.end_time; }
     int generalHfMethod() const { return ec_project_state_.projectGeneral.hf_meth; }
+    int generalCospModel() const { return ec_project_state_.projectGeneral.cosp_model; }
+    int generalCorrIterMethod() const { return ec_project_state_.projectGeneral.corr_iter_meth; }
+    int generalCorrIterMax() const { return ec_project_state_.projectGeneral.corr_iter_max; }
+    double generalCorrIterTol() const { return ec_project_state_.projectGeneral.corr_iter_tol; }
+    int generalTestPfd() const { return ec_project_state_.projectGeneral.test_pfd; }
+    int screenTestStorClean() const { return ec_project_state_.screenSetting.test_stor_clean; }
     int generalLfMethod() const { return ec_project_state_.projectGeneral.lf_meth; }
     int generalWplMeth() const { return ec_project_state_.projectGeneral.wpl_meth; }
     int generalFpMeth() const { return ec_project_state_.projectGeneral.foot_meth; }
@@ -688,6 +723,29 @@ public:
     double screenVOffset() const { return ec_project_state_.screenSetting.v_offset; }
     double screenWOffset() const { return ec_project_state_.screenSetting.w_offset; }
     int screenWBoost() const { return ec_project_state_.screenSetting.gill_wm_wboost; }
+    //> Flux detection limit, Wienhold et al. (1994). Zero is off, which is
+    //> the default: the feature adds a column and must not change what an
+    //> existing project computes.
+    int screenDetlimMethod() const { return ec_project_state_.screenSetting.detlim_meth; }
+    //> Closed-path spectroscopic correction. Zero is off, which is the
+    //> default; the water channel needs its own switch on top.
+    int screenSpectroMethod() const { return ec_project_state_.screenSetting.spectro_meth; }
+    int screenSpectroWater() const { return ec_project_state_.screenSetting.spectro_water; }
+    int screenCovmaxDebaseline() const { return ec_project_state_.screenSetting.covmax_debaseline; }
+    int screenTlagBorrowMethod() const { return ec_project_state_.screenSetting.tlag_borrow_meth; }
+    double screenTlagBorrowSnr() const { return ec_project_state_.screenSetting.tlag_borrow_snr; }
+    int screenTlagBorrowNoise() const { return ec_project_state_.screenSetting.tlag_borrow_noise; }
+    int screenTlagBorrowDonor() const { return ec_project_state_.screenSetting.tlag_borrow_donor; }
+    int screenTiltSensorMeth() const { return ec_project_state_.screenSetting.tilt_sensor_meth; }
+    double screenTiltSensorVg() const { return ec_project_state_.screenSetting.tilt_sensor_v_g; }
+    double screenTiltArmX() const { return ec_project_state_.screenSetting.tilt_arm_x; }
+    double screenTiltArmY() const { return ec_project_state_.screenSetting.tilt_arm_y; }
+    double screenTiltArmZ() const { return ec_project_state_.screenSetting.tilt_arm_z; }
+    double screenTiltLpfS() const { return ec_project_state_.screenSetting.tilt_lpf_s; }
+    int screenHeadCorrMeth() const { return ec_project_state_.screenSetting.head_corr_meth; }
+    const QString& screenHeadCorrDir() const { return ec_project_state_.screenSetting.head_corr_dir; }
+    double screenDetlimOffset() const { return ec_project_state_.screenSetting.detlim_offset_s; }
+    double screenDetlimWindow() const { return ec_project_state_.screenSetting.detlim_window_s; }
     int screenFlowDistortion() const { return ec_project_state_.screenSetting.flow_distortion; }
     int screenCrossWind() const { return ec_project_state_.screenSetting.cross_wind; }
     int screenRotMethod() const { return ec_project_state_.screenSetting.rot_meth; }
@@ -790,6 +848,7 @@ public:
     int screenTestTl() const { return ec_project_state_.screenTest.test_tl; }
     int screenTestAa() const { return ec_project_state_.screenTest.test_aa; }
     int screenTestNs() const { return ec_project_state_.screenTest.test_ns; }
+    int screenTestRf() const { return ec_project_state_.screenTest.test_rf; }
 
     int screenParamSrNumSpk() const { return ec_project_state_.screenParam.sr_num_spk; }
     double screenParamSrULim() const { return ec_project_state_.screenParam.sr_lim_u; }
@@ -847,6 +906,11 @@ public:
     double screenParamDsSfGas4() const { return ec_project_state_.screenParam.ds_sf_other; }
     double screenParamDsSfVar() const { return ec_project_state_.screenParam.ds_sf_var; }
     int screenParamDespikeVm() const { return ec_project_state_.screenParam.despike_vm; }
+    //> Consecutive-difference step limits, in each variable's own units.
+    double screenParamSrStepU() const { return ec_project_state_.screenParam.sr_step_u; }
+    double screenParamSrStepV() const { return ec_project_state_.screenParam.sr_step_v; }
+    double screenParamSrStepW() const { return ec_project_state_.screenParam.sr_step_w; }
+    double screenParamSrStepTs() const { return ec_project_state_.screenParam.sr_step_ts; }
 
     double screenParamTlHfLim() const { return ec_project_state_.screenParam.tl_hf_lim; }
     double screenParamTlSfLim() const { return ec_project_state_.screenParam.tl_sf_lim; }
@@ -1022,6 +1086,17 @@ public:
 
 public slots:
     void setModified(bool mod);
+
+public:
+    //> Tell every page to redraw itself from the project.
+    //>
+    //> loadEcProject ends by emitting ecProjectChanged, which is what makes
+    //> ProjectPage::refresh() pick up the file type, the metadata choice and
+    //> the rest. Anything that fills a project WITHOUT going through the
+    //> loader - the EddyUH importer does, since a MAT file cannot be renamed
+    //> into an ini - leaves every page showing the project it replaced. A
+    //> signal can only be emitted by its own class, hence this.
+    void announceProjectChanged() { emit ecProjectChanged(); }
 
 signals:
     // send that the project has been created

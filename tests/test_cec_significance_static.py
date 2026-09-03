@@ -165,7 +165,14 @@ class TheOtherPageHearsAboutIt(unittest.TestCase):
         self.assertIn("QSignalBlocker checkBoxBlocker(randomErrorCheckBox)", fn)
         self.assertIn("QSignalBlocker comboBlocker(randomMethodCombo)", fn)
         self.assertIn("randomErrorCheckBox->setChecked(method != 0)", fn)
-        self.assertIn("randomMethodCombo->setCurrentIndex(method - 1)", fn)
+        #> By stored value, not `method - 1`. That arithmetic held only while
+        #> the menu listed exactly the first two methods; Billesbach is
+        #> ru_meth 4 on row 2, because 3 is Mahrt and the menu does not offer
+        #> it. See test_random_method_mapping_static.py, which pins the whole
+        #> mapping - this only has to know that the page still points the
+        #> combo at whatever CEC wrote.
+        self.assertIn("randomMethodCombo->findData(method)", fn)
+        self.assertIn("randomMethodCombo->setCurrentIndex(row)", fn)
         #> And the estimator's own settings follow, wherever the switch came
         #> from - one helper, so the two paths cannot drift apart.
         self.assertIn("setRandomErrorControlsEnabled(method != 0)", fn)

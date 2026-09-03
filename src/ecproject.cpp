@@ -325,6 +325,29 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
     dataSetTest = dataSetTest && (ec_project_state_.screenGeneral.flag10_policy == previousProject.ec_project_state_.screenGeneral.flag10_policy);
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.max_lack == previousProject.ec_project_state_.screenSetting.max_lack);
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.instr_max_lack == previousProject.ec_project_state_.screenSetting.instr_max_lack);
+    //> The detection limit changes an output column, so a change to any of
+    //> the three invalidates a computed dataset the same way a despiking
+    //> threshold does.
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.detlim_meth == previousProject.ec_project_state_.screenSetting.detlim_meth);
+    dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.detlim_offset_s, previousProject.ec_project_state_.screenSetting.detlim_offset_s);
+    dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.detlim_window_s, previousProject.ec_project_state_.screenSetting.detlim_window_s);
+    //> The spectroscopic correction changes the raw series, so it invalidates
+    //> a computed dataset more thoroughly than most settings on this page.
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.spectro_meth == previousProject.ec_project_state_.screenSetting.spectro_meth);
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.spectro_water == previousProject.ec_project_state_.screenSetting.spectro_water);
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.covmax_debaseline == previousProject.ec_project_state_.screenSetting.covmax_debaseline);
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.tlag_borrow_meth == previousProject.ec_project_state_.screenSetting.tlag_borrow_meth);
+    dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.tlag_borrow_snr, previousProject.ec_project_state_.screenSetting.tlag_borrow_snr);
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.tlag_borrow_noise == previousProject.ec_project_state_.screenSetting.tlag_borrow_noise);
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.tlag_borrow_donor == previousProject.ec_project_state_.screenSetting.tlag_borrow_donor);
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.tilt_sensor_meth == previousProject.ec_project_state_.screenSetting.tilt_sensor_meth);
+    dataSetTest = dataSetTest && (qFuzzyCompare(ec_project_state_.screenSetting.tilt_sensor_v_g, previousProject.ec_project_state_.screenSetting.tilt_sensor_v_g));
+    dataSetTest = dataSetTest && (qFuzzyCompare(ec_project_state_.screenSetting.tilt_arm_x, previousProject.ec_project_state_.screenSetting.tilt_arm_x));
+    dataSetTest = dataSetTest && (qFuzzyCompare(ec_project_state_.screenSetting.tilt_arm_y, previousProject.ec_project_state_.screenSetting.tilt_arm_y));
+    dataSetTest = dataSetTest && (qFuzzyCompare(ec_project_state_.screenSetting.tilt_arm_z, previousProject.ec_project_state_.screenSetting.tilt_arm_z));
+    dataSetTest = dataSetTest && (qFuzzyCompare(ec_project_state_.screenSetting.tilt_lpf_s, previousProject.ec_project_state_.screenSetting.tilt_lpf_s));
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.head_corr_meth == previousProject.ec_project_state_.screenSetting.head_corr_meth);
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.head_corr_dir == previousProject.ec_project_state_.screenSetting.head_corr_dir);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.u_offset, previousProject.ec_project_state_.screenSetting.u_offset);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.v_offset, previousProject.ec_project_state_.screenSetting.v_offset);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.w_offset, previousProject.ec_project_state_.screenSetting.w_offset);
@@ -469,7 +492,8 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
         && previousSettingsCompare(ec_project_state_.screenTest.test_ds, previousProject.ec_project_state_.screenTest.test_ds)
         && previousSettingsCompare(ec_project_state_.screenTest.test_tl, previousProject.ec_project_state_.screenTest.test_tl)
         && previousSettingsCompare(ec_project_state_.screenTest.test_aa, previousProject.ec_project_state_.screenTest.test_aa)
-        && previousSettingsCompare(ec_project_state_.screenTest.test_ns, previousProject.ec_project_state_.screenTest.test_ns);
+        && previousSettingsCompare(ec_project_state_.screenTest.test_ns, previousProject.ec_project_state_.screenTest.test_ns)
+        && previousSettingsCompare(ec_project_state_.screenTest.test_rf, previousProject.ec_project_state_.screenTest.test_rf);
 
     subTest = (ec_project_state_.screenTest.test_sr && previousProject.ec_project_state_.screenTest.test_sr);
     if (subTest)
@@ -557,7 +581,13 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_uv, previousProject.ec_project_state_.screenParam.ds_sf_uv)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_var, previousProject.ec_project_state_.screenParam.ds_sf_var)
                && qFuzzyCompare(ec_project_state_.screenParam.ds_sf_w, previousProject.ec_project_state_.screenParam.ds_sf_w)
-               && ec_project_state_.screenParam.despike_vm == previousProject.ec_project_state_.screenParam.despike_vm;
+               && ec_project_state_.screenParam.despike_vm == previousProject.ec_project_state_.screenParam.despike_vm
+               //> The step limits change which samples are replaced, so they
+               //> invalidate a computed dataset exactly as the method does.
+               && qFuzzyCompare(ec_project_state_.screenParam.sr_step_u, previousProject.ec_project_state_.screenParam.sr_step_u)
+               && qFuzzyCompare(ec_project_state_.screenParam.sr_step_v, previousProject.ec_project_state_.screenParam.sr_step_v)
+               && qFuzzyCompare(ec_project_state_.screenParam.sr_step_w, previousProject.ec_project_state_.screenParam.sr_step_w)
+               && qFuzzyCompare(ec_project_state_.screenParam.sr_step_ts, previousProject.ec_project_state_.screenParam.sr_step_ts);
     }
 
     subTest = (ec_project_state_.screenTest.test_tl && previousProject.ec_project_state_.screenTest.test_tl);
@@ -910,6 +940,11 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.projectGeneral.end_time = QTime(23, 59).toString(QStringLiteral("hh:mm"));
     ec_project_state_.projectGeneral.hf_meth = defaultEcProjectState.projectGeneral.hf_meth;
     ec_project_state_.projectGeneral.lf_meth = defaultEcProjectState.projectGeneral.lf_meth;
+    ec_project_state_.projectGeneral.cosp_model = defaultEcProjectState.projectGeneral.cosp_model;
+    ec_project_state_.projectGeneral.corr_iter_meth = defaultEcProjectState.projectGeneral.corr_iter_meth;
+    ec_project_state_.projectGeneral.corr_iter_max = defaultEcProjectState.projectGeneral.corr_iter_max;
+    ec_project_state_.projectGeneral.corr_iter_tol = defaultEcProjectState.projectGeneral.corr_iter_tol;
+    ec_project_state_.projectGeneral.test_pfd = defaultEcProjectState.projectGeneral.test_pfd;
     ec_project_state_.projectGeneral.wpl_meth = defaultEcProjectState.projectGeneral.wpl_meth;
     ec_project_state_.projectGeneral.foot_meth = defaultEcProjectState.projectGeneral.foot_meth;
     ec_project_state_.projectGeneral.cec_meth = defaultEcProjectState.projectGeneral.cec_meth;
@@ -991,6 +1026,25 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenSetting.w_offset = defaultEcProjectState.screenSetting.w_offset;
     ec_project_state_.screenSetting.cross_wind = defaultEcProjectState.screenSetting.cross_wind;
     ec_project_state_.screenSetting.gill_wm_wboost = defaultEcProjectState.screenSetting.gill_wm_wboost;
+    ec_project_state_.screenSetting.detlim_meth = defaultEcProjectState.screenSetting.detlim_meth;
+    ec_project_state_.screenSetting.detlim_offset_s = defaultEcProjectState.screenSetting.detlim_offset_s;
+    ec_project_state_.screenSetting.detlim_window_s = defaultEcProjectState.screenSetting.detlim_window_s;
+    ec_project_state_.screenSetting.spectro_meth = defaultEcProjectState.screenSetting.spectro_meth;
+    ec_project_state_.screenSetting.spectro_water = defaultEcProjectState.screenSetting.spectro_water;
+    ec_project_state_.screenSetting.covmax_debaseline = defaultEcProjectState.screenSetting.covmax_debaseline;
+    ec_project_state_.screenSetting.test_stor_clean = defaultEcProjectState.screenSetting.test_stor_clean;
+    ec_project_state_.screenSetting.tlag_borrow_meth = defaultEcProjectState.screenSetting.tlag_borrow_meth;
+    ec_project_state_.screenSetting.tlag_borrow_snr = defaultEcProjectState.screenSetting.tlag_borrow_snr;
+    ec_project_state_.screenSetting.tlag_borrow_noise = defaultEcProjectState.screenSetting.tlag_borrow_noise;
+    ec_project_state_.screenSetting.tlag_borrow_donor = defaultEcProjectState.screenSetting.tlag_borrow_donor;
+    ec_project_state_.screenSetting.tilt_sensor_meth = defaultEcProjectState.screenSetting.tilt_sensor_meth;
+    ec_project_state_.screenSetting.tilt_sensor_v_g = defaultEcProjectState.screenSetting.tilt_sensor_v_g;
+    ec_project_state_.screenSetting.tilt_arm_x = defaultEcProjectState.screenSetting.tilt_arm_x;
+    ec_project_state_.screenSetting.tilt_arm_y = defaultEcProjectState.screenSetting.tilt_arm_y;
+    ec_project_state_.screenSetting.tilt_arm_z = defaultEcProjectState.screenSetting.tilt_arm_z;
+    ec_project_state_.screenSetting.tilt_lpf_s = defaultEcProjectState.screenSetting.tilt_lpf_s;
+    ec_project_state_.screenSetting.head_corr_meth = defaultEcProjectState.screenSetting.head_corr_meth;
+    ec_project_state_.screenSetting.head_corr_dir = defaultEcProjectState.screenSetting.head_corr_dir;
     ec_project_state_.screenSetting.flow_distortion = defaultEcProjectState.screenSetting.flow_distortion;
     ec_project_state_.screenSetting.rot_meth = defaultEcProjectState.screenSetting.rot_meth;
     ec_project_state_.screenSetting.detrend_meth = defaultEcProjectState.screenSetting.detrend_meth;
@@ -1092,6 +1146,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenTest.test_tl = defaultEcProjectState.screenTest.test_tl;
     ec_project_state_.screenTest.test_aa = defaultEcProjectState.screenTest.test_aa;
     ec_project_state_.screenTest.test_ns = defaultEcProjectState.screenTest.test_ns;
+    ec_project_state_.screenTest.test_rf = defaultEcProjectState.screenTest.test_rf;
 
     // preproc parameters section
     ec_project_state_.screenParam.aa_lim = defaultEcProjectState.screenParam.aa_lim;
@@ -1129,6 +1184,10 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenParam.ds_sf_other = defaultEcProjectState.screenParam.ds_sf_other;
     ec_project_state_.screenParam.ds_sf_var = defaultEcProjectState.screenParam.ds_sf_var;
     ec_project_state_.screenParam.despike_vm = defaultEcProjectState.screenParam.despike_vm;
+    ec_project_state_.screenParam.sr_step_u = defaultEcProjectState.screenParam.sr_step_u;
+    ec_project_state_.screenParam.sr_step_v = defaultEcProjectState.screenParam.sr_step_v;
+    ec_project_state_.screenParam.sr_step_w = defaultEcProjectState.screenParam.sr_step_w;
+    ec_project_state_.screenParam.sr_step_ts = defaultEcProjectState.screenParam.sr_step_ts;
     ec_project_state_.screenParam.do_extlim_dw = defaultEcProjectState.screenParam.do_extlim_dw;
     ec_project_state_.screenParam.do_hf1_lim = defaultEcProjectState.screenParam.do_hf1_lim;
     ec_project_state_.screenParam.do_hf2_lim = defaultEcProjectState.screenParam.do_hf2_lim;
@@ -1625,6 +1684,11 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_PROJECT_45, ec_project_state_.projectGeneral.end_time);
         project_ini.setValue(EcIni::INI_PROJECT_46, ec_project_state_.projectGeneral.hf_meth);
         project_ini.setValue(EcIni::INI_PROJECT_47, ec_project_state_.projectGeneral.lf_meth);
+        project_ini.setValue(EcIni::INI_PROJECT_83, ec_project_state_.projectGeneral.cosp_model);
+        project_ini.setValue(EcIni::INI_PROJECT_84, ec_project_state_.projectGeneral.corr_iter_meth);
+        project_ini.setValue(EcIni::INI_PROJECT_85, ec_project_state_.projectGeneral.corr_iter_max);
+        project_ini.setValue(EcIni::INI_PROJECT_86, ec_project_state_.projectGeneral.corr_iter_tol);
+        project_ini.setValue(EcIni::INI_PROJECT_87, ec_project_state_.projectGeneral.test_pfd);
         project_ini.setValue(EcIni::INI_PROJECT_48, ec_project_state_.projectGeneral.wpl_meth);
         project_ini.setValue(EcIni::INI_PROJECT_49, ec_project_state_.projectGeneral.foot_meth);
         project_ini.setValue(EcIni::INI_PROJECT_72, ec_project_state_.projectGeneral.cec_meth);
@@ -1822,6 +1886,25 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_13, ec_project_state_.screenSetting.v_offset);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_14, ec_project_state_.screenSetting.w_offset);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_101, ec_project_state_.screenSetting.gill_wm_wboost);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_102, ec_project_state_.screenSetting.detlim_meth);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_103, ec_project_state_.screenSetting.detlim_offset_s);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_104, ec_project_state_.screenSetting.detlim_window_s);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_105, ec_project_state_.screenSetting.spectro_meth);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_106, ec_project_state_.screenSetting.spectro_water);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_107, ec_project_state_.screenSetting.covmax_debaseline);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_108, ec_project_state_.screenSetting.tlag_borrow_meth);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_109, ec_project_state_.screenSetting.tlag_borrow_snr);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_110, ec_project_state_.screenSetting.tlag_borrow_noise);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_111, ec_project_state_.screenSetting.tlag_borrow_donor);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_112, ec_project_state_.screenSetting.tilt_sensor_meth);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_113, QString::number(ec_project_state_.screenSetting.tilt_sensor_v_g, 'f', 4));
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_114, QString::number(ec_project_state_.screenSetting.tilt_arm_x, 'f', 4));
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_115, QString::number(ec_project_state_.screenSetting.tilt_arm_y, 'f', 4));
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_116, QString::number(ec_project_state_.screenSetting.tilt_arm_z, 'f', 4));
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_117, QString::number(ec_project_state_.screenSetting.tilt_lpf_s, 'f', 4));
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_118, ec_project_state_.screenSetting.head_corr_meth);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_119, ec_project_state_.screenSetting.head_corr_dir);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_120, ec_project_state_.screenSetting.test_stor_clean);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_2, ec_project_state_.screenSetting.cross_wind);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_3, ec_project_state_.screenSetting.flow_distortion);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_4, ec_project_state_.screenSetting.rot_meth);
@@ -1949,6 +2032,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_TESTS_6, ec_project_state_.screenTest.test_tl);
         project_ini.setValue(EcIni::INI_SCREEN_TESTS_7, ec_project_state_.screenTest.test_aa);
         project_ini.setValue(EcIni::INI_SCREEN_TESTS_8, ec_project_state_.screenTest.test_ns);
+        project_ini.setValue(EcIni::INI_SCREEN_TESTS_9, ec_project_state_.screenTest.test_rf);
     project_ini.endGroup();
 
     // screen param section
@@ -1984,6 +2068,10 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_33, QString::number(ec_project_state_.screenParam.ds_sf_t, 'f', 2));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_36, QString::number(ec_project_state_.screenParam.ds_sf_var, 'f', 2));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_60, ec_project_state_.screenParam.despike_vm);
+        project_ini.setValue(EcIni::INI_SCREEN_PARAM_61, ec_project_state_.screenParam.sr_step_u);
+        project_ini.setValue(EcIni::INI_SCREEN_PARAM_62, ec_project_state_.screenParam.sr_step_v);
+        project_ini.setValue(EcIni::INI_SCREEN_PARAM_63, ec_project_state_.screenParam.sr_step_w);
+        project_ini.setValue(EcIni::INI_SCREEN_PARAM_64, ec_project_state_.screenParam.sr_step_ts);
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_37, QString::number(ec_project_state_.screenParam.tl_hf_lim, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_38, QString::number(ec_project_state_.screenParam.tl_sf_lim, 'f', 1));
         project_ini.setValue(EcIni::INI_SCREEN_PARAM_41, QString::number(ec_project_state_.screenParam.aa_min, 'f', 1));
@@ -2011,6 +2099,17 @@ bool EcProject::saveEcProject(const QString &filename)
                 {
                     project_ini.setValue(p + QStringLiteral("sr_lim"),
                                          QString::number(proc.srLim, 'f', 1));
+                }
+                //> Six decimals for the same reason as the absolute limits
+                //> below: this is a step in the gas's OWN unit, so a species
+                //> reported in ppb has a plausible limit down at 1e-3 and
+                //> one decimal would round it to zero - which the engine
+                //> reads as "no limit stated" and leaves the column
+                //> undespiked without saying why.
+                if (proc.stepLim >= 0.0)
+                {
+                    project_ini.setValue(p + QStringLiteral("step_lim"),
+                                         QString::number(proc.stepLim, 'f', 6));
                 }
                 //> Six decimals, not three. These are umol/mol (mmol/mol for
                 //> water) whatever unit the column reports, so a gas measured
@@ -2626,6 +2725,42 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.projectGeneral.lf_meth
                 = project_ini.value(EcIni::INI_PROJECT_47,
                                     defaultEcProjectState.projectGeneral.lf_meth).toInt();
+        ec_project_state_.projectGeneral.cosp_model
+                = project_ini.value(EcIni::INI_PROJECT_83,
+                                    defaultEcProjectState.projectGeneral.cosp_model).toInt();
+        //> A value from some later version would land on no combo row and
+        //> silently show the first. The engine falls back the same way.
+        if (ec_project_state_.projectGeneral.cosp_model < 0
+            || ec_project_state_.projectGeneral.cosp_model > 5)
+        {
+            ec_project_state_.projectGeneral.cosp_model
+                    = defaultEcProjectState.projectGeneral.cosp_model;
+        }
+        ec_project_state_.projectGeneral.corr_iter_meth
+                = project_ini.value(EcIni::INI_PROJECT_84,
+                                    defaultEcProjectState.projectGeneral.corr_iter_meth).toInt();
+        //> One pass is the un-iterated case and is what "off" already means,
+        //> so anything below it is a typed-in mistake. The engine falls back
+        //> the same way.
+        {
+            const auto n = project_ini.value(
+                EcIni::INI_PROJECT_85,
+                defaultEcProjectState.projectGeneral.corr_iter_max).toInt();
+            ec_project_state_.projectGeneral.corr_iter_max = n >= 1
+                    ? n
+                    : defaultEcProjectState.projectGeneral.corr_iter_max;
+            //> Zero is legitimate here - it means "run every pass", which is
+            //> EddyUH's behaviour - so only a negative one is refused.
+            const auto t = project_ini.value(
+                EcIni::INI_PROJECT_86,
+                defaultEcProjectState.projectGeneral.corr_iter_tol).toDouble();
+            ec_project_state_.projectGeneral.corr_iter_tol = t >= 0.0
+                    ? t
+                    : defaultEcProjectState.projectGeneral.corr_iter_tol;
+        }
+        ec_project_state_.projectGeneral.test_pfd
+                = project_ini.value(EcIni::INI_PROJECT_87,
+                                    defaultEcProjectState.projectGeneral.test_pfd).toInt();
         ec_project_state_.projectGeneral.wpl_meth
                 = project_ini.value(EcIni::INI_PROJECT_48,
                                     defaultEcProjectState.projectGeneral.wpl_meth).toInt();
@@ -3139,6 +3274,123 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenSetting.gill_wm_wboost
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_101,
                                     defaultEcProjectState.screenSetting.gill_wm_wboost).toInt();
+        //> Flux detection limit. Sanitised on the way in, the way
+        //> cec_singular_band is: the engine refuses a window that reaches
+        //> into the peak and falls back to Wienhold's values, and the two
+        //> sides have to agree or the same file computes different numbers
+        //> depending on whether it was opened here first.
+        ec_project_state_.screenSetting.detlim_meth
+                = project_ini.value(EcIni::INI_SCREEN_SETTINGS_102,
+                                    defaultEcProjectState.screenSetting.detlim_meth).toInt();
+        {
+            bool offsetOk = false;
+            bool windowOk = false;
+            const double detlimOffset
+                    = project_ini.value(EcIni::INI_SCREEN_SETTINGS_103,
+                                        defaultEcProjectState.screenSetting.detlim_offset_s).toDouble(&offsetOk);
+            const double detlimWindow
+                    = project_ini.value(EcIni::INI_SCREEN_SETTINGS_104,
+                                        defaultEcProjectState.screenSetting.detlim_window_s).toDouble(&windowOk);
+            const bool detlimUsable = offsetOk && windowOk
+                    && detlimOffset > 0.0 && detlimWindow > 0.0
+                    && detlimWindow < detlimOffset;
+            ec_project_state_.screenSetting.detlim_offset_s = detlimUsable
+                    ? detlimOffset
+                    : defaultEcProjectState.screenSetting.detlim_offset_s;
+            ec_project_state_.screenSetting.detlim_window_s = detlimUsable
+                    ? detlimWindow
+                    : defaultEcProjectState.screenSetting.detlim_window_s;
+        }
+        ec_project_state_.screenSetting.spectro_meth
+                = project_ini.value(EcIni::INI_SCREEN_SETTINGS_105,
+                                    defaultEcProjectState.screenSetting.spectro_meth).toInt();
+        ec_project_state_.screenSetting.spectro_water
+                = project_ini.value(EcIni::INI_SCREEN_SETTINGS_106,
+                                    defaultEcProjectState.screenSetting.spectro_water).toInt();
+        ec_project_state_.screenSetting.covmax_debaseline
+                = project_ini.value(EcIni::INI_SCREEN_SETTINGS_107,
+                                    defaultEcProjectState.screenSetting.covmax_debaseline).toInt();
+        ec_project_state_.screenSetting.tlag_borrow_meth
+                = project_ini.value(EcIni::INI_SCREEN_SETTINGS_108,
+                                    defaultEcProjectState.screenSetting.tlag_borrow_meth).toInt();
+        {
+            //> Sanitised like the detection-limit windows: a non-positive
+            //> multiplier would make every gas borrow, which is a typed-in
+            //> zero rather than a setting anyone means. The engine refuses
+            //> it too, and the two have to agree.
+            bool snrOk = false;
+            const double borrowSnr
+                    = project_ini.value(EcIni::INI_SCREEN_SETTINGS_109,
+                                        defaultEcProjectState.screenSetting.tlag_borrow_snr).toDouble(&snrOk);
+            ec_project_state_.screenSetting.tlag_borrow_snr = (snrOk && borrowSnr > 0.0)
+                    ? borrowSnr
+                    : defaultEcProjectState.screenSetting.tlag_borrow_snr;
+        }
+        //> Two-valued, so anything outside {0,1} is a project from a
+        //> version this one does not know. Falling back to our own choice
+        //> keeps the behaviour the file was computed with rather than
+        //> silently switching to EddyUH's.
+        const auto readChoice = [&](const QString& key, int fallback)
+        {
+            const auto v = project_ini.value(key, fallback).toInt();
+            return (v == 0 || v == 1) ? v : fallback;
+        };
+        ec_project_state_.screenSetting.tlag_borrow_noise = readChoice(
+            EcIni::INI_SCREEN_SETTINGS_110,
+            defaultEcProjectState.screenSetting.tlag_borrow_noise);
+        ec_project_state_.screenSetting.tlag_borrow_donor = readChoice(
+            EcIni::INI_SCREEN_SETTINGS_111,
+            defaultEcProjectState.screenSetting.tlag_borrow_donor);
+        //> Three-valued rather than two, so readChoice above does not fit.
+        //> Same intent: a value this version does not know falls back to off
+        //> rather than to one of the two corrections, because guessing wrong
+        //> here rewrites the wind itself.
+        const auto readMode = [&](const QString& key, int fallback)
+        {
+            const auto v = project_ini.value(key, fallback).toInt();
+            return (v >= 0 && v <= 2) ? v : fallback;
+        };
+        ec_project_state_.screenSetting.tilt_sensor_meth = readMode(
+            EcIni::INI_SCREEN_SETTINGS_112,
+            defaultEcProjectState.screenSetting.tilt_sensor_meth);
+        ec_project_state_.screenSetting.head_corr_meth = readMode(
+            EcIni::INI_SCREEN_SETTINGS_118,
+            defaultEcProjectState.screenSetting.head_corr_meth);
+        {
+            //> A sensitivity of zero divides the whole series by nothing and
+            //> a negative filter length is not a length. Both are refused
+            //> here as well as in the engine, so a hand-edited file is caught
+            //> on the way in rather than quietly repaired on the way out.
+            bool ok = false;
+            const double vg
+                    = project_ini.value(EcIni::INI_SCREEN_SETTINGS_113,
+                                        defaultEcProjectState.screenSetting.tilt_sensor_v_g).toDouble(&ok);
+            ec_project_state_.screenSetting.tilt_sensor_v_g = (ok && vg > 0.0)
+                    ? vg
+                    : defaultEcProjectState.screenSetting.tilt_sensor_v_g;
+            const double lpf
+                    = project_ini.value(EcIni::INI_SCREEN_SETTINGS_117,
+                                        defaultEcProjectState.screenSetting.tilt_lpf_s).toDouble(&ok);
+            ec_project_state_.screenSetting.tilt_lpf_s = (ok && lpf >= 0.0)
+                    ? lpf
+                    : defaultEcProjectState.screenSetting.tilt_lpf_s;
+        }
+        //> The arm has no sign or range to enforce: a mast can lean any way.
+        ec_project_state_.screenSetting.tilt_arm_x
+                = project_ini.value(EcIni::INI_SCREEN_SETTINGS_114,
+                                    defaultEcProjectState.screenSetting.tilt_arm_x).toDouble();
+        ec_project_state_.screenSetting.tilt_arm_y
+                = project_ini.value(EcIni::INI_SCREEN_SETTINGS_115,
+                                    defaultEcProjectState.screenSetting.tilt_arm_y).toDouble();
+        ec_project_state_.screenSetting.tilt_arm_z
+                = project_ini.value(EcIni::INI_SCREEN_SETTINGS_116,
+                                    defaultEcProjectState.screenSetting.tilt_arm_z).toDouble();
+        ec_project_state_.screenSetting.head_corr_dir
+                = project_ini.value(EcIni::INI_SCREEN_SETTINGS_119,
+                                    defaultEcProjectState.screenSetting.head_corr_dir).toString();
+        ec_project_state_.screenSetting.test_stor_clean
+                = project_ini.value(EcIni::INI_SCREEN_SETTINGS_120,
+                                    defaultEcProjectState.screenSetting.test_stor_clean).toInt();
         ec_project_state_.screenSetting.flow_distortion
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_3,
                                     defaultEcProjectState.screenSetting.flow_distortion).toInt();
@@ -3463,6 +3715,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenTest.test_ns
                 = project_ini.value(EcIni::INI_SCREEN_TESTS_8,
                                     defaultEcProjectState.screenTest.test_ns).toInt();
+        ec_project_state_.screenTest.test_rf
+                = project_ini.value(EcIni::INI_SCREEN_TESTS_9,
+                                    defaultEcProjectState.screenTest.test_rf).toInt();
     project_ini.endGroup();
 
     // preproc test section
@@ -3625,6 +3880,21 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenParam.despike_vm
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_60,
                                     defaultEcProjectState.screenParam.despike_vm).toInt();
+        //> Zero is a legitimate value here - it means "do not despike this
+        //> column" - so a negative one is the only thing to reject.
+        const auto readStep = [&](const QString& key, qreal fallback)
+        {
+            const auto v = project_ini.value(key, fallback).toDouble();
+            return v >= 0.0 ? v : fallback;
+        };
+        ec_project_state_.screenParam.sr_step_u = readStep(
+            EcIni::INI_SCREEN_PARAM_61, defaultEcProjectState.screenParam.sr_step_u);
+        ec_project_state_.screenParam.sr_step_v = readStep(
+            EcIni::INI_SCREEN_PARAM_62, defaultEcProjectState.screenParam.sr_step_v);
+        ec_project_state_.screenParam.sr_step_w = readStep(
+            EcIni::INI_SCREEN_PARAM_63, defaultEcProjectState.screenParam.sr_step_w);
+        ec_project_state_.screenParam.sr_step_ts = readStep(
+            EcIni::INI_SCREEN_PARAM_64, defaultEcProjectState.screenParam.sr_step_ts);
         ec_project_state_.screenParam.tl_hf_lim
                 = project_ini.value(EcIni::INI_SCREEN_PARAM_37,
                                     defaultEcProjectState.screenParam.tl_hf_lim).toDouble();
@@ -3671,6 +3941,7 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
                 if (!value.isEmpty()) { target = value.toDouble(); }
             };
             readInto(QStringLiteral("sr_lim"), proc.srLim);
+            readInto(QStringLiteral("step_lim"), proc.stepLim);
             readInto(QStringLiteral("al_min"), proc.alMin);
             readInto(QStringLiteral("al_max"), proc.alMax);
             readInto(QStringLiteral("ds_hf"), proc.dsHf);
@@ -4338,6 +4609,7 @@ static void seedGasProcessingGaps(GasProcessingSettings& proc,
     }
 
     put(proc.srLim, d.srLim);
+    put(proc.stepLim, d.stepLim);
     put(proc.alMin, d.alMin);
     put(proc.alMax, d.alMax);
     put(proc.dsHf, d.dsHf);
@@ -5558,6 +5830,114 @@ void EcProject::setScreenWOffset(double d)
     setModified(true);
 }
 
+void EcProject::setScreenDetlimMethod(int n)
+{
+    ec_project_state_.screenSetting.detlim_meth = n;
+    setModified(true);
+}
+
+void EcProject::setScreenSpectroMethod(int n)
+{
+    ec_project_state_.screenSetting.spectro_meth = n;
+    setModified(true);
+}
+
+void EcProject::setScreenTlagBorrowMethod(int n)
+{
+    ec_project_state_.screenSetting.tlag_borrow_meth = n;
+    setModified(true);
+}
+
+void EcProject::setScreenTlagBorrowSnr(double d)
+{
+    ec_project_state_.screenSetting.tlag_borrow_snr = d;
+    setModified(true);
+}
+
+void EcProject::setScreenTlagBorrowNoise(int n)
+{
+    ec_project_state_.screenSetting.tlag_borrow_noise = n;
+    setModified(true);
+}
+
+void EcProject::setScreenTlagBorrowDonor(int n)
+{
+    ec_project_state_.screenSetting.tlag_borrow_donor = n;
+    setModified(true);
+}
+
+void EcProject::setScreenTiltSensorMeth(int n)
+{
+    ec_project_state_.screenSetting.tilt_sensor_meth = n;
+    setModified(true);
+}
+
+void EcProject::setScreenTiltSensorVg(double d)
+{
+    ec_project_state_.screenSetting.tilt_sensor_v_g = d;
+    setModified(true);
+}
+
+void EcProject::setScreenTiltArmX(double d)
+{
+    ec_project_state_.screenSetting.tilt_arm_x = d;
+    setModified(true);
+}
+
+void EcProject::setScreenTiltArmY(double d)
+{
+    ec_project_state_.screenSetting.tilt_arm_y = d;
+    setModified(true);
+}
+
+void EcProject::setScreenTiltArmZ(double d)
+{
+    ec_project_state_.screenSetting.tilt_arm_z = d;
+    setModified(true);
+}
+
+void EcProject::setScreenTiltLpfS(double d)
+{
+    ec_project_state_.screenSetting.tilt_lpf_s = d;
+    setModified(true);
+}
+
+void EcProject::setScreenHeadCorrMeth(int n)
+{
+    ec_project_state_.screenSetting.head_corr_meth = n;
+    setModified(true);
+}
+
+void EcProject::setScreenHeadCorrDir(const QString& s)
+{
+    ec_project_state_.screenSetting.head_corr_dir = s;
+    setModified(true);
+}
+
+void EcProject::setScreenCovmaxDebaseline(int n)
+{
+    ec_project_state_.screenSetting.covmax_debaseline = n;
+    setModified(true);
+}
+
+void EcProject::setScreenSpectroWater(int n)
+{
+    ec_project_state_.screenSetting.spectro_water = n;
+    setModified(true);
+}
+
+void EcProject::setScreenDetlimOffset(double d)
+{
+    ec_project_state_.screenSetting.detlim_offset_s = d;
+    setModified(true);
+}
+
+void EcProject::setScreenDetlimWindow(double d)
+{
+    ec_project_state_.screenSetting.detlim_window_s = d;
+    setModified(true);
+}
+
 void EcProject::setScreenWBoost(int n)
 {
     ec_project_state_.screenSetting.gill_wm_wboost = n;
@@ -6052,6 +6432,12 @@ void EcProject::setScreenTestNs(int l)
     setModified(true);
 }
 
+void EcProject::setScreenTestRf(int l)
+{
+    ec_project_state_.screenTest.test_rf = l;
+    setModified(true);
+}
+
 void EcProject::setScreenParamSrNumSpk(int n)
 {
     ec_project_state_.screenParam.sr_num_spk = n;
@@ -6316,6 +6702,30 @@ void EcProject::setScreenParamDsSfW(double n)
     setModified(true);
 }
 
+void EcProject::setScreenParamSrStepU(double d)
+{
+    ec_project_state_.screenParam.sr_step_u = d;
+    setModified(true);
+}
+
+void EcProject::setScreenParamSrStepV(double d)
+{
+    ec_project_state_.screenParam.sr_step_v = d;
+    setModified(true);
+}
+
+void EcProject::setScreenParamSrStepW(double d)
+{
+    ec_project_state_.screenParam.sr_step_w = d;
+    setModified(true);
+}
+
+void EcProject::setScreenParamSrStepTs(double d)
+{
+    ec_project_state_.screenParam.sr_step_ts = d;
+    setModified(true);
+}
+
 void EcProject::setScreenParamDespikeVm(int n)
 {
     ec_project_state_.screenParam.despike_vm = n;
@@ -6447,6 +6857,54 @@ void EcProject::setGeneralHfMethod(int n)
     ec_project_state_.projectGeneral.hf_meth = n;
     setModified(true);
     emit updateInfo();
+}
+
+//> Which analytic cospectrum the spectral corrections are integrated
+//> against. Deliberately NOT in fuzzyCompare, for the same reason hf_meth is
+//> not: it is read at correction time, not while the raw data are processed,
+//> so it cannot make a computed dataset stale.
+void EcProject::setGeneralCospModel(int n)
+{
+    ec_project_state_.projectGeneral.cosp_model = n;
+    setModified(true);
+}
+
+void EcProject::setGeneralCorrIterMethod(int n)
+{
+    ec_project_state_.projectGeneral.corr_iter_meth = n;
+    setModified(true);
+}
+
+void EcProject::setGeneralCorrIterMax(int n)
+{
+    ec_project_state_.projectGeneral.corr_iter_max = n;
+    setModified(true);
+}
+
+void EcProject::setGeneralCorrIterTol(double d)
+{
+    ec_project_state_.projectGeneral.corr_iter_tol = d;
+    setModified(true);
+}
+
+//> Post-flux despiking runs as a standalone FCC post-pass over already
+//> written output, so like corr_iter_meth above it cannot make a computed
+//> dataset stale and is deliberately not in fuzzyCompare.
+void EcProject::setGeneralTestPfd(int n)
+{
+    ec_project_state_.projectGeneral.test_pfd = n;
+    setModified(true);
+}
+
+//> Storage cleaning runs as a standalone RP post-pass over already-written
+//> output, so like test_pfd it cannot make a computed dataset stale and is
+//> deliberately not in fuzzyCompare - even though it sits in screenSetting
+//> alongside fields that ARE, because that is where RP.SCTags(21) needs to
+//> live for the engine to read it (see INI_SCREEN_SETTINGS_120's comment).
+void EcProject::setScreenTestStorClean(int n)
+{
+    ec_project_state_.screenSetting.test_stor_clean = n;
+    setModified(true);
 }
 
 void EcProject::setGeneralLfMethod(int n)
@@ -7088,6 +7546,15 @@ void EcProject::setSpectraFile(const QString &p)
 
 void EcProject::setSpectraFluxRunMode(int n)
 {
+    //> Setting it to what it already says is not a change, and must not be
+    //> announced as one. AdvOutputOptions::updateSpectralAssessmentCreationAvailability
+    //> calls this unconditionally in SmartFlux mode, and updateInfo() is wired
+    //> back to AdvOutputOptions::refresh - so an unconditional emit here closed
+    //> a loop that recursed until the stack was gone: refresh -> availability
+    //> -> this setter -> updateInfo -> refresh. The guard is what makes the
+    //> second turn a no-op instead of another turn.
+    if (ec_project_state_.spectraSettings.flux_run_mode == n) { return; }
+
     ec_project_state_.spectraSettings.flux_run_mode = n;
     setModified(true);
     emit updateInfo();

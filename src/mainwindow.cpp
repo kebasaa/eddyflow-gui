@@ -32,6 +32,7 @@
 #include <QDockWidget>
 #include <QErrorMessage>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QFuture>
 #include <QGridLayout>
 #include <QMenuBar>
@@ -62,6 +63,7 @@
 #include "dlinidialog.h"
 #include "dlproject.h"
 #include "ecproject.h"
+#include "eddyuhimport.h"
 #include "globalsettings.h"
 #include "infomessage.h"
 #include "mainwidget.h"
@@ -463,6 +465,17 @@ void MainWindow::fileOpen(const QString &fileName)
         return;
     }
 
+    //> An EddyUH preproc file has no extension at all, so there is nothing to
+    //> key on but the name and the MAT header. Same reasoning as above: every
+    //> route that can reach one - the file dialog, the command line, Recent
+    //> Files, the Finder - should reach the importer rather than be told the
+    //> file is not in native format.
+    if (EddyUhImport::looksLikeEddyUhProject(fileStr))
+    {
+        importEddyUhFile(fileStr);
+        return;
+    }
+
     QFileInfo projectDir(fileStr);
     auto projectPath = projectDir.canonicalPath();
     configState_.window.last_data_path = projectPath;
@@ -600,6 +613,154 @@ void MainWindow::importEddyProFile(const QString& fileName)
            "<b>%1</b> and its metadata.").arg(QFileInfo(targetFile).fileName()));
 }
 
+/// Open an EddyUH project as an unsaved EddyFlow one, writing nothing.
+///
+/// The same shape as importEddyProFile above and for the same reason: the
+/// conversion happens in memory and stops, leaving an ordinary unsaved
+/// document. Opening a project to look at it is not consent to write two
+/// files.
+///
+/// Unlike EddyPro's, an EddyUH project is four files and the one the user
+/// picks - preproc_<stem> - has no extension. So the file dialog cannot
+/// filter on a suffix and the confirmation lists which siblings were found
+/// beside it, because a project missing its lag file converts perfectly well
+/// and simply carries less.
+///
+/// The notes the importer returns are shown whether or not anything went
+/// wrong. They are never empty: EddyUH keeps its flux-time options out of the
+/// project files entirely, so every import leaves something for the user to
+/// set, and a silent success would hide that.
+void MainWindow::importEddyUhFile(const QString& fileName)
+{
+    QString fileStr = fileName;
+    if (fileStr.isEmpty())
+    {
+        fileStr = QFileDialog::getOpenFileName(this,
+                        tr("Import an EddyUH Project"),
+                        WidgetUtils::getDialogPathHint(QStringLiteral("import_eddyuh_project")),
+                        tr("EddyUH Preprocessing Setup (preproc_*);;All Files (*.*)"),
+                        nullptr);
+        if (fileStr.isEmpty()) { return; }
+    }
+
+    if (!QFile::exists(fileStr)) { return; }
+    if (!EddyUhImport::looksLikeEddyUhProject(fileStr))
+    {
+        WidgetUtils::warning(this,
+            tr("Not an EddyUH Project"),
+            tr("<b>%1</b> is not an EddyUH preprocessing setup file.")
+                .arg(QFileInfo(fileStr).fileName()),
+            tr("Choose the file whose name begins with <i>preproc_</i>. The "
+               "lag, planar fit and response time files are found beside it "
+               "automatically."));
+        return;
+    }
+    WidgetUtils::rememberDialogPath(QStringLiteral("import_eddyuh_project"), fileStr, true);
+
+    EddyUhImport importer;
+    QString error;
+
+    //> Before the conversion, not after: DlProject marks itself modified as
+    //> it is filled, and modified is what would write it.
+    mainWidget_->projectPage()->dlIniDialog()->beginDeferredSave();
+
+    if (!importer.convert(fileStr, ecProject_,
+                          mainWidget_->projectPage()->dlIniDialog()->dlProject(),
+                          &error))
+    {
+        WidgetUtils::warning(this,
+            tr("EddyUH Project Not Imported"),
+            tr("The project could not be read."),
+            error);
+        return;
+    }
+
+    //> Every page redraws from the project it now holds. An EddyPro import
+    //> gets this for free - it ends inside loadEcProject, which emits the
+    //> signal itself - but a MAT file cannot be renamed into an ini, so this
+    //> conversion never goes near the loader and nothing had told the pages
+    //> anything. The Project Creation page in particular reads the raw file
+    //> format here: without this it went on showing whichever format was
+    //> selected before, while the project said ASCII, and this import
+    //> navigates the user straight to that page.
+    ecProject_->announceProjectChanged();
+
+    //> As after an EddyPro import, and for the same reason: this is a direct
+    //> synchronous call into the Basic Settings page, and it is what makes the
+    //> interface's own view of the columns agree with the records the
+    //> conversion just wrote. The importer builds them itself, so a project
+    //> converted without a window open still runs; this keeps the two in step
+    //> when there IS a window. After the signal above, so the pages have the
+    //> project before they are asked to read the metadata against it.
+    emit updateMetadataReadRequest();
+
+    const QString targetFile = QFileInfo(fileStr).path()
+                               + QLatin1Char('/')
+                               + QStringLiteral("eddyuh_") + importer.stem()
+                               + QStringLiteral(".") + Defs::PROJECT_FILE_EXT;
+
+    const bool asModified = true;
+    setCurrentProjectFile(targetFile, asModified);
+    newFlag_ = true;
+
+    showStatusTip(tr("Project imported"));
+    consoleOutput->clear();
+    if (currentPage() != Defs::CurrPage::ProjectCreation)
+    {
+        changePage(Defs::CurrPage::ProjectCreation);
+    }
+    updateInfoDock(true);
+
+    QStringList found;
+    for (const auto& s : EddyUhImport::siblingsOf(fileStr))
+    {
+        found << QFileInfo(s).fileName();
+    }
+
+    //> Both halves come from the importer and both describe THIS project:
+    //> a different site, a different sonic or a different rotation produces
+    //> a different dialog. Nothing here is a fixed description of what an
+    //> EddyUH import does in general.
+    QString detail = tr("Nothing has been written yet. Save it to create "
+                        "<b>%1</b> and its metadata.")
+                         .arg(QFileInfo(targetFile).fileName());
+    if (!found.isEmpty())
+    {
+        detail += tr("<br><br>Found beside it: %1")
+                      .arg(found.join(QStringLiteral(", ")));
+    }
+
+    const auto summary = importer.summary();
+    if (!summary.isEmpty())
+    {
+        detail += QStringLiteral("<br><br><b>") + tr("What was read:")
+                  + QStringLiteral("</b><ul>");
+        for (const auto& line : summary)
+        {
+            detail += QStringLiteral("<li>") + line.toHtmlEscaped()
+                      + QStringLiteral("</li>");
+        }
+        detail += QStringLiteral("</ul>");
+    }
+
+    const auto notes = importer.notes();
+    if (!notes.isEmpty())
+    {
+        detail += QStringLiteral("<b>") + tr("What you must still set:")
+                  + QStringLiteral("</b><ul>");
+        for (const auto& n : notes)
+        {
+            detail += QStringLiteral("<li>") + n + QStringLiteral("</li>");
+        }
+        detail += QStringLiteral("</ul>");
+    }
+
+    WidgetUtils::information(this,
+        tr("EddyUH Project Imported"),
+        tr("The project was converted from EddyUH format and has not been saved."),
+        detail);
+}
+
 //
 bool MainWindow::openFile(const QString& filename)
 {
@@ -720,7 +881,15 @@ void MainWindow::fileRecent()
 
     if (configState_.project.smartfluxMode)
     {
-        loadSmartfluxProjectCopy(fname);
+        if (!loadSmartfluxProjectCopy(fname))
+        {
+            //> A failed load has closed the project and left a blank one.
+            //> The mode has nothing left to describe, so leave it rather than
+            //> sit over the blank project claiming otherwise. setSmartfluxMode
+            //> rather than requestSmartFluxMode: this is not the user choosing
+            //> to leave, and there is nothing to ask them about.
+            setSmartfluxMode(false);
+        }
     }
     else
     {
@@ -1126,6 +1295,10 @@ void MainWindow::createActions()
     importEddyProAction->setText(tr("Import EddyPro Project..."));
     importEddyProAction->setToolTip(tr("Import an EddyPro project file and convert it to EddyFlow format."));
 
+    importEddyUhAction = new QAction(this);
+    importEddyUhAction->setText(tr("Import EddyUH Project..."));
+    importEddyUhAction->setToolTip(tr("Import an EddyUH project - choose its preproc_ file - and convert it to EddyFlow format."));
+
     closeAction = new QAction(this);
     closeAction->setText(tr("&Close"));
     closeAction->setIcon(QIcon(QStringLiteral(":/icons/close")));
@@ -1336,6 +1509,7 @@ void MainWindow::connectActions()
     connect(newAction, &QAction::triggered, this, &MainWindow::fileNew);
     connect(openAction, &QAction::triggered, this, [this](){ fileOpen(); });
     connect(importEddyProAction, &QAction::triggered, this, [this]{ importEddyProFile(); });
+    connect(importEddyUhAction, &QAction::triggered, this, [this]{ importEddyUhFile(); });
     connect(closeAction, &QAction::triggered, this, &MainWindow::fileClose);
     connect(saveAction, &QAction::triggered, this, &MainWindow::fileSave);
     connect(saveAsAction, &QAction::triggered, this, [this](){ fileSaveAs(); });
@@ -1424,6 +1598,7 @@ void MainWindow::createMenus()
     fileMenu->addAction(newAction);
     fileMenu->addAction(openAction);
     fileMenu->addAction(importEddyProAction);
+    fileMenu->addAction(importEddyUhAction);
 
     // submenu open recent file
     fileMenuOpenRecent = fileMenu->addMenu(tr("&Open Recent"));
@@ -1672,6 +1847,8 @@ void MainWindow::readSettings()
             settings.value(Defs::CONF_GEN_RECENTNUM, configState_.general.recentnum).toInt();
         configState_.general.loadlastproject =
             settings.value(Defs::CONF_GEN_LOADLAST, configState_.general.loadlastproject).toBool();
+        configState_.general.parallelPrepass =
+            settings.value(Defs::CONF_GEN_PARALLEL_PREPASS, configState_.general.parallelPrepass).toBool();
         configState_.general.recentfiles = settings.value(Defs::CONF_GEN_RECENTFILES).toStringList();
         while (configState_.general.recentfiles.count() > configState_.general.recentnum)
         {
@@ -1717,6 +1894,7 @@ void MainWindow::writeSettings()
         settings.setValue(Defs::CONF_GEN_RECENTFILES, configState_.general.recentfiles);
         settings.setValue(Defs::CONF_GEN_RECENTNUM, configState_.general.recentnum);
         settings.setValue(Defs::CONF_GEN_LOADLAST, configState_.general.loadlastproject);
+        settings.setValue(Defs::CONF_GEN_PARALLEL_PREPASS, configState_.general.parallelPrepass);
     settings.endGroup();
 
     // write project config
@@ -1883,7 +2061,22 @@ void MainWindow::setSmartfluxMode(bool on)
         if (!currentProjectFile().contains(Defs::DEFAULT_SMARTFLUX_SUFFIX))
         {
             // laod a renamed copy of the previous loaded project
-            loadSmartfluxProjectCopy(currentProjectFile());
+            if (!loadSmartfluxProjectCopy(currentProjectFile()))
+            {
+                //> The copy is not there, and a failed load has already closed
+                //> the project and put a blank one in its place. Staying in the
+                //> mode would leave the bar, the greyed pages and the Create
+                //> Package button describing a project that is no longer open.
+                //>
+                //> Turned back off here rather than returning, so the rest of
+                //> this function puts every menu action and page back the way
+                //> leaving the mode normally would.
+                on = false;
+                configState_.project.smartfluxMode = false;
+                GlobalSettings::setAppPersistentSettings(Defs::CONFGROUP_PROJECT,
+                                                         Defs::CONF_PROJ_SMARTFLUX,
+                                                         false);
+            }
         }
     }
 
@@ -1922,39 +2115,69 @@ void MainWindow::setSmartfluxMode(bool on)
     }
 }
 
-void MainWindow::loadSmartfluxProjectCopy(const QString& filename)
+/// The -smartflux twin of a project file name.
+///
+/// Built from the file NAME rather than by finding ".eddyflow" anywhere in the
+/// path. indexOf found the first match, so a project sitting in a directory
+/// that happened to be called something.eddyflow had the suffix spliced into
+/// the directory instead of the file. And a name carrying no extension at all -
+/// an imported EddyUH preproc file has none - gave indexOf -1, where insert()
+/// quietly does nothing: the "copy" came back identical to the original, and
+/// was then opened or overwritten as though it were the copy.
+QString MainWindow::smartfluxProjectNameFor(const QString& filename)
 {
-    // laod a renamed copy of the previous loaded project
-    const QString epExt = QStringLiteral(".") + Defs::PROJECT_FILE_EXT;
+    const QFileInfo info(filename);
 
-    QString filenameCopy = filename;
-    if (filenameCopy.indexOf(Defs::DEFAULT_SMARTFLUX_SUFFIX) == -1)
+    auto base = info.completeBaseName();
+    if (!base.endsWith(Defs::DEFAULT_SMARTFLUX_SUFFIX))
     {
-        filenameCopy.insert(filenameCopy.indexOf(epExt), Defs::DEFAULT_SMARTFLUX_SUFFIX);
+        base += Defs::DEFAULT_SMARTFLUX_SUFFIX;
     }
+
+    //> Always the project extension, even where the original had none: what is
+    //> being named here is an EddyFlow project either way.
+    const auto name = base + QLatin1Char('.') + Defs::PROJECT_FILE_EXT;
+
+    const auto dir = info.path();
+    if (dir.isEmpty() || dir == QLatin1String(".")) { return name; }
+    return dir + QLatin1Char('/') + name;
+}
+
+/// The renamed copy this mode runs on, loaded or created.
+///
+/// Returns false when the copy could not be put in place. The caller must not
+/// stay in SmartFlux mode then: a failed load closes the project and leaves a
+/// blank one behind, and the mode would otherwise sit over it claiming to
+/// describe a project that is no longer open.
+bool MainWindow::loadSmartfluxProjectCopy(const QString& filename)
+{
+    const QString filenameCopy = smartfluxProjectNameFor(filename);
 
     if (currentProjectFile() == Defs::DEFAULT_PROJECT_FILENAME)
     {
         setCurrentProjectFile(filenameCopy, true);
         newFlag_ = true;
-        return;
+        return true;
     }
 
-    // if we are not reopening the same smartflux project file
-    if (currentProjectFile() != filenameCopy)
+    //> Already on the copy. Nothing to do, and nothing has gone wrong.
+    if (currentProjectFile() == filenameCopy) { return true; }
+
+    // if the corresponding smartflux project file already exists, open it
+    if (QFile::exists(filenameCopy))
     {
-        // if the corresponding smartflux project file already exists, open it
-        if (QFile::exists(filenameCopy))
-        {
-            fileOpen(filenameCopy);
-        }
-        // save and open silently a renamed copy of the current project file
-        else
-        {
-            fileSaveAs(filenameCopy);
-            newFlag_ = true;
-        }
+        fileOpen(filenameCopy);
+        //> fileOpen reports nothing itself, but openFile sets the current
+        //> project file when the load succeeds and calls fileClose() - which
+        //> clears it - when it does not. So this is the load's own answer
+        //> rather than an assumption that it worked.
+        return currentProjectFile() == filenameCopy;
     }
+
+    // save and open silently a renamed copy of the current project file
+    if (!fileSaveAs(filenameCopy)) { return false; }
+    newFlag_ = true;
+    return true;
 }
 
 // Add a file to the recent files list
@@ -3140,7 +3363,15 @@ void MainWindow::fileOpenRequest(QString file)
     if (configState_.project.smartfluxMode
             && !file.isEmpty())
     {
-        loadSmartfluxProjectCopy(file);
+        if (!loadSmartfluxProjectCopy(file))
+        {
+            //> A failed load has closed the project and left a blank one.
+            //> The mode has nothing left to describe, so leave it rather than
+            //> sit over the blank project claiming otherwise. setSmartfluxMode
+            //> rather than requestSmartFluxMode: this is not the user choosing
+            //> to leave, and there is nothing to ask them about.
+            setSmartfluxMode(false);
+        }
     }
     else
     {
@@ -3519,6 +3750,13 @@ void MainWindow::runExpress()
         args << Defs::HOST_OS;
         args << QStringLiteral("-e");
         args << appEnvPath_;
+        //> -j is passed in BOTH states rather than only when the box is
+        //> ticked. Omitting it would fall through to the engine's own default,
+        //> which is to use every core, and the box would then do nothing when
+        //> unticked. "0" means auto-detect, "1" means the serial path.
+        args << QStringLiteral("-j");
+        args << (configState_.general.parallelPrepass ? QStringLiteral("0")
+                                                      : QStringLiteral("1"));
         args << projFilePath;
 
         engineProcess_->engineProcessStart(engineFilePath, workingDir, args);
@@ -3630,6 +3868,11 @@ void MainWindow::runAdvancedStep_1()
             args << Defs::HOST_OS;
             args << QStringLiteral("-e");
             args << appEnvPath_;
+            //> As above: explicit in both states, so the preference is what
+            //> decides and not the engine's default.
+            args << QStringLiteral("-j");
+            args << (configState_.general.parallelPrepass ? QStringLiteral("0")
+                                                          : QStringLiteral("1"));
             args << projFilePath1;
             engineProcess_->engineProcessStart(engine1FilePath, workingDir, args);
 

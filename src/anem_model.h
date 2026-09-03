@@ -93,7 +93,8 @@ private:
     qreal stationAcFreq() const;
     //> The rate to show for an instrument: its own when it states one, the
     //> station's while it does not.
-    qreal displayedAcFreq(const AnemDesc& anem) const;
+    /// Whether the sampling choice changes anything at this instrument's rate.
+    bool samplingIsRelevant(const AnemDesc& anem) const;
 
     AnemDescList *list_;
     DlProject *project_;

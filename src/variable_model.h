@@ -54,6 +54,11 @@ public:
         MINTIMELAG,
         MAXTIMELAG,
         ERRORVALUE,
+        //> Peltola et al. (2014) water-broadening coefficients. Appended, and
+        //> before VARNUMCOLS: the enum is the row order of a transposed table,
+        //> so inserting anywhere above would renumber every row beneath it.
+        SPECTROA,
+        SPECTROB,
         VARNUMCOLS
     };
 

@@ -467,6 +467,14 @@ void CecSettingsDialog::updatePairButtons()
 /// from the period's own integral timescale rather than assuming one. Mann and
 /// Lenschow is left alone if it is already selected; it also produces a random
 /// error, and the choice is the user's.
+///
+/// Billesbach (2011) is left alone too, but it is worth knowing what that
+/// does to the threshold. It estimates a noise floor rather than a sampling
+/// error and is systematically the smaller of the two, so cec_min_flux_sigma
+/// then asks whether the flux is resolvable at all rather than whether it is
+/// significant, and the same number admits more periods than it would under
+/// Finkelstein and Sims. That is a defensible test and not the one the
+/// setting was written for; select it deliberately or not at all.
 void CecSettingsDialog::enableRandomUncertainty()
 {
     if (ecProject_->randErrorMethod() != 0) { return; }

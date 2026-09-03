@@ -56,6 +56,11 @@ struct MeasurementRecord
 struct GasProcessingSettings
 {
     qreal srLim = -1.0;
+    //> Consecutive-difference despiking: the largest step this gas may take
+    //> from one sample to the next, in its OWN concentration unit. Not a
+    //> sigma multiplier like srLim above - nothing scales it - so -1 means
+    //> "not stated" and the engine leaves the column undespiked.
+    qreal stepLim = -1.0;
     qreal dsHf = -1.0;
     qreal dsSf = -1.0;
     qreal alMin = -1.0;
