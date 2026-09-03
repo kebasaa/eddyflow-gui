@@ -3108,7 +3108,22 @@ void BasicSettingsPage::captureEmbeddedMetadata(EmbeddedFileFlags type)
         }
         else
         {
-            FileUtils::zipExtract(mdFile, smfDir);
+            //> Distinguish an unreadable archive from one that simply carries no
+            //> metadata. Falling through to the smf/ listing would report "no
+            //> valid GHG data", or pick up a .metadata left behind by an
+            //> earlier archive, since smf/ is only cleaned when the data path
+            //> changes. Warn regardless of visibility: unlike "nothing found
+            //> here", a corrupt archive is a hard failure.
+            if (!FileUtils::zipExtract(mdFile, smfDir))
+            {
+                WidgetUtils::warning(QApplication::activeWindow(),
+                                     tr("Raw Data Unreadable"),
+                                     tr("The following LI-COR GHG file could "
+                                        "not be extracted and may be corrupt:"
+                                        "<p><b>%1</b></p>")
+                                     .arg(QDir::toNativeSeparators(mdFile)));
+                return;
+            }
 
             QStringList mdFilters;
             mdFilters << QStringLiteral("*.") + Defs::METADATA_FILE_EXT;
@@ -3164,7 +3179,19 @@ void BasicSettingsPage::captureEmbeddedMetadata(EmbeddedFileFlags type)
         }
         else
         {
-            FileUtils::zipExtract(biometMdFile, smfDir);
+            //> Same reasoning as the raw branch above: report the archive
+            //> that failed rather than letting a stale or missing extraction
+            //> masquerade as absent biomet metadata.
+            if (!FileUtils::zipExtract(biometMdFile, smfDir))
+            {
+                WidgetUtils::warning(QApplication::activeWindow(),
+                                     tr("Biomet Data Unreadable"),
+                                     tr("The following LI-COR GHG biomet file "
+                                        "could not be extracted and may be "
+                                        "corrupt:<p><b>%1</b></p>")
+                                     .arg(QDir::toNativeSeparators(biometMdFile)));
+                return;
+            }
 
             QStringList mdFilters;
             mdFilters << QStringLiteral("*.") + Defs::METADATA_FILE_EXT;
@@ -6508,15 +6535,21 @@ QStringList BasicSettingsPage::filterRawDataWithPrototype(const QString& p)
 
     if (re.isValid())
     {
-        currentFilteredRawDataList_ = currentRawDataList_;
+        //> Build the filtered list instead of removing from the list being
+        //> iterated: removeAll() shifts the very elements the loop reference
+        //> points into, so everything after the first removal was skipped and
+        //> non-matching files survived the filter.
+        QStringList filtered;
 
-        for (const auto &filename : currentFilteredRawDataList_)
+        for (const auto &filename : currentRawDataList_)
         {
-            if (!filename.contains(re))
+            if (filename.contains(re))
             {
-                currentFilteredRawDataList_.removeAll(filename);
+                filtered.append(filename);
             }
         }
+
+        currentFilteredRawDataList_ = filtered;
     }
 
     return currentFilteredRawDataList_;
