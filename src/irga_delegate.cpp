@@ -203,19 +203,7 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
           return dspin;
         case IrgaModel::VPATHLENGTH:
         case IrgaModel::HPATHLENGTH:
-            if (currentModel != IrgaDesc::getIRGA_MODEL_STRING_6()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_7()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_8()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_9()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_10()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_11()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_17()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_18()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_19()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_21()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_22()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_23()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_20())
+            if (!IrgaDesc::needsPathGeometry(currentModel))
             {
                 label = new QLabel(parent);
                 return label;
@@ -233,19 +221,7 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
                 return dspin;
             }
         case IrgaModel::TAU:
-            if (currentModel != IrgaDesc::getIRGA_MODEL_STRING_6()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_7()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_8()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_9()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_10()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_11()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_17()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_18()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_19()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_21()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_22()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_23()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_20())
+            if (!IrgaDesc::needsPathGeometry(currentModel))
             {
                 label = new QLabel(parent);
                 return label;
@@ -264,10 +240,7 @@ QWidget *IrgaDelegate::createEditor(QWidget* parent,
             }
         case IrgaModel::KWATER:
         case IrgaModel::KOXYGEN:
-            if (currentModel != IrgaDesc::getIRGA_MODEL_STRING_8()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_9()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_10()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_11())
+            if (!IrgaDesc::hasExtinctionCoefficients(currentModel))
             {
                 label = new QLabel(parent);
                 return label;
@@ -348,19 +321,7 @@ void IrgaDelegate::setEditorData(QWidget* editor,
         case IrgaModel::VPATHLENGTH:
         case IrgaModel::HPATHLENGTH:
         case IrgaModel::TAU:
-            if (currentModel != IrgaDesc::getIRGA_MODEL_STRING_6()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_7()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_8()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_9()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_10()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_11()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_17()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_18()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_19()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_21()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_22()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_23()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_20())
+            if (!IrgaDesc::needsPathGeometry(currentModel))
             {
                 label = dynamic_cast<QLabel*>(editor);
                 if (!label) { return; }
@@ -396,10 +357,7 @@ void IrgaDelegate::setEditorData(QWidget* editor,
             break;
         case IrgaModel::KWATER:
         case IrgaModel::KOXYGEN:
-            if (currentModel != IrgaDesc::getIRGA_MODEL_STRING_8()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_9()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_10()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_11())
+            if (!IrgaDesc::hasExtinctionCoefficients(currentModel))
             {
                 label = dynamic_cast<QLabel*>(editor);
                 if (!label) { return; }
@@ -464,19 +422,7 @@ void IrgaDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
         case IrgaModel::VPATHLENGTH:
         case IrgaModel::HPATHLENGTH:
         case IrgaModel::TAU:
-            if (currentModel != IrgaDesc::getIRGA_MODEL_STRING_6()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_7()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_8()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_9()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_10()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_11()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_17()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_18()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_19()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_21()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_22()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_23()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_20())
+            if (!IrgaDesc::needsPathGeometry(currentModel))
             {
                 label = dynamic_cast<QLabel*>(editor);
                 if (!label) { return; }
@@ -515,10 +461,7 @@ void IrgaDelegate::setModelData(QWidget* editor, QAbstractItemModel* model,
             break;
         case IrgaModel::KWATER:
         case IrgaModel::KOXYGEN:
-            if (currentModel != IrgaDesc::getIRGA_MODEL_STRING_8()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_9()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_10()
-                && currentModel != IrgaDesc::getIRGA_MODEL_STRING_11())
+            if (!IrgaDesc::hasExtinctionCoefficients(currentModel))
             {
                 label = dynamic_cast<QLabel*>(editor);
                 if (!label) { return; }

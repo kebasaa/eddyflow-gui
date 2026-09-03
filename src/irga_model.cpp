@@ -189,21 +189,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
             case TUBEVSEPARATION:
                 return QVariant(QString::number(irgaDesc.tubeVSeparation(), 'f', 2) + QStringLiteral(" [cm]"));
             case VPATHLENGTH:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_6()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_7()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_15()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_16()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_21()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_22()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_23()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_20())
+                if (!IrgaDesc::needsPathGeometry(irgaDesc.model()))
                 {
                     return nullStrValue;
                 }
@@ -212,21 +198,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     return QVariant(QString::number(irgaDesc.vPathLength(), 'f', 4) + QStringLiteral(" [cm]"));
                 }
             case HPATHLENGTH:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_6()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_7()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_15()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_16()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_21()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_22()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_23()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_20())
+                if (!IrgaDesc::needsPathGeometry(irgaDesc.model()))
                 {
                     return nullStrValue;
                 }
@@ -235,21 +207,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     return QVariant(QString::number(irgaDesc.hPathLength(), 'f', 4) + QStringLiteral(" [cm]"));
                 }
             case TAU:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_6()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_7()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_15()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_16()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_21()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_22()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_23()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_20())
+                if (!IrgaDesc::needsPathGeometry(irgaDesc.model()))
                 {
                     return nullStrValue;
                 }
@@ -258,10 +216,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     return QVariant(QString::number(irgaDesc.tau(), 'f', 4) + QStringLiteral(" [s]"));
                 }
             case KWATER:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11())
+                if (!IrgaDesc::hasExtinctionCoefficients(irgaDesc.model()))
                 {
                     return nullStrValue;
                 }
@@ -270,10 +225,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     return QVariant(QString::number(irgaDesc.kWater(), 'f', 6) + QStringLiteral(" [") + Defs::M3_G_CM_STRING + QStringLiteral("]"));
                 }
             case KOXYGEN:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11())
+                if (!IrgaDesc::hasExtinctionCoefficients(irgaDesc.model()))
                 {
                     return nullStrValue;
                 }
@@ -350,19 +302,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
             case TUBEVSEPARATION:
                 return QVariant(irgaDesc.tubeVSeparation());
             case VPATHLENGTH:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_6()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_7()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_21()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_22()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_23()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_20())
+                if (!IrgaDesc::needsPathGeometry(irgaDesc.model()))
                 {
                     return nullStrValue;
                 }
@@ -371,19 +311,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     return QVariant(irgaDesc.vPathLength());
                 }
             case HPATHLENGTH:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_6()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_7()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_21()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_22()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_23()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_20())
+                if (!IrgaDesc::needsPathGeometry(irgaDesc.model()))
                 {
                     return nullStrValue;
                 }
@@ -392,19 +320,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     return QVariant(irgaDesc.hPathLength());
                 }
             case TAU:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_6()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_7()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_21()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_22()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_23()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_20())
+                if (!IrgaDesc::needsPathGeometry(irgaDesc.model()))
                 {
                     return nullStrValue;
                 }
@@ -413,10 +329,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     return QVariant(irgaDesc.tau());
                 }
             case KWATER:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11())
+                if (!IrgaDesc::hasExtinctionCoefficients(irgaDesc.model()))
                 {
                     return nullStrValue;
                 }
@@ -425,10 +338,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                     return QVariant(irgaDesc.kWater());
                 }
             case KOXYGEN:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11())
+                if (!IrgaDesc::hasExtinctionCoefficients(irgaDesc.model()))
                 {
                     return nullStrValue;
                 }
@@ -491,19 +401,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
             case VPATHLENGTH:
             case HPATHLENGTH:
             case TAU:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_6()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_7()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_21()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_22()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_23()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_20())
+                if (!IrgaDesc::needsPathGeometry(irgaDesc.model()))
                 {
                     return QVariant(QBrush(QColor(QStringLiteral("#eff0f1"))));
                 }
@@ -513,10 +411,7 @@ QVariant IrgaModel::data(const QModelIndex& index, int role) const
                 }
             case KWATER:
             case KOXYGEN:
-                if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                    && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11())
+                if (!IrgaDesc::hasExtinctionCoefficients(irgaDesc.model()))
                 {
                     return QVariant(QBrush(QColor(QStringLiteral("#eff0f1"))));
                 }
@@ -874,18 +769,7 @@ Qt::ItemFlags IrgaModel::flags(const QModelIndex& index) const
         case VPATHLENGTH:
         case HPATHLENGTH:
         case TAU:
-            if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_6()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_7()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_17()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_18()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_19()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_21()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_22()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_23())
+            if (!IrgaDesc::needsPathGeometry(irgaDesc.model()))
             {
                 currentFlags &= ~Qt::ItemIsEnabled;
                 currentFlags &= ~Qt::ItemIsEditable;
@@ -898,10 +782,7 @@ Qt::ItemFlags IrgaModel::flags(const QModelIndex& index) const
             }
         case KWATER:
         case KOXYGEN:
-            if (irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_8()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_9()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_10()
-                && irgaDesc.model() != IrgaDesc::getIRGA_MODEL_STRING_11())
+            if (!IrgaDesc::hasExtinctionCoefficients(irgaDesc.model()))
             {
                 currentFlags &= ~Qt::ItemIsEnabled;
                 currentFlags &= ~Qt::ItemIsEditable;

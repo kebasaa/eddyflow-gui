@@ -677,10 +677,7 @@ bool IrgaDesc::isGoodIrga(const IrgaDesc &irga)
     qreal kWater = irga.kWater();
     qreal kOxygen = irga.kOxygen();
 
-    if ((model == getIRGA_MODEL_STRING_8())
-        || (model == getIRGA_MODEL_STRING_9())
-        || (model == getIRGA_MODEL_STRING_10())
-        || (model == getIRGA_MODEL_STRING_11()))
+    if (hasExtinctionCoefficients(model))
     {
         isGoodKorLAnalyzer = (kWater > 0) && (kOxygen > 0);
     }
@@ -732,4 +729,37 @@ bool IrgaDesc::isOpenPathModel(const QString& model)
              || model == IrgaDesc::getIRGA_MODEL_STRING_14()
              || model == IrgaDesc::getIRGA_MODEL_STRING_15()
              || model == IrgaDesc::getIRGA_MODEL_STRING_16());
+}
+
+//> The set the engine's read_metadata_file.f90 reads hpath_length,
+//> vpath_length and tau from the .metadata file for. Every other model has
+//> its geometry hardcoded in retrieve_sensor_params.f90, so letting a user
+//> type one in would be misleading. Keep this in step with that select case.
+bool IrgaDesc::needsPathGeometry(const QString& model)
+{
+    return (model == IrgaDesc::getIRGA_MODEL_STRING_6()   // generic_open_path
+             || model == IrgaDesc::getIRGA_MODEL_STRING_7()   // generic_closed_path
+             || model == IrgaDesc::getIRGA_MODEL_STRING_8()   // open_path_krypton
+             || model == IrgaDesc::getIRGA_MODEL_STRING_9()   // open_path_lyman
+             || model == IrgaDesc::getIRGA_MODEL_STRING_10()   // closed_path_krypton
+             || model == IrgaDesc::getIRGA_MODEL_STRING_11()   // closed_path_lyman
+             || model == IrgaDesc::getIRGA_MODEL_STRING_15()   // csi_ec150
+             || model == IrgaDesc::getIRGA_MODEL_STRING_16()   // csi_irgason_irga
+             || model == IrgaDesc::getIRGA_MODEL_STRING_17()   // miro_mga1_5
+             || model == IrgaDesc::getIRGA_MODEL_STRING_18()   // miro_mga4_6
+             || model == IrgaDesc::getIRGA_MODEL_STRING_19()   // miro_mga9_10
+             || model == IrgaDesc::getIRGA_MODEL_STRING_20()   // aerodyne_tildas
+             || model == IrgaDesc::getIRGA_MODEL_STRING_21()   // miro_mgai_n2o
+             || model == IrgaDesc::getIRGA_MODEL_STRING_22()   // csi_ec155
+             || model == IrgaDesc::getIRGA_MODEL_STRING_23());   // csi_tga200a
+}
+
+//> The krypton and Lyman-alpha hygrometers, the one branch of that same
+//> select case that also reads kw and ko.
+bool IrgaDesc::hasExtinctionCoefficients(const QString& model)
+{
+    return (model == IrgaDesc::getIRGA_MODEL_STRING_8()   // open_path_krypton
+             || model == IrgaDesc::getIRGA_MODEL_STRING_9()   // open_path_lyman
+             || model == IrgaDesc::getIRGA_MODEL_STRING_10()   // closed_path_krypton
+             || model == IrgaDesc::getIRGA_MODEL_STRING_11());   // closed_path_lyman
 }
