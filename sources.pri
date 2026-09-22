@@ -32,10 +32,13 @@ HEADERS += \
     src/eddyuhimport.h \
     src/dlrawfiledesctab.h \
     src/dlsitetab.h \
+    src/deepthoughtpanel.h \
     src/despikearena.h \
+    src/dndpanel.h \
     src/docchooser.h \
     src/eastereggkeyfilter.h \
     src/eastereggpage.h \
+    src/eastereggwidgets.h \
     src/ecinidefs.h \
     src/ecproject.h \
     src/ecprojectstate.h \
@@ -145,10 +148,13 @@ SOURCES +=  \
     src/eddyuhimport.cpp \
     src/dlrawfiledesctab.cpp \
     src/dlsitetab.cpp \
+    src/deepthoughtpanel.cpp \
     src/despikearena.cpp \
+    src/dndpanel.cpp \
     src/docchooser.cpp \
     src/eastereggkeyfilter.cpp \
     src/eastereggpage.cpp \
+    src/eastereggwidgets.cpp \
     src/ecproject.cpp \
     src/faderwidget.cpp \
     src/fileutils.cpp \

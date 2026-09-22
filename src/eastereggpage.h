@@ -24,25 +24,22 @@
 #ifndef EASTEREGGPAGE_H
 #define EASTEREGGPAGE_H
 
-#include <QList>
-#include <QSet>
-#include <QStringList>
+#include <QIcon>
 #include <QWidget>
 
-#include <array>
-#include <functional>
+#include "eastereggwidgets.h"
 
-class QFrame;
 class QLabel;
-class QLineEdit;
 class QProgressBar;
 class QPushButton;
-class QTimer;
 
+class DeepThoughtPanel;
 class DespikeArena;
+class DndPanel;
+class FakeLoading;
 
-/// The hidden page unlocked by typing "eddy". Each unlock shows one
-/// of several variants; when the joke is over the page emits finished() and
+/// The hidden page unlocked by typing "eddy". Each unlock shows one of
+/// several variants; when the joke is over the page emits finished() and
 /// MainWindow hides its tab again.
 class EasterEggPage : public QWidget
 {
@@ -54,6 +51,7 @@ public:
 
     void setVariant(Variant variant);
     static QString tabText(Variant variant);
+    static QIcon tabIcon(Variant variant);
 
 signals:
     void finished();
@@ -63,13 +61,6 @@ protected:
 
 private:
     QWidget* createDoomPanel();
-    QWidget* createHitchhikerPanel();
-    QWidget* createDicePanel();
-
-    void runLoading(QProgressBar* bar, QLabel* status, const QStringList& steps,
-                    int stepMs, std::function<void()> done);
-    void advanceLoading();
-    void stopLoading();
 
     void launchDoom();
     void startGame();
@@ -77,42 +68,14 @@ private:
                         int shots, bool died);
     void resetDoomPanel();
 
-    void askDeepThought();
-    void showAnswer(const QString& question);
-    void resetQuestion();
-    void resetHitchhikerPanel();
-
-    void roll();
-    void advanceRoll();
-    void finishRoll();
-    void resetDicePanel();
-
     void resetAll();
-    int nextIndex(Variant variant, int size);
 
     Variant variant_;
-    int rollTicks_;
-    int scenario_;
-    int answersGiven_;
-    QSet<QString> askedQuestions_;
+    FakeLoading* loading_;
 
-    // per-variant shuffled order, so nothing repeats until all has been seen
-    std::array<QList<int>, static_cast<int>(Variant::Count)> orders_;
-    std::array<int, static_cast<int>(Variant::Count)> positions_;
-
-    // shared fake-loading machinery
-    QTimer* loadingTimer_;
-    QTimer* holdTimer_;
-    QProgressBar* loadingBar_;
-    QLabel* loadingStatus_;
-    QStringList loadingSteps_;
-    int loadingStep_;
-    std::function<void()> loadingDone_;
-
-    QWidget* column_;
     QWidget* doomPanel_;
-    QWidget* hitchhikerPanel_;
-    QWidget* dicePanel_;
+    DeepThoughtPanel* deepThought_;
+    DndPanel* dnd_;
 
     QPushButton* launchButton_;
     QProgressBar* doomBar_;
@@ -122,23 +85,6 @@ private:
     QLabel* doomRank_;
     QLabel* doomStats_;
     QLabel* doomTag_;
-
-    QLineEdit* questionEdit_;
-    QPushButton* askButton_;
-    QProgressBar* thinkBar_;
-    QLabel* thinkStatus_;
-    QFrame* answerFrame_;
-    QLabel* questionEcho_;
-    QLabel* answerLabel_;
-    QPushButton* anotherButton_;
-    QPushButton* backToWorkButton_;
-
-    QLabel* dmLabel_;
-    QPushButton* rollButton_;
-    QLabel* rollResult_;
-    QLabel* rollOutcome_;
-    QPushButton* continueButton_;
-    QTimer* rollTimer_;
 };
 
 #endif // EASTEREGGPAGE_H

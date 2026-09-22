@@ -1399,9 +1399,8 @@ void MainWindow::createActions()
     viewRunPageAction->setToolTip(tr("Go to the <i>Output Console Page</i>. (%1)")
                                   .arg((viewRunPageAction->shortcut().toString())));
 
-    // hidden until "eddy" is typed; the text is set on unlock
+    // hidden until "eddy" is typed; the text and icon are set on unlock
     viewEasterEggAction = new QAction(this);
-    viewEasterEggAction->setIcon(QIcon(QStringLiteral(":/icons/console")));
     viewEasterEggAction->setCheckable(true);
     viewEasterEggAction->setVisible(false);
 
@@ -2322,6 +2321,7 @@ void MainWindow::unlockEasterEgg()
         QRandomGenerator::global()->bounded(static_cast<int>(EasterEggPage::Variant::Count)));
     mainWidget_->easterEggPage()->setVariant(variant);
     viewEasterEggAction->setText(EasterEggPage::tabText(variant));
+    viewEasterEggAction->setIcon(EasterEggPage::tabIcon(variant));
     viewEasterEggAction->setEnabled(true);
     sepEasterEggAction->setVisible(true);
     viewEasterEggAction->setVisible(true);

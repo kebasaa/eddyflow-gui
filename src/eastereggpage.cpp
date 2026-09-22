@@ -23,45 +23,76 @@
 
 #include "eastereggpage.h"
 
-#include <QFrame>
 #include <QHBoxLayout>
 #include <QHideEvent>
+#include <QIcon>
 #include <QLabel>
-#include <QLineEdit>
+#include <QPainter>
+#include <QPainterPath>
+#include <QPixmap>
 #include <QProgressBar>
 #include <QPushButton>
-#include <QRandomGenerator>
 #include <QScrollArea>
-#include <QTimer>
 #include <QVBoxLayout>
 
 #include <algorithm>
-#include <initializer_list>
+#include <cmath>
 #include <limits>
-#include <numeric>
 
+#include "deepthoughtpanel.h"
 #include "despikearena.h"
+#include "dndpanel.h"
+
+using namespace EggUi;
 
 namespace {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Doom
 
+// loading lines; each run shows five of them
+// loading lines; each run shows five of them
 const QStringList& doomSteps()
 {
-    static const QStringList steps {
+    static const QStringList list {
         QStringLiteral("Loading DOOM.WAD…"),
         QStringLiteral("Despiking demons…"),
         QStringLiteral("Applying WPL correction to the plasma rifle…"),
         QStringLiteral("Rotating coordinates into hell (double rotation)…"),
-        QStringLiteral("Computing the footprint of the Cyberdemon…")
+        QStringLiteral("Computing the footprint of the Cyberdemon…"),
+        QStringLiteral("Calibrating the chainsaw against span gas…"),
+        QStringLiteral("Detrending the Imp population…"),
+        QStringLiteral("Estimating the time lag between shotgun and splatter…"),
+        QStringLiteral("Planar-fitting the floor of Hell…"),
+        QStringLiteral("Heating the IRGA to 666 °C…"),
+        QStringLiteral("Applying a high-frequency correction to the BFG…"),
+        QStringLiteral("Converting demons to µmol m⁻² s⁻¹…"),
+        QStringLiteral("Checking the Barons of Hell for stationarity…"),
+        QStringLiteral("Loading the blue keycard (sonic calibration file)…"),
+        QStringLiteral("Filling gaps in the demon population with MDS…"),
+        QStringLiteral("Removing the u* threshold from Hell…"),
+        QStringLiteral("Synchronising the sonic with the rocket launcher…"),
+        QStringLiteral("Spectrally correcting the screams…"),
+        QStringLiteral("Unpacking the .ghg files of the damned…"),
+        QStringLiteral("Averaging each demon over thirty minutes…"),
+        QStringLiteral("Cleaning demon blood off the IRGA window…"),
+        QStringLiteral("Aligning the sonic with the north gate of Hell…"),
+        QStringLiteral("Computing the ogive of the Spider Mastermind…"),
+        QStringLiteral("Flagging the Cacodemons as quality 2…"),
+        QStringLiteral("Correcting the Cyberdemon for high-frequency losses…"),
+        QStringLiteral("Tilt-correcting the Icon of Sin…"),
+        QStringLiteral("Measuring the sensible heat flux of the lava…"),
+        QStringLiteral("Filling the ammo storage term…"),
+        QStringLiteral("Waking the Lost Souls from stable nighttime conditions…"),
+        QStringLiteral("Checking the energy balance of Hell (it never closes)…")
     };
-    return steps;
+    return list;
 }
 
+// tag lines under the result
 const QStringList& doomSentences()
 {
-    static const QStringList sentences {
+    static const QStringList list {
         QStringLiteral("The only demons you're allowed to fight today are spikes in your w′ time series."),
         QStringLiteral("Your flux footprint is not supposed to extend into Hell."),
         QStringLiteral("The Cyberdemon failed the stationarity test anyway."),
@@ -71,12 +102,32 @@ const QStringList& doomSentences()
         QStringLiteral("The only thing to shoot at today is the energy balance closure."),
         QStringLiteral("Hell is warm, but the WPL correction still applies."),
         QStringLiteral("Keycard required: blue for Basic Settings, red for Advanced."),
-        QStringLiteral("Nightmare difficulty is reserved for gap-filling winter nighttime data.")
+        QStringLiteral("Nightmare difficulty is reserved for gap-filling winter nighttime data."),
+        QStringLiteral("The Spider Mastermind has eight legs and still better spatial coverage than your tower."),
+        QStringLiteral("Rip and tear your data? No: rotate and correct."),
+        QStringLiteral("Your nighttime fluxes are scarier than any Cacodemon."),
+        QStringLiteral("Even the Barons of Hell apply a density correction."),
+        QStringLiteral("Hell has a closed energy balance. It's the only place that does."),
+        QStringLiteral("IDKFA gives you every key. It still won't unlock your logger."),
+        QStringLiteral("The Imps prefer Reynolds decomposition to fireballs."),
+        QStringLiteral("Real demons don't sit in your footprint. Cows do."),
+        QStringLiteral("The BFG 9000 fires one enormous flux. Please don't publish it."),
+        QStringLiteral("Nobody has ever despiked the Icon of Sin. Nobody."),
+        QStringLiteral("Your time lag is longer than a Doom level loading on a 386."),
+        QStringLiteral("The Cyberdemon's footprint covers the whole map. Yours covers a car park."),
+        QStringLiteral("Lost Souls are just half-hours without a quality flag."),
+        QStringLiteral("Demons spawn at random. So do the gaps in your data."),
+        QStringLiteral("The shotgun is just a median filter with attitude."),
+        QStringLiteral("The gate of Hell is guarded by a quality flag."),
+        QStringLiteral("Only the Doom Slayer and PhD students work without sleep."),
+        QStringLiteral("Your cospectra look like a Doom level map. That's not a compliment."),
+        QStringLiteral("Every demon you shot was a spike. Every spike you missed is in your paper."),
+        QStringLiteral("Nightmare difficulty: processing a whole year of data the week before the deadline.")
     };
-    return sentences;
+    return list;
 }
 
-// A rank tier holds a few titles and sentence templates. The templates take
+// A rank tier holds titles and sentence templates. The templates take
 // placeholders: {n} despiked count, {n_spikes} / {e_spikes} / {v_points}
 // counted nouns, and {tool}, {place}, {who}, which are filled in at random.
 struct RankTier
@@ -88,15 +139,72 @@ struct RankTier
 
 const RankTier& diedTier()
 {
-    static const RankTier tier {
-        0,
-        { QStringLiteral("Reviewer 2's Favourite Example"),
-          QStringLiteral("Cautionary Tale"),
-          QStringLiteral("Quality Flag 2 Incarnate") },
-        { QStringLiteral("The spikes overran your w′ series after only {n_spikes} despiked. {who} has been informed."),
-          QStringLiteral("{e_spikes} escaped into {place}. Not even {tool} can save this dataset now."),
-          QStringLiteral("You fell after {n_spikes}. The data will be published anyway, with a long footnote.") }
-    };
+    static const RankTier tier
+    { 0,
+      {
+        QStringLiteral("Reviewer 2's Favourite Example"),
+        QStringLiteral("Cautionary Tale"),
+        QStringLiteral("Quality Flag 2 Incarnate"),
+        QStringLiteral("Spike Casualty"),
+        QStringLiteral("Overrun by Outliers"),
+        QStringLiteral("Former Flux Slayer"),
+        QStringLiteral("Demon Chow"),
+        QStringLiteral("Case Study in the Methods Section"),
+        QStringLiteral("Victim of Non-Stationarity"),
+        QStringLiteral("Lost in the Noise"),
+        QStringLiteral("Buried in the Residual"),
+        QStringLiteral("Gap in the Record"),
+        QStringLiteral("Fallen at the 03:30 Half-Hour"),
+        QStringLiteral("Statistically Insignificant"),
+        QStringLiteral("Rejected Without Review"),
+        QStringLiteral("Missing Value"),
+        QStringLiteral("Sensor Offline"),
+        QStringLiteral("Error Bar Personified"),
+        QStringLiteral("Flagged and Filtered"),
+        QStringLiteral("Awaiting Reprocessing"),
+        QStringLiteral("Deleted by Quality Control"),
+        QStringLiteral("Victim of the Spider Mastermind"),
+        QStringLiteral("Out of Warranty"),
+        QStringLiteral("Ghost in the Logger"),
+        QStringLiteral("Below the Detection Limit"),
+        QStringLiteral("Unrecoverable Half-Hour"),
+        QStringLiteral("Corrupted .ghg File"),
+        QStringLiteral("Casualty of the Cow Herd"),
+        QStringLiteral("Footnote in the Annual Report"),
+        QStringLiteral("Dropped from the Author List")
+      },
+      {
+        QStringLiteral("The spikes overran your w′ series after only {n_spikes} despiked. {who} has been informed."),
+        QStringLiteral("{e_spikes} escaped into {place}. Not even {tool} can save this dataset now."),
+        QStringLiteral("You fell after {n_spikes}. The data will be published anyway, with a long footnote."),
+        QStringLiteral("Your health hit zero with {e_spikes} still loose in {place}."),
+        QStringLiteral("{who} found your remains next to the sonic, clutching {tool}."),
+        QStringLiteral("The demons won. {place} belongs to them now."),
+        QStringLiteral("You despiked {n}, but the {e_spikes} that escaped were a bit much. {who} sends condolences."),
+        QStringLiteral("Game over. {tool} was right there, and you never used it."),
+        QStringLiteral("Your w′ is now mostly demon. {who} wants to know why the fluxes doubled."),
+        QStringLiteral("You held out for {n_spikes}. Then {place} went dark."),
+        QStringLiteral("The spikes ate your health, then your deadline. {who} is not surprised."),
+        QStringLiteral("{e_spikes} escaped and set up camp in {place}."),
+        QStringLiteral("Down you go, with {n_spikes} to your name. Next time, bring {tool}."),
+        QStringLiteral("The tower is now haunted by {e_spikes}. {who} refuses to climb it."),
+        QStringLiteral("You fought bravely. {place} did not."),
+        QStringLiteral("The data manager marks your run as unrecoverable. {who} agrees."),
+        QStringLiteral("{n_spikes} despiked, one PhD lost. {who} will write the obituary in the methods section."),
+        QStringLiteral("Your last words were \"it's probably just noise\". It wasn't."),
+        QStringLiteral("The demons flagged you as a 2 and removed you from the dataset."),
+        QStringLiteral("{e_spikes} got through. {place} will never be the same."),
+        QStringLiteral("You should have trusted {tool}. {who} did, and they're fine."),
+        QStringLiteral("Overrun after {n_spikes}. Your fluxes are now mostly fiction."),
+        QStringLiteral("{who} reprocessed your data with {tool}. It made no difference."),
+        QStringLiteral("The spikes escaped into {place}, and so did your sanity."),
+        QStringLiteral("Your run ends here. The spikes are celebrating in {place}."),
+        QStringLiteral("{e_spikes} made it into the annual budget. Your carbon sink is now a source."),
+        QStringLiteral("You despiked {n}. The Cyberdemon despiked you."),
+        QStringLiteral("Health: 0%. Spikes: plenty. {who}: disappointed."),
+        QStringLiteral("The demons sent your data to {place} and your manuscript to Reviewer 2."),
+        QStringLiteral("You'll respawn tomorrow. The spikes in {place} already have.")
+      } };
     return tier;
 }
 
@@ -104,77 +212,332 @@ const QList<RankTier>& rankTiers()
 {
     static const QList<RankTier> tiers {
         { 5,
-          { QStringLiteral("Summer Intern"),
+          {
+            QStringLiteral("Summer Intern"),
             QStringLiteral("Lab Tourist"),
-            QStringLiteral("Unpaid Field Assistant") },
-          { QStringLiteral("{n_spikes} despiked, {e_spikes} escaped into {place}. Have you tried {tool}?"),
+            QStringLiteral("Unpaid Field Assistant"),
+            QStringLiteral("Work Experience Student"),
+            QStringLiteral("Visitor with a Lanyard"),
+            QStringLiteral("First-Week Master's Student"),
+            QStringLiteral("Person Holding the Ladder"),
+            QStringLiteral("Honorary Cable Tie"),
+            QStringLiteral("Apprentice Button Presser"),
+            QStringLiteral("Occasional Tower Climber"),
+            QStringLiteral("Keeper of the Spare Screws"),
+            QStringLiteral("Trainee Despiker"),
+            QStringLiteral("Spike Spectator"),
+            QStringLiteral("Lost Undergraduate"),
+            QStringLiteral("Assistant to the Assistant"),
+            QStringLiteral("Clipboard Holder"),
+            QStringLiteral("Probationary Flux Enthusiast"),
+            QStringLiteral("Tower Tourist"),
+            QStringLiteral("Novice of the Noise"),
+            QStringLiteral("Fresh Graduate"),
+            QStringLiteral("Hut Sweeper"),
+            QStringLiteral("Junior Guy-Wire Inspector"),
+            QStringLiteral("Learner Driver of the Logger"),
+            QStringLiteral("Casual Observer"),
+            QStringLiteral("Weekend Volunteer"),
+            QStringLiteral("Squire of the Sonic"),
+            QStringLiteral("Page of the Processing Queue"),
+            QStringLiteral("Data Entry Temp"),
+            QStringLiteral("Enthusiastic Amateur"),
+            QStringLiteral("Tea Maker to the Tower Crew")
+          },
+          {
+            QStringLiteral("{n_spikes} despiked, {e_spikes} escaped into {place}. Have you tried {tool}?"),
             QStringLiteral("Only {n}? {who} hoped for more, but at least you didn't unplug the logger."),
-            QStringLiteral("With {n} despiked, {place} now looks like a hedgehog. Consider {tool}.") } },
+            QStringLiteral("With {n} despiked, {place} now looks like a hedgehog. Consider {tool}."),
+            QStringLiteral("{n_spikes}. It's a start. {who} has seen worse. Not often, but they have."),
+            QStringLiteral("You despiked {n}. The rest are in {place}, waving."),
+            QStringLiteral("{who} suggests {tool} and a long rest."),
+            QStringLiteral("{e_spikes} got away. {place} will need a lot of {tool}."),
+            QStringLiteral("A modest {n_spikes}. The tower thanks you for your enthusiasm."),
+            QStringLiteral("You've discovered that spikes move. {who} is proud of this breakthrough."),
+            QStringLiteral("{n_spikes} despiked. Most of your shots went into the sky, which is technically upwind."),
+            QStringLiteral("{who} watched the whole thing and quietly reached for {tool}."),
+            QStringLiteral("Your despiking has the precision of {tool} run with the wrong settings."),
+            QStringLiteral("With {n} despiked, {place} is only slightly haunted."),
+            QStringLiteral("{e_spikes} escaped. {who} is updating the risk assessment."),
+            QStringLiteral("You got {n_spikes}. The demons are calling it a moral victory."),
+            QStringLiteral("Keep practising. {tool} took years to get this good."),
+            QStringLiteral("{n_spikes} removed. The rest are now peer-reviewing each other."),
+            QStringLiteral("{who} says it looks fine, but they were looking at {place}."),
+            QStringLiteral("Your aim is roughly as good as a sonic with a spider in it."),
+            QStringLiteral("{n_spikes}: enough for one very short methods paragraph."),
+            QStringLiteral("{e_spikes} are now living rent-free in {place}."),
+            QStringLiteral("{who} asks if you'd like to try the tutorial level. It's called \"calibration\"."),
+            QStringLiteral("You found the trigger. Next time, find the demons."),
+            QStringLiteral("{n_spikes} despiked. The rest have been reclassified as natural variability."),
+            QStringLiteral("{place} is still full of spikes, but you tried, and that's what matters to {who}."),
+            QStringLiteral("{tool} would have got at least twice as many. Just saying."),
+            QStringLiteral("A gentle {n_spikes}. The demons barely noticed."),
+            QStringLiteral("{e_spikes} escaped. They've already emailed {who}."),
+            QStringLiteral("You despiked {n}, which is {n} more than the default settings manage."),
+            QStringLiteral("{who} awards you a participation certificate, printed on the back of an old calibration sheet.")
+          } },
         { 12,
-          { QStringLiteral("PhD Student"),
+          {
+            QStringLiteral("PhD Student"),
             QStringLiteral("Survivor of Thesis Chapter 2"),
-            QStringLiteral("Junior Flux Wrangler") },
-          { QStringLiteral("{n_spikes} despiked. {who} calls it a promising start and wants a draft by Friday."),
+            QStringLiteral("Junior Flux Wrangler"),
+            QStringLiteral("Second-Year Despiker"),
+            QStringLiteral("Methods Section Author"),
+            QStringLiteral("Keeper of the Raw Files"),
+            QStringLiteral("Night-Shift Observer"),
+            QStringLiteral("Certified Tower Climber"),
+            QStringLiteral("Holder of the Hut Key"),
+            QStringLiteral("Apprentice Micrometeorologist"),
+            QStringLiteral("Wrangler of the Time Lag"),
+            QStringLiteral("Assistant Keeper of the Ogive"),
+            QStringLiteral("Conference Poster Presenter"),
+            QStringLiteral("First-Author Hopeful"),
+            QStringLiteral("Spike Hunter, Second Class"),
+            QStringLiteral("Guardian of the Logger"),
+            QStringLiteral("Squire of the Spectral Correction"),
+            QStringLiteral("Journeyman Despiker"),
+            QStringLiteral("Friend of the Technician"),
+            QStringLiteral("Operator of the Median Filter"),
+            QStringLiteral("Junior Keeper of the Sonic"),
+            QStringLiteral("Summer School Graduate"),
+            QStringLiteral("Master's Student of Distinction"),
+            QStringLiteral("Early-Career Flux Enthusiast"),
+            QStringLiteral("Collector of Half-Hours"),
+            QStringLiteral("Reader of the Manual"),
+            QStringLiteral("Trusted Cable Carrier"),
+            QStringLiteral("Apprentice to the Data Manager"),
+            QStringLiteral("Adjuster of the Guy Wires"),
+            QStringLiteral("Cadet of the Covariance")
+          },
+          {
+            QStringLiteral("{n_spikes} despiked. {who} calls it a promising start and wants a draft by Friday."),
             QStringLiteral("{e_spikes} still got into {place}, but {tool} wouldn't have done any better."),
-            QStringLiteral("{n_spikes} down. Your thesis now has a methods section.") } },
+            QStringLiteral("{n_spikes} down. Your thesis now has a methods section."),
+            QStringLiteral("{who} nods slowly, which counts as high praise."),
+            QStringLiteral("A respectable {n_spikes}. {place} is noticeably cleaner."),
+            QStringLiteral("You despiked {n}. {tool} would be proud, if it had feelings."),
+            QStringLiteral("{e_spikes} escaped, which your co-authors will call \"within the uncertainty\"."),
+            QStringLiteral("{n_spikes}! That's a whole figure's worth. {who} wants it in colour."),
+            QStringLiteral("You've outperformed {tool}. Please don't tell it."),
+            QStringLiteral("{n_spikes} despiked. {place} will only need minor revisions."),
+            QStringLiteral("{who} forwards your score to the whole lab with the subject line \"see?\"."),
+            QStringLiteral("Solid work. The remaining {e_spikes} are someone else's problem."),
+            QStringLiteral("{n_spikes} removed. You may now call yourself a despiker, but only in the methods section."),
+            QStringLiteral("{place} looks almost publishable. Almost."),
+            QStringLiteral("With {n} despiked, you've earned a second coffee. {who} is buying."),
+            QStringLiteral("{e_spikes} got away, but they looked scared."),
+            QStringLiteral("{n_spikes}. Your supervisor would say \"good\", then ask for twice as many."),
+            QStringLiteral("{tool} and you: a partnership for the ages."),
+            QStringLiteral("You despiked {n}. The spikes have started a support group."),
+            QStringLiteral("{who} would like to cite your score in their review."),
+            QStringLiteral("{n_spikes} despiked. The demons have added you to their watchlist."),
+            QStringLiteral("{place} thanks you. It had been getting noisy."),
+            QStringLiteral("{e_spikes} escaped into {place}. You'll get them in the next round of revisions."),
+            QStringLiteral("A good day on the tower: {n_spikes} and all ten fingers."),
+            QStringLiteral("{who} says it's the best despiking they've seen since {tool}."),
+            QStringLiteral("{n_spikes}. You're getting the hang of this. Terrifying."),
+            QStringLiteral("You despiked {n}, roughly one per chapter of your thesis."),
+            QStringLiteral("{place} is now clean enough to show at a conference."),
+            QStringLiteral("{e_spikes} escaped. {who} has kindly offered to look into it."),
+            QStringLiteral("{n_spikes} down, one thesis to go.")
+          } },
         { 20,
-          { QStringLiteral("Postdoc of Doom"),
+          {
+            QStringLiteral("Postdoc of Doom"),
             QStringLiteral("Flux Tower Veteran"),
-            QStringLiteral("Keeper of the Sonic") },
-          { QStringLiteral("{n_spikes} despiked. {who} wants you on the next grant proposal."),
+            QStringLiteral("Keeper of the Sonic"),
+            QStringLiteral("Knight of the Planar Fit"),
+            QStringLiteral("Warden of the Footprint"),
+            QStringLiteral("Spike Slayer, First Class"),
+            QStringLiteral("Master of the Median"),
+            QStringLiteral("Veteran of the Night Shift"),
+            QStringLiteral("Guardian of the Ogive"),
+            QStringLiteral("Lord of the Logger"),
+            QStringLiteral("Time-Lag Tamer"),
+            QStringLiteral("Senior Tower Climber"),
+            QStringLiteral("Champion of the Cospectra"),
+            QStringLiteral("Captain of the Covariance"),
+            QStringLiteral("Ranger of the Raw Data"),
+            QStringLiteral("Paladin of the Quality Flags"),
+            QStringLiteral("Keeper of the Calibration Gas"),
+            QStringLiteral("Defender of the Diurnal Cycle"),
+            QStringLiteral("Scourge of the Outliers"),
+            QStringLiteral("Sentinel of Stationarity"),
+            QStringLiteral("Warden of the Webb Correction"),
+            QStringLiteral("Protector of the Half-Hour"),
+            QStringLiteral("Commander of the Gap-Filling"),
+            QStringLiteral("Custodian of the Closure"),
+            QStringLiteral("Hunter of the High Frequencies"),
+            QStringLiteral("Tamer of Turbulence"),
+            QStringLiteral("Vanquisher of Noise"),
+            QStringLiteral("Guardian of the Guy Wires"),
+            QStringLiteral("Marshal of the Metadata"),
+            QStringLiteral("Keeper of the Sacred Spreadsheet")
+          },
+          {
+            QStringLiteral("{n_spikes} despiked. {who} wants you on the next grant proposal."),
             QStringLiteral("Only {e_spikes} escaped into {place}. You and {tool} make a fine team."),
-            QStringLiteral("{n_spikes} removed by hand. Who needs {tool}?") } },
+            QStringLiteral("{n_spikes} removed by hand. Who needs {tool}?"),
+            QStringLiteral("{place} hasn't been this clean since the tower went up."),
+            QStringLiteral("{n_spikes}! {who} has started calling you \"the despiker\"."),
+            QStringLiteral("You despiked {n} while {tool} was still loading."),
+            QStringLiteral("{e_spikes} got away, and they'll be telling stories about you."),
+            QStringLiteral("{who} asked you to review {tool}. You gave it two stars."),
+            QStringLiteral("{n_spikes}. The demons have requested a transfer to another site."),
+            QStringLiteral("{place} is so clean it squeaks. {who} is suspicious."),
+            QStringLiteral("With {n} despiked, your fluxes finally look like the textbook."),
+            QStringLiteral("{n_spikes} despiked. The spikes now avoid your tower on purpose."),
+            QStringLiteral("{who} offers you co-authorship. And the night shift."),
+            QStringLiteral("Only {e_spikes} escaped. Reviewer 2 is running out of things to say."),
+            QStringLiteral("{n_spikes}! Your ogive has never been flatter."),
+            QStringLiteral("You've made {tool} look like a toy."),
+            QStringLiteral("{place} applauds. Quietly, so as not to add noise."),
+            QStringLiteral("{n_spikes} despiked. The network wants to adopt your settings."),
+            QStringLiteral("{who} is writing a methods paper about you."),
+            QStringLiteral("{e_spikes} escaped, all of them trembling."),
+            QStringLiteral("With {n} despiked, you can finally close the laptop at a reasonable hour."),
+            QStringLiteral("{n_spikes}. The Cyberdemon has quietly left the footprint."),
+            QStringLiteral("{place} will be in the next annual report, thanks to you."),
+            QStringLiteral("{who} tried {tool} and got fewer. They're not happy about it."),
+            QStringLiteral("{n_spikes} despiked with the calm of a sonic sampling at 20 Hz."),
+            QStringLiteral("You despiked {n}. The quality flags are mostly zeros now. Suspiciously so."),
+            QStringLiteral("{e_spikes} escaped into {place}, where they'll be very lonely."),
+            QStringLiteral("{n_spikes}: enough for a paper, a poster and a slightly smug email."),
+            QStringLiteral("{who} has framed your score and hung it in the hut."),
+            QStringLiteral("The demons are drafting a formal complaint to {who}.")
+          } },
         { 30,
-          { QStringLiteral("Senior Scientist"),
+          {
+            QStringLiteral("Senior Scientist"),
             QStringLiteral("Principal Investigator"),
-            QStringLiteral("Chair of the QC Committee") },
-          { QStringLiteral("{n_spikes} despiked. {place} has never looked this clean."),
+            QStringLiteral("Chair of the QC Committee"),
+            QStringLiteral("Director of Despiking"),
+            QStringLiteral("Grand Master of the Median"),
+            QStringLiteral("Keeper of the Network Standards"),
+            QStringLiteral("Head of the Flux Lab"),
+            QStringLiteral("Distinguished Micrometeorologist"),
+            QStringLiteral("Archmage of the Ogive"),
+            QStringLiteral("High Priest of the Planar Fit"),
+            QStringLiteral("Warden of All Footprints"),
+            QStringLiteral("Lord Protector of the Energy Balance"),
+            QStringLiteral("Senior Keeper of the Sonic"),
+            QStringLiteral("Emeritus Tower Climber"),
+            QStringLiteral("Grand Inquisitor of Outliers"),
+            QStringLiteral("Chancellor of the Covariance"),
+            QStringLiteral("Principal Despiker"),
+            QStringLiteral("Keynote Speaker"),
+            QStringLiteral("Editor of the Flux Journal"),
+            QStringLiteral("Guardian of the Annual Budget"),
+            QStringLiteral("Commander of the Night Shift"),
+            QStringLiteral("Marshal of the Measurement Network"),
+            QStringLiteral("Supreme Leveller of Sonics"),
+            QStringLiteral("Overseer of the Quality Flags"),
+            QStringLiteral("Archivist of the Raw Data"),
+            QStringLiteral("Lord of the Time Lag"),
+            QStringLiteral("Sage of Stationarity"),
+            QStringLiteral("Great Filter of the Spikes"),
+            QStringLiteral("Protector of the Carbon Sink"),
+            QStringLiteral("President of the Tower Society")
+          },
+          {
+            QStringLiteral("{n_spikes} despiked. {place} has never looked this clean."),
             QStringLiteral("{who} will cite your {n_spikes} in their next keynote."),
-            QStringLiteral("With {n_spikes} despiked, you've made {tool} obsolete.") } },
+            QStringLiteral("With {n_spikes} despiked, you've made {tool} obsolete."),
+            QStringLiteral("{n_spikes}! The flux network is renaming its QC step after you."),
+            QStringLiteral("{place} is pristine. {who} is taking photos."),
+            QStringLiteral("Only {e_spikes} escaped, and they're writing their memoirs."),
+            QStringLiteral("You despiked {n}. {tool} has asked for your autograph."),
+            QStringLiteral("{who} wants your settings. You've told them to find their own."),
+            QStringLiteral("{n_spikes}: enough to rewrite the textbook chapter on despiking."),
+            QStringLiteral("{place} is so clean that the random uncertainty has gone home."),
+            QStringLiteral("The demons have filed for bankruptcy. You despiked {n}."),
+            QStringLiteral("{n_spikes} despiked. Your name now appears in the default configuration."),
+            QStringLiteral("{who} invites you to give the plenary. The topic: \"Just shoot them\"."),
+            QStringLiteral("{e_spikes} escaped, but they'll never work in this footprint again."),
+            QStringLiteral("With {n} despiked, your energy balance almost closed out of respect."),
+            QStringLiteral("{tool} is thinking about retiring."),
+            QStringLiteral("{n_spikes}. {place} could be used as a calibration standard."),
+            QStringLiteral("{who} is updating the network protocol to say \"do what they did\"."),
+            QStringLiteral("You despiked {n}. The spikes have unionised."),
+            QStringLiteral("{n_spikes} despiked. Reviewer 2 accepted without comments, for the first time in history."),
+            QStringLiteral("{place} is spotless, and {who} can't stop talking about it."),
+            QStringLiteral("{n_spikes}: the tower has put up a small plaque."),
+            QStringLiteral("Your despiking is so good that {tool} now calls you for advice."),
+            QStringLiteral("{e_spikes} escaped, and they'll be flagged the moment they land."),
+            QStringLiteral("{n_spikes} despiked. The funding agency doubled your budget, then halved it again, as usual."),
+            QStringLiteral("{who} says you're wasted on eddy covariance. They're wrong."),
+            QStringLiteral("With {n} despiked, your paper writes itself."),
+            QStringLiteral("{place} is ready for the database, the journal and the museum."),
+            QStringLiteral("{n_spikes}. Future students will hear about you, in hushed tones."),
+            QStringLiteral("The demons now warn their children about you.")
+          } },
         { std::numeric_limits<int>::max(),
-          { QStringLiteral("Tenured Doom Slayer"),
+          {
+            QStringLiteral("Tenured Doom Slayer"),
             QStringLiteral("Lord of the Ogive"),
-            QStringLiteral("Sonic Whisperer") },
-          { QStringLiteral("{n_spikes} despiked! {place} is spotless and {who} is speechless."),
+            QStringLiteral("Sonic Whisperer"),
+            QStringLiteral("Legend of the Flux Tower"),
+            QStringLiteral("Eternal Despiker"),
+            QStringLiteral("Grand Architect of the Median"),
+            QStringLiteral("Sovereign of the Covariance"),
+            QStringLiteral("Emperor of Eddies"),
+            QStringLiteral("Keeper of the Perfect Half-Hour"),
+            QStringLiteral("Immortal of the Night Shift"),
+            QStringLiteral("Supreme Guardian of the Footprint"),
+            QStringLiteral("Master of All Time Lags"),
+            QStringLiteral("High Lord of the Planar Fit"),
+            QStringLiteral("The One Who Closed the Energy Balance"),
+            QStringLiteral("Terror of the Outliers"),
+            QStringLiteral("Oracle of the Ogive"),
+            QStringLiteral("Archon of Turbulence"),
+            QStringLiteral("Eternal Keeper of the Sonic"),
+            QStringLiteral("Destroyer of Noise"),
+            QStringLiteral("Titan of the Tower"),
+            QStringLiteral("Paragon of the Quality Flags"),
+            QStringLiteral("Warlord of Wavelets"),
+            QStringLiteral("Grand Duke of the Diurnal Cycle"),
+            QStringLiteral("Sultan of Stationarity"),
+            QStringLiteral("Pharaoh of the Flux Footprint"),
+            QStringLiteral("Kaiser of the Kolmogorov Scale"),
+            QStringLiteral("Deity of Despiking"),
+            QStringLiteral("Champion of Champions (Micrometeorology Division)"),
+            QStringLiteral("The Doom Slayer of Eddy Covariance"),
+            QStringLiteral("Mythical Beast of the Flux Network")
+          },
+          {
+            QStringLiteral("{n_spikes} despiked! {place} is spotless and {who} is speechless."),
             QStringLiteral("{n_spikes} despiked, {e_spikes} escaped. Every flux network wants to hire you."),
-            QStringLiteral("Legend says {tool} was named after you.") } }
+            QStringLiteral("Legend says {tool} was named after you."),
+            QStringLiteral("{n_spikes}. The demons have formally surrendered to {who}."),
+            QStringLiteral("{place} is now a protected area. Spikes are banned."),
+            QStringLiteral("You despiked {n}. Somewhere, a sonic anemometer wept with joy."),
+            QStringLiteral("{who} has retired, knowing the data are in safe hands."),
+            QStringLiteral("{n_spikes}! Your cospectra follow the theoretical curve exactly. Nobody believes it."),
+            QStringLiteral("{tool} has been deprecated in your honour."),
+            QStringLiteral("{e_spikes} escaped. They were later found hiding in another site's data."),
+            QStringLiteral("With {n} despiked, the energy balance closed. Briefly. Everyone saw it."),
+            QStringLiteral("{n_spikes}. The Cyberdemon has asked for a signed photo."),
+            QStringLiteral("{who} is building a statue of you out of old sonic parts."),
+            QStringLiteral("{place} is so clean it now counts as a reference dataset."),
+            QStringLiteral("You despiked {n}. The spikes have switched careers to remote sensing."),
+            QStringLiteral("{n_spikes}: a new world record, pending review by {who}."),
+            QStringLiteral("The demons now use your name as a curse."),
+            QStringLiteral("{n_spikes} despiked. The half-hours are queueing up to thank you."),
+            QStringLiteral("{who} has nominated you for a medal. It's made of recycled guy wire."),
+            QStringLiteral("{place} will be taught in textbooks as \"the clean one\"."),
+            QStringLiteral("With {n} despiked, your u* threshold lowered itself out of respect."),
+            QStringLiteral("{n_spikes}! Hell has requested your despiking settings."),
+            QStringLiteral("{tool} is now simply called \"doing what you did\"."),
+            QStringLiteral("Only {e_spikes} escaped, and they're in therapy."),
+            QStringLiteral("{n_spikes} despiked. The time lag synchronised itself out of sheer admiration."),
+            QStringLiteral("{who} has renamed the tower after you. The tower agrees."),
+            QStringLiteral("You despiked {n}. Your data now get cited more than you do."),
+            QStringLiteral("{place} gleams. Even the cows are impressed."),
+            QStringLiteral("{n_spikes}: the stuff of legends and very good annual budgets."),
+            QStringLiteral("Rip and tear? No: despike and publish. {who} is in awe.")
+          } }
     };
     return tiers;
-}
-
-const QStringList& rankTools()
-{
-    static const QStringList tools {
-        QStringLiteral("a median filter"),
-        QStringLiteral("a MAD-based despiking routine"),
-        QStringLiteral("a 3.5-sigma threshold"),
-        QStringLiteral("the Vickers & Mahrt tests"),
-        QStringLiteral("a very patient undergrad")
-    };
-    return tools;
-}
-
-const QStringList& rankPlaces()
-{
-    static const QStringList places {
-        QStringLiteral("your cospectra"),
-        QStringLiteral("the ogive"),
-        QStringLiteral("the 03:30 half-hour"),
-        QStringLiteral("your annual carbon budget"),
-        QStringLiteral("the footprint model")
-    };
-    return places;
-}
-
-const QStringList& rankBlamers()
-{
-    static const QStringList who {
-        QStringLiteral("Your supervisor"),
-        QStringLiteral("Reviewer 2"),
-        QStringLiteral("The site PI"),
-        QStringLiteral("The cows")
-    };
-    return who;
 }
 
 QString spikes(int count)
@@ -183,20 +546,42 @@ QString spikes(int count)
                       : QStringLiteral("%1 spikes").arg(count);
 }
 
-QString pickAny(const QStringList& list)
-{
-    return list.at(QRandomGenerator::global()->bounded(static_cast<int>(list.size())));
-}
-
 // added to the rank sentence when the player shot valid data
 const QStringList& validDataTemplates()
 {
-    static const QStringList templates {
+    static const QStringList list {
         QStringLiteral("You also deleted {v_points} of perfectly good data. {who} noticed."),
         QStringLiteral("Sadly, {v_points} of valid data went down with the demons."),
-        QStringLiteral("{v_points} of real turbulence got despiked too. {place} will remember.")
+        QStringLiteral("{v_points} of real turbulence got despiked too. {place} will remember."),
+        QStringLiteral("You shot {v_points} of genuine eddies. They had families."),
+        QStringLiteral("{who} would like a word about the {v_points} of valid data you removed."),
+        QStringLiteral("Also: {v_points} of good data are now in the bin. {tool} would have spared them."),
+        QStringLiteral("{v_points} of perfectly valid turbulence, gone. {place} feels emptier."),
+        QStringLiteral("You flagged {v_points} of real data as spikes. Reviewer 2 will find them."),
+        QStringLiteral("Collateral damage: {v_points} of honest fluxes."),
+        QStringLiteral("{v_points} of valid data were harmed in the making of this score."),
+        QStringLiteral("{who} is restoring your {v_points} from the raw archive, sighing loudly."),
+        QStringLiteral("Those stars were data, and you shot {v_points} of them."),
+        QStringLiteral("{v_points} of good measurements now count as gaps. The gap-filler thanks you."),
+        QStringLiteral("You removed {v_points} of valid data. Your annual sum has quietly changed."),
+        QStringLiteral("{place} has lost {v_points} of honest turbulence and wants them back."),
+        QStringLiteral("{v_points} of good data, deleted. {who} is adding a sentence to the methods section."),
+        QStringLiteral("The stars you shot ({v_points}) were the best data of the day."),
+        QStringLiteral("Your trigger finger took out {v_points} of real eddies. Oops."),
+        QStringLiteral("{v_points} of valid data won't make it into {place}."),
+        QStringLiteral("{who} counted {v_points} of good data among the casualties."),
+        QStringLiteral("Friendly fire cost you {v_points}. The eddies forgive you. The reviewers won't."),
+        QStringLiteral("{v_points} of real turbulence despiked. The random uncertainty just went up."),
+        QStringLiteral("You also filtered out {v_points} of good data, which, to be fair, is how most despiking works."),
+        QStringLiteral("{v_points} of perfectly nice data are now missing. {who} has put up posters."),
+        QStringLiteral("Friendly fire: {v_points}. The quality flags are confused."),
+        QStringLiteral("After your {v_points} of friendly fire, {who} wrote \"please don't shoot the stars\" on the hut door."),
+        QStringLiteral("You deleted {v_points} of valid data. {tool} would never."),
+        QStringLiteral("Somewhere in {place}, {v_points} of good data are sadly missed."),
+        QStringLiteral("{v_points} of valid data lost. It'll show up as a suspicious gap in July."),
+        QStringLiteral("The stars were innocent. You still shot {v_points} of them.")
     };
-    return templates;
+    return list;
 }
 
 QString dataPoints(int count)
@@ -212,29 +597,12 @@ struct GameStats
     int validRemoved;
 };
 
-QString fillTemplate(QString sentence, const GameStats& stats)
+QString fillTemplate(const QString& sentence, const GameStats& stats)
 {
-    // {who} is capitalised in the list for when it opens a sentence, and
-    // lower-cased (bar proper names) when it lands mid-sentence
-    QString who = pickAny(rankBlamers());
-    const auto whoAt = sentence.indexOf(QLatin1String("{who}"));
-    const bool opensSentence = whoAt <= 0
-                               || (whoAt >= 2 && QStringLiteral(".?!").contains(sentence.at(whoAt - 2)));
-    if (!opensSentence && who != QLatin1String("Reviewer 2"))
-        who[0] = who.at(0).toLower();
-
-    sentence.replace(QLatin1String("{n_spikes}"), spikes(stats.despiked));
-    sentence.replace(QLatin1String("{e_spikes}"), spikes(stats.escaped));
-    sentence.replace(QLatin1String("{v_points}"), dataPoints(stats.validRemoved));
-    sentence.replace(QLatin1String("{n}"), QString::number(stats.despiked));
-    sentence.replace(QLatin1String("{tool}"), pickAny(rankTools()));
-    sentence.replace(QLatin1String("{place}"), pickAny(rankPlaces()));
-    sentence.replace(QLatin1String("{who}"), who);
-
-    // a placeholder at the very start leaves a lower-case first letter
-    if (!sentence.isEmpty())
-        sentence[0] = sentence.at(0).toUpper();
-    return sentence;
+    return fillFlavour(sentence, { { QStringLiteral("n_spikes"), spikes(stats.despiked) },
+                                   { QStringLiteral("e_spikes"), spikes(stats.escaped) },
+                                   { QStringLiteral("v_points"), dataPoints(stats.validRemoved) },
+                                   { QStringLiteral("n"), QString::number(stats.despiked) } });
 }
 
 struct Rank
@@ -259,369 +627,179 @@ Rank doomRank(int score, const GameStats& stats, bool died)
         }
     }
 
-    QString sentence = fillTemplate(pickAny(tier->templates), stats);
+    QString sentence = fillTemplate(pickFresh(tier->templates), stats);
     if (stats.validRemoved > 0)
-        sentence += QLatin1Char(' ') + fillTemplate(pickAny(validDataTemplates()), stats);
+        sentence += QLatin1Char(' ') + fillTemplate(pickFresh(validDataTemplates()), stats);
 
-    return { pickAny(tier->titles), sentence };
+    return { pickFresh(tier->titles), sentence };
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Hitchhiker's Guide
+// tab icons
 
-const QStringList& thinkingSteps()
+// the palette and frame of the other view-toolbar icons (img/view_toolbar)
+const QColor ICON_GREY(102, 102, 102);
+const QColor ICON_GREEN(118, 189, 29);
+const QSize ICON_SIZE(42, 40);
+const QRectF ICON_FRAME(5.5, 8.5, 31, 24);
+const QPointF ICON_CENTRE(21, 20.5);
+
+using IconPainter = std::function<void(QPainter&, int scale)>;
+
+QPixmap paintIcon(int scale, const IconPainter& paint)
 {
-    static const QStringList steps {
-        QStringLiteral("Pondering the Ultimate Question…"),
-        QStringLiteral("Integrating cospectra over 7.5 million years…"),
-        QStringLiteral("Filtering Vogon poetry out of the high-frequency range…"),
-        QStringLiteral("Towel detected. Proceeding…"),
-        QStringLiteral("Engaging the Infinite Improbability Drive…")
-    };
-    return steps;
+    QPixmap pixmap(ICON_SIZE * scale);
+    pixmap.fill(Qt::transparent);
+
+    QPainter p(&pixmap);
+    p.setRenderHint(QPainter::Antialiasing);
+    p.setRenderHint(QPainter::SmoothPixmapTransform);
+    p.scale(scale, scale);
+
+    p.setPen(QPen(ICON_GREY, 1.0));
+    p.setBrush(Qt::white);
+    p.drawRect(ICON_FRAME);
+
+    paint(p, scale);
+    return pixmap;
 }
 
-// rich text; the Vogon fragment is kept short and always attributed
-const QStringList& guideEntries()
+// Freedoom's flying demon head, sprite heada1.png. Copyright © 2001-2024
+// Contributors to the Freedoom project, BSD 3-Clause; the full notice ships
+// beside it as :/icons/egg-doom-licence (img/view_toolbar/freedoom-head.LICENSE.txt).
+void paintDoomIcon(QPainter& p, int)
 {
-    static const QStringList entries {
-        QStringLiteral("<i>“Oh freddled gruntbuggly, thy micturations are to me…”</i><br>"
-                       "— Prostetnic Vogon Jeltz, in Douglas Adams, "
-                       "<i>The Hitchhiker's Guide to the Galaxy</i> (1979)<br>"
-                       "Still easier to read than your raw file headers."),
-        QStringLiteral("Don't panic. But do check your time lag."),
-        QStringLiteral("Your sonic anemometer is mostly harmless."),
-        QStringLiteral("So long, and thanks for all the fluxes."),
-        QStringLiteral("Always know where your towel is. And your raw data backup."),
-        QStringLiteral("The Infinite Improbability Drive can't explain your nighttime CO₂ uptake either."),
-        QStringLiteral("Time is an illusion. Averaging periods doubly so."),
-        QStringLiteral("Life? Don't talk to me about life. Talk to me about stationarity."),
-        QStringLiteral("The Babel fish translated your .ghg file. It says: go back to Basic Settings."),
-        QStringLiteral("The Earth was built to measure fluxes. Nobody told the Vogons about the energy balance gap.")
-    };
-    return entries;
+    const QImage sprite(QStringLiteral(":/icons/egg-doom"));
+    if (sprite.isNull())
+        return;
+    const qreal height = ICON_FRAME.height() - 3;
+    const qreal width = height * sprite.width() / sprite.height();
+    p.drawImage(QRectF(ICON_CENTRE.x() - width / 2, ICON_CENTRE.y() - height / 2, width, height),
+                sprite);
 }
 
-struct Topic
+// a d20: hexagon rim, front triangle, facet edges, and its numbers
+void paintD20Icon(QPainter& p, int scale)
 {
-    QStringList keywords;
-    QString unit;
-    QStringList replies;
-};
-
-const QList<Topic>& topics()
-{
-    static const QList<Topic> list {
-        { { QStringLiteral("co2"), QStringLiteral("co₂"), QStringLiteral("ch4"),
-            QStringLiteral("methane"), QStringLiteral("flux") },
-          QStringLiteral("µmol m⁻² s⁻¹"),
-          { QStringLiteral("Exactly what your ecosystem was doing before the cows walked through the footprint."),
-            QStringLiteral("Deep Thought is unsure about the sign convention, but very sure about the 42."),
-            QStringLiteral("Upward or downward: Deep Thought was built to find the answer, not the direction.") } },
-        { { QStringLiteral("energy balance"), QStringLiteral("closure"), QStringLiteral("close") },
-          QStringLiteral("W m⁻²"),
-          { QStringLiteral("That's how far short of closure you are. It will close the day the Vogons "
-                           "approve your hyperspace bypass. Check the storage term anyway."),
-            QStringLiteral("Missing. Deep Thought suspects the Ravenous Bugblatter Beast of Traal.") } },
-        { { QStringLiteral("time lag"), QStringLiteral("lag") },
-          QStringLiteral("ms"),
-          { QStringLiteral("That is your time lag. And yes, it's probably the tube length."),
-            QStringLiteral("Deep Thought took 7.5 million years to answer, so it has no right to judge your time lag.") } },
-        { { QStringLiteral("u*"), QStringLiteral("ustar"), QStringLiteral("friction velocity"),
-            QStringLiteral("night"), QStringLiteral("turbulen") },
-          QStringLiteral("cm s⁻¹"),
-          { QStringLiteral("Below the threshold. Deep Thought filters your question out as insufficient turbulence."),
-            QStringLiteral("At night even Deep Thought can't find any turbulence. Neither can your sonic.") } },
-        { { QStringLiteral("footprint"), QStringLiteral("fetch"), QStringLiteral("upwind") },
-          QStringLiteral("m"),
-          { QStringLiteral("That's how far upwind your footprint reaches, just past the Restaurant at the End of the Universe."),
-            QStringLiteral("Your footprint extends to a small planet near Betelgeuse. Check your wind direction filter.") } },
-        { { QStringLiteral("gap"), QStringLiteral("fill"), QStringLiteral("missing") },
-          QStringLiteral("% of your data"),
-          { QStringLiteral("Gaps, filled by the Infinite Improbability Drive. Results may be improbable."),
-            QStringLiteral("Missing. Deep Thought recommends MDS gap-filling and a strong cup of tea.") } },
-        { { QStringLiteral("rotation"), QStringLiteral("planar fit"), QStringLiteral("tilt"),
-            QStringLiteral("coordinate") },
-          QStringLiteral("degrees"),
-          { QStringLiteral("Deep Thought double-rotated your question until it pointed at the answer."),
-            QStringLiteral("Deep Thought planar-fitted the whole galaxy. It came out slightly tilted.") } },
-        { { QStringLiteral("spike"), QStringLiteral("despik"), QStringLiteral("noise"),
-            QStringLiteral("outlier") },
-          QStringLiteral("spikes"),
-          { QStringLiteral("Most of them caused by Marvin being depressed near the sonic."),
-            QStringLiteral("Deep Thought has removed them. It feels slightly better now. Only slightly.") } },
-        { { QStringLiteral("spectr"), QStringLiteral("frequency"), QStringLiteral("correction"),
-            QStringLiteral("filter") },
-          QStringLiteral("Hz"),
-          { QStringLiteral("The frequency at which Vogon poetry peaks. Apply a low-pass filter immediately."),
-            QStringLiteral("Deep Thought corrected your spectra so thoroughly they now describe a different planet.") } },
-        { { QStringLiteral("thesis"), QStringLiteral("phd"), QStringLiteral("paper"),
-            QStringLiteral("review"), QStringLiteral("deadline"), QStringLiteral("supervisor"),
-            QStringLiteral("publish") },
-          QStringLiteral("days until your deadline"),
-          { QStringLiteral("Deep Thought recommends a towel, and less time spent on easter eggs."),
-            QStringLiteral("Reviewer 2 has already read your question and requested major revisions.") } }
-    };
-    return list;
-}
-
-const QStringList& fallbackReplies()
-{
-    static const QStringList replies {
-        QStringLiteral("Deep Thought is confident. Your data, less so."),
-        QStringLiteral("Deep Thought has checked it very thoroughly. You won't like it."),
-        QStringLiteral("The answer was easy. The question is the hard part, and you're not quite there yet."),
-        QStringLiteral("Deep Thought suggests you process your fluxes while it thinks of a better question."),
-        QStringLiteral("That's all the Guide has to say on the matter. The rest of the entry reads: mostly harmless."),
-        QStringLiteral("Deep Thought could explain, but you'd need a computer the size of a planet to understand it.")
-    };
-    return replies;
-}
-
-const QStringList& randomUnits()
-{
-    static const QStringList units {
-        QStringLiteral("µmol m⁻² s⁻¹"),
-        QStringLiteral("W m⁻²"),
-        QStringLiteral("ms of time lag"),
-        QStringLiteral("% energy-balance gap"),
-        QStringLiteral("half-hourly records"),
-        QStringLiteral("degrees of coordinate rotation"),
-        QStringLiteral("Pa"),
-        QStringLiteral("cups of tea")
-    };
-    return units;
-}
-
-QString normalizedQuestion(const QString& question)
-{
-    return question.simplified().toLower();
-}
-
-// Deep Thought never changes its mind: the same question is always given
-// the same answer, because the generator is seeded from the question.
-QString deepThoughtAnswer(const QString& question)
-{
-    const QString q = normalizedQuestion(question);
-    if (q.isEmpty())
-        return QStringLiteral("You have to actually ask something. "
-                              "Deep Thought has waited 7.5 million years for this.");
-
-    QRandomGenerator rng(static_cast<quint32>(qHash(q)));
-    auto pick = [&rng](const QStringList& list)
+    const qreal r = 10.5;
+    std::array<QPointF, 6> rim;
+    for (int i = 0; i < 6; ++i)
     {
-        return list.at(rng.bounded(static_cast<int>(list.size())));
-    };
-
-    QString answer;
-    if (!q.endsWith(QLatin1Char('?')))
-        answer += QStringLiteral("That wasn't strictly a question, but… ");
-
-    if (q.contains(QLatin1String("life"))
-        || q.contains(QLatin1String("universe"))
-        || q.contains(QLatin1String("everything")))
-    {
-        return answer + QStringLiteral("<b>42.</b> Deep Thought checked it very thoroughly. "
-                                       "The problem is that you never actually knew what the question was.");
+        const qreal angle = (-90.0 + 60.0 * i) * 3.14159265358979323846 / 180.0;
+        rim[i] = ICON_CENTRE + QPointF(r * std::cos(angle), r * std::sin(angle));
     }
+    const QPointF top = ICON_CENTRE + QPointF(0, -0.52 * r);
+    const QPointF left = ICON_CENTRE + QPointF(-0.45 * r, 0.26 * r);
+    const QPointF right = ICON_CENTRE + QPointF(0.45 * r, 0.26 * r);
 
-    const Topic* topic = nullptr;
-    for (const auto& candidate : topics())
+    p.setPen(QPen(ICON_GREEN, 1.1, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    p.setBrush(Qt::white);
+    p.drawPolygon(rim.data(), 6);
+    const QPointF front[3] { top, left, right };
+    p.drawPolygon(front, 3);
+    for (int i : { 0, 1, 5 })
+        p.drawLine(top, rim[i]);
+    for (int i : { 5, 4, 3 })
+        p.drawLine(left, rim[i]);
+    for (int i : { 1, 2, 3 })
+        p.drawLine(right, rim[i]);
+
+    // sizes are in icon pixels; the painter's scale takes care of 2x
+    auto number = [&p, scale](const QPointF& at, const QString& text, qreal size)
     {
-        for (const auto& keyword : candidate.keywords)
-        {
-            if (q.contains(keyword))
-            {
-                topic = &candidate;
-                break;
-            }
-        }
-        if (topic)
-            break;
-    }
-
-    const QString unit = topic ? topic->unit : pick(randomUnits());
-    const QString reply = topic ? pick(topic->replies) : pick(fallbackReplies());
-    answer += QStringLiteral("<b>42 %1.</b> %2").arg(unit.toHtmlEscaped(), reply.toHtmlEscaped());
-
-    if (rng.bounded(3) == 0)
-        answer += QStringLiteral("<br><br><i>The Guide adds:</i> ") + pick(guideEntries());
-
-    return answer;
-}
-
-const int MAX_QUESTIONS = 3;
-
-////////////////////////////////////////////////////////////////////////////////
-// Dungeons & Dragons
-
-struct DndScenario
-{
-    QString dmText;
-    QString check;
-    int dc;
-    QString passText;
-    QString failText;
-};
-
-const QList<DndScenario>& dndScenarios()
-{
-    static const QList<DndScenario> scenarios {
-        { QStringLiteral("A wild Reviewer 2 emerges from behind the flux tower!"),
-          QStringLiteral("for Initiative"), 12,
-          QStringLiteral("You act first and resubmit before Reviewer 2 finishes the abstract."),
-          QStringLiteral("Reviewer 2 goes first and demands a full reprocessing with planar fit instead of double rotation.") },
-        { QStringLiteral("You climb the tower. Something about the sonic anemometer feels… off."),
-          QStringLiteral("Perception"), 14,
-          QStringLiteral("You spot a spider web between the transducers. You evict the spider, and your spikes vanish."),
-          QStringLiteral("You notice nothing. The spider stays and becomes your dominant turbulent eddy.") },
-        { QStringLiteral("It is 3 a.m., −20 °C, and the IRGA heater has failed."),
-          QStringLiteral("a Constitution Saving Throw"), 15,
-          QStringLiteral("You endure the cold and wipe the frost off the optics. The nighttime fluxes are saved. Mostly."),
-          QStringLiteral("You retreat to the hut. The window fogs over and the whole night gets flagged 2.") },
-        { QStringLiteral("An ancient scroll describes a forbidden ritual known only as 'WPL'."),
-          QStringLiteral("Arcana"), 13,
-          QStringLiteral("You grasp density fluctuations. Your CO₂ flux changes sign. Nobody believes you."),
-          QStringLiteral("You cast the correction twice. Your fluxes now exist in another plane.") },
-        { QStringLiteral("The funding agency's envoy eyes your energy balance with suspicion."),
-          QStringLiteral("Persuasion"), 16,
-          QStringLiteral("'It'll close this time, I promise.' Somehow it works. Funding secured."),
-          QStringLiteral("Your energy balance gap is 20%. So is your budget cut.") },
-        { QStringLiteral("A herd of cows approaches your guy wires."),
-          QStringLiteral("Animal Handling"), 11,
-          QStringLiteral("The cows wander downwind, out of your footprint. Your methane fluxes thank you."),
-          QStringLiteral("The cows settle right inside your footprint. Congratulations on the record CH₄ emissions.") },
-        { QStringLiteral("The data logger demands a riddle before it gives up its files."),
-          QStringLiteral("Intelligence"), 14,
-          QStringLiteral("'What has a mean of zero but is never nothing?' 'w′.' The logger opens."),
-          QStringLiteral("You answer 'u*'. The logger formats its SD card.") },
-        { QStringLiteral("The Lich of Gap-Filling offers you infinite data in exchange for your soul."),
-          QStringLiteral("Wisdom"), 13,
-          QStringLiteral("You refuse. Your gaps stay honest."),
-          QStringLiteral("You accept. Your annual budget is now 100% modelled.") }
+        QFont font = p.font();
+        font.setBold(true);
+        font.setPixelSize(std::max(qRound(size * scale), 1));
+        p.save();
+        p.scale(1.0 / scale, 1.0 / scale);
+        p.setFont(font);
+        const QPointF c = at * scale;
+        p.drawText(QRectF(c.x() - 8 * scale, c.y() - 5 * scale, 16 * scale, 10 * scale),
+                   Qt::AlignCenter, text);
+        p.restore();
     };
-    return scenarios;
+    p.setPen(ICON_GREEN);
+    number(ICON_CENTRE + QPointF(0, 0.05 * r), QStringLiteral("20"), 5.0);
+
+    // the neighbouring faces are only legible at 2x
+    if (scale >= 2)
+    {
+        QColor faint = ICON_GREEN;
+        faint.setAlpha(150);
+        p.setPen(faint);
+        number(ICON_CENTRE + QPointF(-0.62 * r, -0.12 * r), QStringLiteral("8"), 2.6);
+        number(ICON_CENTRE + QPointF(0.62 * r, -0.12 * r), QStringLiteral("14"), 2.6);
+        number(ICON_CENTRE + QPointF(0, 0.70 * r), QStringLiteral("2"), 2.6);
+    }
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// widgets and timing
+// a hitchhiker's raised thumb
+void paintThumbIcon(QPainter& p, int)
+{
+    p.setPen(QPen(ICON_GREEN, 1.2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    p.setBrush(Qt::white);
 
-const int COLUMN_MAX_WIDTH = 640;
+    QPainterPath thumb;
+    thumb.moveTo(16.6, 20.5);
+    thumb.lineTo(17.2, 13.2);
+    thumb.cubicTo(17.4, 10.2, 21.4, 10.2, 21.3, 13.2);
+    thumb.lineTo(21.0, 20.0);
+    p.drawPath(thumb);
+
+    // the fist in front of it, with three curled fingers
+    p.drawRoundedRect(QRectF(15.0, 19.0, 13.0, 11.0), 3.0, 3.0);
+    for (qreal y : { 22.3, 25.0, 27.6 })
+        p.drawLine(QPointF(21.6, y), QPointF(27.4, y));
+}
+
+const int COLUMN_MAX_WIDTH = 720;
 const int DOOM_STEP_MS = 600;
-const int THINK_STEP_MS = 450;
-const int LOADING_HOLD_MS = 1000;
-const int ROLL_FLICKER_MS = 80;
-const int ROLL_FLICKER_TICKS = 12;
-
-QLabel* makeTitle(const QString& text)
-{
-    auto label = new QLabel(text);
-    auto font = label->font();
-    font.setPointSize(font.pointSize() + 12);
-    font.setBold(true);
-    label->setFont(font);
-    label->setAlignment(Qt::AlignCenter);
-    return label;
-}
-
-QLabel* makeText(const QString& text = QString())
-{
-    auto label = new QLabel(text);
-    label->setAlignment(Qt::AlignCenter);
-    label->setWordWrap(true);
-    label->setTextFormat(Qt::RichText);
-    return label;
-}
-
-QPushButton* makeButton(const QString& text = QString())
-{
-    auto button = new QPushButton(text);
-    button->setProperty("commonButton2", true);
-    return button;
-}
-
-QProgressBar* makeBar()
-{
-    auto bar = new QProgressBar;
-    bar->setObjectName(QStringLiteral("mainProgress"));
-    bar->setRange(0, 100);
-    return bar;
-}
-
-QFrame* makeFrame()
-{
-    auto frame = new QFrame;
-    frame->setFrameShape(QFrame::StyledPanel);
-    return frame;
-}
-
-QHBoxLayout* centredRow(std::initializer_list<QWidget*> widgets)
-{
-    auto row = new QHBoxLayout;
-    row->addStretch(1);
-    for (auto widget : widgets)
-        row->addWidget(widget);
-    row->addStretch(1);
-    return row;
-}
-
-int rollD20()
-{
-    return QRandomGenerator::global()->bounded(1, 21);
-}
 
 } // namespace
 
 EasterEggPage::EasterEggPage(QWidget *parent) :
     QWidget(parent),
-    variant_(Variant::Doom),
-    rollTicks_(0),
-    scenario_(0),
-    answersGiven_(0),
-    loadingBar_(nullptr),
-    loadingStatus_(nullptr),
-    loadingStep_(0)
+    variant_(Variant::Doom)
 {
-    positions_.fill(0);
-
-    loadingTimer_ = new QTimer(this);
-    connect(loadingTimer_, &QTimer::timeout, this, &EasterEggPage::advanceLoading);
-
-    holdTimer_ = new QTimer(this);
-    holdTimer_->setSingleShot(true);
-    holdTimer_->setInterval(LOADING_HOLD_MS);
-    connect(holdTimer_, &QTimer::timeout, this, [this]()
-    {
-        auto done = std::move(loadingDone_);
-        loadingDone_ = nullptr;
-        if (done)
-            done();
-    });
-
-    rollTimer_ = new QTimer(this);
-    rollTimer_->setInterval(ROLL_FLICKER_MS);
-    connect(rollTimer_, &QTimer::timeout, this, &EasterEggPage::advanceRoll);
+    loading_ = new FakeLoading(this);
 
     doomPanel_ = createDoomPanel();
-    hitchhikerPanel_ = createHitchhikerPanel();
-    dicePanel_ = createDicePanel();
+
+    deepThought_ = new DeepThoughtPanel;
+    connect(deepThought_, &DeepThoughtPanel::finished, this, &EasterEggPage::finished);
+
+    dnd_ = new DndPanel;
+    connect(dnd_, &DndPanel::finished, this, &EasterEggPage::finished);
 
     //> Only the active panel is visible, so the others take no space. A
     //> plain box layout (unlike a stacked widget) passes height-for-width
     //> through, which is what word-wrapped labels need to get their height.
-    column_ = new QWidget;
-    column_->setMaximumWidth(COLUMN_MAX_WIDTH);
-    column_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    auto columnLayout = new QVBoxLayout(column_);
+    auto column = new QWidget;
+    column->setMaximumWidth(COLUMN_MAX_WIDTH);
+    column->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    // a way out at any moment, not just at the end of each joke
+    auto leave = makeButton(tr("✕ Back to work"));
+    leave->setToolTip(tr("Close this tab and get back to the fluxes"));
+    connect(leave, &QPushButton::clicked, this, [this]()
+    {
+        resetAll();
+        emit finished();
+    });
+    auto leaveRow = new QHBoxLayout;
+    leaveRow->addStretch(1);
+    leaveRow->addWidget(leave);
+
+    auto columnLayout = new QVBoxLayout(column);
     columnLayout->setContentsMargins(0, 0, 0, 0);
+    columnLayout->addLayout(leaveRow);
     columnLayout->addWidget(doomPanel_);
-    columnLayout->addWidget(hitchhikerPanel_);
-    columnLayout->addWidget(dicePanel_);
+    columnLayout->addWidget(deepThought_);
+    columnLayout->addWidget(dnd_);
 
     // centre with stretches, not alignment, so the column gets a real width
     auto row = new QHBoxLayout;
     row->addStretch(1);
-    row->addWidget(column_, 10);
+    row->addWidget(column, 10);
     row->addStretch(1);
 
     auto content = new QWidget;
@@ -661,22 +839,38 @@ QString EasterEggPage::tabText(Variant variant)
     return QStringLiteral("Dungeon");
 }
 
+QIcon EasterEggPage::tabIcon(Variant variant)
+{
+    IconPainter painter;
+    switch (variant)
+    {
+        case Variant::Doom:
+            painter = paintDoomIcon;
+            break;
+        case Variant::Hitchhiker:
+            painter = paintThumbIcon;
+            break;
+        case Variant::DnD:
+        case Variant::Count:
+            painter = paintD20Icon;
+            break;
+    }
+
+    // 1x and 2x, like the @2x files of the other toolbar icons
+    QIcon icon;
+    icon.addPixmap(paintIcon(1, painter));
+    icon.addPixmap(paintIcon(2, painter));
+    return icon;
+}
+
 void EasterEggPage::setVariant(Variant variant)
 {
     variant_ = variant;
     resetAll();
 
     doomPanel_->setVisible(variant == Variant::Doom);
-    hitchhikerPanel_->setVisible(variant == Variant::Hitchhiker);
-    dicePanel_->setVisible(variant == Variant::DnD);
-
-    if (variant == Variant::DnD)
-    {
-        scenario_ = nextIndex(variant, dndScenarios().size());
-        const auto& scenario = dndScenarios().at(scenario_);
-        dmLabel_->setText(tr("<b>Dungeon Master:</b> <i>%1</i>").arg(scenario.dmText.toHtmlEscaped()));
-        rollButton_->setText(tr("Roll %1").arg(scenario.check));
-    }
+    deepThought_->setVisible(variant == Variant::Hitchhiker);
+    dnd_->setVisible(variant == Variant::DnD);
 }
 
 void EasterEggPage::hideEvent(QHideEvent *event)
@@ -690,54 +884,10 @@ void EasterEggPage::hideEvent(QHideEvent *event)
 
 void EasterEggPage::resetAll()
 {
-    stopLoading();
+    loading_->stop();
     resetDoomPanel();
-    resetHitchhikerPanel();
-    resetDicePanel();
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// shared fake loading
-
-void EasterEggPage::runLoading(QProgressBar *bar, QLabel *status, const QStringList &steps,
-                               int stepMs, std::function<void()> done)
-{
-    stopLoading();
-    loadingBar_ = bar;
-    loadingStatus_ = status;
-    loadingSteps_ = steps;
-    loadingStep_ = 0;
-    loadingDone_ = std::move(done);
-
-    loadingBar_->setValue(0);
-    loadingBar_->setVisible(true);
-    loadingStatus_->setVisible(true);
-
-    advanceLoading();
-    loadingTimer_->start(stepMs);
-}
-
-void EasterEggPage::advanceLoading()
-{
-    if (loadingStep_ < loadingSteps_.size())
-    {
-        loadingStatus_->setText(loadingSteps_.at(loadingStep_));
-        ++loadingStep_;
-        loadingBar_->setValue(static_cast<int>(90 * loadingStep_ / loadingSteps_.size()));
-        return;
-    }
-
-    // almost there... the classic
-    loadingTimer_->stop();
-    loadingBar_->setValue(99);
-    holdTimer_->start();
-}
-
-void EasterEggPage::stopLoading()
-{
-    loadingTimer_->stop();
-    holdTimer_->stop();
-    loadingDone_ = nullptr;
+    deepThought_->reset();
+    dnd_->reset();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -799,7 +949,7 @@ QWidget* EasterEggPage::createDoomPanel()
 void EasterEggPage::launchDoom()
 {
     launchButton_->setEnabled(false);
-    runLoading(doomBar_, doomStatus_, doomSteps(), DOOM_STEP_MS, [this]()
+    loading_->run(doomBar_, doomStatus_, sample(doomSteps(), 5), DOOM_STEP_MS, [this]()
     {
         startGame();
     });
@@ -829,7 +979,7 @@ void EasterEggPage::showGameResult(int score, int despiked, int escaped, int val
                                      .arg(score).arg(despiked).arg(escaped).arg(validRemoved)
                                      .arg(DespikeArena::VALID_DATA_PENALTY).arg(accuracy)));
     doomTag_->setText(QStringLiteral("<i>%1</i>").arg(
-        doomSentences().at(nextIndex(Variant::Doom, doomSentences().size())).toHtmlEscaped()));
+        pickFresh(doomSentences()).toHtmlEscaped()));
 
     arena_->setVisible(false);
     doomResult_->setVisible(true);
@@ -845,247 +995,4 @@ void EasterEggPage::resetDoomPanel()
     doomStatus_->setVisible(false);
     launchButton_->setEnabled(true);
     launchButton_->setVisible(true);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Hitchhiker's Guide
-
-QWidget* EasterEggPage::createHitchhikerPanel()
-{
-    //> The unlock filter ignores keys typed into a line edit, so typing
-    //> "eddy" into the question can't re-trigger the easter egg.
-    questionEdit_ = new QLineEdit;
-    questionEdit_->setPlaceholderText(tr("Ask Deep Thought anything…"));
-    questionEdit_->setMaxLength(200);
-    questionEdit_->setMinimumWidth(320);
-    connect(questionEdit_, &QLineEdit::returnPressed, this, &EasterEggPage::askDeepThought);
-
-    askButton_ = makeButton(tr("Ask Deep Thought"));
-    connect(askButton_, &QPushButton::clicked, this, &EasterEggPage::askDeepThought);
-
-    thinkBar_ = makeBar();
-    thinkStatus_ = makeText();
-
-    answerFrame_ = makeFrame();
-    questionEcho_ = makeText();
-    answerLabel_ = makeText();
-    auto answerFont = answerLabel_->font();
-    answerFont.setPointSize(answerFont.pointSize() + 2);
-    answerLabel_->setFont(answerFont);
-    auto answerLayout = new QVBoxLayout(answerFrame_);
-    answerLayout->setContentsMargins(16, 12, 16, 12);
-    answerLayout->setSpacing(10);
-    answerLayout->addWidget(questionEcho_);
-    answerLayout->addWidget(answerLabel_);
-
-    anotherButton_ = makeButton(tr("Ask another question"));
-    connect(anotherButton_, &QPushButton::clicked, this, [this]()
-    {
-        resetQuestion();
-        questionEdit_->setFocus();
-    });
-    backToWorkButton_ = makeButton(tr("Don't panic, back to work"));
-    connect(backToWorkButton_, &QPushButton::clicked, this, [this]()
-    {
-        resetHitchhikerPanel();
-        emit finished();
-    });
-
-    auto panel = new QWidget;
-    auto layout = new QVBoxLayout(panel);
-    layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(16);
-    layout->addWidget(makeTitle(QStringLiteral("Deep Thought")));
-    layout->addWidget(makeText(tr("DON'T PANIC. Ask the Ultimate Question.")));
-    layout->addLayout(centredRow({ questionEdit_, askButton_ }));
-    layout->addWidget(thinkBar_);
-    layout->addWidget(thinkStatus_);
-    layout->addWidget(answerFrame_);
-    layout->addLayout(centredRow({ anotherButton_, backToWorkButton_ }));
-    return panel;
-}
-
-void EasterEggPage::askDeepThought()
-{
-    if (!askButton_->isVisible())
-        return;
-
-    const QString question = questionEdit_->text();
-    questionEdit_->setVisible(false);
-    askButton_->setVisible(false);
-
-    runLoading(thinkBar_, thinkStatus_, thinkingSteps(), THINK_STEP_MS, [this, question]()
-    {
-        thinkBar_->setVisible(false);
-        thinkStatus_->setVisible(false);
-        showAnswer(question);
-    });
-}
-
-void EasterEggPage::showAnswer(const QString &question)
-{
-    const QString key = normalizedQuestion(question);
-    QString answer = deepThoughtAnswer(question);
-
-    if (key.isEmpty())
-    {
-        questionEcho_->setText(tr("<i>(silence)</i>"));
-    }
-    else
-    {
-        questionEcho_->setText(QStringLiteral("<i>“%1”</i>").arg(question.trimmed().toHtmlEscaped()));
-        if (askedQuestions_.contains(key))
-            answer += tr("<br><br>You asked that already. The answer hasn't changed.");
-        askedQuestions_.insert(key);
-        ++answersGiven_;
-    }
-
-    const bool exhausted = answersGiven_ >= MAX_QUESTIONS;
-    if (exhausted)
-        answer += tr("<br><br><b>Deep Thought is now busy designing an even greater computer "
-                     "to find the Question. Please return to your fluxes.</b>");
-
-    answerLabel_->setText(answer);
-    answerFrame_->setVisible(true);
-    anotherButton_->setVisible(!exhausted);
-    backToWorkButton_->setVisible(true);
-}
-
-void EasterEggPage::resetQuestion()
-{
-    answerFrame_->setVisible(false);
-    anotherButton_->setVisible(false);
-    backToWorkButton_->setVisible(false);
-    questionEdit_->clear();
-    questionEdit_->setVisible(true);
-    askButton_->setVisible(true);
-}
-
-void EasterEggPage::resetHitchhikerPanel()
-{
-    answersGiven_ = 0;
-    thinkBar_->setVisible(false);
-    thinkStatus_->clear();
-    thinkStatus_->setVisible(false);
-    resetQuestion();
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Dungeons & Dragons
-
-QWidget* EasterEggPage::createDicePanel()
-{
-    auto dmFrame = makeFrame();
-    dmLabel_ = new QLabel;
-    dmLabel_->setWordWrap(true);
-    dmLabel_->setTextFormat(Qt::RichText);
-    auto dmLayout = new QVBoxLayout(dmFrame);
-    dmLayout->setContentsMargins(16, 12, 16, 12);
-    dmLayout->addWidget(dmLabel_);
-
-    rollButton_ = makeButton();
-    connect(rollButton_, &QPushButton::clicked, this, &EasterEggPage::roll);
-
-    rollResult_ = makeText();
-    auto resultFont = rollResult_->font();
-    resultFont.setPointSize(resultFont.pointSize() + 4);
-    rollResult_->setFont(resultFont);
-
-    rollOutcome_ = makeText();
-
-    continueButton_ = makeButton(tr("Continue"));
-    connect(continueButton_, &QPushButton::clicked, this, [this]()
-    {
-        resetDicePanel();
-        emit finished();
-    });
-
-    auto panel = new QWidget;
-    auto layout = new QVBoxLayout(panel);
-    layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(16);
-    layout->addWidget(makeTitle(QStringLiteral("The Flux Dungeon")));
-    layout->addWidget(makeText(tr("Your party: one sonic anemometer, one gas analyser, "
-                                  "one sleep-deprived PhD student.")));
-    layout->addWidget(dmFrame);
-    layout->addLayout(centredRow({ rollButton_ }));
-    layout->addWidget(rollResult_);
-    layout->addWidget(rollOutcome_);
-    layout->addLayout(centredRow({ continueButton_ }));
-    return panel;
-}
-
-void EasterEggPage::roll()
-{
-    rollButton_->setEnabled(false);
-    rollResult_->setVisible(true);
-    rollTicks_ = 0;
-    advanceRoll();
-    rollTimer_->start();
-}
-
-void EasterEggPage::advanceRoll()
-{
-    if (rollTicks_ < ROLL_FLICKER_TICKS)
-    {
-        rollResult_->setText(QStringLiteral("🎲 %1").arg(rollD20()));
-        ++rollTicks_;
-        return;
-    }
-
-    rollTimer_->stop();
-    finishRoll();
-}
-
-void EasterEggPage::finishRoll()
-{
-    const auto& scenario = dndScenarios().at(scenario_);
-    const int result = rollD20();
-    const bool passed = result == 20 || (result != 1 && result >= scenario.dc);
-
-    QString rolled;
-    if (result == 20)
-        rolled = tr("<b>NATURAL 20!</b>");
-    else if (result == 1)
-        rolled = tr("<b>NATURAL 1!</b>");
-    else
-        rolled = tr("You rolled <b>%1</b>").arg(result);
-
-    rollResult_->setText(QStringLiteral("🎲 %1 (DC %2): %3")
-                             .arg(rolled)
-                             .arg(scenario.dc)
-                             .arg(passed ? tr("<b>Success!</b>") : tr("<b>Failure.</b>")));
-    rollOutcome_->setText((passed ? scenario.passText : scenario.failText).toHtmlEscaped());
-    rollOutcome_->setVisible(true);
-
-    rollButton_->setVisible(false);
-    continueButton_->setVisible(true);
-}
-
-void EasterEggPage::resetDicePanel()
-{
-    rollTimer_->stop();
-    rollButton_->setEnabled(true);
-    rollButton_->setVisible(true);
-    rollResult_->clear();
-    rollResult_->setVisible(false);
-    rollOutcome_->clear();
-    rollOutcome_->setVisible(false);
-    continueButton_->setVisible(false);
-}
-
-int EasterEggPage::nextIndex(Variant variant, int size)
-{
-    const auto v = static_cast<int>(variant);
-    auto& order = orders_[v];
-    auto& position = positions_[v];
-
-    if (position >= order.size())
-    {
-        order.resize(size);
-        std::iota(order.begin(), order.end(), 0);
-        std::shuffle(order.begin(), order.end(), *QRandomGenerator::global());
-        position = 0;
-    }
-    return order.at(position++);
 }

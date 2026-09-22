@@ -23,6 +23,8 @@
 
 #include "despikearena.h"
 
+#include "eastereggwidgets.h"
+
 #include <QFontDatabase>
 #include <QMouseEvent>
 #include <QPainter>
@@ -68,6 +70,158 @@ const QColor AMBER(232, 163, 23);
 const QColor DANGER(230, 50, 40);
 const QColor AMMO_GREEN(150, 210, 70);
 const QColor STAR_BLUE(150, 220, 255);
+
+// what a despiked demon says on the way out
+const QStringList& hitPops()
+{
+    static const QStringList list {
+        QStringLiteral("DESPIKED!"),
+        QStringLiteral("FLAGGED!"),
+        QStringLiteral("MEDIAN'D!"),
+        QStringLiteral("OUTLIER DOWN!"),
+        QStringLiteral("GOT IT!"),
+        QStringLiteral("REMOVED!"),
+        QStringLiteral("FILTERED!"),
+        QStringLiteral("3.5 SIGMA!"),
+        QStringLiteral("SPIKE-FREE!"),
+        QStringLiteral("CLEAN!"),
+        QStringLiteral("BOOM! DESPIKED!"),
+        QStringLiteral("QC PASSED!"),
+        QStringLiteral("GONE!"),
+        QStringLiteral("NOISE REDUCED!"),
+        QStringLiteral("BULLSEYE!"),
+        QStringLiteral("OUT OF THE FOOTPRINT!"),
+        QStringLiteral("DETRENDED!"),
+        QStringLiteral("FLAG 2!"),
+        QStringLiteral("HAMPEL'D!"),
+        QStringLiteral("EXORCISED!"),
+        QStringLiteral("VARIANCE DOWN!"),
+        QStringLiteral("SPIKE ELIMINATED!"),
+        QStringLiteral("NICE SHOT!"),
+        QStringLiteral("REJECTED!"),
+        QStringLiteral("SENT TO THE RAW ARCHIVE!"),
+        QStringLiteral("NO MORE KURTOSIS!"),
+        QStringLiteral("DELETED!"),
+        QStringLiteral("CORRECTED!"),
+        QStringLiteral("TOAST!"),
+        QStringLiteral("HEADSHOT!")
+    };
+    return list;
+}
+
+// shooting a valid-data star; %1 is the penalty
+const QStringList& starPops()
+{
+    static const QStringList list {
+        QStringLiteral("VALID DATA! −%1"),
+        QStringLiteral("THAT WAS REAL! −%1"),
+        QStringLiteral("GOOD DATA! −%1"),
+        QStringLiteral("OOPS, AN EDDY! −%1"),
+        QStringLiteral("FRIENDLY FIRE! −%1"),
+        QStringLiteral("REAL TURBULENCE! −%1"),
+        QStringLiteral("NOT A SPIKE! −%1"),
+        QStringLiteral("DON'T SHOOT THE STARS! −%1"),
+        QStringLiteral("THAT ONE WAS FINE! −%1"),
+        QStringLiteral("OVER-FILTERED! −%1"),
+        QStringLiteral("TYPE I ERROR! −%1"),
+        QStringLiteral("FALSE POSITIVE! −%1"),
+        QStringLiteral("GENUINE FLUX! −%1"),
+        QStringLiteral("INNOCENT DATA! −%1"),
+        QStringLiteral("YOU SHOT A GOOD ONE! −%1"),
+        QStringLiteral("REVIEWER 2 SAW THAT! −%1"),
+        QStringLiteral("VALID EDDY! −%1"),
+        QStringLiteral("HONEST DATA! −%1"),
+        QStringLiteral("THAT WAS SIGNAL! −%1"),
+        QStringLiteral("SIGNAL, NOT NOISE! −%1"),
+        QStringLiteral("CAREFUL! −%1"),
+        QStringLiteral("A PERFECTLY GOOD POINT! −%1"),
+        QStringLiteral("STATIONARY AND INNOCENT! −%1"),
+        QStringLiteral("OVERZEALOUS! −%1"),
+        QStringLiteral("QC FAIL! −%1"),
+        QStringLiteral("NOOO, NOT THAT ONE! −%1"),
+        QStringLiteral("TRUE EDDY LOST! −%1"),
+        QStringLiteral("GAP CREATED! −%1"),
+        QStringLiteral("THE STAR WAS REAL! −%1"),
+        QStringLiteral("DATA LOSS! −%1")
+    };
+    return list;
+}
+
+// grabbing an ammo crate; %1 is the ammo gained
+const QStringList& ammoPops()
+{
+    static const QStringList list {
+        QStringLiteral("+%1 AMMO"),
+        QStringLiteral("+%1 AMMO: FRESH SPAN GAS!"),
+        QStringLiteral("+%1 SHELLS: RELOADED!"),
+        QStringLiteral("+%1 AMMO FROM THE HUT!"),
+        QStringLiteral("+%1: SPARE BATTERIES!"),
+        QStringLiteral("RELOAD! +%1"),
+        QStringLiteral("+%1 CALIBRATION ROUNDS!"),
+        QStringLiteral("+%1 AMMO, SHAKEN NOT STIRRED!"),
+        QStringLiteral("+%1: THE TECHNICIAN DELIVERS!"),
+        QStringLiteral("+%1 FROM THE LOGGER BUFFER!"),
+        QStringLiteral("+%1: FIRMWARE UPDATED!"),
+        QStringLiteral("+%1 MEDIAN FILTERS!"),
+        QStringLiteral("+%1 SIGMA THRESHOLDS!"),
+        QStringLiteral("+%1 AMMO (BACKORDERED SINCE MARCH)!"),
+        QStringLiteral("+%1: FOUND IN THE CABLE BOX!"),
+        QStringLiteral("+%1 ROUNDS OF DESPIKING!"),
+        QStringLiteral("+%1: POWER RESTORED!"),
+        QStringLiteral("+%1 AMMO, JUST IN TIME!"),
+        QStringLiteral("+%1: SHIPMENT ARRIVED!"),
+        QStringLiteral("+%1 AMMO FROM THE FIELD KIT!"),
+        QStringLiteral("RESUPPLY! +%1"),
+        QStringLiteral("+%1: THE GRANT CAME THROUGH!"),
+        QStringLiteral("+%1 ZERO-GAS CARTRIDGES!"),
+        QStringLiteral("+%1: DOWNWARD SPIKE CAUGHT!"),
+        QStringLiteral("+%1 AMMO, NEGATIVE FLUX EDITION!"),
+        QStringLiteral("+%1 SHELLS, SLIGHTLY DAMP!"),
+        QStringLiteral("+%1: EMERGENCY STOCK!"),
+        QStringLiteral("+%1 AMMO FROM THE GLOVEBOX!"),
+        QStringLiteral("+%1: CAUGHT THE DOWNDRAFT!"),
+        QStringLiteral("+%1 AND A BISCUIT!")
+    };
+    return list;
+}
+
+// firing with an empty gun
+const QStringList& emptyPops()
+{
+    static const QStringList list {
+        QStringLiteral("*click*"),
+        QStringLiteral("*click click*"),
+        QStringLiteral("*sad click*"),
+        QStringLiteral("*empty*"),
+        QStringLiteral("no ammo!"),
+        QStringLiteral("*click* (grab a ▼)"),
+        QStringLiteral("*dry fire*"),
+        QStringLiteral("*nothing*"),
+        QStringLiteral("out of shells!"),
+        QStringLiteral("*clack*"),
+        QStringLiteral("*tick*"),
+        QStringLiteral("*click*…"),
+        QStringLiteral("buffer empty!"),
+        QStringLiteral("*whirr*… nothing"),
+        QStringLiteral("error: no ammo"),
+        QStringLiteral("*hollow click*"),
+        QStringLiteral("reload first!"),
+        QStringLiteral("*click* (sigh)"),
+        QStringLiteral("*pfft*"),
+        QStringLiteral("magazine empty!"),
+        QStringLiteral("*click* (look down!)"),
+        QStringLiteral("*klik*"),
+        QStringLiteral("no rounds left!"),
+        QStringLiteral("*click* (the ammo is ▼)"),
+        QStringLiteral("*clunk*"),
+        QStringLiteral("*click* (really?)"),
+        QStringLiteral("*wheeze*"),
+        QStringLiteral("ammo = NaN"),
+        QStringLiteral("*click* (try a downward spike)"),
+        QStringLiteral("*silence*")
+    };
+    return list;
+}
 
 qreal uniform(qreal lo, qreal hi)
 {
@@ -322,7 +476,7 @@ void DespikeArena::mousePressEvent(QMouseEvent *event)
         if (distance(box, click) <= AMMO_GRAB_RADIUS)
         {
             ammo_ = std::min(ammo_ + AMMO_PICKUP, MAX_AMMO);
-            addPop(box, tr("+%1 AMMO").arg(AMMO_PICKUP), AMMO_GREEN);
+            addPop(box, EggUi::pickFresh(ammoPops()).arg(AMMO_PICKUP), AMMO_GREEN);
             ammoSpikes_.removeAt(i);
             update();
             return;
@@ -331,7 +485,7 @@ void DespikeArena::mousePressEvent(QMouseEvent *event)
 
     if (ammo_ <= 0)
     {
-        addPop(click, tr("*click*"), QColor(150, 150, 150));
+        addPop(click, EggUi::pickFresh(emptyPops()), QColor(150, 150, 150));
         update();
         return;
     }
@@ -366,7 +520,7 @@ void DespikeArena::mousePressEvent(QMouseEvent *event)
 
     if (spikeHit >= 0 && (starHit < 0 || spikeDistance <= starDistance))
     {
-        addPop(headPos(spikes_.at(spikeHit)), tr("DESPIKED!"), AMBER);
+        addPop(headPos(spikes_.at(spikeHit)), EggUi::pickFresh(hitPops()), AMBER);
         spikes_.removeAt(spikeHit);
         ++despiked_;
     }
@@ -374,7 +528,7 @@ void DespikeArena::mousePressEvent(QMouseEvent *event)
     {
         const auto& star = stars_.at(starHit);
         addPop(QPointF(star.x, seriesY(star.x)),
-               tr("VALID DATA! −%1").arg(VALID_DATA_PENALTY), STAR_BLUE);
+               EggUi::pickFresh(starPops()).arg(VALID_DATA_PENALTY), STAR_BLUE);
         stars_.removeAt(starHit);
         ++validRemoved_;
     }
