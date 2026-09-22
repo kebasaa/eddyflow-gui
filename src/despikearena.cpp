@@ -37,30 +37,46 @@ namespace {
 
 const int TICK_MS = 30;
 const int HUD_HEIGHT = 32;
-const qreal STEP_PX = 3.0;         // horizontal distance between samples
-const qreal SCROLL_PX_PER_S = 100.0;
+const qreal STEP_PX = 3.0;          // horizontal distance between samples
 const qreal COUNTDOWN_S = 3.0;
-const qreal ROUND_S = 20.0;
-const qreal LIFETIME_S = 1.6;      // a spike not shot by then escapes
-const qreal RISE_S = 0.25;
-const qreal POP_S = 0.6;
+const qreal ROUND_S = 30.0;
+const qreal POP_S = 0.7;
 const qreal FLASH_S = 0.25;
+
+// demons: they rise faster and escape sooner as the round goes on
 const qreal HIT_RADIUS = 18.0;
 const qreal HEAD_RADIUS = 9.0;
-const int START_HEALTH = 100;
-const int START_AMMO = 50;
 const int ESCAPE_DAMAGE = 10;
+
+// ammo: a small magazine, refilled by grabbing downward spikes
+const int START_AMMO = 15;
+const int MAX_AMMO = 30;
+const int LOW_AMMO = 5;
+const int AMMO_PICKUP = 10;
+const qreal AMMO_LIFETIME_S = 4.0;
+const qreal AMMO_GRAB_RADIUS = 18.0;
+
+// valid data: stars on the series that must not be shot
+const qreal STAR_RADIUS = 6.0;
+const qreal STAR_HIT_RADIUS = 11.0;
+const qreal STAR_LIFETIME_S = 4.5;
+
+const int START_HEALTH = 100;
+const qreal PI = 3.14159265358979323846;
+
+const QColor AMBER(232, 163, 23);
+const QColor DANGER(230, 50, 40);
+const QColor AMMO_GREEN(150, 210, 70);
+const QColor STAR_BLUE(150, 220, 255);
 
 qreal uniform(qreal lo, qreal hi)
 {
     return lo + (hi - lo) * QRandomGenerator::global()->generateDouble();
 }
 
-// spawn interval shrinks from ~1 s to ~0.4 s over the round
-qreal spawnInterval(qreal roundTime)
+qreal distance(const QPointF& a, const QPointF& b)
 {
-    const qreal progress = std::min(roundTime / ROUND_S, 1.0);
-    return (1.0 - 0.6 * progress) * uniform(0.7, 1.3);
+    return std::hypot(a.x() - b.x(), a.y() - b.y());
 }
 
 } // namespace
@@ -71,6 +87,8 @@ DespikeArena::DespikeArena(QWidget *parent) :
     roundTime_(0.0),
     countdown_(0.0),
     nextSpawn_(0.0),
+    nextStar_(0.0),
+    nextAmmo_(0.0),
     flash_(0.0),
     scrollCarry_(0.0),
     walk_(0.0),
@@ -78,6 +96,7 @@ DespikeArena::DespikeArena(QWidget *parent) :
     ammo_(START_AMMO),
     despiked_(0),
     escaped_(0),
+    validRemoved_(0),
     shots_(0)
 {
     setMinimumSize(560, 300);
@@ -96,15 +115,20 @@ void DespikeArena::start()
     ammo_ = START_AMMO;
     despiked_ = 0;
     escaped_ = 0;
+    validRemoved_ = 0;
     shots_ = 0;
     roundTime_ = 0.0;
     countdown_ = COUNTDOWN_S;
-    nextSpawn_ = 0.0;
+    nextSpawn_ = 0.4;
+    nextStar_ = 1.0;
+    nextAmmo_ = 0.8;
     flash_ = 0.0;
     scrollCarry_ = 0.0;
     walk_ = 0.0;
     series_.clear();
     spikes_.clear();
+    ammoSpikes_.clear();
+    stars_.clear();
     pops_.clear();
 
     state_ = State::Countdown;
@@ -118,14 +142,50 @@ void DespikeArena::stop()
     timer_->stop();
     state_ = State::Idle;
     spikes_.clear();
+    ammoSpikes_.clear();
+    stars_.clear();
     pops_.clear();
     update();
+}
+
+qreal DespikeArena::progress() const
+{
+    return std::clamp(roundTime_ / ROUND_S, 0.0, 1.0);
 }
 
 void DespikeArena::tick()
 {
     const qreal dt = std::min(clock_.restart() / 1000.0, 0.1);
 
+    scroll(dt);
+
+    if (state_ == State::Countdown)
+    {
+        countdown_ -= dt;
+        if (countdown_ <= 0.0)
+            state_ = State::Running;
+        update();
+        return;
+    }
+
+    if (state_ != State::Running)
+        return;
+
+    roundTime_ += dt;
+    flash_ = std::max(flash_ - dt, 0.0);
+
+    spawn(dt);
+    age(dt);
+    update();
+
+    if (health_ <= 0)
+        endRound(true);
+    else if (roundTime_ >= ROUND_S)
+        endRound(false);
+}
+
+void DespikeArena::scroll(qreal dt)
+{
     // keep one sample per STEP_PX across the current width
     const auto needed = static_cast<int>(std::ceil(plotRect().width() / STEP_PX)) + 2;
     auto nextValue = [this]()
@@ -138,8 +198,10 @@ void DespikeArena::tick()
     while (series_.size() > needed)
         series_.removeFirst();
 
-    // scroll: whole samples at a time, and the spikes ride along
-    scrollCarry_ += SCROLL_PX_PER_S * dt;
+    // whole samples at a time, and everything on the series rides along;
+    // the data speed up as the round goes on
+    const qreal speed = 90.0 + 90.0 * progress();
+    scrollCarry_ += speed * dt;
     while (scrollCarry_ >= STEP_PX)
     {
         scrollCarry_ -= STEP_PX;
@@ -147,39 +209,57 @@ void DespikeArena::tick()
         series_.append(nextValue());
         for (auto& spike : spikes_)
             spike.x -= STEP_PX;
+        for (auto& ammo : ammoSpikes_)
+            ammo.x -= STEP_PX;
+        for (auto& star : stars_)
+            star.x -= STEP_PX;
     }
+}
 
-    if (state_ == State::Countdown)
-    {
-        countdown_ -= dt;
-        if (countdown_ <= 0.0)
-        {
-            state_ = State::Running;
-            nextSpawn_ = 0.4;
-        }
-        update();
-        return;
-    }
-
-    if (state_ != State::Running)
-        return;
-
-    roundTime_ += dt;
-    flash_ = std::max(flash_ - dt, 0.0);
+void DespikeArena::spawn(qreal dt)
+{
+    const qreal width = plotRect().width();
+    const qreal p = progress();
 
     nextSpawn_ -= dt;
     if (nextSpawn_ <= 0.0)
     {
-        const auto width = plotRect().width();
-        spikes_.append({ uniform(0.3, 0.95) * width, uniform(0.25, 0.45), 0.0 });
-        nextSpawn_ = spawnInterval(roundTime_);
+        spikes_.append({ uniform(0.3, 0.95) * width,
+                         uniform(0.25, 0.45),
+                         0.0,
+                         1.8 - 1.0 * p,     // 1.8 s at the start, 0.8 s at the end
+                         0.30 - 0.18 * p });
+        nextSpawn_ = (1.0 - 0.65 * p) * uniform(0.7, 1.3);
     }
 
+    nextStar_ -= dt;
+    if (nextStar_ <= 0.0)
+    {
+        stars_.append({ uniform(0.4, 0.95) * width, 0.0 });
+        nextStar_ = uniform(1.0, 2.2);
+    }
+
+    // a reload only shows up when the magazine runs low, like in the game
+    if (ammo_ <= LOW_AMMO && ammoSpikes_.isEmpty())
+    {
+        if (ammo_ == 0)
+            nextAmmo_ = std::min(nextAmmo_, 0.3);
+        nextAmmo_ -= dt;
+        if (nextAmmo_ <= 0.0)
+        {
+            ammoSpikes_.append({ uniform(0.45, 0.9) * width, uniform(0.22, 0.35), 0.0 });
+            nextAmmo_ = 1.2;
+        }
+    }
+}
+
+void DespikeArena::age(qreal dt)
+{
     for (int i = spikes_.size() - 1; i >= 0; --i)
     {
         auto& spike = spikes_[i];
         spike.age += dt;
-        if (spike.age > LIFETIME_S || spike.x < HEAD_RADIUS)
+        if (spike.age > spike.lifetime || spike.x < HEAD_RADIUS)
         {
             spikes_.removeAt(i);
             ++escaped_;
@@ -188,58 +268,115 @@ void DespikeArena::tick()
         }
     }
 
+    for (int i = ammoSpikes_.size() - 1; i >= 0; --i)
+    {
+        auto& ammo = ammoSpikes_[i];
+        ammo.age += dt;
+        if (ammo.age > AMMO_LIFETIME_S || ammo.x < 0)
+            ammoSpikes_.removeAt(i);
+    }
+
+    for (int i = stars_.size() - 1; i >= 0; --i)
+    {
+        auto& star = stars_[i];
+        star.age += dt;
+        if (star.age > STAR_LIFETIME_S || star.x < 0)
+            stars_.removeAt(i);
+    }
+
     for (int i = pops_.size() - 1; i >= 0; --i)
     {
         pops_[i].age += dt;
         if (pops_[i].age > POP_S)
             pops_.removeAt(i);
     }
-
-    update();
-
-    if (health_ <= 0)
-        endRound(true);
-    else if (roundTime_ >= ROUND_S)
-        endRound(false);
 }
 
 void DespikeArena::endRound(bool died)
 {
     timer_->stop();
     state_ = State::Over;
-    emit gameOver(despiked_, escaped_, shots_, died);
+    const int score = despiked_ - VALID_DATA_PENALTY * validRemoved_;
+    emit gameOver(score, despiked_, escaped_, validRemoved_, shots_, died);
+}
+
+void DespikeArena::addPop(const QPointF &pos, const QString &text, const QColor &color)
+{
+    pops_.append({ pos, 0.0, text, color });
 }
 
 void DespikeArena::mousePressEvent(QMouseEvent *event)
 {
-    if (state_ != State::Running || event->button() != Qt::LeftButton || ammo_ <= 0)
+    if (state_ != State::Running || event->button() != Qt::LeftButton)
     {
         QWidget::mousePressEvent(event);
+        return;
+    }
+
+    const QPointF click = event->position();
+
+    // ammo is grabbed, not shot: it costs nothing and works with an empty gun
+    for (int i = 0; i < ammoSpikes_.size(); ++i)
+    {
+        const QPointF box = boxPos(ammoSpikes_.at(i));
+        if (distance(box, click) <= AMMO_GRAB_RADIUS)
+        {
+            ammo_ = std::min(ammo_ + AMMO_PICKUP, MAX_AMMO);
+            addPop(box, tr("+%1 AMMO").arg(AMMO_PICKUP), AMMO_GREEN);
+            ammoSpikes_.removeAt(i);
+            update();
+            return;
+        }
+    }
+
+    if (ammo_ <= 0)
+    {
+        addPop(click, tr("*click*"), QColor(150, 150, 150));
+        update();
         return;
     }
 
     --ammo_;
     ++shots_;
 
-    const QPointF click = event->position();
-    int hit = -1;
-    qreal best = HIT_RADIUS;
+    int spikeHit = -1;
+    qreal spikeDistance = HIT_RADIUS;
     for (int i = 0; i < spikes_.size(); ++i)
     {
-        const QPointF d = headPos(spikes_.at(i)) - click;
-        const qreal distance = std::hypot(d.x(), d.y());
-        if (distance <= best)
+        const qreal d = distance(headPos(spikes_.at(i)), click);
+        if (d <= spikeDistance)
         {
-            best = distance;
-            hit = i;
+            spikeDistance = d;
+            spikeHit = i;
         }
     }
 
-    if (hit >= 0)
+    int starHit = -1;
+    qreal starDistance = STAR_HIT_RADIUS;
+    for (int i = 0; i < stars_.size(); ++i)
     {
-        pops_.append({ headPos(spikes_.at(hit)), 0.0 });
-        spikes_.removeAt(hit);
+        const auto& star = stars_.at(i);
+        const qreal d = distance(QPointF(star.x, seriesY(star.x)), click);
+        if (d <= starDistance)
+        {
+            starDistance = d;
+            starHit = i;
+        }
+    }
+
+    if (spikeHit >= 0 && (starHit < 0 || spikeDistance <= starDistance))
+    {
+        addPop(headPos(spikes_.at(spikeHit)), tr("DESPIKED!"), AMBER);
+        spikes_.removeAt(spikeHit);
         ++despiked_;
+    }
+    else if (starHit >= 0)
+    {
+        const auto& star = stars_.at(starHit);
+        addPop(QPointF(star.x, seriesY(star.x)),
+               tr("VALID DATA! −%1").arg(VALID_DATA_PENALTY), STAR_BLUE);
+        stars_.removeAt(starHit);
+        ++validRemoved_;
     }
     update();
 }
@@ -262,9 +399,17 @@ qreal DespikeArena::seriesY(qreal x) const
 QPointF DespikeArena::headPos(const Spike &spike) const
 {
     const auto plot = plotRect();
-    const qreal grown = std::min(spike.age / RISE_S, 1.0);
+    const qreal grown = std::min(spike.age / spike.rise, 1.0);
     const qreal y = seriesY(spike.x) - grown * spike.height * plot.height();
-    return QPointF(spike.x, std::max(y, plot.top() + HEAD_RADIUS + 6));
+    return QPointF(spike.x, std::max(y, plot.top() + HEAD_RADIUS + 12));
+}
+
+QPointF DespikeArena::boxPos(const AmmoSpike &ammo) const
+{
+    const auto plot = plotRect();
+    const qreal grown = std::min(ammo.age / 0.3, 1.0);
+    const qreal y = seriesY(ammo.x) + grown * ammo.depth * plot.height();
+    return QPointF(ammo.x, std::min(y, plot.bottom() - 12));
 }
 
 void DespikeArena::paintEvent(QPaintEvent *event)
@@ -291,6 +436,10 @@ void DespikeArena::paintEvent(QPaintEvent *event)
                QStringLiteral("w′ (m s⁻¹)"));
 
     paintSeries(p);
+    for (const auto& star : stars_)
+        paintStar(p, star);
+    for (const auto& ammo : ammoSpikes_)
+        paintAmmoSpike(p, ammo);
     for (const auto& spike : spikes_)
         paintSpike(p, spike);
 
@@ -299,9 +448,11 @@ void DespikeArena::paintEvent(QPaintEvent *event)
     p.setFont(popFont);
     for (const auto& pop : pops_)
     {
-        const int alpha = static_cast<int>(255 * (1.0 - pop.age / POP_S));
-        p.setPen(QColor(232, 163, 23, alpha));
-        p.drawText(pop.pos + QPointF(-32, -14 - 30 * pop.age), tr("DESPIKED!"));
+        QColor color = pop.color;
+        color.setAlpha(static_cast<int>(255 * (1.0 - pop.age / POP_S)));
+        p.setPen(color);
+        const qreal half = p.fontMetrics().horizontalAdvance(pop.text) / 2.0;
+        p.drawText(pop.pos + QPointF(-half, -14 - 30 * pop.age), pop.text);
     }
 
     if (state_ == State::Countdown)
@@ -310,9 +461,24 @@ void DespikeArena::paintEvent(QPaintEvent *event)
         big.setBold(true);
         big.setPointSize(48);
         p.setFont(big);
-        p.setPen(QColor(232, 163, 23));
-        p.drawText(plot, Qt::AlignCenter,
+        p.setPen(AMBER);
+        p.drawText(plot.adjusted(0, 0, 0, -80), Qt::AlignCenter,
                    QString::number(static_cast<int>(std::ceil(countdown_))));
+
+        // how to play, while the player waits
+        auto legend = font();
+        legend.setBold(true);
+        p.setFont(legend);
+        const QRectF lines = plot.adjusted(0, plot.height() / 2 + 10, 0, 0);
+        const qreal lineHeight = p.fontMetrics().height() + 4;
+        p.setPen(QColor(230, 70, 60));
+        p.drawText(lines, Qt::AlignHCenter | Qt::AlignTop, tr("Demons: shoot them"));
+        p.setPen(STAR_BLUE);
+        p.drawText(lines.adjusted(0, lineHeight, 0, 0), Qt::AlignHCenter | Qt::AlignTop,
+                   tr("★ Stars: valid data, leave them alone"));
+        p.setPen(AMMO_GREEN);
+        p.drawText(lines.adjusted(0, 2 * lineHeight, 0, 0), Qt::AlignHCenter | Qt::AlignTop,
+                   tr("▼ Downward spikes: grab them to reload"));
     }
 
     paintHud(p);
@@ -348,7 +514,7 @@ void DespikeArena::paintSpike(QPainter &p, const Spike &spike) const
 
     // heads throb as they get close to escaping
     qreal r = HEAD_RADIUS;
-    if (spike.age > LIFETIME_S * 0.6)
+    if (spike.age > spike.lifetime * 0.6)
         r *= 1.0 + 0.18 * std::sin(spike.age * 25.0);
 
     QPainterPath horns;
@@ -371,6 +537,64 @@ void DespikeArena::paintSpike(QPainter &p, const Spike &spike) const
     p.drawEllipse(head + QPointF(r * 0.38, -r * 0.1), r * 0.2, r * 0.2);
 }
 
+void DespikeArena::paintAmmoSpike(QPainter &p, const AmmoSpike &ammo) const
+{
+    // blinks when it is about to go
+    if (ammo.age > AMMO_LIFETIME_S * 0.7
+        && std::fmod(ammo.age * 8.0, 2.0) < 1.0)
+        return;
+
+    const QPointF base(ammo.x, seriesY(ammo.x));
+    const QPointF box = boxPos(ammo);
+
+    p.setPen(QPen(AMMO_GREEN, 2.5));
+    p.drawLine(base, box);
+
+    const QRectF crate(box.x() - 11, box.y() - 7, 22, 14);
+    p.setPen(QPen(QColor(40, 50, 20), 1.2));
+    p.setBrush(QColor(95, 110, 45));
+    p.drawRect(crate);
+
+    // three shells in the crate
+    p.setPen(Qt::NoPen);
+    p.setBrush(QColor(230, 190, 60));
+    for (int i = -1; i <= 1; ++i)
+        p.drawRoundedRect(QRectF(box.x() + i * 6 - 2, box.y() - 4, 4, 8), 1.5, 1.5);
+}
+
+void DespikeArena::paintStar(QPainter &p, const Star &star) const
+{
+    const qreal fadeIn = std::min(star.age / 0.3, 1.0);
+    const qreal fadeOut = std::min((STAR_LIFETIME_S - star.age) / 0.5, 1.0);
+    const qreal alpha = std::clamp(std::min(fadeIn, fadeOut), 0.0, 1.0);
+    const qreal r = STAR_RADIUS * (1.0 + 0.15 * std::sin(star.age * 6.0));
+    const QPointF centre(star.x, seriesY(star.x));
+
+    QColor glow = STAR_BLUE;
+    glow.setAlphaF(0.25 * alpha);
+    p.setPen(Qt::NoPen);
+    p.setBrush(glow);
+    p.drawEllipse(centre, r * 1.8, r * 1.8);
+
+    QPainterPath shape;
+    for (int i = 0; i < 10; ++i)
+    {
+        const qreal radius = (i % 2 == 0) ? r : r * 0.45;
+        const qreal angle = -PI / 2 + i * PI / 5;
+        const QPointF point = centre + QPointF(radius * std::cos(angle), radius * std::sin(angle));
+        if (i == 0)
+            shape.moveTo(point);
+        else
+            shape.lineTo(point);
+    }
+    shape.closeSubpath();
+
+    QColor fill = STAR_BLUE;
+    fill.setAlphaF(alpha);
+    p.setBrush(fill);
+    p.drawPath(shape);
+}
+
 void DespikeArena::paintHud(QPainter &p) const
 {
     const QRectF hud(0, height() - HUD_HEIGHT, width(), HUD_HEIGHT);
@@ -383,17 +607,23 @@ void DespikeArena::paintHud(QPainter &p) const
     hudFont.setPointSize(11);
     p.setFont(hudFont);
 
+    const QRectF text = hud.adjusted(10, 0, -10, 0);
     const int remaining = static_cast<int>(std::ceil(std::max(ROUND_S - roundTime_, 0.0)));
-    const QString ammo = ammo_ > 0 ? tr("AMMO %1").arg(ammo_)
-                                   : tr("OUT OF AMMO: try a median filter");
 
-    p.setPen(health_ <= 30 ? QColor(230, 50, 40) : QColor(232, 163, 23));
-    p.drawText(hud.adjusted(10, 0, -10, 0), Qt::AlignVCenter | Qt::AlignLeft,
-               tr("HEALTH %1%").arg(health_));
+    p.setPen(health_ <= 30 ? DANGER : AMBER);
+    p.drawText(text, Qt::AlignVCenter | Qt::AlignLeft, tr("HEALTH %1%").arg(health_));
 
-    p.setPen(QColor(232, 163, 23));
-    p.drawText(hud.adjusted(10, 0, -10, 0), Qt::AlignCenter,
-               tr("%1   DESPIKED %2").arg(ammo).arg(despiked_));
-    p.drawText(hud.adjusted(10, 0, -10, 0), Qt::AlignVCenter | Qt::AlignRight,
+    QString ammo;
+    if (ammo_ == 0)
+        ammo = tr("OUT OF AMMO: grab a ▼ spike");
+    else if (ammo_ <= LOW_AMMO)
+        ammo = tr("LOW AMMO %1").arg(ammo_);
+    else
+        ammo = tr("AMMO %1").arg(ammo_);
+    p.setPen(ammo_ <= LOW_AMMO ? DANGER : AMBER);
+    p.drawText(text, Qt::AlignCenter, tr("%1   DESPIKED %2").arg(ammo).arg(despiked_));
+
+    p.setPen(AMBER);
+    p.drawText(text, Qt::AlignVCenter | Qt::AlignRight,
                QStringLiteral("0:%1").arg(remaining, 2, 10, QLatin1Char('0')));
 }

@@ -77,11 +77,11 @@ const QStringList& doomSentences()
 }
 
 // A rank tier holds a few titles and sentence templates. The templates take
-// placeholders: {n} despiked count, {n_spikes} / {e_spikes} counted nouns,
-// and {tool}, {place}, {who}, which are filled in at random.
+// placeholders: {n} despiked count, {n_spikes} / {e_spikes} / {v_points}
+// counted nouns, and {tool}, {place}, {who}, which are filled in at random.
 struct RankTier
 {
-    int maxDespiked;
+    int maxScore;
     QStringList titles;
     QStringList templates;
 };
@@ -103,28 +103,28 @@ const RankTier& diedTier()
 const QList<RankTier>& rankTiers()
 {
     static const QList<RankTier> tiers {
-        { 2,
+        { 5,
           { QStringLiteral("Summer Intern"),
             QStringLiteral("Lab Tourist"),
             QStringLiteral("Unpaid Field Assistant") },
           { QStringLiteral("{n_spikes} despiked, {e_spikes} escaped into {place}. Have you tried {tool}?"),
             QStringLiteral("Only {n}? {who} hoped for more, but at least you didn't unplug the logger."),
             QStringLiteral("With {n} despiked, {place} now looks like a hedgehog. Consider {tool}.") } },
-        { 6,
+        { 12,
           { QStringLiteral("PhD Student"),
             QStringLiteral("Survivor of Thesis Chapter 2"),
             QStringLiteral("Junior Flux Wrangler") },
           { QStringLiteral("{n_spikes} despiked. {who} calls it a promising start and wants a draft by Friday."),
             QStringLiteral("{e_spikes} still got into {place}, but {tool} wouldn't have done any better."),
             QStringLiteral("{n_spikes} down. Your thesis now has a methods section.") } },
-        { 11,
+        { 20,
           { QStringLiteral("Postdoc of Doom"),
             QStringLiteral("Flux Tower Veteran"),
             QStringLiteral("Keeper of the Sonic") },
           { QStringLiteral("{n_spikes} despiked. {who} wants you on the next grant proposal."),
             QStringLiteral("Only {e_spikes} escaped into {place}. You and {tool} make a fine team."),
             QStringLiteral("{n_spikes} removed by hand. Who needs {tool}?") } },
-        { 16,
+        { 30,
           { QStringLiteral("Senior Scientist"),
             QStringLiteral("Principal Investigator"),
             QStringLiteral("Chair of the QC Committee") },
@@ -188,28 +188,32 @@ QString pickAny(const QStringList& list)
     return list.at(QRandomGenerator::global()->bounded(static_cast<int>(list.size())));
 }
 
-struct Rank
+// added to the rank sentence when the player shot valid data
+const QStringList& validDataTemplates()
 {
-    QString title;
-    QString sentence;
+    static const QStringList templates {
+        QStringLiteral("You also deleted {v_points} of perfectly good data. {who} noticed."),
+        QStringLiteral("Sadly, {v_points} of valid data went down with the demons."),
+        QStringLiteral("{v_points} of real turbulence got despiked too. {place} will remember.")
+    };
+    return templates;
+}
+
+QString dataPoints(int count)
+{
+    return count == 1 ? QStringLiteral("1 point")
+                      : QStringLiteral("%1 points").arg(count);
+}
+
+struct GameStats
+{
+    int despiked;
+    int escaped;
+    int validRemoved;
 };
 
-Rank doomRank(int despiked, int escaped, bool died)
+QString fillTemplate(QString sentence, const GameStats& stats)
 {
-    const RankTier* tier = &diedTier();
-    if (!died)
-    {
-        for (const auto& candidate : rankTiers())
-        {
-            if (despiked <= candidate.maxDespiked)
-            {
-                tier = &candidate;
-                break;
-            }
-        }
-    }
-
-    QString sentence = pickAny(tier->templates);
     // {who} is capitalised in the list for when it opens a sentence, and
     // lower-cased (bar proper names) when it lands mid-sentence
     QString who = pickAny(rankBlamers());
@@ -219,9 +223,10 @@ Rank doomRank(int despiked, int escaped, bool died)
     if (!opensSentence && who != QLatin1String("Reviewer 2"))
         who[0] = who.at(0).toLower();
 
-    sentence.replace(QLatin1String("{n_spikes}"), spikes(despiked));
-    sentence.replace(QLatin1String("{e_spikes}"), spikes(escaped));
-    sentence.replace(QLatin1String("{n}"), QString::number(despiked));
+    sentence.replace(QLatin1String("{n_spikes}"), spikes(stats.despiked));
+    sentence.replace(QLatin1String("{e_spikes}"), spikes(stats.escaped));
+    sentence.replace(QLatin1String("{v_points}"), dataPoints(stats.validRemoved));
+    sentence.replace(QLatin1String("{n}"), QString::number(stats.despiked));
     sentence.replace(QLatin1String("{tool}"), pickAny(rankTools()));
     sentence.replace(QLatin1String("{place}"), pickAny(rankPlaces()));
     sentence.replace(QLatin1String("{who}"), who);
@@ -229,6 +234,34 @@ Rank doomRank(int despiked, int escaped, bool died)
     // a placeholder at the very start leaves a lower-case first letter
     if (!sentence.isEmpty())
         sentence[0] = sentence.at(0).toUpper();
+    return sentence;
+}
+
+struct Rank
+{
+    QString title;
+    QString sentence;
+};
+
+// the tier follows the score, so shooting valid data costs rank too
+Rank doomRank(int score, const GameStats& stats, bool died)
+{
+    const RankTier* tier = &diedTier();
+    if (!died)
+    {
+        for (const auto& candidate : rankTiers())
+        {
+            if (score <= candidate.maxScore)
+            {
+                tier = &candidate;
+                break;
+            }
+        }
+    }
+
+    QString sentence = fillTemplate(pickAny(tier->templates), stats);
+    if (stats.validRemoved > 0)
+        sentence += QLatin1Char(' ') + fillTemplate(pickAny(validDataTemplates()), stats);
 
     return { pickAny(tier->titles), sentence };
 }
@@ -752,7 +785,9 @@ QWidget* EasterEggPage::createDoomPanel()
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(16);
     layout->addWidget(makeTitle(QStringLiteral("Doom")));
-    layout->addWidget(makeText(tr("Despike or die. Click the demons before they escape into your data.")));
+    layout->addWidget(makeText(tr("Despike or die. Shoot the demons before they escape into your data, "
+                                  "spare the stars (they're valid data), and grab the downward spikes "
+                                  "to reload.")));
     layout->addLayout(centredRow({ launchButton_ }));
     layout->addWidget(doomBar_);
     layout->addWidget(doomStatus_);
@@ -780,16 +815,19 @@ void EasterEggPage::startGame()
     arena_->start();
 }
 
-void EasterEggPage::showGameResult(int despiked, int escaped, int shots, bool died)
+void EasterEggPage::showGameResult(int score, int despiked, int escaped, int validRemoved,
+                                   int shots, bool died)
 {
     const int accuracy = qRound(100.0 * despiked / std::max(shots, 1));
 
-    const Rank rank = doomRank(despiked, escaped, died);
+    const Rank rank = doomRank(score, { despiked, escaped, validRemoved }, died);
     doomRank_->setText(tr("Rank: %1").arg(rank.title.toHtmlEscaped()));
     doomStats_->setText(QStringLiteral("%1<br>%2")
                             .arg(rank.sentence.toHtmlEscaped(),
-                                 tr("Despiked %1, escaped %2, accuracy %3%.")
-                                     .arg(despiked).arg(escaped).arg(accuracy)));
+                                 tr("Score %1: despiked %2, escaped %3, valid data removed %4 "
+                                    "(−%5 each), accuracy %6%.")
+                                     .arg(score).arg(despiked).arg(escaped).arg(validRemoved)
+                                     .arg(DespikeArena::VALID_DATA_PENALTY).arg(accuracy)));
     doomTag_->setText(QStringLiteral("<i>%1</i>").arg(
         doomSentences().at(nextIndex(Variant::Doom, doomSentences().size())).toHtmlEscaped()));
 

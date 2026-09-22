@@ -73,7 +73,8 @@ private:
 
     void launchDoom();
     void startGame();
-    void showGameResult(int despiked, int escaped, int shots, bool died);
+    void showGameResult(int score, int despiked, int escaped, int validRemoved,
+                        int shots, bool died);
     void resetDoomPanel();
 
     void askDeepThought();
