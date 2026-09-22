@@ -98,8 +98,16 @@ private:
 
     LineList templateLines_ {};
     LineList actualLines_ {};
+    //> The engine's minimum class numerosity (toMinH2OClassN), for a time-lag
+    //> file whose RH-table note does not state its own.
+    static constexpr int kDefaultMinClassNumerosity = 15;
+
+    //> Filled by testTimeLagF for testTimeLagS: one name per gas block, and
+    //> the median, minimum and maximum of each, in file order.
+    QStringList timelagGases_ {};
     QVector<QVector<double>> timelagValues;
     QVector<QVector<double>> h2oTimelagValues;
+    int h2oMinClassNumerosity_ = kDefaultMinClassNumerosity;
 };
 
 #endif  // ANCILLARYFILETEST_H

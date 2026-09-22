@@ -1106,12 +1106,20 @@ class SpectralAssessmentValidatorReadsTheFormat(unittest.TestCase):
         """Only the primary's table is unnamed and positional. Skipping every
         water record left the expected list short by one per extra hygrometer
         while the file was longer by eleven rows apiece."""
-        body = self.src[self.src.index("QVector<int> tfpGasSlots"):]
+        body = self.src[self.src.index("bool AncillaryFileTest::testSpectraF"):]
         body = body[: body.index("\n}\n")]
-        self.assertIn("primaryWater", body,
+        self.assertIn("primaryWaterSlot(ecProject_)", body,
                       "the primary is the one water record without a block")
-        self.assertIn("i == primaryWater", body,
+        self.assertIn("i == water", body,
                       "every other hygrometer has a named block like a gas's")
+
+    def test_the_primary_hygrometer_is_a_measured_one(self):
+        """The engine's DesignatedGasSlot('H2O') only counts records with a
+        column. Taking the first water record regardless named the wrong one
+        whenever an unmeasured record came first."""
+        body = self.src[self.src.index("int primaryWaterSlot"):]
+        body = body[: body.index("\n}\n")]
+        self.assertIn("gasMeasured(project, slot)", body)
 
     def test_the_tail_is_found_by_its_own_headers(self):
         for anchor in ("RH/fc_exponential_fit_parameters",
