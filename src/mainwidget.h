@@ -51,6 +51,7 @@ class QStackedLayout;
 class AdvSpectralOptions;
 class BasicSettingsPage;
 class DlProject;
+class EasterEggPage;
 class EcProject;
 class FullProjectPage;
 class PlanarFitSettingsDialog;
@@ -79,6 +80,7 @@ public:
     inline BasicSettingsPage* basicPage() { return basicSettingsPage_; }
     inline AdvancedSettingsPage* advancedPage() { return advancedSettingsPage_; }
     inline RunPage* runPage() { return runPage_; }
+    inline EasterEggPage* easterEggPage() { return easterEggPage_; }
     inline PlanarFitSettingsDialog* pfDialog() { return advancedSettingsPage_
                                                             ->advancedSettingPages()
                                                             ->processingOptions()
@@ -112,6 +114,7 @@ private:
     BasicSettingsPage* basicSettingsPage_;
     AdvancedSettingsPage* advancedSettingsPage_;
     RunPage* runPage_;
+    EasterEggPage* easterEggPage_;
 
     QPointer<FaderWidget> faderWidget;
     bool fadingOn;

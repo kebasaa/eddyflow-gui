@@ -39,6 +39,7 @@
 #include <QNetworkProxyFactory>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QRandomGenerator>
 #include <QSettings>
 #include <QScreen>
 #include <QScrollBar>
@@ -62,6 +63,8 @@
 #include "detectdaterangedialog.h"
 #include "dlinidialog.h"
 #include "dlproject.h"
+#include "eastereggkeyfilter.h"
+#include "eastereggpage.h"
 #include "ecproject.h"
 #include "eddyuhimport.h"
 #include "globalsettings.h"
@@ -214,6 +217,14 @@ MainWindow::MainWindow(const QString& filename,
             this, &MainWindow::updateConsoleChar);
     connect(mainWidget_->runPage(), &RunPage::pauseRequest,
             this, &MainWindow::pauseResumeComputations);
+    connect(mainWidget_->easterEggPage(), &EasterEggPage::finished,
+            this, &MainWindow::lockEasterEgg);
+
+    // installed only now, so an unlock always finds the page in place
+    auto easterEggFilter = new EasterEggKeyFilter(this);
+    qApp->installEventFilter(easterEggFilter);
+    connect(easterEggFilter, &EasterEggKeyFilter::unlocked,
+            this, &MainWindow::unlockEasterEgg);
     connect(mainWidget_, &MainWidget::showSmartfluxBarRequest,
             this, &MainWindow::setSmartfluxMode);
     connect(mainWidget_, &MainWidget::saveSilentlyRequest,
@@ -1388,12 +1399,19 @@ void MainWindow::createActions()
     viewRunPageAction->setToolTip(tr("Go to the <i>Output Console Page</i>. (%1)")
                                   .arg((viewRunPageAction->shortcut().toString())));
 
+    // hidden until "eddy" is typed; the text is set on unlock
+    viewEasterEggAction = new QAction(this);
+    viewEasterEggAction->setIcon(QIcon(QStringLiteral(":/icons/console")));
+    viewEasterEggAction->setCheckable(true);
+    viewEasterEggAction->setVisible(false);
+
     viewActionGroup = new QActionGroup(this);
     viewActionGroup->addAction(viewWelcomeAction);
     viewActionGroup->addAction(viewProjectCreationAction);
     viewActionGroup->addAction(viewBasicSettingsAction);
     viewActionGroup->addAction(viewAdvancedAction);
     viewActionGroup->addAction(viewRunPageAction);
+    viewActionGroup->addAction(viewEasterEggAction);
 
     runExpressAction = new QAction(this);
     runExpressAction->setText(tr("Express\nMode"));
@@ -1529,6 +1547,8 @@ void MainWindow::connectActions()
             this, &MainWindow::viewAdvancedSettingsPage);
     connect(viewRunPageAction, &QAction::triggered,
             this, &MainWindow::viewRunPage);
+    connect(viewEasterEggAction, &QAction::triggered,
+            this, &MainWindow::viewEasterEggPage);
 
     connect(runExpressAction, &QAction::triggered,
             this, &MainWindow::getRunExpress);
@@ -1674,6 +1694,8 @@ void MainWindow::createToolBars()
     sep3->setPixmap(QPixmap(QStringLiteral(":/icons/sep")));
     sep4 = new ClickLabel;
     sep4->setPixmap(QPixmap(QStringLiteral(":/icons/sep")));
+    sepEasterEgg = new ClickLabel;
+    sepEasterEgg->setPixmap(QPixmap(QStringLiteral(":/icons/sep")));
 
     viewToolBar = addToolBar(tr("&View ToolBar"));
     viewToolBar->setObjectName(QStringLiteral("viewToolBar"));
@@ -1687,6 +1709,9 @@ void MainWindow::createToolBars()
     viewToolBar->addAction(viewAdvancedAction);
     viewToolBar->addWidget(sep4);
     viewToolBar->addAction(viewRunPageAction);
+    sepEasterEggAction = viewToolBar->addWidget(sepEasterEgg);
+    sepEasterEggAction->setVisible(false);
+    viewToolBar->addAction(viewEasterEggAction);
     viewToolBar->setAllowedAreas(Qt::TopToolBarArea | Qt::BottomToolBarArea);
 
     runToolBar = addToolBar(tr("&Tools ToolBar"));
@@ -2279,6 +2304,43 @@ void MainWindow::viewRunPage()
     }
 }
 
+void MainWindow::viewEasterEggPage()
+{
+    if (currentPage() != Defs::CurrPage::EasterEgg)
+    {
+        changePage(Defs::CurrPage::EasterEgg);
+    }
+}
+
+void MainWindow::unlockEasterEgg()
+{
+    // a second unlock while the tab is showing must not swap its variant
+    if (viewEasterEggAction->isVisible())
+        return;
+
+    auto variant = static_cast<EasterEggPage::Variant>(
+        QRandomGenerator::global()->bounded(static_cast<int>(EasterEggPage::Variant::Count)));
+    mainWidget_->easterEggPage()->setVariant(variant);
+    viewEasterEggAction->setText(EasterEggPage::tabText(variant));
+    viewEasterEggAction->setEnabled(true);
+    sepEasterEggAction->setVisible(true);
+    viewEasterEggAction->setVisible(true);
+    changeViewToolbarSeparators(currentPage());
+}
+
+void MainWindow::lockEasterEgg()
+{
+    //> Leave the page before hiding its tab, so the checked action and the
+    //> separators are already those of the page being restored. If the
+    //> user wandered off while the joke was still running, stay put.
+    if (currentPage() == Defs::CurrPage::EasterEgg)
+    {
+        changePage(previousPage_);
+    }
+    viewEasterEggAction->setVisible(false);
+    sepEasterEggAction->setVisible(false);
+}
+
 Defs::CurrPage MainWindow::currentPage() const
 {
     return currentPage_;
@@ -2588,6 +2650,7 @@ void MainWindow::windowTitleUpdate(Defs::CurrPage page)
         case Defs::CurrPage::BasicSettings:
         case Defs::CurrPage::AdvancedSettings:
         case Defs::CurrPage::Run:
+        case Defs::CurrPage::EasterEgg:
             setFileCaption(currentProjectFile(), false);
             break;
 //        default:
@@ -3263,6 +3326,10 @@ void MainWindow::togglePageButton(Defs::CurrPage page)
             if (!viewRunPageAction->isChecked())
                 viewRunPageAction->setChecked(true);
             break;
+        case Defs::CurrPage::EasterEgg:
+            if (!viewEasterEggAction->isChecked())
+                viewEasterEggAction->setChecked(true);
+            break;
 //        default:
 //            break;
     }
@@ -3279,6 +3346,10 @@ void MainWindow::changeViewToolbarSeparators(Defs::CurrPage page)
     sep_normal_2x.setDevicePixelRatio(2.0);
     sep_right_selected_2x.setDevicePixelRatio(2.0);
 #endif
+
+    // the easter egg separator only ever borders Run and the egg tab
+    sepEasterEgg->setPixmap(sep_normal_2x);
+    disconnect(sepEasterEgg);
 
     switch (page)
     {
@@ -3352,6 +3423,26 @@ void MainWindow::changeViewToolbarSeparators(Defs::CurrPage page)
             connect(sep3, &ClickLabel::clicked,
                     viewAdvancedAction, &QAction::trigger);
             disconnect(sep4);
+            sepEasterEgg->setPixmap(sep_left_selected_2x);
+            connect(sepEasterEgg, &ClickLabel::clicked,
+                    viewEasterEggAction, &QAction::trigger);
+            break;
+        case Defs::CurrPage::EasterEgg:
+            sep1->setPixmap(sep_normal_2x);
+            sep2->setPixmap(sep_normal_2x);
+            sep3->setPixmap(sep_normal_2x);
+            sep4->setPixmap(sep_normal_2x);
+            connect(sep1, &ClickLabel::clicked,
+                    viewProjectCreationAction, &QAction::trigger);
+            connect(sep2, &ClickLabel::clicked,
+                    viewBasicSettingsAction, &QAction::trigger);
+            connect(sep3, &ClickLabel::clicked,
+                    viewAdvancedAction, &QAction::trigger);
+            connect(sep4, &ClickLabel::clicked,
+                    viewRunPageAction, &QAction::trigger);
+            sepEasterEgg->setPixmap(sep_right_selected_2x);
+            connect(sepEasterEgg, &ClickLabel::clicked,
+                    viewRunPageAction, &QAction::trigger);
             break;
 //        default:
 //            break;

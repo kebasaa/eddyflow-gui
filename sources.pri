@@ -32,7 +32,10 @@ HEADERS += \
     src/eddyuhimport.h \
     src/dlrawfiledesctab.h \
     src/dlsitetab.h \
+    src/despikearena.h \
     src/docchooser.h \
+    src/eastereggkeyfilter.h \
+    src/eastereggpage.h \
     src/ecinidefs.h \
     src/ecproject.h \
     src/ecprojectstate.h \
@@ -142,7 +145,10 @@ SOURCES +=  \
     src/eddyuhimport.cpp \
     src/dlrawfiledesctab.cpp \
     src/dlsitetab.cpp \
+    src/despikearena.cpp \
     src/docchooser.cpp \
+    src/eastereggkeyfilter.cpp \
+    src/eastereggpage.cpp \
     src/ecproject.cpp \
     src/faderwidget.cpp \
     src/fileutils.cpp \

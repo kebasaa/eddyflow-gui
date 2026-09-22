@@ -33,6 +33,7 @@
 #include "advspectraloptions.h"
 #include "advsettingscontainer.h"
 #include "basicsettingspage.h"
+#include "eastereggpage.h"
 #include "mainwindow.h"
 #include "configstate.h"
 #include "dlproject.h"
@@ -53,6 +54,7 @@ MainWidget::MainWidget(QWidget *parent, DlProject *dlProject, EcProject *ecProje
     basicSettingsPage_(nullptr),
     advancedSettingsPage_(nullptr),
     runPage_(nullptr),
+    easterEggPage_(nullptr),
     faderWidget(nullptr),
     fadingOn(true)
 {
@@ -81,12 +83,18 @@ MainWidget::MainWidget(QWidget *parent, DlProject *dlProject, EcProject *ecProje
     runPage_->setSizePolicy(QSizePolicy::Ignored,
                             QSizePolicy::Ignored);
 
+    // stacked widget # 5, hidden until unlocked
+    easterEggPage_ = new EasterEggPage(this);
+    easterEggPage_->setSizePolicy(QSizePolicy::Ignored,
+                            QSizePolicy::Ignored);
+
     mainWidgetLayout = new QStackedLayout(this);
     mainWidgetLayout->addWidget(welcomePage_);
     mainWidgetLayout->addWidget(projectPage_);
     mainWidgetLayout->addWidget(basicSettingsPage_);
     mainWidgetLayout->addWidget(advancedSettingsPage_);
     mainWidgetLayout->addWidget(runPage_);
+    mainWidgetLayout->addWidget(easterEggPage_);
 
     setLayout(mainWidgetLayout);
 

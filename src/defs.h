@@ -88,7 +88,8 @@ namespace Defs
         ProjectCreation,
         BasicSettings,
         AdvancedSettings,
-        Run
+        Run,
+        EasterEgg   // must stay last: its value is its stacked-layout index
     };
 
     enum class CurrStatus
