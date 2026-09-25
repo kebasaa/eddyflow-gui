@@ -59,6 +59,7 @@
 #include "smartfluxbar.h"
 #include "splitter.h"
 #include "widget_utils.h"
+#include "remotesource.h"
 
 ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecProject, ConfigState* config) :
     QWidget(parent),
@@ -154,6 +155,7 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
     metadataRadioGroup->addButton(altMetadataFileRadio, 1);
 
     metadataFileBrowse = new FileBrowseWidget;
+    metadataFileBrowse->setRemoteBrowseEnabled(true);
     metadataFileBrowse->disableClearAction();
     metadataFileBrowse->setToolTip(tr("<b>Load:</b> Load an existing metadata file to edit it in the <i><b>Metadata File Editor</i></b>. If you use the <i><b>Metadata File Editor</i></b> to create and save a new metadata file from scratch, its path will appear here."));
     metadataFileBrowse->setDialogTitle(tr("Select the Metadata File"));
@@ -178,6 +180,7 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
     dynamicMdCheckBox->setProperty("optionalField", true);
 
     dynamicMdFileBrowse = new FileBrowseWidget;
+    dynamicMdFileBrowse->setRemoteBrowseEnabled(true);
     dynamicMdFileBrowse->setToolTip(tr("<b>Load:</b> Load an existing dynamic metadata file."));
     dynamicMdFileBrowse->setDialogTitle(tr("Select the Dynamic Metadata File"));
     dynamicMdFileBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("dynamic_metadata_file")));
@@ -196,6 +199,7 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
     biomExtFileRadio->setToolTip(tr("<b>Use external file:</b> Select this option if you have all biomet data collected in one only external file, and provide the path to this file by using the <b><i>Load...</i></b> button. <br /><b>IMPORTANT:</b> The biomet file must be formatted according the guidelines that you can find in EddyFlow Help and User\'s Guide. Click on the question mark at the right side of the <b><i>Load...</i></b> button to access the guidelines on EddyFlow Help."));
 
     biometExtFileBrowse = new FileBrowseWidget;
+    biometExtFileBrowse->setRemoteBrowseEnabled(true);
     biometExtFileBrowse->setToolTip(tr("<b>Load:</b> Load an existing biomet external file"));
     biometExtFileBrowse->setDialogTitle(tr("Select the Biomet File"));
     biometExtFileBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("external_biomet_file")));
@@ -209,6 +213,7 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
     biomExtDirRadio->setToolTip(tr("<b>Use external directory:</b> Select this option if you have biomet data collected in more than one external file, and provide the path to the directory that contains those files by using the <b><i>Browse...</i></b> button. <br /><b>IMPORTANT:</b> All biomet files must be formatted according the guidelines that you can find in EddyFlow Help and User\'s Guide. Click on the question mark at the right side of the <b><i>Browse...</i></b> button to access the guidelines page on EddyFlow Help."));
 
     biometExtDirBrowse = new DirBrowseWidget;
+    biometExtDirBrowse->setRemoteBrowseEnabled(true);
     biometExtDirBrowse->setToolTip(tr("<b>Browse :</b> Use to specify the "
                                       "folder that contains the external biomet "
                                       "data. If data are also contained in "
@@ -475,6 +480,16 @@ void ProjectPage::selectWidget(int filetype)
 
 void ProjectPage::metadataFileSelected(const QString& file_path)
 {
+    //> EddyFlow edits the metadata file, and a shared link is read only, so
+    //> one picked from a shared drive is copied next to the project at once
+    //> and the project points at the copy.
+    if (RemoteSource::isRemote(file_path))
+    {
+        const auto local = copyRemoteMetadata(file_path);
+        if (!local.isEmpty()) { metadataFileSelected(local); }
+        return;
+    }
+
     WidgetUtils::rememberDialogPath(QStringLiteral("metadata_file"), file_path, true);
 
     auto embedded = false;
@@ -536,19 +551,19 @@ void ProjectPage::updateUseMetadataFile_2(int radio)
 void ProjectPage::updateMetadataFile(const QString& fp)
 {
     previousMetadataFile_ = currentMetadataFile_;
-    currentMetadataFile_ = QDir::cleanPath(fp);
+    currentMetadataFile_ = RemoteSource::cleanPath(fp);
 
     ecProject_->setGeneralMdFilepath(currentMetadataFile_);
 }
 
 void ProjectPage::updateBiomFile(const QString& fp)
 {
-    ecProject_->setGeneralBiomFile(QDir::cleanPath(fp));
+    ecProject_->setGeneralBiomFile(RemoteSource::cleanPath(fp));
 }
 
 void ProjectPage::updateBiomDir(const QString& fp)
 {
-    ecProject_->setGeneralBiomDir(QDir::cleanPath(fp));
+    ecProject_->setGeneralBiomDir(RemoteSource::cleanPath(fp));
 }
 
 void ProjectPage::onBiomExtDirSuffixLabelClicked()
@@ -964,7 +979,7 @@ void ProjectPage::tobSettingsUpdate(int n)
 
 void ProjectPage::updateTimelineFile(const QString& fp)
 {
-    ecProject_->setGeneralTimelineFilepath(QDir::cleanPath(fp));
+    ecProject_->setGeneralTimelineFilepath(RemoteSource::cleanPath(fp));
 }
 
 void ProjectPage::dynamicMdFileSelected(const QString& fp)
@@ -1098,4 +1113,58 @@ void ProjectPage::updateSmartfluxBar()
     smartfluxBar_->setVisible(configState_->project.smartfluxMode);
 }
 
+QString ProjectPage::copyRemoteMetadata(const QString& link)
+{
+    // The project must have a place on disk first
+    const auto project = projectFileProvider_ ? projectFileProvider_() : QString();
+    if (project.isEmpty()) { return {}; }
 
+    auto name = QFileInfo(RemoteSource::relPathOf(link)).fileName();
+    if (name.isEmpty())
+    {
+        name = QFileInfo(project).completeBaseName()
+               + QStringLiteral(".") + Defs::METADATA_FILE_EXT;
+    }
+    const QDir dir(QFileInfo(project).absolutePath());
+    auto target = dir.filePath(name);
+
+    if (QFile::exists(target))
+    {
+        QMessageBox box(QMessageBox::Question, tr("Metadata File"),
+                        tr("%1 already exists next to the project.").arg(name),
+                        QMessageBox::Cancel, this);
+        auto overwrite = box.addButton(tr("Overwrite"), QMessageBox::DestructiveRole);
+        auto keepBoth = box.addButton(tr("Keep Both"), QMessageBox::AcceptRole);
+        box.setDefaultButton(keepBoth);
+        box.exec();
+        if (box.clickedButton() == keepBoth)
+        {
+            const QFileInfo info(target);
+            for (int i = 1; QFile::exists(target); ++i)
+            {
+                target = dir.filePath(QStringLiteral("%1_%2.%3")
+                                          .arg(info.completeBaseName()).arg(i)
+                                          .arg(info.suffix()));
+            }
+        }
+        else if (box.clickedButton() != overwrite)
+        {
+            return {};
+        }
+    }
+
+    const auto downloaded = RemoteSource::ensureLocal(link, this);
+    if (downloaded.isEmpty()) { return {}; }
+    QFile::remove(target);
+    if (!QFile::copy(downloaded, target))
+    {
+        RemoteSource::warn(this, tr("Could not save the metadata file next to the project."),
+                           QDir::toNativeSeparators(target));
+        return {};
+    }
+    WidgetUtils::information(this, tr("Metadata File"),
+                             tr("The metadata file was copied from the shared drive "
+                                "next to the project, where EddyFlow can update it:"),
+                             QDir::toNativeSeparators(target));
+    return target;
+}

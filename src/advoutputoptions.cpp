@@ -56,6 +56,7 @@
 #include "measurement_record.h"
 #include "richtextcheckbox.h"
 #include "widget_utils.h"
+#include "remotesource.h"
 
 AdvOutputOptions::AdvOutputOptions(QWidget* parent,
                                    EcProject* ecProject,
@@ -1331,7 +1332,8 @@ bool AdvOutputOptions::canCreateSpectralAssessment() const
 
 bool AdvOutputOptions::validateSpectralAssessmentCreationRequest()
 {
-    if (!QFileInfo(ecProject_->screenDataPath()).isDir()
+    if ((!RemoteSource::isRemote(ecProject_->screenDataPath())
+         && !QFileInfo(ecProject_->screenDataPath()).isDir())
         || ecProject_->generalFilesFound() <= 0)
     {
         WidgetUtils::warning(this,
@@ -1358,6 +1360,7 @@ bool AdvOutputOptions::validateSpectralAssessmentCreationRequest()
     }
 
     if (ecProject_->generalBinSpectraAvail()
+        && !RemoteSource::isRemote(ecProject_->spectraBinSpectra())
         && !QFileInfo(ecProject_->spectraBinSpectra()).isDir())
     {
         WidgetUtils::warning(this,
@@ -1367,6 +1370,7 @@ bool AdvOutputOptions::validateSpectralAssessmentCreationRequest()
     }
 
     if (ecProject_->generalFullSpectraAvail()
+        && !RemoteSource::isRemote(ecProject_->spectraFullSpectra())
         && !QFileInfo(ecProject_->spectraFullSpectra()).isDir())
     {
         WidgetUtils::warning(this,

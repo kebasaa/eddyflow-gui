@@ -31,6 +31,7 @@
 #include <QPushButton>
 
 #include "customdroplineedit.h"
+#include "remotebrowsedialog.h"
 #include "widget_utils.h"
 
 DirBrowseWidget::DirBrowseWidget()
@@ -82,4 +83,13 @@ void DirBrowseWidget::onButtonClick()
     }
 
     emit pathSelected(dirname);
+}
+
+void DirBrowseWidget::onRemoteButtonClick()
+{
+    const auto link = RemoteBrowseDialog::pick(this,
+        RemoteBrowseDialog::Mode::Directory, dialogTitle(), QString(), path());
+    if (link.isEmpty()) { return; }
+
+    emit pathSelected(link);
 }

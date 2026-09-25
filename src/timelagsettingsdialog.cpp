@@ -44,6 +44,7 @@
 #include "filebrowsewidget.h"
 #include "globalsettings.h"
 #include "widget_utils.h"
+#include "remotesource.h"
 
 TimeLagSettingsDialog::TimeLagSettingsDialog(QWidget *parent, EcProject *ecProject, ConfigState* config) :
     QDialog(parent),
@@ -117,6 +118,7 @@ TimeLagSettingsDialog::TimeLagSettingsDialog(QWidget *parent, EcProject *ecProje
     dateTimeContainer->setVerticalSpacing(3);
 
     fileBrowse = new FileBrowseWidget;
+    fileBrowse->setRemoteBrowseEnabled(true);
     fileBrowse->setToolTip(tr("<b>Load:</b> Load an existing time lag file"));
     fileBrowse->setDialogTitle(tr("Select the Time Lag Optimization File"));
     fileBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("timelag_file")));
@@ -703,14 +705,18 @@ void TimeLagSettingsDialog::forceEndTimePolicy()
 
 void TimeLagSettingsDialog::updateFile(const QString& fp)
 {
-    ecProject_->setTimelagOptFile(QDir::cleanPath(fp));
+    ecProject_->setTimelagOptFile(RemoteSource::cleanPath(fp));
 }
 
 void TimeLagSettingsDialog::testSelectedFile(const QString& fp)
 {
     if (fp.isEmpty()) { return; }
 
-    QFileInfo paramFilePath(fp);
+    //> A file on a shared drive is tested on a downloaded copy; the link
+    //> is what the project keeps.
+    const auto localFile = RemoteSource::ensureLocal(fp, this);
+    if (localFile.isEmpty()) { return; }
+    QFileInfo paramFilePath(localFile);
     QString canonicalParamFile = paramFilePath.canonicalFilePath();
 
     AncillaryFileTest test_dialog(AncillaryFileTest::FileType::TimeLag, ecProject_, this);

@@ -12,6 +12,31 @@
 	          the single sa_file the GUI names keeps working. A test case in
 	          test_spectra_validator_static.py holds the extended form to the
 	          same format and value checks as the single-rate file.
+	- New feature: Every field that takes an input - raw data folder,
+	               metadata, dynamic metadata, biomet file and folder, planar
+	               fit, time lag and PWB files, spectral assessment file,
+	               binned and full cospectra folders, head correction tables -
+	               has a "Remote drive..." button beside "Browse..." (tooltip:
+	               "Dropbox or Google Drive link"). The first time, it asks for
+	               the link to a folder shared with "anyone with the link", then
+	               opens a browser over that drive that works like the file
+	               dialog: one folder at a time, Back and Up, the dialog's own
+	               file filters. The same drive then opens straight away for
+	               every other field; "Different drive..." switches to another.
+	               The field shows where the value points, e.g.
+	               "Google Drive: site/2019-03", and the project keeps the link,
+	               which the engine reads directly.
+	- New feature: A metadata file picked from a shared drive is copied next to
+	               the project file at once, and the project points at the copy,
+	               since EddyFlow updates that file. A new project is saved
+	               first; a name already there can be overwritten or kept.
+	- New feature: Every failure - a link that is not a Google Drive or Dropbox
+	               folder, one not shared with anyone, a folder that cannot be
+	               listed, a file that cannot be downloaded - ends in a warning
+	               window, never silently.
+	- New feature: Output locations stay local: the output folder has no
+	               "Remote drive..." button, and a link put there is refused
+	               with a warning window.
 
 8.1.0 (2026-08-22)
 

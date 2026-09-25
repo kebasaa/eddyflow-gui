@@ -55,6 +55,7 @@
 #include "filebrowsewidget.h"
 #include "globalsettings.h"
 #include "widget_utils.h"
+#include "remotesource.h"
 
 PlanarFitSettingsDialog::PlanarFitSettingsDialog(QWidget* parent, EcProject *ecProject, ConfigState* config) :
     QDialog(parent),
@@ -131,6 +132,7 @@ PlanarFitSettingsDialog::PlanarFitSettingsDialog(QWidget* parent, EcProject *ecP
     dateTimeContainer->setVerticalSpacing(3);
 
     fileBrowse = new FileBrowseWidget;
+    fileBrowse->setRemoteBrowseEnabled(true);
     fileBrowse->setToolTip(tr("<b>Load:</b> Load an existing planar fit file"));
     fileBrowse->setDialogTitle(tr("Select the Planar Fit File"));
     fileBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("planar_fit_file")));
@@ -483,12 +485,16 @@ void PlanarFitSettingsDialog::setDateRange(FileUtils::DateRange dates)
 
 void PlanarFitSettingsDialog::updateFile(const QString& fp)
 {
-    ecProject_->setPlanarFitFile(QDir::cleanPath(fp));
+    ecProject_->setPlanarFitFile(RemoteSource::cleanPath(fp));
 }
 
 void PlanarFitSettingsDialog::testSelectedFile(const QString& fp)
 {
-    QFileInfo paramFilePath(fp);
+    //> A file on a shared drive is tested on a downloaded copy; the link
+    //> is what the project keeps.
+    const auto localFile = RemoteSource::ensureLocal(fp, this);
+    if (localFile.isEmpty()) { return; }
+    QFileInfo paramFilePath(localFile);
     auto canonicalParamFile = paramFilePath.canonicalFilePath();
 
     AncillaryFileTest test_dialog(AncillaryFileTest::FileType::PlanarFit, ecProject_, this);

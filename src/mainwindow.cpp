@@ -81,6 +81,7 @@
 #include "welcomepage.h"
 #include "wheeleventfilter.h"
 #include "widget_utils.h"
+#include "remotesource.h"
 
 MainWindow::MainWindow(const QString& filename,
                        const QString& appEnvPath,
@@ -237,6 +238,13 @@ MainWindow::MainWindow(const QString& filename,
     // dialogs connections
     connect(mainWidget_->projectPage(), &ProjectPage::connectBinarySettingsRequest,
             this, &MainWindow::connectBinarySettingsDialog);
+
+    // A metadata file from a shared drive is copied next to the project, so a
+    // new project is saved first
+    mainWidget_->projectPage()->setProjectFileProvider([this]() {
+        if (newFlag_ && !fileSaveAs()) { return QString(); }
+        return currentProjectFile();
+    });
 
     // from BasicSettingsPage
     connect(mainWidget_, &MainWidget::updateMetadataReadResult,
@@ -787,6 +795,18 @@ bool MainWindow::openFile(const QString& filename)
                     bool modified = false;
                     if (ecProject_->loadEcProject(filename, true, &modified))
                     {
+                        // "Remote drive..." opens the drive this project reads from
+                        RemoteSource::clearCurrentDrive();
+                        RemoteSource::adoptDriveFrom({ecProject_->screenDataPath(),
+                                                      ecProject_->generalBiomDir(),
+                                                      ecProject_->generalBiomFile(),
+                                                      ecProject_->generalTimelineFilepath(),
+                                                      ecProject_->spectraFile(),
+                                                      ecProject_->spectraBinSpectra(),
+                                                      ecProject_->spectraFullSpectra(),
+                                                      ecProject_->planarFitFile(),
+                                                      ecProject_->timelagOptFile(),
+                                                      ecProject_->screenHeadCorrDir()});
                         setCurrentProjectFile(filename, modified);
                         newFlag_ = false;
                         addRecent(currentProjectFile());
@@ -1129,6 +1149,7 @@ void MainWindow::newFile()
 {
     // create a new file
     ecProject_->newEcProject(configState_.project);
+    RemoteSource::clearCurrentDrive();
     newFlag_ = true;
     saveAction->setEnabled(false);
     setCurrentProjectFile(QString());

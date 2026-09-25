@@ -114,6 +114,8 @@ HEADERS += \
     src/richtextcheckbox.h \
     src/detectdaterangedialog.h \
     src/downloadmanager.h \
+    src/remotebrowsedialog.h \
+    src/remotesource.h \
     src/openfilefilter.h \
     src/windfilter_view.h \
     src/windfilter_tableview.h \
@@ -224,6 +226,8 @@ SOURCES +=  \
     src/richtextcheckbox.cpp \
     src/detectdaterangedialog.cpp \
     src/downloadmanager.cpp \
+    src/remotebrowsedialog.cpp \
+    src/remotesource.cpp \
     src/openfilefilter.cpp \
     src/mystyle.cpp \
     src/windfilter_view.cpp \

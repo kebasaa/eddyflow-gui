@@ -29,6 +29,7 @@
 #include <QPushButton>
 
 #include "customdroplineedit.h"
+#include "remotebrowsedialog.h"
 #include "widget_utils.h"
 
 FileBrowseWidget::FileBrowseWidget() :
@@ -73,4 +74,13 @@ void FileBrowseWidget::onButtonClick()
     }
 
     emit pathSelected(filename);
+}
+
+void FileBrowseWidget::onRemoteButtonClick()
+{
+    const auto link = RemoteBrowseDialog::pick(this,
+        RemoteBrowseDialog::Mode::File, dialogTitle(), dialogFilter(), path());
+    if (link.isEmpty()) { return; }
+
+    emit pathSelected(link);
 }

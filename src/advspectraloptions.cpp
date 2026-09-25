@@ -67,6 +67,7 @@
 #include "measurement_record.h"
 #include "variable_desc.h"
 #include "widget_utils.h"
+#include "remotesource.h"
 
 namespace {
 
@@ -369,6 +370,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     binnedSpectraExistingRadio->setStyleSheet(QStringLiteral("QRadioButton { margin-right: 0px; }"));
 
     binnedSpectraDirBrowse = new DirBrowseWidget;
+    binnedSpectraDirBrowse->setRemoteBrowseEnabled(true);
     binnedSpectraDirBrowse->setToolTip(tr("<b>Browse:</b> Specify the folder that contains the binned (co)spectra files."));
     binnedSpectraDirBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("binned_cospectra_dir")));
     binnedSpectraDirBrowse->setDialogTitle(tr("Select the Binned (Co)Spectra Files Directory"));
@@ -753,6 +755,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     automaticSpectraConfigCheck->setStyleSheet(QStringLiteral("QCheckBox { margin-left: 40px; }"));
 
     spectraFileBrowse = new FileBrowseWidget;
+    spectraFileBrowse->setRemoteBrowseEnabled(true);
     spectraFileBrowse->setToolTip(tr("<b>Load:</b> Load an existing spectral assessment file"));
     spectraFileBrowse->setDialogTitle(tr("Select the Spectral Assessment File"));
     spectraFileBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("spectral_assessment_file")));
@@ -788,6 +791,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     fullSpectraNonExistingRadio->setToolTip(tr("<b>Full w/T<sub>s</sub> cospectra files not available:</b> Select this option if you do not have <i>Full cospectra of w/T<sub>s</sub></i> for the current dataset (from a previous run of EddyFlow). Note that existing cospectra files need to correspond exactly to the current dataset. Full cospectra of w/T<sub>s</sub> (sensible heat) are used for definition of the spectral correction factor for each flux with the method by Fratini et al. (2012). If you select this option, the option <i>Full length cospectra w/T<sub>s</sub></i> in the Output Files page will be automatically selected and deactivated."));
 
     fullSpectraDirBrowse = new DirBrowseWidget;
+    fullSpectraDirBrowse->setRemoteBrowseEnabled(true);
     fullSpectraDirBrowse->setToolTip(tr("<b>Browse:</b> Specify the folder that contains the full w/T<sub>s</sub> cospectra files."));
     fullSpectraDirBrowse->setDialogTitle(tr("Select the Full Spectra Files Directory"));
     fullSpectraDirBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("full_cospectra_dir")));
@@ -1674,22 +1678,26 @@ void AdvSpectralOptions::refreshSpectralAssessmentCreationMode()
 
 void AdvSpectralOptions::updateSpectraFile(const QString &fp)
 {
-    ecProject_->setSpectraFile(QDir::cleanPath(fp));
+    ecProject_->setSpectraFile(RemoteSource::cleanPath(fp));
 }
 
 void AdvSpectralOptions::updateBinnedSpectraFile(const QString &fp)
 {
-    ecProject_->setSpectraBinSpectra(QDir::cleanPath(fp));
+    ecProject_->setSpectraBinSpectra(RemoteSource::cleanPath(fp));
 }
 
 void AdvSpectralOptions::updateFullSpectraFile(const QString &fp)
 {
-    ecProject_->setSpectraFullSpectra(QDir::cleanPath(fp));
+    ecProject_->setSpectraFullSpectra(RemoteSource::cleanPath(fp));
 }
 
 void AdvSpectralOptions::testSelectedSpectraFile(const QString& fp)
 {
-    QFileInfo paramFilePath(fp);
+    //> A file on a shared drive is tested on a downloaded copy; the link
+    //> is what the project keeps.
+    const auto localFile = RemoteSource::ensureLocal(fp, this);
+    if (localFile.isEmpty()) { return; }
+    QFileInfo paramFilePath(localFile);
     QString canonicalParamFile = paramFilePath.canonicalFilePath();
 
     AncillaryFileTest test_dialog(AncillaryFileTest::FileType::Spectra, ecProject_, this);
