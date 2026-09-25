@@ -1,8 +1,17 @@
 8.1.1 (2026-09-25)
 
     GUI:
-	- Version only, to match EddyFlow engine 8.1.1, which processes GHG projects
-	  whose files change acquisition frequency part way.
+	- Version bump to match EddyFlow engine 8.1.1, which processes GHG projects
+	  whose files change acquisition frequency part way, and assesses spectra
+	  separately at each acquisition rate of a gas.
+	- Tested: The spectral assessment file of a project at more than one rate
+	          carries a rates= token on each affected block and one value set
+	          per rate on each row. The assessment-file validator accepts it
+	          unchanged - tokens are stripped like every other stamp and the
+	          extra values sit after the `=`, where rows are not compared - so
+	          the single sa_file the GUI names keeps working. A test case in
+	          test_spectra_validator_static.py holds the extended form to the
+	          same format and value checks as the single-rate file.
 
 8.1.0 (2026-08-22)
 

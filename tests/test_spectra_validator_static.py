@@ -335,6 +335,29 @@ def replace_block(lines, name, fn, fc):
     return lines
 
 
+def multi_rate(lines):
+    """The same file as the engine writes it for a project whose raw files are
+    not all at one acquisition frequency: a `rates=` token on every block
+    header and on the exponential and Ibrom label rows, an `exp_by_rate=`
+    token beside the exponents, and one value set per rate after each `=`.
+    The exponent number row is left as it is - the engine keeps the fastest
+    rate's three there, because that row is compared strictly."""
+    out = []
+    for words in lines:
+        words = list(words)
+        if "TFP" in words:
+            words = words + ["rates=10.000,5.000"]
+        elif words[:3] == ["exp1", "exp2", "exp3"]:
+            words = words + ["rates=10.000,5.000", "exp_by_rate=1,2,3/4,5,6"]
+        elif words == ["c1", "c2"]:
+            words = words + ["rates=10.000,5.000"]
+        elif "=" in words and not any("=" in w and w != "=" for w in words):
+            at = words.index("=")
+            words = words + words[at + 1:]
+        out.append(words)
+    return out
+
+
 def drop_block(lines, name):
     block = next(b for b in blocks_of(lines) if b["name"] == name)
     # the header, its rows, and the blank line after it
@@ -364,6 +387,19 @@ class SpectralAssessment(unittest.TestCase):
                 failed, skipped = spectra_science(lines, project)
                 self.assertEqual([], failed)
                 self.assertEqual(["CH4"], skipped)
+
+    def test_a_file_with_a_column_set_per_rate_passes(self):
+        """EddyFlow 8.1.1 assesses a gas separately at each of its
+        acquisition rates and keeps one file, extended only where a gas has
+        more than one rate. The GUI names that one file, so its validator must
+        accept the extension: the tokens are stripped like every other stamp
+        and the extra values sit after the `=`, where rows are not compared."""
+        plain = read(FIXTURES / "sa_n_gas_fitted.txt")
+        lines = multi_rate(plain)
+        self.assertNotEqual(plain, lines, "the helper extended nothing")
+        self.assertEqual([], spectra_format(self.model, lines, N_GAS_PROJECT))
+        self.assertEqual(spectra_science(plain, N_GAS_PROJECT),
+                         spectra_science(lines, N_GAS_PROJECT))
 
     def test_the_second_hygrometer_is_checked(self):
         """`H2O_2` is a named nine-row block, held against the RH prototype
