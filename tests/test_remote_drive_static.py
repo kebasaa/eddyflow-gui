@@ -131,6 +131,14 @@ class ReadFilesAreDownloadedFirst(unittest.TestCase):
         self.assertLess(body.index("RemoteSource::listFiles"), body.index("QtConcurrent::run"))
 
 
+class EachFileCrossesTheNetworkOnce(unittest.TestCase):
+    def test_a_second_request_for_the_same_file_is_a_local_copy(self):
+        text = read("remotesource.cpp")
+        body = text[text.index("QString RemoteSource::ensureLocal"):]
+        self.assertLess(body.index("downloaded().value(url)"), body.index("download(link, dest, &error)"))
+        self.assertIn("downloaded().insert(url, dest);", body)
+
+
 class MetadataIsCopiedNextToTheProject(unittest.TestCase):
     def test_remote_metadata_is_copied_before_it_is_opened(self):
         text = read("projectpage.cpp")

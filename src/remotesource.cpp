@@ -59,6 +59,15 @@ QHash<QString, QString>& registry()
     return map;
 }
 
+// Download URL -> where it was downloaded to. A file reached twice - through
+// two settings, or a setting and a folder listing - crosses the network once
+// and is copied locally the second time.
+QHash<QString, QString>& downloaded()
+{
+    static QHash<QString, QString> map;
+    return map;
+}
+
 QNetworkAccessManager* nam()
 {
     // Owns the cookie jar, which the Dropbox listing needs across requests
@@ -566,6 +575,14 @@ QString RemoteSource::ensureLocal(const QString& pathOrLink, QWidget* parent)
         return pathOrLink;
     }
 
+    const auto url = downloadUrl(link);
+    const auto have = downloaded().value(url);
+    if (!have.isEmpty() && QFile::exists(have))
+    {
+        QDir().mkpath(QFileInfo(dest).absolutePath());
+        if (QFile::copy(have, dest)) { return dest; }
+    }
+
     QString error;
     QApplication::setOverrideCursor(Qt::WaitCursor);
     const bool ok = download(link, dest, &error);
@@ -576,6 +593,7 @@ QString RemoteSource::ensureLocal(const QString& pathOrLink, QWidget* parent)
                          .arg(QFileInfo(dest).fileName()), error);
         return {};
     }
+    downloaded().insert(url, dest);
     return dest;
 }
 

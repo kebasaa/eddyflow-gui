@@ -30,6 +30,9 @@
 	               the project file at once, and the project points at the copy,
 	               since EddyFlow updates that file. A new project is saved
 	               first; a name already there can be overwritten or kept.
+	               A file the interface reads twice - through two settings, or
+	               a setting and a folder listing - is downloaded once and
+	               copied locally the second time.
 	- New feature: Every failure - a link that is not a Google Drive or Dropbox
 	               folder, one not shared with anyone, a folder that cannot be
 	               listed, a file that cannot be downloaded - ends in a warning
