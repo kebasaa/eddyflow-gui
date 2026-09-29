@@ -53,7 +53,7 @@ LineEditAndBrowseWidget::LineEditAndBrowseWidget(QWidget *parent) :
     button_->setProperty("loadButton", true);
 
     remoteButton_ = new QPushButton(tr("Remote drive..."));
-    remoteButton_->setProperty("loadButton", true);
+    remoteButton_->setProperty("remoteButton", true);
     remoteButton_->setToolTip(tr("Dropbox or Google Drive link"));
     remoteButton_->setVisible(false);
 
@@ -61,7 +61,7 @@ LineEditAndBrowseWidget::LineEditAndBrowseWidget(QWidget *parent) :
     container->addWidget(lineEdit_);
     container->addWidget(button_);
     container->addWidget(remoteButton_);
-    container->setStretch(2, 1);
+    container->setStretch(0, 1);
     container->setContentsMargins(0, 0, 0, 0);
     container->setSpacing(0);
 

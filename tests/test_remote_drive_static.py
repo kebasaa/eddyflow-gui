@@ -84,6 +84,22 @@ class InputsHaveTheButton(unittest.TestCase):
                 with self.subTest(file=name, widget=w):
                     self.assertNotIn(f"{w}->setRemoteBrowseEnabled(true)", text)
 
+    def test_the_button_is_no_wider_than_its_label(self):
+        # setStretch(2, 1) was a no-op while the layout held two widgets; with
+        # the remote button at index 2 it took every field's spare width, up
+        # to 612 px. The line edit is what stretches, and the button has a
+        # style of its own without the load button's fixed width.
+        text = read("lineeditandbrowsewidget.cpp")
+        self.assertIn("container->setStretch(0, 1);", text)
+        self.assertNotIn("setStretch(2", text)
+        self.assertIn('remoteButton_->setProperty("remoteButton", true);', text)
+        for qss in sorted((ROOT / "css").glob("*.qss")):
+            with self.subTest(stylesheet=qss.name):
+                sheet = qss.read_text(encoding="utf-8", errors="replace")
+                rule = sheet[sheet.index('QPushButton[remoteButton="true"] {'):]
+                rule = rule[:rule.index("}")]
+                self.assertNotRegex(rule, r"(min|max)-width")
+
     def test_tooltip(self):
         text = read("lineeditandbrowsewidget.cpp")
         self.assertIn('tr("Remote drive...")', text)

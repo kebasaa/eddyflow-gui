@@ -1339,6 +1339,53 @@ QPushButton[loadButton="true"]:pressed {
                          stop: 0 #2272a7, stop: 0.7 #043b79, stop: 1 #043b79);
 }
 
+/* The "Remote drive..." button beside Browse.../Load... on every input.
+   The load button's look, but sized to its own text rather than the fixed
+   70px that fits "Browse..." and would clip this label, rounded on both
+   sides, and set 4px off the load button's rounded right edge. */
+
+QPushButton[remoteButton="true"] {
+    margin-left: 4px;
+    border: 1px solid #333333;
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                      stop: 0 #67c2ee, stop: 0.7 #2986f5,
+                                      stop: 1 #2986f5);
+    min-height: 17px;
+    max-height: 17px;
+    padding: 0px 4px;
+    color: white;
+    /*font-weight: bold;*/
+    text-align: center;
+
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+}
+
+QPushButton[remoteButton="true"]:disabled {
+    color: #eee;
+    border-color: #777777;
+    border: 1px solid #999;
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                         stop: 0 #cacaca, stop: 0.7 #9a9a9a,
+                         stop: 1 #9a9a9a);
+}
+
+QPushButton[remoteButton="true"]:hover {
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                         stop: 0 #30a0e7, stop: 0.7 #096cdb, stop: 1 #096cdb);
+}
+
+QPushButton[remoteButton="true"]:pressed {
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                         stop: 0 #2272a7, stop: 0.7 #043b79, stop: 1 #043b79);
+}
+
 QPushButton[mdButton="true"] {
     border: 1px solid #333333;
     border-radius: 4px;
