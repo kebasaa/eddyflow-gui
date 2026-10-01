@@ -39,14 +39,19 @@
 #include "clicklabel.h"
 #include "configstate.h"
 #include "customclearlineedit.h"
+#include "dlproject.h"
 #include "ecproject.h"
+#include "variable_desc.h"
 #include "measurement_record.h"
 #include "filebrowsewidget.h"
 #include "globalsettings.h"
 #include "widget_utils.h"
+#include "remotesource.h"
 
-TimeLagSettingsDialog::TimeLagSettingsDialog(QWidget *parent, EcProject *ecProject, ConfigState* config) :
+TimeLagSettingsDialog::TimeLagSettingsDialog(QWidget *parent, DlProject *dlProject,
+                                             EcProject *ecProject, ConfigState* config) :
     QDialog(parent),
+    dlProject_(dlProject),
     ecProject_(ecProject),
     configState_(config)
 {
@@ -117,6 +122,7 @@ TimeLagSettingsDialog::TimeLagSettingsDialog(QWidget *parent, EcProject *ecProje
     dateTimeContainer->setVerticalSpacing(3);
 
     fileBrowse = new FileBrowseWidget;
+    fileBrowse->setRemoteBrowseEnabled(true);
     fileBrowse->setToolTip(tr("<b>Load:</b> Load an existing time lag file"));
     fileBrowse->setDialogTitle(tr("Select the Time Lag Optimization File"));
     fileBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("timelag_file")));
@@ -500,12 +506,17 @@ void TimeLagSettingsDialog::rebuildGasRows()
                "and the correlation function is well characterized.")
                 .arg(gasName(i)));
 
+        //> Shown in the unit the gas's own column is declared in, like the
+        //> spectral thresholds: a minimum of 0.001 umol m-2 s-1 is above
+        //> every flux a gas reported in ppb will ever produce, so in that
+        //> unit the threshold could not be set low enough to keep any.
+        const auto scale = fluxScale(i);
         row.spin = new QDoubleSpinBox;
         row.spin->setDecimals(3);
-        row.spin->setRange(0.0, 100.0);
-        row.spin->setSingleStep(0.001);
+        row.spin->setRange(0.0, 100.0 * scale.factor);
+        row.spin->setSingleStep(0.001 * scale.factor);
         row.spin->setAccelerated(true);
-        row.spin->setSuffix(tr("  [%1]").arg(Defs::UMOL_M2S_STRING));
+        row.spin->setSuffix(tr("  [%1]").arg(scale.display));
         row.spin->setToolTip(row.label->toolTip());
         row.spin->setValue(minFluxFor(i));
 
@@ -560,13 +571,37 @@ void TimeLagSettingsDialog::rebuildGasRows()
     }
 }
 
+/// The unit one gas's minimum flux is shown in.
+///
+/// Read from that gas's column in the raw file description, so the number
+/// beside it means what the engine will report for the gas. The stored value
+/// stays umol m-2 s-1, which is what the engine compares against.
+FluxUnits::Scale TimeLagSettingsDialog::fluxScale(int gasIndex) const
+{
+    const auto& gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size())
+    {
+        return FluxUnits::forColumn(QString());
+    }
+
+    QString unitToken;
+    const auto variables = dlProject_ ? dlProject_->variables() : nullptr;
+    const int index = gases.at(gasIndex).rawColumn - 1;
+    if (variables && index >= 0 && index < variables->size())
+    {
+        unitToken = dlProject_->canonicalMeasureUnit(variables->at(index).inputUnit());
+    }
+    return FluxUnits::forColumn(unitToken);
+}
+
 void TimeLagSettingsDialog::onMinFluxChanged(int gasIndex, double value)
 {
     if (!ecProject_) { return; }
     auto gases = ecProject_->gasColumns();
     if (gasIndex < 0 || gasIndex >= gases.size()) { return; }
 
-    gases[gasIndex].proc.toMinFlux = value;
+    //> Back to the stored unit, the reciprocal of what minFluxFor applies.
+    gases[gasIndex].proc.toMinFlux = value / fluxScale(gasIndex).factor;
     ecProject_->setGasColumns(gases);
 
 }
@@ -577,7 +612,7 @@ double TimeLagSettingsDialog::minFluxFor(int gasIndex) const
     if (gasIndex >= 0 && gasIndex < gases.size()
         && gases.at(gasIndex).proc.toMinFlux >= 0.0)
     {
-        return gases.at(gasIndex).proc.toMinFlux;
+        return gases.at(gasIndex).proc.toMinFlux * fluxScale(gasIndex).factor;
     }
     return 0.0;
 }
@@ -703,14 +738,18 @@ void TimeLagSettingsDialog::forceEndTimePolicy()
 
 void TimeLagSettingsDialog::updateFile(const QString& fp)
 {
-    ecProject_->setTimelagOptFile(QDir::cleanPath(fp));
+    ecProject_->setTimelagOptFile(RemoteSource::cleanPath(fp));
 }
 
 void TimeLagSettingsDialog::testSelectedFile(const QString& fp)
 {
     if (fp.isEmpty()) { return; }
 
-    QFileInfo paramFilePath(fp);
+    //> A file on a shared drive is tested on a downloaded copy; the link
+    //> is what the project keeps.
+    const auto localFile = RemoteSource::ensureLocal(fp, this);
+    if (localFile.isEmpty()) { return; }
+    QFileInfo paramFilePath(localFile);
     QString canonicalParamFile = paramFilePath.canonicalFilePath();
 
     AncillaryFileTest test_dialog(AncillaryFileTest::FileType::TimeLag, ecProject_, this);

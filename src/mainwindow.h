@@ -129,6 +129,9 @@ private slots:
     void viewBasicSettingsPage();
     void viewAdvancedSettingsPage();
     void viewRunPage();
+    void viewEasterEggPage();
+    void unlockEasterEgg();
+    void lockEasterEgg();
 
     void getRunExpress();
     void getRunAdvanced();
@@ -252,6 +255,8 @@ private:
     ClickLabel* sep2;
     ClickLabel* sep3;
     ClickLabel* sep4;
+    ClickLabel* sepEasterEgg;
+    QAction* sepEasterEggAction;
 
     QAction *newAction;
     QAction *openAction;
@@ -269,6 +274,7 @@ private:
     QAction *viewBasicSettingsAction;
     QAction *viewAdvancedAction;
     QAction *viewRunPageAction;
+    QAction *viewEasterEggAction;
     QAction *runExpressAction;
     QAction *runAdvancedAction;
     QAction *runRetrieverAction;

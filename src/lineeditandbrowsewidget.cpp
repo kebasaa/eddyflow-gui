@@ -32,12 +32,16 @@
 #include <QPushButton>
 
 #include "customdroplineedit.h"
+#include "remotesource.h"
 #include "widget_utils.h"
 
 LineEditAndBrowseWidget::LineEditAndBrowseWidget(QWidget *parent) :
     QWidget(parent),
     lineEdit_{},
     button_{},
+    remoteButton_{},
+    remoteLink_(QString()),
+    remoteEnabled_(false),
     dialogTitle_(QString()),
     dialogDir_(QString())
 {
@@ -48,10 +52,16 @@ LineEditAndBrowseWidget::LineEditAndBrowseWidget(QWidget *parent) :
     button_ = new QPushButton;
     button_->setProperty("loadButton", true);
 
+    remoteButton_ = new QPushButton(tr("Remote drive..."));
+    remoteButton_->setProperty("remoteButton", true);
+    remoteButton_->setToolTip(tr("Dropbox or Google Drive link"));
+    remoteButton_->setVisible(false);
+
     auto container = new QHBoxLayout(this);
     container->addWidget(lineEdit_);
     container->addWidget(button_);
-    container->setStretch(2, 1);
+    container->addWidget(remoteButton_);
+    container->setStretch(0, 1);
     container->setContentsMargins(0, 0, 0, 0);
     container->setSpacing(0);
 
@@ -60,15 +70,36 @@ LineEditAndBrowseWidget::LineEditAndBrowseWidget(QWidget *parent) :
     connect(lineEdit_, &CustomClearLineEdit::buttonClicked,
             this, &LineEditAndBrowseWidget::clearRequested);
     connect(lineEdit_, &QLineEdit::textChanged,
-            this, &LineEditAndBrowseWidget::pathChanged);
+            this, &LineEditAndBrowseWidget::onTextChanged);
     connect(lineEdit_, &QLineEdit::textChanged,
             this, &LineEditAndBrowseWidget::updatePathTooltip);
     connect(button_, &QPushButton::clicked,
             this, &LineEditAndBrowseWidget::onButtonClick);
+    connect(remoteButton_, &QPushButton::clicked,
+            this, &LineEditAndBrowseWidget::onRemoteButtonClick);
+}
+
+void LineEditAndBrowseWidget::setRemoteBrowseEnabled(bool on)
+{
+    remoteEnabled_ = on;
+    remoteButton_->setVisible(on);
+}
+
+// What is shown stands for the link only while it is the name the link was
+// shown as; clearing or replacing the text drops the link.
+void LineEditAndBrowseWidget::onTextChanged()
+{
+    if (!remoteLink_.isEmpty()
+        && lineEdit_->text() != RemoteSource::displayName(remoteLink_))
+    {
+        remoteLink_.clear();
+    }
+    emit pathChanged(path());
 }
 
 void LineEditAndBrowseWidget::clear()
 {
+    remoteLink_.clear();
     lineEdit_->clear();
 }
 
@@ -76,6 +107,7 @@ void LineEditAndBrowseWidget::setEnabled(bool enable)
 {
     lineEdit_->setEnabled(enable);
     button_->setEnabled(enable);
+    remoteButton_->setEnabled(enable);
 }
 
 void LineEditAndBrowseWidget::setToolTip(const QString &text)
@@ -107,6 +139,24 @@ void LineEditAndBrowseWidget::setText(const QString &text)
 
 void LineEditAndBrowseWidget::setPath(const QString &path)
 {
+    if (RemoteSource::isRemote(path))
+    {
+        if (!remoteEnabled_)
+        {
+            WidgetUtils::warning(this,
+                                 tr("Remote Drive"),
+                                 tr("Output locations must be local folders; "
+                                    "EddyFlow cannot write to a shared drive."),
+                                 path);
+            return;
+        }
+        remoteLink_ = RemoteSource::cleanPath(path);
+        lineEdit_->setText(RemoteSource::displayName(remoteLink_));
+        lineEdit_->setToolTip(remoteLink_);
+        return;
+    }
+
+    remoteLink_.clear();
     QFileInfo filePath(path);
     QString canonicalFilePath = filePath.canonicalFilePath();
     lineEdit_->setText(QDir::toNativeSeparators(canonicalFilePath));
@@ -151,7 +201,7 @@ QString LineEditAndBrowseWidget::text() const
 
 QString LineEditAndBrowseWidget::path() const
 {
-    return text();
+    return remoteLink_.isEmpty() ? text() : remoteLink_;
 }
 
 void LineEditAndBrowseWidget::updatePathTooltip()

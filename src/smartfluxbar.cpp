@@ -44,6 +44,7 @@
 #include "globalsettings.h"
 #include "process.h"
 #include "widget_utils.h"
+#include "remotesource.h"
 
 SmartFluxBar::SmartFluxBar(EcProject* ecProject,
                            ConfigState* config,
@@ -242,7 +243,7 @@ void SmartFluxBar::createPackage()
     // copy ancillary files in smf/ini
     QString saFile = ecProject_->spectraFile();
 
-    if (!QFile::copy(ecProject_->spectraFile(),
+    if (!QFile::copy(RemoteSource::ensureLocal(ecProject_->spectraFile(), this),
                      smfIniDir
                      + QLatin1Char('/')
                      + saFile.mid(saFile.lastIndexOf(QLatin1Char('/')))))
@@ -252,7 +253,7 @@ void SmartFluxBar::createPackage()
 
     QString pfFile = ecProject_->planarFitFile();
 
-    if (!QFile::copy(ecProject_->planarFitFile(),
+    if (!QFile::copy(RemoteSource::ensureLocal(ecProject_->planarFitFile(), this),
                      smfIniDir
                      + QLatin1Char('/')
                      + pfFile.mid(pfFile.lastIndexOf(QLatin1Char('/')))))
@@ -262,7 +263,7 @@ void SmartFluxBar::createPackage()
 
     QString tlFile = ecProject_->timelagOptFile();
 
-    if (!QFile::copy(ecProject_->timelagOptFile(),
+    if (!QFile::copy(RemoteSource::ensureLocal(ecProject_->timelagOptFile(), this),
                      smfIniDir
                      + QLatin1Char('/')
                      + tlFile.mid(tlFile.lastIndexOf(QLatin1Char('/')))))

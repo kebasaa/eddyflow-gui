@@ -36,6 +36,7 @@
 
 #include "defs.h"
 #include "widget_utils.h"
+#include "remotesource.h"
 
 // NOTE: never used
 bool FileUtils::isFileEmpty(const QString& fileName)
@@ -215,6 +216,13 @@ void FileUtils::cleanDirFromFiletypeRecursively(const QString &d, const QStringL
 // extension = "*.ext"
 const QStringList FileUtils::getFiles(const QString& dir, const QString& extension, bool recurse)
 {
+    //> A folder on a shared drive is listed by its provider. The paths are
+    //> where the files will be once RemoteSource::ensureLocal fetches them.
+    if (RemoteSource::isRemote(dir))
+    {
+        return RemoteSource::listFiles(dir, extension, recurse);
+    }
+
     QStringList filters;
     filters << extension;
 

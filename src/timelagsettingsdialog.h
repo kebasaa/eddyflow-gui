@@ -30,6 +30,7 @@
 #include <QVector>
 
 #include "fileutils.h"
+#include "flux_units.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 /// \file src/timelagsettingsdialog.h
@@ -59,6 +60,7 @@ class QTimeEdit;
 class AncillaryFileTest;
 class ClickLabel;
 struct ConfigState;
+class DlProject;
 class EcProject;
 class FileBrowseWidget;
 
@@ -66,7 +68,8 @@ class TimeLagSettingsDialog : public QDialog
 {
     Q_OBJECT
 public:
-    explicit TimeLagSettingsDialog(QWidget *parent, EcProject *ecProject, ConfigState* config);
+    explicit TimeLagSettingsDialog(QWidget *parent, DlProject *dlProject,
+                                   EcProject *ecProject, ConfigState* config);
     ~TimeLagSettingsDialog();
 
     void setSmartfluxUI();
@@ -164,6 +167,7 @@ private:
     static const int kFirstGasGridRow = 8;
 
     void rebuildGasRows();
+    FluxUnits::Scale fluxScale(int gasIndex) const;
     void onMinFluxChanged(int gasIndex, double value);
     void onTlChanged(int gasIndex, bool isMin, double value);
     void setGasRowsEnabled(bool enabled);
@@ -172,6 +176,7 @@ private:
     double tlMaxFor(int gasIndex) const;
     QDoubleSpinBox* createTlSpin(bool isMin);
 
+    DlProject *dlProject_;
     EcProject *ecProject_;
     ConfigState* configState_;
 };

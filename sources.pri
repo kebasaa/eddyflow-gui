@@ -32,13 +32,21 @@ HEADERS += \
     src/eddyuhimport.h \
     src/dlrawfiledesctab.h \
     src/dlsitetab.h \
+    src/deepthoughtpanel.h \
+    src/despikearena.h \
+    src/dndpanel.h \
     src/docchooser.h \
+    src/eastereggkeyfilter.h \
+    src/eastereggpage.h \
+    src/eastereggwidgets.h \
     src/ecinidefs.h \
     src/ecproject.h \
     src/ecprojectstate.h \
     src/measurement_record.h \
     src/faderwidget.h \
     src/fileutils.h \
+    src/flux_units.h \
+    src/ini_file.h \
     src/gas_metadata.h \
     src/infomessage.h \
     src/irga_delegate.h \
@@ -108,6 +116,8 @@ HEADERS += \
     src/richtextcheckbox.h \
     src/detectdaterangedialog.h \
     src/downloadmanager.h \
+    src/remotebrowsedialog.h \
+    src/remotesource.h \
     src/openfilefilter.h \
     src/windfilter_view.h \
     src/windfilter_tableview.h \
@@ -142,10 +152,18 @@ SOURCES +=  \
     src/eddyuhimport.cpp \
     src/dlrawfiledesctab.cpp \
     src/dlsitetab.cpp \
+    src/deepthoughtpanel.cpp \
+    src/despikearena.cpp \
+    src/dndpanel.cpp \
     src/docchooser.cpp \
+    src/eastereggkeyfilter.cpp \
+    src/eastereggpage.cpp \
+    src/eastereggwidgets.cpp \
     src/ecproject.cpp \
     src/faderwidget.cpp \
     src/fileutils.cpp \
+    src/flux_units.cpp \
+    src/ini_file.cpp \
     src/gas_metadata.cpp \
     src/infomessage.cpp \
     src/irga_delegate.cpp \
@@ -212,6 +230,8 @@ SOURCES +=  \
     src/richtextcheckbox.cpp \
     src/detectdaterangedialog.cpp \
     src/downloadmanager.cpp \
+    src/remotebrowsedialog.cpp \
+    src/remotesource.cpp \
     src/openfilefilter.cpp \
     src/mystyle.cpp \
     src/windfilter_view.cpp \

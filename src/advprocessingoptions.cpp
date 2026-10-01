@@ -205,6 +205,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
 
     headCorrDirLabel = new ClickLabel(tr("Table directory :"));
     headCorrDirBrowse = new DirBrowseWidget;
+    headCorrDirBrowse->setRemoteBrowseEnabled(true);
     headCorrDirBrowse->setDialogTitle(tr("Select the Metek Head Correction Table Directory"));
     headCorrDirBrowse->setToolTip(tr("<b>Table directory:</b> The folder "
         "holding <i>phicorr.dat</i>, <i>ucorr.dat</i> and "
@@ -1015,7 +1016,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             { ecProject_->setScreenHeadCorrDir(path); });
     connect(headCorrDirBrowse, &DirBrowseWidget::pathSelected,
             this, [=](const QString& path)
-            { ecProject_->setScreenHeadCorrDir(path); });
+            { headCorrDirBrowse->setPath(path); ecProject_->setScreenHeadCorrDir(path); });
 
     connect(tiltSensorCheckBox, &RichTextCheckBox::clicked,
             this, [=]()
@@ -1729,7 +1730,7 @@ void AdvProcessingOptions::createTlSettingsDialog()
 {
     if (!tlDialog_)
     {
-        tlDialog_ = new TimeLagSettingsDialog(this, ecProject_, configState_);
+        tlDialog_ = new TimeLagSettingsDialog(this, dlProject_, ecProject_, configState_);
     }
 }
 

@@ -1,5 +1,5 @@
 <RCC>
-    <!-- Bumped: force rcc recompile when .qss files are updated (2) -->
+    <!-- Bumped: force rcc recompile when .qss files are updated (3) -->
     <qresource prefix="/icons">
         <file alias="qm-enabled">img/help/help-enabled@2x.png</file>
         <file alias="qm-hover">img/help/help-hover@2x.png</file>
@@ -81,6 +81,8 @@
         <file alias="basic-settings">img/view_toolbar/dataset-selection@2x.png</file>
         <file alias="advanced-settings">img/view_toolbar/advanced-settings@2x.png</file>
         <file alias="console">img/view_toolbar/console-output@2x.png</file>
+        <file alias="egg-doom">img/view_toolbar/freedoom-head.png</file>
+        <file alias="egg-doom-licence">img/view_toolbar/freedoom-head.LICENSE.txt</file>
 
         <file alias="clear-line">img/lineedit/clear-line@2x.png</file>
         <file alias="reset-line">img/lineedit/reset-line@2x.png</file>

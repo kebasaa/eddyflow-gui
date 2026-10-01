@@ -38,6 +38,7 @@
 
 #include "ecproject.h"
 #include "widget_utils.h"
+#include "remotesource.h"
 
 RawFilenameDialog::RawFilenameDialog(QWidget *parent,
                                      EcProject *ecProject,
@@ -301,6 +302,26 @@ QStringList RawFilenameDialog::getRawFileTypesAvailable()
     if (ecProject_->screenDataPath().isEmpty())
     {
         return QStringList();
+    }
+
+    //> One file of each extension, from the provider's listing
+    if (RemoteSource::isRemote(ecProject_->screenDataPath()))
+    {
+        QStringList files;
+        QStringList extensions;
+        const auto listed = RemoteSource::listFiles(ecProject_->screenDataPath(),
+                                                    QStringLiteral("*"),
+                                                    ecProject_->screenRecurse(), this);
+        for (const auto& f : listed)
+        {
+            const auto ext = QFileInfo(f).suffix();
+            if (!extensions.contains(ext))
+            {
+                files.append(f);
+                extensions.append(ext);
+            }
+        }
+        return files;
     }
 
     // set the flag according to the current raw data directory flag

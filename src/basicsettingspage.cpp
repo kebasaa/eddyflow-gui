@@ -99,6 +99,7 @@
 #include "smartfluxbar.h"
 #include "splitter.h"
 #include "widget_utils.h"
+#include "remotesource.h"
 #include "windfilter_tablemodel.h"
 #include "windfilter_tableview.h"
 #include "windfilter_view.h"
@@ -1787,6 +1788,7 @@ BasicSettingsPage::BasicSettingsPage(QWidget *parent, DlProject *dlProject, EcPr
     datapathLabel->setToolTip(tr("<b>Raw data directory:</b> Use the <i>Browse...</i> button to specify the folder that contains the raw data. If data are also contained in subfolders, select the <i>Search in subfolders</i> box."));
 
     datapathBrowse = new DirBrowseWidget;
+    datapathBrowse->setRemoteBrowseEnabled(true);
     datapathBrowse->disableClearAction();
     datapathBrowse->setToolTip(datapathLabel->toolTip());
     datapathBrowse->setDialogTitle(tr("Select the Raw Data Directory"));
@@ -3032,8 +3034,12 @@ void BasicSettingsPage::captureEmbeddedMetadata(EmbeddedFileFlags type)
     QString biometMdFile;
     bool hasMd = false;
     bool hasBiometMd = false;
-    for (const auto &zipFile : currentRawDataList_)
+    for (const auto &listedZip : currentRawDataList_)
     {
+        //> From a shared drive the list names files not downloaded yet
+        const auto zipFile = RemoteSource::ensureLocal(listedZip, this);
+        if (zipFile.isEmpty()) { break; }
+
         if (!hasMd && (type & rawEmbeddedFile))
         {
             hasMd = FileUtils::zipContainsFiletype(zipFile, mdFormat);
@@ -3108,7 +3114,22 @@ void BasicSettingsPage::captureEmbeddedMetadata(EmbeddedFileFlags type)
         }
         else
         {
-            FileUtils::zipExtract(mdFile, smfDir);
+            //> Distinguish an unreadable archive from one that simply carries no
+            //> metadata. Falling through to the smf/ listing would report "no
+            //> valid GHG data", or pick up a .metadata left behind by an
+            //> earlier archive, since smf/ is only cleaned when the data path
+            //> changes. Warn regardless of visibility: unlike "nothing found
+            //> here", a corrupt archive is a hard failure.
+            if (!FileUtils::zipExtract(mdFile, smfDir))
+            {
+                WidgetUtils::warning(QApplication::activeWindow(),
+                                     tr("Raw Data Unreadable"),
+                                     tr("The following LI-COR GHG file could "
+                                        "not be extracted and may be corrupt:"
+                                        "<p><b>%1</b></p>")
+                                     .arg(QDir::toNativeSeparators(mdFile)));
+                return;
+            }
 
             QStringList mdFilters;
             mdFilters << QStringLiteral("*.") + Defs::METADATA_FILE_EXT;
@@ -3164,7 +3185,19 @@ void BasicSettingsPage::captureEmbeddedMetadata(EmbeddedFileFlags type)
         }
         else
         {
-            FileUtils::zipExtract(biometMdFile, smfDir);
+            //> Same reasoning as the raw branch above: report the archive
+            //> that failed rather than letting a stale or missing extraction
+            //> masquerade as absent biomet metadata.
+            if (!FileUtils::zipExtract(biometMdFile, smfDir))
+            {
+                WidgetUtils::warning(QApplication::activeWindow(),
+                                     tr("Biomet Data Unreadable"),
+                                     tr("The following LI-COR GHG biomet file "
+                                        "could not be extracted and may be "
+                                        "corrupt:<p><b>%1</b></p>")
+                                     .arg(QDir::toNativeSeparators(biometMdFile)));
+                return;
+            }
 
             QStringList mdFilters;
             mdFilters << QStringLiteral("*.") + Defs::METADATA_FILE_EXT;
@@ -4217,7 +4250,7 @@ void BasicSettingsPage::outpathBrowseSelected(const QString& dir_path)
 
 void BasicSettingsPage::updateDataPath(const QString& dp)
 {
-    ecProject_->setScreenDataPath(QDir::cleanPath(dp));
+    ecProject_->setScreenDataPath(RemoteSource::cleanPath(dp));
 }
 
 void BasicSettingsPage::updateOutPath(const QString& dp)
@@ -4339,7 +4372,8 @@ void BasicSettingsPage::refresh()
     recursionCheckBox->setChecked(ecProject_->screenRecurse());
     clearFilesFound();
 
-    if (FileUtils::existsPath(ecProject_->screenDataPath()))
+    if (RemoteSource::isRemote(ecProject_->screenDataPath())
+        || FileUtils::existsPath(ecProject_->screenDataPath()))
     {
         datapathBrowse->setPath(ecProject_->screenDataPath());
 //        updateFilesFound(ecProject_->screenRecurse());
@@ -5158,7 +5192,14 @@ void BasicSettingsPage::updateMetadataRead(bool firstReading)
         QString mdFile(ecProject_->generalMdFilepath());
         if (!mdFile.isEmpty())
         {
-            if (QFile::exists(mdFile))
+            //> A project written by hand may name one on a shared drive
+            const bool remoteMd = RemoteSource::isRemote(mdFile);
+            if (remoteMd) { mdFile = RemoteSource::ensureLocal(mdFile, this); }
+            if (remoteMd && mdFile.isEmpty())
+            {
+                clearFilesFound();
+            }
+            else if (QFile::exists(mdFile))
             {
                 updateFilesFound(ecProject_->screenRecurse());
                 readAlternativeMetadata(mdFile, firstReading);
@@ -5179,7 +5220,7 @@ void BasicSettingsPage::updateMetadataRead(bool firstReading)
         {
             // re-capture metadata if dataDir exists, otherwise discard silently
             QDir dataDir(datapathBrowse->path());
-            if (dataDir.exists())
+            if (RemoteSource::isRemote(datapathBrowse->path()) || dataDir.exists())
             {
                 captureEmbeddedMetadata(rawEmbeddedFile);
                 reloadSelectedItems_1();
@@ -5203,7 +5244,7 @@ void BasicSettingsPage::updateMetadataRead(bool firstReading)
             {
                 // re-capture metadata if dataDir exists, otherwise discard silently
                 QDir dataDir(datapathBrowse->path());
-                if (dataDir.exists())
+                if (RemoteSource::isRemote(datapathBrowse->path()) || dataDir.exists())
                 {
                     captureEmbeddedMetadata(biometEmbeddedFile);
                     reloadSelectedItems_2();
@@ -5213,6 +5254,10 @@ void BasicSettingsPage::updateMetadataRead(bool firstReading)
         case 2:
         {
             QString biomDataFile = ecProject_->generalBiomFile();
+            if (RemoteSource::isRemote(biomDataFile))
+            {
+                biomDataFile = RemoteSource::ensureLocal(biomDataFile, this);
+            }
             if (!biomDataFile.isEmpty())
             {
                 if (QFile::exists(biomDataFile))
@@ -5231,8 +5276,10 @@ void BasicSettingsPage::updateMetadataRead(bool firstReading)
                                                       QStringLiteral("*.") + ecProject_->generalBiomExt(),
                                                       ecProject_->generalBiomRecurse());
 
-            for (const auto &file : biomFileList)
+            for (const auto &listedFile : biomFileList)
             {
+                const auto file = RemoteSource::ensureLocal(listedFile, this);
+                if (file.isEmpty()) { break; }
                 if (readBiomAltMetadata(file))
                 {
                     reloadSelectedItems_2();
@@ -6508,15 +6555,21 @@ QStringList BasicSettingsPage::filterRawDataWithPrototype(const QString& p)
 
     if (re.isValid())
     {
-        currentFilteredRawDataList_ = currentRawDataList_;
+        //> Build the filtered list instead of removing from the list being
+        //> iterated: removeAll() shifts the very elements the loop reference
+        //> points into, so everything after the first removal was skipped and
+        //> non-matching files survived the filter.
+        QStringList filtered;
 
-        for (const auto &filename : currentFilteredRawDataList_)
+        for (const auto &filename : currentRawDataList_)
         {
-            if (!filename.contains(re))
+            if (filename.contains(re))
             {
-                currentFilteredRawDataList_.removeAll(filename);
+                filtered.append(filename);
             }
         }
+
+        currentFilteredRawDataList_ = filtered;
     }
 
     return currentFilteredRawDataList_;

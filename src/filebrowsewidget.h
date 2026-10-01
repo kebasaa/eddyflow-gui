@@ -40,6 +40,7 @@ public:
 
 private slots:
     void onButtonClick();
+    void onRemoteButtonClick();
 
 private:
     QString dialogFilter_;

@@ -28,6 +28,8 @@
 
 #include <QWidget>
 
+#include <functional>
+
 class QAction;
 class QButtonGroup;
 class QCheckBox;
@@ -187,6 +189,16 @@ signals:
     void setOutputBiometRequest();
     void requestBasicSettingsClear();
     void mdCleanupRequest();
+
+public:
+    /// Returns the project file, saving the project first if it is new;
+    /// empty if the user cancels. Set by the main window.
+    void setProjectFileProvider(std::function<QString()> provider)
+    { projectFileProvider_ = std::move(provider); }
+
+private:
+    QString copyRemoteMetadata(const QString& link);
+    std::function<QString()> projectFileProvider_;
 };
 
 #endif // PROJECTPAGE_H

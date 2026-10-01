@@ -56,6 +56,7 @@
 #include "measurement_record.h"
 #include "richtextcheckbox.h"
 #include "widget_utils.h"
+#include "remotesource.h"
 
 AdvOutputOptions::AdvOutputOptions(QWidget* parent,
                                    EcProject* ecProject,
@@ -766,10 +767,15 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     connect(errorFormatLabel, &ClickLabel::clicked,
             this, &AdvOutputOptions::onClickerrorFormatLabel);
 
-    connect(errorFormatCombo, &QComboBox::currentTextChanged,
-            this, &AdvOutputOptions::updateErrorLabel);
-    connect(errorFormatCombo, &QComboBox::editTextChanged,
-            this, &AdvOutputOptions::updateErrorLabel);
+    //> Validated when the user has finished, not on every character and not
+    //> on a programmatic write. The pair of change signals this replaced fired
+    //> from inside refresh(), where the label is only being restored, and each
+    //> one that saw an empty box opened a modal warning; a page refreshed
+    //> several times over - which a run-mode change does - stacked them.
+    connect(errorLinedit, &QLineEdit::editingFinished,
+            this, [this]() { updateErrorLabel(errorFormatCombo->currentText()); });
+    connect(errorFormatCombo, &QComboBox::activated,
+            this, [this](int) { updateErrorLabel(errorFormatCombo->currentText()); });
 
     connect(outFullSpectraCheckBoxU, &RichTextCheckBox::toggled, [=](bool checked)
             { ecProject_->setScreenOutFullSpectraU(checked); });
@@ -1235,6 +1241,42 @@ void AdvOutputOptions::updateOutBinSpectra(bool b)
     ecProject_->setScreenOutBinSpectra(b);
 }
 
+/// Switch the run mode over as one change.
+///
+/// Every setting a run mode requires announces itself, and each announcement
+/// re-enters this page's refresh() and the spectral page's, both of which
+/// write settings of their own. One click used to run refresh() a dozen times
+/// over, and any warning reachable from it - the error label's, above all -
+/// opened once per pass. The project is told once, at the end, instead.
+void AdvOutputOptions::applyRunModeRequirements(const std::function<void()>& apply)
+{
+    {
+        const QSignalBlocker projectBlocker(ecProject_);
+        apply();
+        updateSpectralAssessmentCreationAvailability();
+        setRequiredSpectralOutputState(currentSpectralMethodIndex());
+    }
+
+    //> A run mode is the user's choice, so it counts as a change even though
+    //> the setters that carried it were silenced.
+    ecProject_->setModified(true);
+    ecProject_->announceProjectChanged();
+}
+
+/// Neither assessment-only run survives a run-mode change.
+///
+/// The boxes are silenced because their own handlers clear the run mode that
+/// is being set here, and tell the project about it a second time.
+void AdvOutputOptions::clearAssessmentOnlyCheckBoxes()
+{
+    const QSignalBlocker timelagBlocker(timelagAssessmentOnlyCheckBox);
+    const QSignalBlocker planarFitBlocker(planarFitAssessmentOnlyCheckBox);
+    timelagAssessmentOnlyCheckBox->setChecked(false);
+    planarFitAssessmentOnlyCheckBox->setChecked(false);
+    ecProject_->setTimelagAssessmentOnly(false);
+    ecProject_->setPlanarFitAssessmentOnly(false);
+}
+
 void AdvOutputOptions::updateSpectralAssessmentCreationMode(bool checked)
 {
     if (!checked)
@@ -1244,23 +1286,19 @@ void AdvOutputOptions::updateSpectralAssessmentCreationMode(bool checked)
         return;
     }
 
-    if (checked)
+    if (!validateSpectralAssessmentCreationRequest())
     {
-        if (!validateSpectralAssessmentCreationRequest())
-        {
-            ecProject_->setSpectraFluxRunMode(0);
-            defaultRunRadioButton->setChecked(true);
-            return;
-        }
-
-        ecProject_->setSpectraFluxRunMode(1);
-        timelagAssessmentOnlyCheckBox->setChecked(false);
-        planarFitAssessmentOnlyCheckBox->setChecked(false);
-        applySpectralAssessmentCreationRequirements();
+        ecProject_->setSpectraFluxRunMode(0);
+        defaultRunRadioButton->setChecked(true);
+        return;
     }
 
-    updateSpectralAssessmentCreationAvailability();
-    setRequiredSpectralOutputState(currentSpectralMethodIndex());
+    applyRunModeRequirements([this]()
+    {
+        ecProject_->setSpectraFluxRunMode(1);
+        clearAssessmentOnlyCheckBoxes();
+        applySpectralAssessmentCreationRequirements();
+    });
 }
 
 void AdvOutputOptions::updateProductionRunMode(bool checked)
@@ -1270,12 +1308,12 @@ void AdvOutputOptions::updateProductionRunMode(bool checked)
         return;
     }
 
-    ecProject_->setSpectraFluxRunMode(2);
-    timelagAssessmentOnlyCheckBox->setChecked(false);
-    planarFitAssessmentOnlyCheckBox->setChecked(false);
-    applyProductionRunRequirements();
-    updateSpectralAssessmentCreationAvailability();
-    setRequiredSpectralOutputState(currentSpectralMethodIndex());
+    applyRunModeRequirements([this]()
+    {
+        ecProject_->setSpectraFluxRunMode(2);
+        clearAssessmentOnlyCheckBoxes();
+        applyProductionRunRequirements();
+    });
 }
 
 void AdvOutputOptions::updateDefaultRunMode(bool checked)
@@ -1285,11 +1323,11 @@ void AdvOutputOptions::updateDefaultRunMode(bool checked)
         return;
     }
 
-    ecProject_->setSpectraFluxRunMode(0);
-    timelagAssessmentOnlyCheckBox->setChecked(false);
-    planarFitAssessmentOnlyCheckBox->setChecked(false);
-    updateSpectralAssessmentCreationAvailability();
-    setRequiredSpectralOutputState(currentSpectralMethodIndex());
+    applyRunModeRequirements([this]()
+    {
+        ecProject_->setSpectraFluxRunMode(0);
+        clearAssessmentOnlyCheckBoxes();
+    });
 }
 
 void AdvOutputOptions::updateTimelagAssessmentOnly(bool checked)
@@ -1331,7 +1369,8 @@ bool AdvOutputOptions::canCreateSpectralAssessment() const
 
 bool AdvOutputOptions::validateSpectralAssessmentCreationRequest()
 {
-    if (!QFileInfo(ecProject_->screenDataPath()).isDir()
+    if ((!RemoteSource::isRemote(ecProject_->screenDataPath())
+         && !QFileInfo(ecProject_->screenDataPath()).isDir())
         || ecProject_->generalFilesFound() <= 0)
     {
         WidgetUtils::warning(this,
@@ -1358,6 +1397,7 @@ bool AdvOutputOptions::validateSpectralAssessmentCreationRequest()
     }
 
     if (ecProject_->generalBinSpectraAvail()
+        && !RemoteSource::isRemote(ecProject_->spectraBinSpectra())
         && !QFileInfo(ecProject_->spectraBinSpectra()).isDir())
     {
         WidgetUtils::warning(this,
@@ -1367,6 +1407,7 @@ bool AdvOutputOptions::validateSpectralAssessmentCreationRequest()
     }
 
     if (ecProject_->generalFullSpectraAvail()
+        && !RemoteSource::isRemote(ecProject_->spectraFullSpectra())
         && !QFileInfo(ecProject_->spectraFullSpectra()).isDir())
     {
         WidgetUtils::warning(this,
@@ -1744,8 +1785,10 @@ void AdvOutputOptions::checkVarsAll(bool b)
 void AdvOutputOptions::selectMin()
 {
     outFullCheckBox->setChecked(true);
-    fluxnetErrLabelCheckBox->setChecked(false);
-    fluxnetBiometCheckBox->setChecked(false);
+    //> On in every preset: they cost nothing to compute, changing only the
+    //> labels, units and error value of output that is written anyway.
+    fluxnetErrLabelCheckBox->setChecked(true);
+    fluxnetBiometCheckBox->setChecked(true);
     outDetailsCheckBox->setChecked(false);
     outMdCheckBox->setChecked(true);
     outBiometCheckBox->setChecked(false);
@@ -1768,8 +1811,8 @@ void AdvOutputOptions::selectMin()
 void AdvOutputOptions::selectTypical()
 {
     outFullCheckBox->setChecked(true);
-    fluxnetErrLabelCheckBox->setChecked(false);
-    fluxnetBiometCheckBox->setChecked(false);
+    fluxnetErrLabelCheckBox->setChecked(true);
+    fluxnetBiometCheckBox->setChecked(true);
     outDetailsCheckBox->setChecked(false);
     outMdCheckBox->setChecked(true);
     outBiometCheckBox->setChecked(true);

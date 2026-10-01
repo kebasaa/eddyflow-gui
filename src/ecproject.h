@@ -28,6 +28,7 @@
 
 #include <QObject>
 
+class IniFile;
 class QSettings;
 
 #include "configstate.h"
@@ -165,7 +166,9 @@ public:
     void setGeneralCecMinFluxSigma(double d);
     void setCecPairs(const QVector<CecPairRecord>& pairs);
     void writeCecPairs(QSettings& project_ini);
-    void readCecPairs(QSettings& project_ini);
+    //> Takes the IniFile rather than its QSettings base: through a base
+    //> reference the reads here would lose the empty-key fallback.
+    void readCecPairs(IniFile& project_ini);
 
     void setGeneralOutRich(int n);
     void setGeneralOutMd(int n);
@@ -1120,7 +1123,7 @@ private:
     //> list cannot leave orphans behind. readMeasurementRecords returns false
     //> when the file predates records, which is the signal to migrate.
     void writeMeasurementRecords(QSettings& project_ini);
-    bool readMeasurementRecords(QSettings& project_ini);
+    bool readMeasurementRecords(IniFile& project_ini);
     //> The body of exportEddyProProject: rebuild the flat per-slot keys the
     //> record format replaced, drop the keys this fork added, and spell the
     //> fourth slot the way EddyPro does.

@@ -3,18 +3,13 @@ Plausibility_range_[timefolds_standard_deviation]:   1.50
 Beginning_of_timelag_optimization_period: 2005-03-01
 End_of_timelag_optimization_period: 2005-10-01
 
-Number_of_timelags_used_for_co2: 5611
-Median_co2_timelag_[s]:  6.10
-Mimimum_co2_timelag_[s]:  5.66
-Maximum_co2_timelag_[s]:  6.54
-
-Number_of_timelags_used_for_ch4: 5611
-Median_ch4_timelag_[s]:  6.10
-Mimimum_ch4_timelag_[s]:  5.66
-Maximum_ch4_timelag_[s]:  6.54
+Number_of_timelags_used_for_<gas>: 5611
+Median_<gas>_timelag_[s]:  6.10
+Mimimum_<gas>_timelag_[s]:  5.66
+Maximum_<gas>_timelag_[s]:  6.54
 
 H2O_timelag_determinations_as_a_function_of_relative_humidity
-Classes with numerosity < 30 are inferred (see software documentation)
+Classes with numerosity < 15 are inferred (see software documentation)
 class     RH-range       med_h2o       min_h2o       max_h2o     class_num
     1     0 - 10%           6.50          5.80          7.20             0
     2     10 - 20%          6.50          5.80          7.20             0

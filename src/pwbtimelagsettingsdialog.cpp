@@ -26,6 +26,7 @@
 #include "measurement_record.h"
 #include "filebrowsewidget.h"
 #include "widget_utils.h"
+#include "remotesource.h"
 
 namespace {
 //> The window read_ini_rp.f90 applies when a project states none.
@@ -56,6 +57,7 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
     nonExistingRadio->setToolTip(tr("<b>Time lag file not available:</b> Choose this option and provide the following information if you need to detect time lags for your dataset with pre-whitening block-bootstrap."));
 
     fileBrowse = new FileBrowseWidget;
+    fileBrowse->setRemoteBrowseEnabled(true);
     fileBrowse->setToolTip(tr("<b>Load:</b> Load a PWB half-hourly time-lag table or an aggregate time-lag file"));
     fileBrowse->setDialogTitle(tr("Select a PWB Time-Lag Table or Time-Lag Results File"));
     fileBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("timelag_file")));
@@ -306,14 +308,18 @@ void PwbTimelagSettingsDialog::setPwbControlsEnabled(bool enabled)
 
 void PwbTimelagSettingsDialog::updateFile(const QString& fp)
 {
-    ecProject_->setTimelagOptFile(QDir::cleanPath(fp));
+    ecProject_->setTimelagOptFile(RemoteSource::cleanPath(fp));
 }
 
 void PwbTimelagSettingsDialog::testSelectedFile(const QString& fp)
 {
     if (fp.isEmpty()) { return; }
 
-    QFileInfo paramFilePath(fp);
+    //> A file on a shared drive is tested on a downloaded copy; the link
+    //> is what the project keeps.
+    const auto localFile = RemoteSource::ensureLocal(fp, this);
+    if (localFile.isEmpty()) { return; }
+    QFileInfo paramFilePath(localFile);
     QString canonicalParamFile = paramFilePath.canonicalFilePath();
     if (canonicalParamFile.isEmpty())
     {

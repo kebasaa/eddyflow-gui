@@ -53,8 +53,8 @@ class QStringLiteral;
 /// \brief Contains global string literals
 namespace Defs
 {
-    const auto APP_VERSION = 0x080100;
-    const auto APP_VERSION_STR = QStringLiteral("8.1.0");
+    const auto APP_VERSION = 0x080101;
+    const auto APP_VERSION_STR = QStringLiteral("8.1.1");
     const auto APP_STAGE_STR = QStringLiteral(""); // -rc1
 
     //> 5.0.0 is the record format: gases, cell measurements and diagnostics
@@ -88,7 +88,8 @@ namespace Defs
         ProjectCreation,
         BasicSettings,
         AdvancedSettings,
-        Run
+        Run,
+        EasterEgg   // must stay last: its value is its stacked-layout index
     };
 
     enum class CurrStatus
@@ -194,6 +195,8 @@ namespace Defs
     const QString MMOL_M3_STRING = MMOL_M_STRING + CUBE;
     const QString UMOL_M3_STRING = UMOL_M_STRING + CUBE;
     const QString UMOL_M2S_STRING = MICRO + QStringLiteral("mol/m") + SQUARE + QStringLiteral("s");
+    const QString NMOL_M2S_STRING = QStringLiteral("nmol/m") + SQUARE + QStringLiteral("s");
+    const QString PMOL_M2S_STRING = QStringLiteral("pmol/m") + SQUARE + QStringLiteral("s");
     const QString W_M2_STRING = QStringLiteral("W/m") + SQUARE;
     const QString G_M3_STRING = QStringLiteral("g/m") + CUBE;
     const QString MG_M3_STRING = QStringLiteral("mg/m") + CUBE;

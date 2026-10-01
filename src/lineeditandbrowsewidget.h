@@ -47,8 +47,19 @@ public:
     QString text() const;
     void setText(const QString &text);
 
+    /// The path, or for a value on a shared drive, its link
     QString path() const;
+    /// A link to a shared drive is shown by name and kept whole for path().
+    /// A widget without remote browsing is an output location, and refuses
+    /// a link with a warning window.
     void setPath(const QString &path);
+
+    ///
+    /// \brief setRemoteBrowseEnabled
+    /// Show the "Remote drive..." button, for an input that may come from a
+    /// shared Google Drive or Dropbox link.
+    void setRemoteBrowseEnabled(bool on);
+    bool remoteBrowseEnabled() const { return remoteEnabled_; }
 
     QString dialogTitle() const { return dialogTitle_; }
     void setDialogTitle(const QString &title) { dialogTitle_ = title; }
@@ -67,6 +78,7 @@ public:
     int returnLineEditWidth() const;
 
     QPushButton *button() const;
+    QPushButton *remoteButton() const { return remoteButton_; }
 
     void disableClickAction() const;
 
@@ -95,11 +107,16 @@ public slots:
 
 private slots:
     void updatePathTooltip();
+    void onTextChanged();
     virtual void onButtonClick() = 0;
+    virtual void onRemoteButtonClick() {}
 
 private:
     CustomDropLineEdit *lineEdit_;
     QPushButton *button_;
+    QPushButton *remoteButton_;
+    QString remoteLink_;
+    bool remoteEnabled_;
     QString dialogTitle_;
     QString dialogDir_;
 };

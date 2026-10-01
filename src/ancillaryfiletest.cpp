@@ -38,6 +38,7 @@
 #include <QVector>
 
 #include <algorithm>
+#include <functional>
 
 #include "ecproject.h"
 #include "stringutils.h"
@@ -48,37 +49,85 @@ const auto helpPage = QStringLiteral("https://keba_saa.github.io/eddyflow-docume
 
 namespace {
 
-/// Whether the project measures the gas that owns \a slot, where slot is a
-/// 0-based position in the gas record list.
+using Lines = QList<QStringList>;
+
+/// Whether record \a slot, a 0-based index into the gas record list, has a
+/// column in the raw data.
 ///
-/// The template these tests compare against is positional - rows 33-44 are
-/// the third gas's block and 47-58 the fourth's - so the question really is
-/// about the slot, not the species. Records answer it directly; the legacy
-/// column is the fallback for a project written before records existed.
-bool gasSlotConfigured(const EcProject* project, int slot)
+/// Every per-gas verdict below turns on this. The engine writes a block for
+/// each record, measured or not - an unmeasured one filled with -9999 - and
+/// reads such a block back only to discard it, so only a measured gas can make
+/// a file unusable. A name no record claims (\a slot -1) is unmeasured.
+///
+/// Without a project there is nothing to ask, and every gas is taken as
+/// measured: checking too much is the safe way to be wrong here.
+bool gasMeasured(const EcProject* project, int slot)
 {
-    if (!project) { return false; }
+    if (!project) { return true; }
     const auto& gases = project->gasColumns();
-    //> Every slot handed here comes from tfpGasSlots, which builds them from
-    //> the record list, so an out-of-range one is a caller bug rather than an
-    //> older project. The legacy col_ch4 / col_gas4 fallback that used to sit
-    //> here answered by slot number - it read slot two as methane, which was
-    //> true only while the record list reserved a position for every species.
     return slot >= 0 && slot < gases.size() && gases.at(slot).rawColumn > 0;
 }
 
-/// Whether the project measures \a slug at all.
-///
-/// For the tests that are about one species rather than one block position -
-/// the methane cutoff checks name CH4 in their own labels.
-bool gasSpeciesConfigured(const EcProject* project, const QString& slug)
+/// Record indices naming \a species, in record order.
+QVector<int> recordsOfSpecies(const EcProject* project, const QString& species)
 {
-    if (!project) { return false; }
-    for (const auto& gas : project->gasColumns())
+    QVector<int> found;
+    if (!project) { return found; }
+    const auto& gases = project->gasColumns();
+    for (int i = 0; i < gases.size(); ++i)
     {
-        if (gas.slug == slug && gas.rawColumn > 0) { return true; }
+        if (gases.at(i).slug.compare(species, Qt::CaseInsensitive) == 0) { found << i; }
     }
-    return false;
+    return found;
+}
+
+/// The primary hygrometer: the first water record with a column.
+///
+/// Its cutoffs are the one TFP table no header names, and its time lags the
+/// RH-sorted table. This is the engine's DesignatedGasSlot('H2O') for a
+/// project that flags none, and the interface has no flag to set - records
+/// without a column never count, so an unmeasured first water record does
+/// not push the real one into a named block.
+int primaryWaterSlot(const EcProject* project)
+{
+    for (const auto slot : recordsOfSpecies(project, QStringLiteral("h2o")))
+    {
+        if (gasMeasured(project, slot)) { return slot; }
+    }
+    return -1;
+}
+
+/// The name the engine gives record \a slot in both files (FullOutputGasTags):
+/// the species, bare when the project names it once, and numbered by
+/// occurrence - CO2_1, CO2_2 - when it names it more than once. Uppercase, as
+/// the spectral file writes it; the time-lag file lowercases the same name.
+QString gasFileName(const EcProject* project, int slot)
+{
+    const auto& slug = project->gasColumns().at(slot).slug;
+    const auto same = recordsOfSpecies(project, slug);
+    if (same.size() <= 1) { return slug.toUpper(); }
+    return slug.toUpper() + QLatin1Char('_') + QString::number(same.indexOf(slot) + 1);
+}
+
+/// The record a block or row name refers to, or -1 - gasFileName inverted.
+///
+/// A bare name in a project naming that species more than once is its first
+/// record. The engine now numbers every occurrence, but it used to leave the
+/// first bare - `co2`, then `co2_2` - and files written then say so.
+int slotForGasName(const EcProject* project, const QString& name)
+{
+    if (!project || name.isEmpty()) { return -1; }
+    const auto whole = recordsOfSpecies(project, name);
+    if (!whole.isEmpty()) { return whole.first(); }
+
+    static const QRegularExpression numbered(QStringLiteral("^(.+)_(\\d+)$"));
+    const auto match = numbered.match(name);
+    if (!match.hasMatch()) { return -1; }
+    const auto same = recordsOfSpecies(project, match.captured(1));
+    const auto k = match.captured(2).toInt();
+    //> Accepted even when the project now names the species once: a file
+    //> fitted while a second analyser was configured still says CO2_1.
+    return (k >= 1 && k <= same.size()) ? same.at(k - 1) : -1;
 }
 
 /// Rows in the two shapes of transfer-function block.
@@ -154,61 +203,138 @@ int spectraRowStarting(const QList<QStringList>& lines, const QString& word)
     return -1;
 }
 
-/// Record indices of the gases that get a named transfer-function block, in the
-/// order the engine writes them: every non-water record, then every hygrometer
-/// except the primary.
-///
-/// Only the PRIMARY hygrometer is absent - its cutoffs are the nine RH classes
-/// tabulated above the blocks, in the one position no header names. Every other
-/// hygrometer has a named block exactly like a gas's, and skipping all of them
-/// left this list short by one per extra hygrometer while the file was longer
-/// by nine rows plus a header and a blank apiece.
-///
-/// The primary is the first record declaring water, which is how the engine
-/// resolves it.
-QVector<int> tfpGasSlots(const EcProject* project)
+/// \a line without the `key=value` tokens the engine appends to a block header
+/// (`groups=`, `var=`, `instr=`, `exp=`, and whatever follows them). They sit
+/// past the columns on purpose, where every reader of this file stops.
+QStringList withoutStamps(const QStringList& line)
 {
-    //> Not named `slots`: Qt #defines that away for the moc's `public slots:`
-    //> syntax, so the declaration would expand to `QVector<int> ;`.
-    QVector<int> blockSlots;
-    if (!project) { return blockSlots; }
-
-    const auto& gases = project->gasColumns();
-    const auto isWater = [&gases](int i)
-    { return gases.at(i).slug == QLatin1String("h2o"); };
-
-    auto primaryWater = -1;
-    for (int i = 0; i < gases.size(); ++i)
+    QStringList kept;
+    for (const auto& word : line)
     {
-        if (isWater(i)) { primaryWater = i; break; }
+        if (word.size() > 1 && word.contains(QLatin1Char('='))) { continue; }
+        kept << word;
     }
-
-    for (int i = 0; i < gases.size(); ++i)
-    {
-        if (isWater(i)) { continue; }
-        blockSlots.append(i);
-    }
-    for (int i = 0; i < gases.size(); ++i)
-    {
-        if (!isWater(i) || i == primaryWater) { continue; }
-        blockSlots.append(i);
-    }
-    return blockSlots;
+    return kept;
 }
 
-/// Display name of the gas in \a slot, for the skip messages. A record knows
-/// its species; without one there is nothing to name.
-QString gasSlotName(const EcProject* project, int slot)
+bool isDashRule(const QString& word)
 {
-    if (project)
+    return !word.isEmpty() && word.count(QLatin1Char('-')) == word.size();
+}
+
+bool isNumber(const QString& word)
+{
+    bool ok = false;
+    word.toDouble(&ok);
+    return ok;
+}
+
+/// Whether \a actual carries the labels the template row \a model does.
+///
+/// This is upstream's row-by-row comparison, made per kind of row so that it
+/// holds wherever the row sits rather than at one fixed offset:
+/// - a row with a lone `=` is compared up to and including it - the RH-class
+///   and month rows and the high-pass pair; what follows is data;
+/// - a row of numbers only needs as many numbers;
+/// - any other row is a label row and is compared whole.
+///
+/// \a name stands in for the template's `<GAS>` placeholder. A run of dashes
+/// matches any run of dashes: the engine's separators have changed length
+/// without changing meaning.
+bool sameLabels(const QStringList& model, const QStringList& actualLine,
+                const QString& name = QString())
+{
+    QStringList expected;
+    for (const auto& word : model)
     {
-        const auto& gases = project->gasColumns();
-        if (slot < gases.size() && !gases.at(slot).slug.isEmpty())
+        if (word == QLatin1String("<GAS>"))
         {
-            return gases.at(slot).slug.toUpper();
+            expected << name.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+        }
+        else
+        {
+            expected << word;
         }
     }
-    return AncillaryFileTest::tr("Other gas");
+    const auto actual = withoutStamps(actualLine);
+
+    const auto equals = expected.indexOf(QStringLiteral("="));
+    if (equals >= 0)
+    {
+        return actual.mid(0, equals + 1) == expected.mid(0, equals + 1);
+    }
+    if (!expected.isEmpty() && std::all_of(expected.cbegin(), expected.cend(), isNumber))
+    {
+        return actual.size() == expected.size();
+    }
+    if (actual.size() != expected.size()) { return false; }
+    for (auto i = 0; i < expected.size(); ++i)
+    {
+        const auto same = actual.at(i) == expected.at(i)
+                          || (isDashRule(actual.at(i)) && isDashRule(expected.at(i)));
+        if (!same) { return false; }
+    }
+    return true;
+}
+
+/// The spectral template, cut into the pieces an N-gas file is built from.
+///
+/// Upstream's template was the whole file for a fixed set of gases - H2O, CO2,
+/// CH4 and one other - and could be compared row for row. A file now carries
+/// one block per gas the project names, so the template carries one
+/// *prototype* of each kind of block instead, headed `<GAS>`, and every block
+/// in a file is held against the prototype of its kind.
+struct SpectraTemplate
+{
+    /// The header rows and the primary hygrometer's table.
+    Lines preamble;
+    QStringList monthHeader;
+    Lines monthRows;
+    QStringList rhHeader;
+    Lines rhRows;
+    /// From the exponential-fit title to the end.
+    Lines tail;
+
+    bool isValid() const
+    {
+        return !preamble.isEmpty() && !monthHeader.isEmpty()
+               && !rhHeader.isEmpty() && !tail.isEmpty();
+    }
+};
+
+/// Found by the prototypes' own headers, not by row number, so the template
+/// can gain or lose a line without this changing.
+SpectraTemplate spectraTemplateParts(const Lines& lines)
+{
+    SpectraTemplate parts;
+    const auto blocks = spectraBlocks(lines);
+    const auto tailRow = spectraRowStarting(
+        lines, QStringLiteral("RH/fc_exponential_fit_parameters"));
+    if (blocks.isEmpty() || tailRow < 0) { return parts; }
+
+    const auto& water = blocks.first();
+    parts.preamble = lines.mid(0, water.header + 1 + water.rows);
+    for (const auto& block : blocks)
+    {
+        if (block.name != QLatin1String("<GAS>")) { continue; }
+        const auto rows = lines.mid(block.header + 1, block.rows);
+        if (block.rhClasses)
+        {
+            parts.rhHeader = lines.at(block.header);
+            parts.rhRows = rows;
+        }
+        else
+        {
+            parts.monthHeader = lines.at(block.header);
+            parts.monthRows = rows;
+        }
+    }
+    parts.tail = lines.mid(tailRow);
+    while (!parts.tail.isEmpty() && parts.tail.last().isEmpty())
+    {
+        parts.tail.removeLast();
+    }
+    return parts;
 }
 
 QString joinedLine(const QStringList& line)
@@ -252,49 +378,6 @@ QString normalizedTimelagLine(const QStringList& line)
     return label.simplified();
 }
 
-bool matchesTimelagHeaderRow(const QStringList& line, int row)
-{
-    const QString label = normalizedTimelagLabel(firstField(line));
-    switch (row)
-    {
-        case 0:
-            return label == QLatin1String("time_lag_optimization_results");
-        case 1:
-            return label == QLatin1String("plausibility_range_[timefolds_standard_deviation]");
-        case 2:
-            return label == QLatin1String("beginning_of_timelag_optimization_period");
-        case 3:
-            return label == QLatin1String("end_of_timelag_optimization_period");
-        case 4:
-            return joinedLine(line).isEmpty();
-        default:
-            return false;
-    }
-}
-
-bool parseGasTimelagLabel(const QStringList& line, const QString& expectedPrefix, QString* gas)
-{
-    const QString label = normalizedTimelagLabel(firstField(line));
-    const QString suffix = QStringLiteral("_timelag_[s]");
-    if (!label.startsWith(expectedPrefix) || !label.endsWith(suffix))
-    {
-        return false;
-    }
-
-    const int gasStart = expectedPrefix.size();
-    const int gasLength = label.size() - gasStart - suffix.size();
-    if (gasLength <= 0)
-    {
-        return false;
-    }
-
-    if (gas)
-    {
-        *gas = label.mid(gasStart, gasLength);
-    }
-    return true;
-}
-
 bool parseNumberOfTimelagsLabel(const QStringList& line, QString* gas)
 {
     const QString label = normalizedTimelagLabel(firstField(line));
@@ -311,41 +394,131 @@ bool parseNumberOfTimelagsLabel(const QStringList& line, QString* gas)
     return true;
 }
 
-bool matchesGasTimelagBlock(const QList<QStringList>& lines, int start)
+/// The time-lag template, cut the same way as the spectral one: the header,
+/// one gas block with `<gas>` for its name, and the header of the RH-sorted
+/// water table.
+struct TimelagTemplate
 {
-    QString gas;
-    if (!parseNumberOfTimelagsLabel(lines.value(start), &gas))
-    {
-        return false;
-    }
+    Lines header;
+    Lines gasBlock;
+    Lines rhHeader;
+    /// Rows of gasBlock holding the median, minimum and maximum.
+    int valueRows[3] = { -1, -1, -1 };
 
-    QString medianGas;
-    QString minGas;
-    QString maxGas;
-    return parseGasTimelagLabel(lines.value(start + 1), QStringLiteral("median_"), &medianGas)
-            && parseGasTimelagLabel(lines.value(start + 2), QStringLiteral("minimum_"), &minGas)
-            && parseGasTimelagLabel(lines.value(start + 3), QStringLiteral("maximum_"), &maxGas)
-            && medianGas == gas
-            && minGas == gas
-            && maxGas == gas;
+    bool isValid() const
+    {
+        return !header.isEmpty() && rhHeader.size() == 3
+               && valueRows[0] >= 0 && valueRows[1] >= 0 && valueRows[2] >= 0;
+    }
+};
+
+TimelagTemplate timelagTemplateParts(const Lines& lines)
+{
+    TimelagTemplate parts;
+    auto gasRow = -1;
+    auto rhRow = -1;
+    for (auto i = 0; i < lines.size(); ++i)
+    {
+        if (gasRow < 0 && joinedLine(lines.at(i)).contains(QStringLiteral("<gas>")))
+        {
+            gasRow = i;
+        }
+        if (normalizedTimelagLabel(firstField(lines.at(i)))
+            == QLatin1String("h2o_timelag_determinations_as_a_function_of_relative_humidity"))
+        {
+            rhRow = i;
+        }
+    }
+    if (gasRow < 0 || rhRow < gasRow) { return parts; }
+
+    parts.header = lines.mid(0, gasRow);
+    parts.gasBlock = lines.mid(gasRow, rhRow - gasRow);
+    parts.rhHeader = lines.mid(rhRow, 3);
+
+    const QString prefixes[3] = { QStringLiteral("median_"),
+                                  QStringLiteral("minimum_"),
+                                  QStringLiteral("maximum_") };
+    for (auto i = 0; i < parts.gasBlock.size(); ++i)
+    {
+        const auto label = normalizedTimelagLabel(firstField(parts.gasBlock.at(i)));
+        for (auto k = 0; k < 3; ++k)
+        {
+            if (label.startsWith(prefixes[k])) { parts.valueRows[k] = i; }
+        }
+    }
+    return parts;
 }
 
-bool matchesRhTimelagHeader(const QList<QStringList>& lines, int start)
+/// Whether row \a actual carries the label of template row \a model, with
+/// `<gas>` read as \a gas. Blank rows must stay blank.
+bool sameTimelagLabel(const QStringList& model, const QStringList& actual,
+                      const QString& gas = QString())
 {
-    const QString title = normalizedTimelagLabel(firstField(lines.value(start)));
-    const QString details = normalizedTimelagLine(lines.value(start + 1));
-    const QStringList columns = whitespaceFields(lines.value(start + 2));
+    if (model.isEmpty()) { return joinedLine(actual).isEmpty(); }
+    auto expected = normalizedTimelagLabel(firstField(model));
+    expected.replace(QStringLiteral("<gas>"), gas);
+    return normalizedTimelagLabel(firstField(actual)) == expected;
+}
 
-    return title == QLatin1String("h2o_timelag_determinations_as_a_function_of_relative_humidity")
-            && details.contains(QStringLiteral("classes with numerosity"))
-            && details.contains(QStringLiteral("30"))
-            && details.contains(QStringLiteral("inferred"))
-            && columns.value(0).compare(QLatin1String("class"), Qt::CaseInsensitive) == 0
-            && columns.value(1).compare(QLatin1String("RH-range"), Qt::CaseInsensitive) == 0
-            && columns.value(2).compare(QLatin1String("med_h2o"), Qt::CaseInsensitive) == 0
-            && columns.value(3).compare(QLatin1String("min_h2o"), Qt::CaseInsensitive) == 0
-            && columns.value(4).compare(QLatin1String("max_h2o"), Qt::CaseInsensitive) == 0
-            && columns.value(5).compare(QLatin1String("class_num"), Qt::CaseInsensitive) == 0;
+/// The gas named by the block starting at \a start, if its rows carry the
+/// template block's labels; empty if they do not.
+///
+/// The name is taken from the first row and must then be the same in every
+/// other one. It is not split on underscores, which is what upstream did and
+/// what made `co2_2` or `alpha_pinene` unreadable.
+QString timelagBlockGas(const Lines& model, const Lines& lines, int start)
+{
+    QString gas;
+    if (!parseNumberOfTimelagsLabel(lines.value(start), &gas)) { return {}; }
+    for (auto i = 0; i < model.size(); ++i)
+    {
+        //> The template's last row is the blank after the block; the file's
+        //> may instead simply end.
+        if (start + i >= lines.size() && model.at(i).isEmpty()) { continue; }
+        if (!sameTimelagLabel(model.at(i), lines.value(start + i), gas)) { return {}; }
+    }
+    return gas;
+}
+
+/// \a text with every run of digits replaced by `#`. The RH-table note states
+/// the engine's minimum class numerosity, which has changed (30, then 15);
+/// the sentence is the format, the number is a setting.
+QString withoutNumbers(QString text)
+{
+    static const QRegularExpression digits(QStringLiteral("\\d+"));
+    return text.replace(digits, QStringLiteral("#"));
+}
+
+bool matchesRhTimelagHeader(const Lines& model, const Lines& lines, int start)
+{
+    const auto columns = whitespaceFields(lines.value(start + 2));
+    const auto modelColumns = whitespaceFields(model.value(2));
+    if (columns.size() != modelColumns.size()) { return false; }
+    for (auto i = 0; i < columns.size(); ++i)
+    {
+        if (columns.at(i).compare(modelColumns.at(i), Qt::CaseInsensitive) != 0) { return false; }
+    }
+    return sameTimelagLabel(model.value(0), lines.value(start))
+           && withoutNumbers(normalizedTimelagLine(model.value(1)))
+                  == withoutNumbers(normalizedTimelagLine(lines.value(start + 1)));
+}
+
+/// The numerosity the RH-table note says a class needs to be determined rather
+/// than inferred, or \a fallback if it states none.
+int statedMinClassNumerosity(const QStringList& note, int fallback)
+{
+    static const QRegularExpression number(QStringLiteral("\\d+"));
+    const auto match = number.match(joinedLine(note));
+    return match.hasMatch() ? match.captured(0).toInt() : fallback;
+}
+
+/// Whether \a line is one of the provenance rows the engine adds in PWB
+/// aggregate mode - `PWB_aggregate_summary:` under the title and
+/// `PWB_summary_source_for_<gas>:` inside a block and above the RH table.
+/// They say where a summary came from; they are not part of the layout.
+bool isPwbProvenance(const QStringList& line)
+{
+    return line.value(0).startsWith(QLatin1String("PWB_"), Qt::CaseInsensitive);
 }
 
 } // namespace
@@ -539,21 +712,25 @@ bool AncillaryFileTest::parseFile(const QString& filename, LineList *lines)
 
 bool AncillaryFileTest::testSpectraF(const LineList& templateList, const LineList& actualList)
 {
-    Q_UNUSED(templateList)
-
-    //> Checked against what the format says it is, not against the sample file
-    //> row by row.
+    //> Checked against the template again, as upstream did, but block by block.
     //>
-    //> The row-by-row comparison could not survive the format growing. The
-    //> engine appended `groups=` to every block header so a gas could state
-    //> its own month grouping, then `var=`/`instr=` so a block could say which
-    //> analyser it belongs to, then `exp=` for a hygrometer's own RH relation -
-    //> all deliberately past the columns, where every reader of this file
-    //> stops. Compared whole, each one made the shipped sample differ from a
-    //> perfectly good file, and the sample also had to be reissued for every
-    //> project with a different number of gases. It was rejecting files the
-    //> engine reads without complaint, and the dialog then told the user the
-    //> engine would fall back to the default method, which was not true.
+    //> Upstream compared the whole file row for row with a sample carrying
+    //> exactly H2O, CO2, CH4 and one other gas, which no longer describes any
+    //> file: the engine writes one block per gas the project names, numbers a
+    //> species measured twice, adds a named RH block per extra hygrometer, and
+    //> appends `groups=`/`var=`/`instr=`/`exp=` past the columns. For a while
+    //> that pushed this test onto hand-written rules with the template unused.
+    //> Now the template carries one prototype of each kind of block, every
+    //> block is held against the prototype of its kind wherever it sits, and
+    //> the text of every label comes from the template rather than from here.
+    const auto model = spectraTemplateParts(templateList);
+    if (!model.isValid())
+    {
+        testResults_->append(tr("<b>The spectral assessment template is incomplete. "
+                                "Please, re-install the software.</b>"));
+        return false;
+    }
+
     QList<bool> test;
     auto last_test = [&](){ return test.value(test.size() - 1); };
     auto check = [&](bool ok, const QString& what)
@@ -562,122 +739,79 @@ bool AncillaryFileTest::testSpectraF(const LineList& templateList, const LineLis
         testResults_->append(what + QStringLiteral(": ") + formatPassFail(last_test()));
     };
 
-    check(actualList.value(0).value(0).startsWith(
-              QLatin1String("Transfer_function_parameters_(TFP)")),
-          tr("Transfer-function preamble"));
+    //> The header rows, then the primary hygrometer's table - the one block no
+    //> header names, which is why it is part of the preamble rather than a
+    //> block to be matched.
+    const auto waterHeader = model.preamble.size() - kSpectraRhRows - 1;
+    auto headerOk = true;
+    for (auto i = 0; i < waterHeader; ++i)
+    {
+        headerOk &= sameLabels(model.preamble.at(i), actualList.value(i));
+    }
+    check(headerOk, tr("Header, rows 1-%1").arg(waterHeader));
 
+    auto waterOk = true;
+    for (auto i = waterHeader; i < model.preamble.size(); ++i)
+    {
+        waterOk &= sameLabels(model.preamble.at(i), actualList.value(i));
+    }
+    check(waterOk, tr("<u>H<sub>2</sub>O</u> TFP labels, rows %1-%2")
+                       .arg(waterHeader + 1).arg(model.preamble.size()));
+
+    //> Every other block, against its prototype.
     const auto blocks = spectraBlocks(actualList);
-    testResults_->append(tr("Blocks found: %1 (%2 rows)")
-                             .arg(blocks.size()).arg(actualList.size()));
-
-    check(!blocks.isEmpty(), tr("At least one transfer-function block"));
-    if (blocks.isEmpty()) { return false; }
-
-    //> The primary hygrometer's table comes first and is the one block no
-    //> header names - it is identified by position, and by carrying humidity
-    //> classes rather than months.
-    check(blocks.first().rhClasses,
-          tr("First block is the water-vapour RH table"));
-
-    static const QStringList months = {
-        QStringLiteral("January"), QStringLiteral("February"),
-        QStringLiteral("March"), QStringLiteral("April"),
-        QStringLiteral("May"), QStringLiteral("June"),
-        QStringLiteral("July"), QStringLiteral("August"),
-        QStringLiteral("September"), QStringLiteral("October"),
-        QStringLiteral("November"), QStringLiteral("December") };
-
-    for (const auto& block : blocks)
+    QVector<int> covered;
+    for (auto b = 1; b < blocks.size(); ++b)
     {
+        const auto& block = blocks.at(b);
+        const auto& header = block.rhClasses ? model.rhHeader : model.monthHeader;
+        const auto& rows = block.rhClasses ? model.rhRows : model.monthRows;
         const auto label = block.name.isEmpty() ? tr("(unnamed)") : block.name;
-        auto rowsOk = (block.header + block.rows) < actualList.size();
-        if (!rowsOk)
-        {
-            check(false, tr("<u>%1</u>: block is truncated").arg(label));
-            continue;
-        }
 
-        //> The label column of every row, against the labels the format
-        //> defines - not against the sample's rows, which sit at a different
-        //> offset the moment a block is added anywhere above.
-        for (auto i = 0; i < block.rows; ++i)
+        auto ok = !block.name.isEmpty()
+                  && block.header + rows.size() < actualList.size()
+                  && sameLabels(header, actualList.value(block.header), block.name);
+        for (auto i = 0; ok && i < rows.size(); ++i)
         {
-            const auto& line = actualList.value(block.header + 1 + i);
-            if (block.rhClasses)
-            {
-                rowsOk &= (line.value(0) == QLatin1String("RH")
-                           && line.value(1) == QLatin1String("class"));
-            }
-            else
-            {
-                rowsOk &= (line.value(0) == months.value(i));
-            }
+            ok &= sameLabels(rows.at(i), actualList.value(block.header + 1 + i));
         }
-        check(rowsOk, tr("<u>%1</u>: %2 %3 rows")
-                          .arg(label).arg(block.rows)
-                          .arg(block.rhClasses ? tr("RH-class") : tr("monthly")));
+        check(ok, tr("<u>%1</u> TFP labels, rows %2-%3")
+                      .arg(label).arg(block.header + 1).arg(block.header + 1 + rows.size()));
+
+        const auto slot = slotForGasName(ecProject_, block.name);
+        if (slot >= 0) { covered << slot; }
     }
 
-    //> How many blocks this project expects of each species, against how many
-    //> the file carries. This is what the bare row count was standing in for,
-    //> and it names the species instead of only saying the length is wrong.
-    //>
-    //> Counted per species rather than matched per record: a species measured
-    //> once is named bare - COS - and one measured twice is numbered CO2_1 and
-    //> CO2_2, so there is no record-to-block name to compare. The count is the
-    //> question anyway: two CO2 analysers want two CO2 blocks.
-    QMap<QString, int> wanted;
-    for (const auto slot : tfpGasSlots(ecProject_))
+    //> Every gas the raw data holds needs its block. The engine reads a file
+    //> that lacks one, but gives that gas no transfer function and raises
+    //> Alert 65 mid-run - the kind of thing this test exists to say first.
+    //> A gas the project names but does not measure needs nothing.
+    if (ecProject_)
     {
-        if (!gasSlotConfigured(ecProject_, slot))
+        const auto water = primaryWaterSlot(ecProject_);
+        const auto& gases = ecProject_->gasColumns();
+        for (auto i = 0; i < gases.size(); ++i)
         {
-            testResults_->append(tr("<u>%1</u>: not configured in this project — <b>skipped</b>")
-                                 .arg(gasSlotName(ecProject_, slot)));
-            continue;
-        }
-        wanted[gasSlotName(ecProject_, slot).toUpper()] += 1;
-    }
-
-    for (auto it = wanted.constBegin(); it != wanted.constEnd(); ++it)
-    {
-        //> `CO2` or `CO2_<n>`, which is how the engine names a species that
-        //> occurs once and one that repeats.
-        const QRegularExpression named(
-            QStringLiteral("^%1(_\\d+)?$").arg(QRegularExpression::escape(it.key())));
-        auto seen = 0;
-        for (const auto& block : blocks)
-        {
-            if (named.match(block.name.toUpper()).hasMatch()) { ++seen; }
-        }
-        //> Reported, not failed: the engine reads a file whose block set
-        //> differs from the project's, consuming what it does not recognise and
-        //> falling back per gas. A file fitted for another project is worth a
-        //> word, not a refusal - and the dialog used to claim the engine would
-        //> ignore the file entirely, which was never true.
-        if (seen < it.value())
-        {
-            testResults_->append(
-                tr("<u>%1</u>: %2 of %3 blocks in this file — the analytic "
-                   "correction will be used for the rest")
-                    .arg(it.key()).arg(seen).arg(it.value()));
+            if (i == water || !gasMeasured(ecProject_, i)) { continue; }
+            check(covered.contains(i), tr("<u>%1</u> is measured and has a TFP block")
+                                           .arg(gasFileName(ecProject_, i)));
         }
     }
 
-    const auto expRow = spectraRowStarting(
+    //> The tail, from its own title on, after the last block.
+    const auto tailRow = spectraRowStarting(
         actualList, QStringLiteral("RH/fc_exponential_fit_parameters"));
-    check(expRow >= 0, tr("RH/fc exponential fit section"));
-
-    const auto hpRow = spectraRowStarting(
-        actualList, QStringLiteral("High-pass_correction_factor_model_parameters"));
-    check(hpRow >= 0, tr("High-pass correction factor section"));
-
-    if (expRow >= 0 && hpRow >= 0)
+    const auto blocksEnd = blocks.isEmpty() ? 0 : blocks.last().header + blocks.last().rows;
+    check(tailRow > blocksEnd, tr("Exponential-fit and high-pass sections after the blocks"));
+    if (tailRow > blocksEnd)
     {
-        check(hpRow > expRow, tr("Sections in order"));
-        check(spectraRowStarting(actualList, QStringLiteral("unstable")) > hpRow,
-              tr("High-pass unstable row"));
-        check(spectraRowStarting(actualList, QStringLiteral("stable")) > hpRow,
-              tr("High-pass stable row"));
+        auto tailOk = true;
+        for (auto i = 0; i < model.tail.size(); ++i)
+        {
+            tailOk &= sameLabels(model.tail.at(i), actualList.value(tailRow + i));
+        }
+        check(tailOk, tr("Exponential-fit and high-pass labels, rows %1-%2")
+                          .arg(tailRow + 1).arg(tailRow + model.tail.size()));
     }
 
     auto res = true;
@@ -691,40 +825,24 @@ bool AncillaryFileTest::testSpectraF(const LineList& templateList, const LineLis
 
 bool AncillaryFileTest::testSpectraS(const LineList &actualList)
 {
-    //> The primary hygrometer's table, taken from wherever its header is rather
-    //> than from rows 8-16. Its position is fixed in the format and the engine's
-    //> reader does count to it - but finding it by header costs nothing and
-    //> stops this from being a second place that has to be revisited if the
-    //> preamble ever gains or loses a line.
-    const auto allBlocks = spectraBlocks(actualList);
-    QVector<double> FnH2o;
-    QVector<double> fcH2o;
-    QVector<double> numerosity;
-    if (!allBlocks.isEmpty() && allBlocks.first().rhClasses)
-    {
-        const auto& water = allBlocks.first();
-        for (auto i = 0; i < water.rows; ++i)
-        {
-            const auto& line = actualList.value(water.header + 1 + i);
-            FnH2o << line.value(6).toDouble();
-            fcH2o << line.value(7).toDouble();
-            numerosity << line.value(8).toDouble();
-        }
-    }
-    //> The monthly blocks, found by their headers.
-    //>
-    //> `18 + 14 * k` was only ever the k-th block on a file where every block
-    //> is fourteen rows and the first starts at 19. A hygrometer past the
-    //> primary breaks both halves of that, and the tail offsets built on it
-    //> then read a hygrometer's RH-class rows as the exponential fit and a
-    //> block header as the high-pass parameters - producing zeroes that passed
-    //> the range tests below rather than a failure.
+    //> Per gas, and by name. This used to read the first monthly block as CO2
+    //> and the second as CH4 whatever their headers said, so on a site writing
+    //> CO2, N2O, CH4 the N2O values were reported as methane's, and nothing
+    //> past the second block was ever looked at.
     const auto blocks = spectraBlocks(actualList);
-    QVector<SpectraBlock> monthly;
-    for (const auto& block : blocks)
+
+    QList<bool> test;
+    auto last_test = [&](){ return test.value(test.size() - 1); };
+    auto check = [&](bool ok, const QString& what)
     {
-        if (!block.rhClasses) { monthly << block; }
-    }
+        test << ok;
+        testResults_->append(what + QStringLiteral(": ") + formatPassFail(last_test()));
+    };
+    auto skip = [&](const QString& label)
+    {
+        testResults_->append(tr("<u>%1</u>: not in this project's raw data — <b>skipped</b>")
+                                 .arg(label));
+    };
 
     const auto columnOf = [&actualList](const SpectraBlock& block, int column)
     {
@@ -735,35 +853,93 @@ bool AncillaryFileTest::testSpectraS(const LineList &actualList)
         }
         return values;
     };
-    const auto emptyIfAbsent = [&](int which, int column)
+    const auto fcGood = [](double d){ return d >= 0.001 && d <= 10.0; };
+    const auto fnGood = [](double d){ return d >= 0.01 && d <= 10.0; };
+    //> Fn is only meaningful where fc is.
+    const auto fnGoodWhereFcIs = [&](const QVector<double>& fn, const QVector<double>& fc)
     {
-        return which < monthly.size() ? columnOf(monthly.at(which), column)
-                                      : QVector<double>();
+        for (auto i = 0; i < fc.size(); ++i)
+        {
+            if (fcGood(fc.at(i)) && !fnGood(fn.value(i))) { return false; }
+        }
+        return true;
     };
 
-    const auto FnCo2 = emptyIfAbsent(0, 2);
-    const auto fcCo2 = emptyIfAbsent(0, 3);
-    const auto FnCh4 = emptyIfAbsent(1, 2);
-    const auto fcCh4 = emptyIfAbsent(1, 3);
-
-    //> The tail, located by the text of its own headers. The exponential values
-    //> sit three rows below their title, the high-pass pair four and five below
-    //> theirs.
-    const auto expTitle = spectraRowStarting(
-        actualList, QStringLiteral("RH/fc_exponential_fit_parameters"));
-    const auto hpTitle = spectraRowStarting(
-        actualList, QStringLiteral("High-pass_correction_factor_model_parameters"));
-
-    QVector<double> fitParameters;
-    if (expTitle >= 0)
+    //> A hygrometer's nine RH classes - the primary's table and every other
+    //> hygrometer's named block alike. A class may be empty; the table may not.
+    const auto testRhBlock = [&](const SpectraBlock& block, const QString& label)
     {
-        for (auto i = 0; i < 3; ++i)
+        const auto fn = columnOf(block, 6);
+        const auto fc = columnOf(block, 7);
+        const auto numerosity = columnOf(block, 8);
+        check(std::any_of(fc.begin(), fc.end(), fcGood),
+              tr("<u>%1</u> Column 'fc' shall have at least 1 value "
+                 "in the range [0.001; 10.0]").arg(label));
+        check(std::any_of(fc.begin(), fc.end(),
+                          [](double d){ return !qFuzzyCompare(d, -9999.0); }),
+              tr("<u>%1</u> Column 'fc' shall not have all values set to -9999").arg(label));
+        check(std::any_of(numerosity.begin(), numerosity.end(),
+                          [](double d){ return d > 0; }),
+              tr("<u>%1</u> Column 'numerosity' shall have at least 1 value > 0").arg(label));
+        check(fnGoodWhereFcIs(fn, fc),
+              tr("<u>%1</u> Column 'Fn' shall be in the range [0.01; 10.0] "
+                 "for good values of column 'fc'").arg(label));
+    };
+
+    //> A gas's twelve months. Every month must carry a fit, so a gas the raw
+    //> data holds but the assessment could not fit fails here, as CO2 always
+    //> did.
+    const auto testMonthBlock = [&](const SpectraBlock& block, const QString& label)
+    {
+        const auto fn = columnOf(block, 2);
+        const auto fc = columnOf(block, 3);
+        check(std::all_of(fc.begin(), fc.end(), fcGood),
+              tr("<u>%1</u> All column 'fc' values shall be in the range [0.001; 10.0]")
+                  .arg(label));
+        check(fnGoodWhereFcIs(fn, fc),
+              tr("<u>%1</u> All column 'Fn' shall be in the range [0.01; 10.0] "
+                 "for good values of column 'fc'").arg(label));
+    };
+
+    const auto h2oLabel = QStringLiteral("H<sub>2</sub>O");
+    if (gasMeasured(ecProject_, primaryWaterSlot(ecProject_)))
+    {
+        if (!blocks.isEmpty()) { testRhBlock(blocks.first(), h2oLabel); }
+
+        //> The humidity relation belongs to the primary hygrometer.
+        const auto expTitle = spectraRowStarting(
+            actualList, QStringLiteral("RH/fc_exponential_fit_parameters"));
+        QVector<double> fitParameters;
+        for (auto i = 0; expTitle >= 0 && i < 3; ++i)
         {
             fitParameters << actualList.value(expTitle + 3).value(i).toDouble();
         }
+        check(std::all_of(fitParameters.begin(), fitParameters.end(),
+                          [](double d){ return !qFuzzyCompare(d, -9999.0); }),
+              tr("<u>%1</u> All spectral corrections RH/fc exponential fit "
+                 "parameters shall be != -9999.0").arg(h2oLabel));
     }
+    else
+    {
+        skip(h2oLabel);
+    }
+
+    for (auto b = 1; b < blocks.size(); ++b)
+    {
+        const auto& block = blocks.at(b);
+        if (!gasMeasured(ecProject_, slotForGasName(ecProject_, block.name)))
+        {
+            skip(block.name);
+            continue;
+        }
+        if (block.rhClasses) { testRhBlock(block, block.name); }
+        else { testMonthBlock(block, block.name); }
+    }
+
+    //> The high-pass model is one for the whole site.
     QVector<double> modelParameters;
-    if (hpTitle >= 0)
+    if (spectraRowStarting(actualList,
+                           QStringLiteral("High-pass_correction_factor_model_parameters")) >= 0)
     {
         const auto unstable = spectraRowStarting(actualList, QStringLiteral("unstable"));
         const auto stable = spectraRowStarting(actualList, QStringLiteral("stable"));
@@ -772,134 +948,10 @@ bool AncillaryFileTest::testSpectraS(const LineList &actualList)
         modelParameters << actualList.value(stable).value(2).toDouble();
         modelParameters << actualList.value(stable).value(3).toDouble();
     }
-
-    // test criteria
-    QList<bool> test;
-    auto last_test_index = [&](){ return (test.size() - 1); };
-    auto last_test = [&](){ return test.value(test.size() - 1); };
-
-    // test a.1
-    test << std::any_of(fcH2o.begin(), fcH2o.end(),
-                        [](double d){ return (d >= 0.001 && d <= 10.0); });
-    auto a1_label = QStringLiteral("<u>H<sub>2</sub>O</u> Column 'fc' "
-                                   "shall have at least 1 value in the range [0.001; 10.0]: ");
-    testResults_->append(a1_label + formatPassFail(last_test()));
-
-    // test a.2
-    test << std::any_of(fcH2o.begin(), fcH2o.end(),
-                        [](double d){ return !qFuzzyCompare(d, -9999.0); });
-    auto a2_label = QStringLiteral("<u>H<sub>2</sub>O</u> Column 'fc' "
-                                   "shall not have all values set to -9999: ");
-    testResults_->append(a2_label + formatPassFail(last_test()));
-
-    // test a.3
-    test << std::any_of(numerosity.begin(), numerosity.end(),
-                        [](int i){ return (i > 0); });
-    auto a3_label = QStringLiteral("<u>H<sub>2</sub>O</u> Column 'numerosity'' "
-                                   "shall have at least 1 value > 0: ");
-    testResults_->append(a3_label + formatPassFail(last_test()));
-
-    // test a.4
-    test << true;
-    for (auto i = 0; i < 10; ++i)
-    {
-        if (fcH2o.value(i) >= 0.001 && fcH2o.value(i) <= 10.0)
-        {
-            if (FnH2o.value(i) < 0.01 || FnH2o.value(i) > 10.0)
-            {
-                test.replace(last_test_index(), false);
-                break;
-            }
-        }
-    }
-    auto a4_label = QStringLiteral("<u>H<sub>2</sub>O</u> Column 'Fn' shall be "
-                                   "in the range [0.01; 10.0] for good values of column 'fc': ");
-    testResults_->append(a4_label + formatPassFail(last_test()));
-
-    // test b.1
-    test << std::all_of(fitParameters.begin(), fitParameters.end(),
-                [](double d){ return !qFuzzyCompare(d, -9999.0); });
-    auto b1_label = QStringLiteral("<u>H<sub>2</sub>O</u> All spectral corrections RH/fc "
-                                      "exponential fit parameters shall be != -9999.0: ");
-    testResults_->append(b1_label + formatPassFail(last_test()));
-
-    // test c.2
-    test << std::all_of(fcCo2.begin(), fcCo2.end(),
-                        [](double d){ return (d >= 0.001 && d <= 10.0); });
-    auto c2_label = QStringLiteral("<u>CO<sub>2</sub></u> All column 'fc' values "
-                                   "shall be in the range [0.001; 10.0]: ");
-    testResults_->append(c2_label + formatPassFail(last_test()));
-
-    // test c.3
-//    if (last_test())
-//    {
-//        test << std::all_of(FnCo2.begin(), FnCo2.end(),
-//                            [](double d){ return (d >= 0.01 && d <= 10.0); });
-//    }
-
-//    test << std::equal(fcCo2.begin(), fcCo2.end(), FnCo2.begin(),
-//                       [](double d1, double d2){});
-
-    test << true;
-    for (auto i = 0; i < 12; ++i)
-    {
-        if (fcCo2.value(i) >= 0.001 && fcCo2.value(i) <= 10.0)
-        {
-            if (FnCo2.value(i) < 0.01 || FnCo2.value(i) > 10.0)
-            {
-                test.replace(last_test_index(), false);
-                break;
-            }
-        }
-    }
-    auto c3_label = QStringLiteral("<u>CO<sub>2</sub></u> All column 'Fn' shall "
-                                   "be in the range [0.01; 10.0] for good values of column 'fc': ");
-    testResults_->append(c3_label + formatPassFail(last_test()));
-
-    // test d.2 and d.3 — skip if CH4 not configured
-    //
-    // Asked by species. This used to ask for record two, which was methane
-    // only while every project reserved that position for it whether or not
-    // the site measured any.
-    if (!gasSpeciesConfigured(ecProject_, QStringLiteral("ch4")))
-    {
-        testResults_->append(tr("<u>%1</u>: not configured in this project — <b>skipped</b>")
-                             .arg(QStringLiteral("CH4")));
-    }
-    else
-    {
-        // test d.2
-        test << std::all_of(fcCh4.begin(), fcCh4.end(),
-                            [](double d){ return (d >= 0.001 && d <= 10); });
-        auto d2_label = QStringLiteral("<u>CH<sub>4</sub></u> All column 'fc' values "
-                                       "shall be in the range [0.001; 10.0]: ");
-        testResults_->append(d2_label + formatPassFail(last_test()));
-
-        // test d.3
-        test << true;
-        for (auto i = 0; i < 12; ++i)
-        {
-            if (fcCh4.value(i) >= 0.001 && fcCh4.value(i) <= 10.0)
-            {
-                if (FnCh4.value(i) < 0.01 || FnCh4.value(i) > 10.0)
-                {
-                    test.replace(last_test_index(), false);
-                    break;
-                }
-            }
-        }
-        auto d3_label = QStringLiteral("<u>CH<sub>4</sub></u> All column 'Fn' "
-                                       "shall be in the range [0.01; 10.0] for good values of column 'fc': ");
-        testResults_->append(d3_label + formatPassFail(last_test()));
-    }
-
-    // test e.1
-    test << std::all_of(modelParameters.begin(), modelParameters.end(),
-                        [](double d){ return (d >= 0.0 && d <= 1.0); });
-    auto e1_label = QStringLiteral("<u>H<sub>2</sub>O or CO<sub>2</sub> or CH<sub>4</sub></u> "
-                                   "All high-pass correction factor model parameters "
-                                   "shall be within the range [0; 1]: ");
-    testResults_->append(e1_label + formatPassFail(last_test()));
+    check(std::all_of(modelParameters.begin(), modelParameters.end(),
+                      [](double d){ return d >= 0.0 && d <= 1.0; }),
+          tr("All high-pass correction factor model parameters "
+             "shall be within the range [0; 1]"));
 
     auto res = true;
     for (auto i = 0; i < test.size(); ++i)
@@ -1207,129 +1259,148 @@ bool AncillaryFileTest::testPlanarFitS(const LineList &actualList)
 
 bool AncillaryFileTest::testTimeLagF(const LineList &templateList, const LineList &actualList)
 {
-    Q_UNUSED(templateList);
+    timelagGases_.clear();
+    timelagValues = QVector<QVector<double>>(3);
+    h2oTimelagValues.clear();
+    h2oMinClassNumerosity_ = kDefaultMinClassNumerosity;
+
+    const auto model = timelagTemplateParts(templateList);
+    if (!model.isValid())
+    {
+        testResults_->append(tr("<b>The time-lag template is incomplete. "
+                                "Please, re-install the software.</b>"));
+        return false;
+    }
+
+    //> The provenance rows of PWB aggregate mode are left out before anything
+    //> is counted: they sit between the rows of the layout, and left in they
+    //> shift every row after them.
+    LineList lines;
+    for (const auto& line : actualList)
+    {
+        if (!isPwbProvenance(line)) { lines << line; }
+    }
 
     // preliminary test, number of rows
-    auto rowCountTest = (actualList.size() > 2);
+    auto rowCountTest = (lines.size() > 2);
     testResults_->append(QLatin1String("Number of rows [")
-                                 + QString::number(actualList.size())
+                                 + QString::number(lines.size())
                                  + QStringLiteral("]: ")
                                  + formatPassFail(rowCountTest));
     if (!rowCountTest) { return false; }
 
     QList<bool> test;
     auto last_test = [&](){ return test.value(test.size() - 1); };
-
-    // test a
-    for (auto i = 0; i < 5; ++i)
+    auto check = [&](bool ok, const QString& what)
     {
-        test << matchesTimelagHeaderRow(actualList.value(i), i);
-        testResults_->append(QLatin1String("Header, row ")
-                             + QString::number(i + 1)
-                             + QStringLiteral(": ")
-                             + formatPassFail(last_test()));
+        test << ok;
+        testResults_->append(what + QStringLiteral(": ") + formatPassFail(last_test()));
+    };
+
+    // test a, the header rows against the template's
+    for (auto i = 0; i < model.header.size(); ++i)
+    {
+        check(sameTimelagLabel(model.header.at(i), lines.value(i)),
+              QLatin1String("Header, row ") + QString::number(i + 1));
     }
 
-    // test b
-    auto gasCount = 0;
-    timelagValues.resize(3);
-    while (matchesGasTimelagBlock(actualList, 5 + 5 * gasCount))
+    // test b, one block per gas against the template's block, whatever the gas
+    auto cursor = static_cast<int>(model.header.size());
+    for (auto gas = timelagBlockGas(model.gasBlock, lines, cursor);
+         !gas.isEmpty();
+         gas = timelagBlockGas(model.gasBlock, lines, cursor))
     {
-        ++gasCount;
-
-        // collect values
-        timelagValues[0].resize(gasCount);
-        timelagValues[1].resize(gasCount);
-        timelagValues[2].resize(gasCount);
-        timelagValues[0][gasCount - 1] = actualList.value(6 + 5 * (gasCount - 1)).value(1).toDouble();
-        timelagValues[1][gasCount - 1] = actualList.value(7 + 5 * (gasCount - 1)).value(1).toDouble();
-        timelagValues[2][gasCount - 1] = actualList.value(8 + 5 * (gasCount - 1)).value(1).toDouble();
+        timelagGases_ << gas;
+        for (auto k = 0; k < 3; ++k)
+        {
+            timelagValues[k] << lines.value(cursor + model.valueRows[k]).value(1).toDouble();
+        }
+        cursor += model.gasBlock.size();
     }
+    testResults_->append(tr("Gas blocks found: %1 (%2)")
+                             .arg(timelagGases_.size())
+                             .arg(timelagGases_.join(QStringLiteral(", "))));
 
-    // test c1
-    // compare 3 lines of RH headers
-    if (matchesRhTimelagHeader(actualList, 5 + 5 * gasCount))
+    // test c1, the RH-sorted water table
+    const auto hasRhTable = matchesRhTimelagHeader(model.rhHeader, lines, cursor);
+    if (hasRhTable)
     {
-        test << true;
-        testResults_->append(QLatin1String("Header of RH sorted H<sub>2</sub>O classes (3 rows): ")
-                             + formatPassFail(last_test()));
+        check(true, QLatin1String("Header of RH sorted H<sub>2</sub>O classes (3 rows)"));
+        h2oMinClassNumerosity_ = statedMinClassNumerosity(lines.value(cursor + 1),
+                                                          kDefaultMinClassNumerosity);
 
         // test c1' (moved from scientific to formal)
+        const auto rhStart = cursor + 3;
         auto rhClassCount = 0;
-
-        while (!actualList.value(8 + 5 * gasCount + rhClassCount).isEmpty())
+        while (!lines.value(rhStart + rhClassCount).isEmpty())
         {
             ++rhClassCount;
-            auto actualRhlClassIndex = actualList.value(8 + 5 * gasCount + rhClassCount - 1).value(0).toInt();
-            test << (rhClassCount == actualRhlClassIndex);
-            testResults_->append(QLatin1String("Consistent RH index [")
-                                 + QString::number(actualRhlClassIndex)
-                                 + QStringLiteral("]: ")
-                                 + formatPassFail(last_test()));
+            auto actualRhlClassIndex = lines.value(rhStart + rhClassCount - 1).value(0).toInt();
+            check(rhClassCount == actualRhlClassIndex,
+                  QLatin1String("Consistent RH index [")
+                      + QString::number(actualRhlClassIndex) + QStringLiteral("]"));
         }
 
         // test c2
         if (rhClassCount <= 20)
         {
-            test << (actualList.value(8 + 5 * gasCount).value(1) == QLatin1String("0")
-                     && actualList.value(8 + 5 * gasCount + rhClassCount - 1).value(3) == QLatin1String("100%"));
-
-            // collect values
             h2oTimelagValues.resize(4);
-            h2oTimelagValues[0].resize(rhClassCount);
-            h2oTimelagValues[1].resize(rhClassCount);
-            h2oTimelagValues[2].resize(rhClassCount);
-            h2oTimelagValues[3].resize(rhClassCount);
             for (auto i = 0; i < rhClassCount; ++i)
             {
-                h2oTimelagValues[0][i] = actualList.value(8 + 5 * gasCount + i).value(4).toDouble();
-                h2oTimelagValues[1][i] = actualList.value(8 + 5 * gasCount + i).value(5).toDouble();
-                h2oTimelagValues[2][i] = actualList.value(8 + 5 * gasCount + i).value(6).toDouble();
-                h2oTimelagValues[3][i] = actualList.value(8 + 5 * gasCount + i).value(7).toDouble();
+                for (auto k = 0; k < 4; ++k)
+                {
+                    h2oTimelagValues[k] << lines.value(rhStart + i).value(4 + k).toDouble();
+                }
             }
-
-            testResults_->append(QStringLiteral("Consistent RH ranges: ") + formatPassFail(last_test()));
+            check(lines.value(rhStart).value(1) == QLatin1String("0")
+                      && lines.value(rhStart + rhClassCount - 1).value(3) == QLatin1String("100%"),
+                  QStringLiteral("Consistent RH ranges"));
         }
         else
         {
-            test << false;
-            testResults_->append(QLatin1String("RH classes <= 20: ") + formatPassFail(last_test()));
+            check(false, QLatin1String("RH classes <= 20"));
         }
     }
     else
     {
-        auto rhIsEmpty = actualList.value(5 + 5 * gasCount).isEmpty()
-                         && actualList.value(6 + 5 * gasCount).isEmpty()
-                         && actualList.value(7 + 5 * gasCount).isEmpty();
+        //> Without the table, the gas blocks have to be the whole file.
+        QString stray;
+        for (auto i = cursor; i < lines.size() && stray.isEmpty(); ++i)
+        {
+            stray = joinedLine(lines.at(i));
+        }
+        if (!stray.isEmpty())
+        {
+            check(false, tr("Unrecognised row after the gas blocks [%1]")
+                             .arg(stray.toHtmlEscaped()));
+        }
+        else
+        {
+            check(!timelagGases_.isEmpty(),
+                  tr("At least one gas block, or the RH sorted H<sub>2</sub>O classes"));
+        }
+    }
 
-        // with no gases and no rh classes
-        if (!gasCount && rhIsEmpty)
+    //> Every gas the raw data holds needs a time lag here - the primary
+    //> hygrometer's may be the RH table instead. The engine reads a file that
+    //> lacks one and quietly uses that gas's default lag, which is not what a
+    //> user selecting this file expects.
+    if (ecProject_)
+    {
+        QVector<int> covered;
+        for (const auto& gas : std::as_const(timelagGases_))
         {
-            test << false;
-            testResults_->append(QLatin1String("Number of gases [0] and header of "
-                                                "RH sorted H<sub>2</sub>O classes (3 rows): ")
-                          + formatPassFail(last_test()));
+            covered << slotForGasName(ecProject_, gas);
         }
-        // with no gases and > 20 rh classes
-        else if (!gasCount && !rhIsEmpty)
+        const auto water = primaryWaterSlot(ecProject_);
+        if (hasRhTable) { covered << water; }
+
+        const auto& gases = ecProject_->gasColumns();
+        for (auto i = 0; i < gases.size(); ++i)
         {
-            test << false;
-            testResults_->append(QLatin1String("Header of RH sorted H<sub>2</sub>O classes (3 rows): ")
-                          + formatPassFail(last_test()));
-        }
-        // with gases and > 20 rh classes
-        else if (gasCount && !rhIsEmpty)
-        {
-            test << false;
-            testResults_->append(QLatin1String("Header of gases or RH sorted H<sub>2</sub>O classes (3 rows): ")
-                          + formatPassFail(last_test()));
-        }
-        // with gases and no rh classes
-        else if (gasCount && rhIsEmpty)
-        {
-            test << true;
-            testResults_->append(QStringLiteral("Number of gases [0]: ")
-                          + formatPassFail(last_test()));
+            if (!gasMeasured(ecProject_, i)) { continue; }
+            check(covered.contains(i), tr("<u>%1</u> is measured and has a time lag")
+                                           .arg(gasFileName(ecProject_, i).toLower()));
         }
     }
 
@@ -1346,80 +1417,99 @@ bool AncillaryFileTest::testTimeLagS(const LineList &actualList)
     Q_UNUSED(actualList);
 
     QList<bool> test;
-    auto last_test_index = [&](){ return (test.size() - 1); };
     auto last_test = [&](){ return test.value(test.size() - 1); };
-    test << true;
-
-    // test a
-    auto gasCount = timelagValues[0].size();
-    if (gasCount > 0)
+    auto check = [&](bool ok, const QString& what)
     {
-        for (auto j = 0; j < gasCount; ++j)
-        {
-            if (!((timelagValues[0][j] >= timelagValues[1][j])
-                && timelagValues[0][j] <= timelagValues[2][j]))
-            {
-                test.replace(last_test_index(), false);
-            }
-        }
-        testResults_->append(QLatin1String("Gas time-lag median values inside the "
-                             "[minimum; maximum] range: ")
-                             + formatPassFail(last_test()));
+        test << ok;
+        testResults_->append(what + QStringLiteral(": ") + formatPassFail(last_test()));
+    };
 
-        // test b
-        test << true;
-        for (auto i = 0; i < 3; ++i)
+    //> Only gases the raw data holds. A block for any other - a gas the
+    //> project names without a column, or one from the project the file was
+    //> made for - is read and discarded by the engine, -9999 and all.
+    QVector<int> measured;
+    for (auto j = 0; j < timelagGases_.size(); ++j)
+    {
+        if (gasMeasured(ecProject_, slotForGasName(ecProject_, timelagGases_.at(j))))
         {
-            for (auto j = 0; j < gasCount; ++j)
-            {
-                if (timelagValues[i][j] > 60.0)
-                {
-                    test.replace(last_test_index(), false);
-                    goto end_loop;
-                }
-            }
+            measured << j;
         }
-        end_loop:
-        testResults_->append(QLatin1String("Time-lag values not larger than 60 seconds: ")
-                             + formatPassFail(last_test()));
+        else
+        {
+            testResults_->append(tr("<u>%1</u>: not in this project's raw data — <b>skipped</b>")
+                                     .arg(timelagGases_.at(j)));
+        }
     }
 
-    // if there are RH classes
-    if (h2oTimelagValues.size())
+    //> The gases that fail \a rule, named, so a long list says which.
+    const auto failing = [&](const std::function<bool(int)>& rule)
+    {
+        QStringList names;
+        for (const auto j : std::as_const(measured))
+        {
+            if (!rule(j)) { names << timelagGases_.at(j); }
+        }
+        return names;
+    };
+    const auto verdict = [&](const QStringList& names, const QString& what)
+    {
+        check(names.isEmpty(), names.isEmpty()
+                                   ? what
+                                   : what + QStringLiteral(" [") + names.join(QStringLiteral(", "))
+                                         + QStringLiteral("]"));
+    };
+
+    if (!measured.isEmpty())
+    {
+        const auto& median = timelagValues.at(0);
+        const auto& minimum = timelagValues.at(1);
+        const auto& maximum = timelagValues.at(2);
+
+        // test a.0, a determination at all
+        verdict(failing([&](int j){ return !qFuzzyCompare(median.at(j), -9999.0); }),
+                QLatin1String("Every measured gas has a time-lag determination"));
+
+        // test a
+        verdict(failing([&](int j){ return median.at(j) >= minimum.at(j)
+                                           && median.at(j) <= maximum.at(j); }),
+                QLatin1String("Gas time-lag median values inside the [minimum; maximum] range"));
+
+        // test b
+        verdict(failing([&](int j){ return median.at(j) <= 60.0
+                                           && minimum.at(j) <= 60.0
+                                           && maximum.at(j) <= 60.0; }),
+                QLatin1String("Time-lag values not larger than 60 seconds"));
+    }
+
+    // if there are RH classes, and the primary hygrometer is measured
+    if (h2oTimelagValues.size() && !gasMeasured(ecProject_, primaryWaterSlot(ecProject_)))
+    {
+        testResults_->append(tr("<u>H<sub>2</sub>O</u> RH sorted classes: not in this "
+                                "project's raw data — <b>skipped</b>"));
+    }
+    else if (h2oTimelagValues.size())
     {
         // test c.2
-        test << true;
+        auto rangeOk = true;
         auto rhClassCount = h2oTimelagValues[0].size();
         for (auto i = 0; i < rhClassCount; ++i)
         {
             if (!((h2oTimelagValues[0][i] >= h2oTimelagValues[1][i])
                   && (h2oTimelagValues[0][i] <= h2oTimelagValues[2][i])))
             {
-                test.replace(last_test_index(), false);
+                rangeOk = false;
                 break;
             }
         }
-        testResults_->append(QStringLiteral("H<sub>2</sub>O RH-sorted median values inside the "
-                             "[minimum; maximum] range: ")
-                             + formatPassFail(last_test()));
+        check(rangeOk, QStringLiteral("H<sub>2</sub>O RH-sorted median values inside the "
+                                      "[minimum; maximum] range"));
 
-        // test c.3
-        test << false;
-        auto classNumCount = 0;
-        for (auto i = 0; i < rhClassCount; ++i)
-        {
-            if (h2oTimelagValues[3][i] > 30)
-            {
-                ++classNumCount;
-            }
-            if (classNumCount >= 3)
-            {
-                test.replace(last_test_index(), true);
-                break;
-            }
-        }
-        testResults_->append(QStringLiteral("At least 3 H<sub>2</sub>O classes with numerosity > 30: ")
-                             + formatPassFail(last_test()));
+        // test c.3, against the numerosity the file itself says a class needs
+        const auto determined = std::count_if(
+            h2oTimelagValues[3].begin(), h2oTimelagValues[3].end(),
+            [this](double n){ return n >= h2oMinClassNumerosity_; });
+        check(determined >= 3, QStringLiteral("At least 3 H<sub>2</sub>O classes with numerosity >= ")
+                                   + QString::number(h2oMinClassNumerosity_));
     }
 
     auto res = true;

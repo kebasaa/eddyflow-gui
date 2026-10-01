@@ -38,6 +38,7 @@
 #include "ecinidefs.h"
 #include "fileutils.h"
 #include "gas_metadata.h"
+#include "ini_file.h"
 #include "mainwindow.h"
 #include "stringutils.h"
 #include "widget_utils.h"
@@ -1425,7 +1426,7 @@ void EcProject::writeCecPairs(QSettings& project_ini)
     }
 }
 
-void EcProject::readCecPairs(QSettings& project_ini)
+void EcProject::readCecPairs(IniFile& project_ini)
 {
     auto& pairs = ec_project_state_.projectGeneral.cecPairs;
     pairs.clear();
@@ -1534,7 +1535,7 @@ void EcProject::writeMeasurementRecords(QSettings& project_ini)
 
 /// Read the records back. Absent gas_num means a project written before
 /// records existed; the caller migrates it from the legacy col_* fields.
-bool EcProject::readMeasurementRecords(QSettings& project_ini)
+bool EcProject::readMeasurementRecords(IniFile& project_ini)
 {
     auto& g = ec_project_state_.projectGeneral;
     g.gasColumns.clear();
@@ -2427,7 +2428,6 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
     wasUpgradedOnLoad_ = false;
 
     bool isVersionCompatible = true;
-    QVariant v; // container for conversions
 
     // open file
     QFile datafile(filename);
@@ -2450,7 +2450,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
     const QString readFrom =
         normalisedProjectPath(filename, normalisedCopy, &pathsRepaired);
 
-    QSettings project_ini(readFrom, QSettings::IniFormat);
+    //> IniFile, not QSettings: a numeric key present but empty falls back to
+    //> its default here rather than reading as zero. See src/ini_file.h.
+    IniFile project_ini(readFrom, QSettings::IniFormat);
 
     if (pathsRepaired)
     {
@@ -2489,9 +2491,13 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
             = project_ini.value(EcIni::INI_PROJECT_1,
                                 defaultEcProjectState.projectGeneral.last_change_date).toString();
 
-        v = project_ini.value(EcIni::INI_PROJECT_7,
-                              QVariant::fromValue(defaultEcProjectState.projectGeneral.file_type).toInt());
-        ec_project_state_.projectGeneral.file_type = static_cast<Defs::RawFileType>(v.toInt());
+        //> Converted here rather than through the QVariant container below, so
+        //> that a key present but empty falls back to the default like every
+        //> other number; a QVariant holding "" would answer 0, which is a
+        //> file type in its own right.
+        ec_project_state_.projectGeneral.file_type = static_cast<Defs::RawFileType>(
+            project_ini.value(EcIni::INI_PROJECT_7,
+                              QVariant::fromValue(defaultEcProjectState.projectGeneral.file_type).toInt()).toInt());
 
         ec_project_state_.projectGeneral.use_alt_md_file
                 = project_ini.value(EcIni::INI_PROJECT_9,
@@ -2507,10 +2513,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
                     return false;
                 }
 
-                v = project_ini.value(EcIni::INI_PROJECT_33_OLD,
-                         QVariant::fromValue(defaultEcProjectState.projectGeneral.run_mode).toInt());
-                ec_project_state_.projectGeneral.run_mode
-                    = static_cast<Defs::CurrRunMode>(v.toInt());
+                ec_project_state_.projectGeneral.run_mode = static_cast<Defs::CurrRunMode>(
+                    project_ini.value(EcIni::INI_PROJECT_33_OLD,
+                         QVariant::fromValue(defaultEcProjectState.projectGeneral.run_mode).toInt()).toInt());
 
                 project_ini.remove(EcIni::INI_PROJECT_33_OLD);
                 isVersionCompatible = false;
@@ -2523,14 +2528,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         }
         else
         {
-            v = project_ini.value(EcIni::INI_PROJECT_33,
-                            QVariant::fromValue(defaultEcProjectState.projectGeneral.run_mode));
-
-            if (v.canConvert<Defs::CurrRunMode>())
-            {
-                ec_project_state_.projectGeneral.run_mode
-                    = v.value<Defs::CurrRunMode>();
-            }
+            ec_project_state_.projectGeneral.run_mode = static_cast<Defs::CurrRunMode>(
+                project_ini.value(EcIni::INI_PROJECT_33,
+                            QVariant::fromValue(defaultEcProjectState.projectGeneral.run_mode).toInt()).toInt());
 
             ec_project_state_.projectGeneral.run_fcc
                     = project_ini.value(EcIni::INI_PROJECT_40,
@@ -5746,6 +5746,11 @@ void EcProject::setGeneralOutMeanCosp(int n)
 
 void EcProject::setGeneralBinSpectraAvail(int n)
 {
+    //> Announced only when it changes, like setSpectraFluxRunMode:
+    //> updateInfo() is wired back to the pages that write this, so an
+    //> unconditional emit turns one run-mode change into a dozen refreshes.
+    if (ec_project_state_.projectGeneral.bin_sp_avail == n) { return; }
+
     ec_project_state_.projectGeneral.bin_sp_avail = n;
     setModified(true);
     emit updateInfo();
@@ -5753,6 +5758,11 @@ void EcProject::setGeneralBinSpectraAvail(int n)
 
 void EcProject::setGeneralFullSpectraAvail(int n)
 {
+    //> Announced only when it changes, like setSpectraFluxRunMode:
+    //> updateInfo() is wired back to the pages that write this, so an
+    //> unconditional emit turns one run-mode change into a dozen refreshes.
+    if (ec_project_state_.projectGeneral.full_sp_avail == n) { return; }
+
     ec_project_state_.projectGeneral.full_sp_avail = n;
     setModified(true);
     emit updateInfo();
@@ -6854,6 +6864,11 @@ void EcProject::setGeneralEndTime(const QString &t)
 
 void EcProject::setGeneralHfMethod(int n)
 {
+    //> Announced only when it changes, like setSpectraFluxRunMode:
+    //> updateInfo() is wired back to the pages that write this, so an
+    //> unconditional emit turns one run-mode change into a dozen refreshes.
+    if (ec_project_state_.projectGeneral.hf_meth == n) { return; }
+
     ec_project_state_.projectGeneral.hf_meth = n;
     setModified(true);
     emit updateInfo();
@@ -7501,6 +7516,11 @@ void EcProject::setPlanarFitSubset(int n)
 
 void EcProject::setPlanarFitAssessmentOnly(int n)
 {
+    //> Announced only when it changes, like setSpectraFluxRunMode:
+    //> updateInfo() is wired back to the pages that write this, so an
+    //> unconditional emit turns one run-mode change into a dozen refreshes.
+    if (ec_project_state_.screenTilt.assessment_only == n) { return; }
+
     ec_project_state_.screenTilt.assessment_only = n;
     setModified(true);
     emit updateInfo();
@@ -7532,6 +7552,11 @@ void EcProject::setSpectraEndTime(const QString& time)
 
 void EcProject::setSpectraMode(int i)
 {
+    //> Announced only when it changes, like setSpectraFluxRunMode:
+    //> updateInfo() is wired back to the pages that write this, so an
+    //> unconditional emit turns one run-mode change into a dozen refreshes.
+    if (ec_project_state_.spectraSettings.sa_mode == i) { return; }
+
     ec_project_state_.spectraSettings.sa_mode = i;
     setModified(true);
     emit updateInfo();
@@ -7714,6 +7739,11 @@ void EcProject::setTimelagOptGas4MaxLag(double d)
 
 void EcProject::setTimelagAssessmentOnly(int n)
 {
+    //> Announced only when it changes, like setSpectraFluxRunMode:
+    //> updateInfo() is wired back to the pages that write this, so an
+    //> unconditional emit turns one run-mode change into a dozen refreshes.
+    if (ec_project_state_.timelagOpt.assessment_only == n) { return; }
+
     ec_project_state_.timelagOpt.assessment_only = n;
     setModified(true);
     emit updateInfo();

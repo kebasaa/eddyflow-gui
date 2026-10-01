@@ -42,6 +42,7 @@ public:
 
 private slots:
     void onButtonClick();
+    void onRemoteButtonClick();
 };
 
 #endif  // DIRBROWSEWIDGET_H
