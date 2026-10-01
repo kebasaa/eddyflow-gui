@@ -32,6 +32,7 @@
 #include <QPushButton>
 
 #include "customdroplineedit.h"
+#include "fileutils.h"
 #include "remotesource.h"
 #include "widget_utils.h"
 
@@ -43,7 +44,8 @@ LineEditAndBrowseWidget::LineEditAndBrowseWidget(QWidget *parent) :
     remoteLink_(QString()),
     remoteEnabled_(false),
     dialogTitle_(QString()),
-    dialogDir_(QString())
+    dialogDir_(QString()),
+    dialogPathHint_(QString())
 {
     lineEdit_ = new CustomDropLineEdit;
     lineEdit_->setReadOnly(true);
@@ -100,6 +102,7 @@ void LineEditAndBrowseWidget::onTextChanged()
 void LineEditAndBrowseWidget::clear()
 {
     remoteLink_.clear();
+    dialogPathHint_.clear();
     lineEdit_->clear();
 }
 
@@ -160,6 +163,12 @@ void LineEditAndBrowseWidget::setPath(const QString &path)
     QFileInfo filePath(path);
     QString canonicalFilePath = filePath.canonicalFilePath();
     lineEdit_->setText(QDir::toNativeSeparators(canonicalFilePath));
+
+    //> Recorded even when the field stayed blank, which is what happens to a
+    //> path that has gone: canonicalFilePath() answers nothing for it. This
+    //> is then the only trace of where the project pointed, and the browse
+    //> dialog opens at the nearest folder above it that is still there.
+    dialogPathHint_ = path;
 }
 
 void LineEditAndBrowseWidget::disableClearAction() const
@@ -202,6 +211,32 @@ QString LineEditAndBrowseWidget::text() const
 QString LineEditAndBrowseWidget::path() const
 {
     return remoteLink_.isEmpty() ? text() : remoteLink_;
+}
+
+QString LineEditAndBrowseWidget::dialogPathCandidate() const
+{
+    //> A link is a place on somebody's shared drive, not a directory to open.
+    const auto current = path();
+    if (!current.isEmpty() && !RemoteSource::isRemote(current)) { return current; }
+
+    return RemoteSource::isRemote(dialogPathHint_) ? QString() : dialogPathHint_;
+}
+
+QString LineEditAndBrowseWidget::dialogStartDir() const
+{
+    const auto fromField = FileUtils::nearestExistingDir(dialogPathCandidate());
+    if (!fromField.isEmpty()) { return QDir::toNativeSeparators(fromField); }
+
+    if (FileUtils::existsPath(dialogDir_)) { return dialogDir_; }
+
+    return WidgetUtils::getSearchPathHint();
+}
+
+QString LineEditAndBrowseWidget::dialogStartFile() const
+{
+    const auto candidate = dialogPathCandidate();
+    return QFileInfo(candidate).isFile()
+            ? QDir::toNativeSeparators(candidate) : QString();
 }
 
 void LineEditAndBrowseWidget::updatePathTooltip()

@@ -207,6 +207,8 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     headCorrDirBrowse = new DirBrowseWidget;
     headCorrDirBrowse->setRemoteBrowseEnabled(true);
     headCorrDirBrowse->setDialogTitle(tr("Select the Metek Head Correction Table Directory"));
+    headCorrDirBrowse->setDialogWorkingDir(
+        WidgetUtils::getDialogPathHint(QStringLiteral("head_corr_dir")));
     headCorrDirBrowse->setToolTip(tr("<b>Table directory:</b> The folder "
         "holding <i>phicorr.dat</i>, <i>ucorr.dat</i> and "
         "<i>alphacorr.dat</i>, each twenty comma-separated rows of elevation "
@@ -1016,7 +1018,12 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             { ecProject_->setScreenHeadCorrDir(path); });
     connect(headCorrDirBrowse, &DirBrowseWidget::pathSelected,
             this, [=](const QString& path)
-            { headCorrDirBrowse->setPath(path); ecProject_->setScreenHeadCorrDir(path); });
+            {
+                headCorrDirBrowse->setPath(path);
+                ecProject_->setScreenHeadCorrDir(path);
+                WidgetUtils::rememberDialogPath(
+                    QStringLiteral("head_corr_dir"), path, false);
+            });
 
     connect(tiltSensorCheckBox, &RichTextCheckBox::clicked,
             this, [=]()

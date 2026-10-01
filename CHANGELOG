@@ -1,6 +1,21 @@
 8.1.2 (unreleased)
 
     GUI:
+	- Fix: Browse opens where the field points. A path read from a project -
+	       raw data and output folders, metadata, dynamic metadata, biomet
+	       file and folder, planar fit, time lag and PWB files, spectral
+	       assessment file, binned and full cospectra folders, head
+	       correction tables, SMARTFlux package output - is what the dialog
+	       opens at, rather than wherever that field happened to be browsed
+	       last. A path that no longer exists opens at the nearest folder
+	       above it that still does; a field with no path of its own opens
+	       where that field was last browsed, remembered separately for each
+	       field, and then at the last opened project's folder. A file field
+	       opens with its file selected while the file is there. A shared
+	       drive link is never used as a start folder: the field keeps it and
+	       "Remote drive..." still browses it. The head correction table
+	       folder, which remembered nothing at all, now remembers like the
+	       rest.
 	- Fix: A numeric setting written empty now reads as its default instead
 	       of as zero, in both the metadata file and the project file. An ini
 	       key that exists but says nothing - `error_value=` - is not an absent

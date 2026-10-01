@@ -152,6 +152,34 @@ bool FileUtils::existsPath(const QString& p)
     return false;
 }
 
+QString FileUtils::nearestExistingDir(const QString& path)
+{
+    //> A link is not a place on this filesystem, and a relative value has no
+    //> anchor to climb from: resolving it would answer with wherever the
+    //> application happens to be running.
+    if (path.isEmpty() || RemoteSource::isRemote(path)) { return {}; }
+
+    const QFileInfo info(path);
+    if (info.isRelative()) { return {}; }
+
+    //> isDir() is false for a path that has gone, so a missing directory
+    //> starts the climb one level up - which is where it would end anyway.
+    auto candidate = info.isDir() ? info.absoluteFilePath() : info.absolutePath();
+    while (!candidate.isEmpty())
+    {
+        if (existsPath(candidate)) { return QDir(candidate).canonicalPath(); }
+
+        //> QDir::cdUp answers false as soon as the directory above is missing
+        //> too, so it cannot climb out of a tree that has gone several levels
+        //> deep. QFileInfo::path is a string operation and always climbs.
+        const auto parent = QFileInfo(candidate).path();
+        if (parent == candidate) { break; }   //> at the root
+        candidate = parent;
+    }
+
+    return {};
+}
+
 bool FileUtils::isDirEmpty(const QString& dirName)
 {
     QDir dir(dirName);

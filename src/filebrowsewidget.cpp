@@ -54,15 +54,14 @@ FileBrowseWidget::~FileBrowseWidget()
 
 void FileBrowseWidget::onButtonClick()
 {
-    auto workingDir = dialogWorkingDir();
-    if (workingDir.isEmpty() || !QFileInfo(workingDir).isDir())
-    {
-        workingDir = WidgetUtils::getSearchPathHint();
-    }
+    //> The file itself when it is there, so the dialog opens with it
+    //> selected; otherwise the directory to start in. Never a path that has
+    //> gone - Qt answers one of those with a directory of its own choosing.
+    const auto startFile = dialogStartFile();
 
     QString filename = QFileDialog::getOpenFileName(this,
                            dialogTitle(),
-                           workingDir,
+                           startFile.isEmpty() ? dialogStartDir() : startFile,
                            dialogFilter());
 
     if (filename.isEmpty()) { return; }
