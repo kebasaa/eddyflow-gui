@@ -32,6 +32,7 @@
 
 #include "dlinidefs.h"
 #include "fileutils.h"
+#include "ini_file.h"
 #include "mainwindow.h"
 #include "stringutils.h"
 #include "widget_utils.h"
@@ -563,7 +564,11 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
     QDateTime now = QDateTime::currentDateTime();
     QString now_str = now.toString(Qt::ISODate);
 
-    QSettings project_ini(filename, QSettings::IniFormat);
+    //> IniFile, not QSettings: a numeric key present but empty falls back to
+    //> its default here rather than reading as zero - a metadata file written
+    //> elsewhere with an empty error_value used to declare 0 its missing-data
+    //> fill. See src/ini_file.h.
+    IniFile project_ini(filename, QSettings::IniFormat);
 
     // in case of old non existing file name, use the current existing
     QString projectFilename = project_ini.value(DlIni::INI_GENE_FILE_NAME, QString()).toString();

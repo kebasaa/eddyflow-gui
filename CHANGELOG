@@ -1,6 +1,17 @@
 8.1.2 (unreleased)
 
     GUI:
+	- Fix: A numeric setting written empty now reads as its default instead
+	       of as zero, in both the metadata file and the project file. An ini
+	       key that exists but says nothing - `error_value=` - is not an absent
+	       key, so QSettings skipped the default and the conversion answered 0:
+	       a metadata file written elsewhere with an empty error_value declared
+	       0 to be its missing-data fill, and every genuine zero in the column
+	       was read as missing. An empty acquisition_frequency read as 0 Hz, an
+	       empty path length as 0 m, an empty analyser time constant as 0. Both
+	       readers now open their file as an IniFile, which keeps the default
+	       beside the value, so an empty or unreadable number falls back to it;
+	       text keeps its old meaning, where empty is a legitimate value.
 	- Fix: Choosing "Pre-processing run" or "Production run" on the Output
 	       Files page no longer opens a stack of warning windows. The settings
 	       a run mode requires are applied as one change and the project is
