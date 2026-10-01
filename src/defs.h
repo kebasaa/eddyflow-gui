@@ -195,6 +195,8 @@ namespace Defs
     const QString MMOL_M3_STRING = MMOL_M_STRING + CUBE;
     const QString UMOL_M3_STRING = UMOL_M_STRING + CUBE;
     const QString UMOL_M2S_STRING = MICRO + QStringLiteral("mol/m") + SQUARE + QStringLiteral("s");
+    const QString NMOL_M2S_STRING = QStringLiteral("nmol/m") + SQUARE + QStringLiteral("s");
+    const QString PMOL_M2S_STRING = QStringLiteral("pmol/m") + SQUARE + QStringLiteral("s");
     const QString W_M2_STRING = QStringLiteral("W/m") + SQUARE;
     const QString G_M3_STRING = QStringLiteral("g/m") + CUBE;
     const QString MG_M3_STRING = QStringLiteral("mg/m") + CUBE;

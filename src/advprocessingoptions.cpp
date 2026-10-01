@@ -1730,7 +1730,7 @@ void AdvProcessingOptions::createTlSettingsDialog()
 {
     if (!tlDialog_)
     {
-        tlDialog_ = new TimeLagSettingsDialog(this, ecProject_, configState_);
+        tlDialog_ = new TimeLagSettingsDialog(this, dlProject_, ecProject_, configState_);
     }
 }
 

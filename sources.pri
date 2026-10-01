@@ -45,6 +45,7 @@ HEADERS += \
     src/measurement_record.h \
     src/faderwidget.h \
     src/fileutils.h \
+    src/flux_units.h \
     src/gas_metadata.h \
     src/infomessage.h \
     src/irga_delegate.h \
@@ -160,6 +161,7 @@ SOURCES +=  \
     src/ecproject.cpp \
     src/faderwidget.cpp \
     src/fileutils.cpp \
+    src/flux_units.cpp \
     src/gas_metadata.cpp \
     src/infomessage.cpp \
     src/irga_delegate.cpp \

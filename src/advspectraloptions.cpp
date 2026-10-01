@@ -40,6 +40,7 @@
 #include <QSize>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QScopeGuard>
 #include <QScrollArea>
 #include <QSignalBlocker>
 #include <QHeaderView>
@@ -62,6 +63,7 @@
 #include "dlproject.h"
 #include "ecproject.h"
 #include "fileutils.h"
+#include "flux_units.h"
 #include "filebrowsewidget.h"
 #include "globalsettings.h"
 #include "measurement_record.h"
@@ -1494,8 +1496,26 @@ void AdvSpectralOptions::refresh()
     emit updateOutputsRequest(hfMethCombo->currentIndex());
 }
 
+void AdvSpectralOptions::showEvent(QShowEvent* event)
+{
+    QWidget::showEvent(event);
+
+    //> The gas records, and the units their columns are declared in, can
+    //> change while another page is in front.
+    refreshSpectralQaQcTableState();
+}
+
 void AdvSpectralOptions::refreshSpectralAssessmentCreationMode()
 {
+    //> Re-entrant by construction, like AdvOutputOptions::refresh: this is
+    //> wired to EcProject::updateInfo and writes settings that announce
+    //> themselves, so each pass invites the next. Without the guard a single
+    //> run-mode change ran it, and every page listening to it, many times
+    //> over - which is what stacked the warning windows that came with them.
+    if (refreshingAssessmentMode_) { return; }
+    refreshingAssessmentMode_ = true;
+    const auto refreshDone = qScopeGuard([this]{ refreshingAssessmentMode_ = false; });
+
     const auto createAssessment = ecProject_->spectraFluxRunMode() == 1;
     const auto productionRun = ecProject_->spectraFluxRunMode() == 2;
     if (createAssessment && configState_->project.smartfluxMode)
@@ -2126,6 +2146,28 @@ const VariableDesc* AdvSpectralOptions::rawVariableAtColumn(int column) const
     return &variables->at(index);
 }
 
+/// The unit one gas's flux thresholds are shown in.
+///
+/// Taken from the gas's own column in the raw file description, so a species
+/// reported in ppb is configured in nmol m-2 s-1 rather than in millionths of
+/// the stored unit. What is stored stays umol m-2 s-1 either way.
+FluxUnits::Scale AdvSpectralOptions::fluxScale(int gasIndex) const
+{
+    const auto& gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size())
+    {
+        return FluxUnits::forColumn(QString());
+    }
+
+    QString unitToken;
+    const auto variable = rawVariableAtColumn(gases.at(gasIndex).rawColumn);
+    if (variable && dlProject_)
+    {
+        unitToken = dlProject_->canonicalMeasureUnit(variable->inputUnit());
+    }
+    return FluxUnits::forColumn(unitToken);
+}
+
 bool AdvSpectralOptions::selectedColumnIsVariable(int column, const QString& variableName) const
 {
     const auto variable = rawVariableAtColumn(column);
@@ -2135,11 +2177,17 @@ bool AdvSpectralOptions::selectedColumnIsVariable(int column, const QString& var
 /// The record set the current spins were built from.
 QString AdvSpectralOptions::gasSignature() const
 {
+    //> The unit is part of it: changing a column from ppm to ppb in the
+    //> metadata editor leaves slug, instrument and column alone, and the rows
+    //> would go on offering umol thresholds for a gas reported in nmol.
     QStringList parts;
-    for (const auto& gas : ecProject_->gasColumns())
+    const auto& gases = ecProject_->gasColumns();
+    for (int i = 0; i < gases.size(); ++i)
     {
+        const auto& gas = gases.at(i);
         parts << gas.slug + QLatin1Char('|') + gas.instrumentId
-                 + QLatin1Char('|') + QString::number(gas.rawColumn);
+                 + QLatin1Char('|') + QString::number(gas.rawColumn)
+                 + QLatin1Char('|') + fluxScale(i).display;
     }
     return parts.join(QLatin1Char(';'));
 }
@@ -2207,6 +2255,11 @@ double AdvSpectralOptions::gasSpectralFor(int gasIndex,
     if (gasIndex < 0 || gasIndex >= gases.size()) { return 0.0; }
     const auto& proc = gases.at(gasIndex).proc;
 
+    //> Stored in umol m-2 s-1 whatever the column says, so the three flux
+    //> thresholds - and only those three, the frequencies are Hz either way -
+    //> are scaled on the way out.
+    const auto scale = fluxScale(gasIndex);
+
     switch (param)
     {
         case SpectralParam::HfnFmin:
@@ -2216,14 +2269,24 @@ double AdvSpectralOptions::gasSpectralFor(int gasIndex,
         case SpectralParam::Fmax:
             if (proc.saFmax >= 0.0) { return proc.saFmax; } break;
         case SpectralParam::MinUnstable:
-            if (proc.saMinUn >= 0.0) { return proc.saMinUn; } break;
+            if (proc.saMinUn >= 0.0) { return proc.saMinUn * scale.factor; } break;
         case SpectralParam::MinStable:
-            if (proc.saMinSt >= 0.0) { return proc.saMinSt; } break;
+            if (proc.saMinSt >= 0.0) { return proc.saMinSt * scale.factor; } break;
         case SpectralParam::Maximum:
-            if (proc.saMax >= 0.0) { return proc.saMax; } break;
+            if (proc.saMax >= 0.0) { return proc.saMax * scale.factor; } break;
     }
 
-    return defaultGasSpectral(gases.at(gasIndex).slug, param);
+    const auto fallback = defaultGasSpectral(gases.at(gasIndex).slug, param);
+    if (param == SpectralParam::MinUnstable
+        || param == SpectralParam::MinStable
+        || param == SpectralParam::Maximum)
+    {
+        //> The species defaults are stored-unit values too, and they are the
+        //> whole complaint: 0.01 umol m-2 s-1 sits above every flux a COS
+        //> record will ever report, so as a minimum it discarded the lot.
+        return fallback * scale.factor;
+    }
+    return fallback;
 }
 
 /// Store one per-gas value on its record. The record is the only place it
@@ -2236,14 +2299,18 @@ void AdvSpectralOptions::onGasSpectralChanged(int gasIndex,
     auto gases = ecProject_->gasColumns();
     if (gasIndex < 0 || gasIndex >= gases.size()) { return; }
 
+    //> Back to the stored unit, the reciprocal of what gasSpectralFor applies,
+    //> so a value read out and written back unchanged stays where it was.
+    const auto scale = fluxScale(gasIndex);
+
     switch (param)
     {
         case SpectralParam::HfnFmin: gases[gasIndex].proc.saHfnFmin = value; break;
         case SpectralParam::Fmin: gases[gasIndex].proc.saFmin = value; break;
         case SpectralParam::Fmax: gases[gasIndex].proc.saFmax = value; break;
-        case SpectralParam::MinUnstable: gases[gasIndex].proc.saMinUn = value; break;
-        case SpectralParam::MinStable: gases[gasIndex].proc.saMinSt = value; break;
-        case SpectralParam::Maximum: gases[gasIndex].proc.saMax = value; break;
+        case SpectralParam::MinUnstable: gases[gasIndex].proc.saMinUn = value / scale.factor; break;
+        case SpectralParam::MinStable: gases[gasIndex].proc.saMinSt = value / scale.factor; break;
+        case SpectralParam::Maximum: gases[gasIndex].proc.saMax = value / scale.factor; break;
     }
     ecProject_->setGasColumns(gases);
 
@@ -2343,15 +2410,22 @@ QDoubleSpinBox* AdvSpectralOptions::makeGasSpectralSpin(int gasIndex,
     }
     else
     {
-        spin->setRange(0.0, 5000.0);
         // CO2 fluxes are an order of magnitude larger than the other gases',
         // which is why its minima stepped coarser than theirs.
         const auto slug = ecProject_->gasColumns().at(gasIndex).slug;
         const bool isCo2 = (slug == QLatin1String("co2"));
-        if (param == SpectralParam::Maximum) { spin->setSingleStep(10.0); }
-        else { spin->setSingleStep(isCo2 ? 1.0 : 0.1); }
+        const double step = (param == SpectralParam::Maximum)
+                ? 10.0
+                : (isCo2 ? 1.0 : 0.1);
+
+        //> Range, step and suffix are all in the gas's own unit: a threshold
+        //> shown in nmol needs a range a thousand times wider to reach the
+        //> same flux, and a step of 0.1 nmol rather than 0.1 umol.
+        const auto scale = fluxScale(gasIndex);
+        spin->setRange(0.0, 5000.0 * scale.factor);
+        spin->setSingleStep(step * scale.factor);
         spin->setDecimals(6);
-        spin->setSuffix(tr(" [%1]").arg(Defs::UMOL_M2S_STRING));
+        spin->setSuffix(tr(" [%1]").arg(scale.display));
     }
     spin->setAccelerated(true);
 

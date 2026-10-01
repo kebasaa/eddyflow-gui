@@ -14,6 +14,18 @@
 	          (-9999)" - are on by default, and stay on in the Minimal and
 	          Typical output presets as well as the Thorough one. They change
 	          only labels, units and the error value of output written anyway.
+	- Fix: Per-gas flux thresholds are shown in the unit of the gas's own
+	       column in the raw file description, rather than always in
+	       umol m-2 s-1: the minima and maximum of the "Spectra, cospectra
+	       QA/QC and attenuation assessment" table, and the minimum flux of
+	       the Time Lag Optimization dialog. A gas declared in ppb is
+	       configured in nmol m-2 s-1, one in pmol/mol in pmol m-2 s-1,
+	       matching what the engine reports for that gas; the default offered
+	       follows the same unit, so a COS or N2O record no longer starts with
+	       a minimum above every flux it will ever produce. Stored values,
+	       project files and the engine are unchanged - only the number shown
+	       and typed is scaled - and the table follows a unit edited in the
+	       metadata editor.
 
 8.1.1 (2026-09-25)
 

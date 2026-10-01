@@ -29,6 +29,7 @@
 #include <QWidget>
 
 #include "configstate.h"
+#include "flux_units.h"
 
 class QButtonGroup;
 class QAbstractTableModel;
@@ -68,6 +69,9 @@ public:
 
 signals:
     void updateOutputsRequest(int n);
+
+protected:
+    void showEvent(QShowEvent* event) override;
 
 public slots:
     void reset();
@@ -166,6 +170,7 @@ private:
     void rebuildGasSpectralSpins();
     QString gasSignature() const;
     QString gasRowLabel(int gasIndex) const;
+    FluxUnits::Scale fluxScale(int gasIndex) const;
     QDoubleSpinBox* makeGasSpectralSpin(int gasIndex, SpectralParam param);
     double gasSpectralFor(int gasIndex, SpectralParam param) const;
     double defaultGasSpectral(const QString& slug, SpectralParam param) const;
@@ -287,6 +292,7 @@ private:
 
     bool spectraNonExistingRadioOldEnabled = false;
     bool massmanFallbackWarningShown_ = false;
+    bool refreshingAssessmentMode_ = false;
 };
 
 #endif // ADVSPECTRALOPTIONS_H
