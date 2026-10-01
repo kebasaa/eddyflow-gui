@@ -39,15 +39,23 @@ const std::array<int, 4> SEQUENCE { Qt::Key_E, Qt::Key_D, Qt::Key_D, Qt::Key_Y }
 const qint64 MAX_GAP_MS = 1500;
 
 // typing "eddy" into a field is data entry, not a cheat code
+//
+// Only a field that can actually be typed into counts. A read-only view is
+// not one: the console and the info dock are read-only QPlainTextEdits, and
+// they hold the focus for as long as a run lasts, so judging by class alone
+// swallowed every key while anything was being processed.
 bool isTextInput(QWidget* w)
 {
     if (!w)
         return false;
-    if (qobject_cast<QLineEdit*>(w)
-        || qobject_cast<QTextEdit*>(w)
-        || qobject_cast<QPlainTextEdit*>(w)
-        || qobject_cast<QAbstractSpinBox*>(w))
-        return true;
+    if (auto line = qobject_cast<QLineEdit*>(w))
+        return !line->isReadOnly();
+    if (auto plain = qobject_cast<QPlainTextEdit*>(w))
+        return !plain->isReadOnly();
+    if (auto text = qobject_cast<QTextEdit*>(w))
+        return !text->isReadOnly();
+    if (auto spin = qobject_cast<QAbstractSpinBox*>(w))
+        return !spin->isReadOnly();
     if (auto combo = qobject_cast<QComboBox*>(w))
         return combo->isEditable();
     return false;
