@@ -1785,8 +1785,10 @@ void AdvOutputOptions::checkVarsAll(bool b)
 void AdvOutputOptions::selectMin()
 {
     outFullCheckBox->setChecked(true);
-    fluxnetErrLabelCheckBox->setChecked(false);
-    fluxnetBiometCheckBox->setChecked(false);
+    //> On in every preset: they cost nothing to compute, changing only the
+    //> labels, units and error value of output that is written anyway.
+    fluxnetErrLabelCheckBox->setChecked(true);
+    fluxnetBiometCheckBox->setChecked(true);
     outDetailsCheckBox->setChecked(false);
     outMdCheckBox->setChecked(true);
     outBiometCheckBox->setChecked(false);
@@ -1809,8 +1811,8 @@ void AdvOutputOptions::selectMin()
 void AdvOutputOptions::selectTypical()
 {
     outFullCheckBox->setChecked(true);
-    fluxnetErrLabelCheckBox->setChecked(false);
-    fluxnetBiometCheckBox->setChecked(false);
+    fluxnetErrLabelCheckBox->setChecked(true);
+    fluxnetBiometCheckBox->setChecked(true);
     outDetailsCheckBox->setChecked(false);
     outMdCheckBox->setChecked(true);
     outBiometCheckBox->setChecked(true);

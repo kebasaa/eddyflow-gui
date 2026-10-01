@@ -9,6 +9,11 @@
 	       label's validation and opened its warning once per pass. The label
 	       is now checked when the field is left or an entry picked, not on
 	       every keystroke and never on a programmatic write.
+	- Change: The two Fluxnet output settings - "Use Fluxnet standard for
+	          biomet labels and units" and "Set error label in Fluxnet mode
+	          (-9999)" - are on by default, and stay on in the Minimal and
+	          Typical output presets as well as the Thorough one. They change
+	          only labels, units and the error value of output written anyway.
 
 8.1.1 (2026-09-25)
 
