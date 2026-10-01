@@ -106,10 +106,21 @@ private slots:
     void processFinished(int exitCode, QProcess::ExitStatus exitStatus);
 
 private:
+    /// Ends the containment of the previous run: on Windows closes its job
+    /// handle, which kills anything of that run still alive.
+    void releaseRunGroup();
+
     QProcess* process_;
     QString fullPath_;
     ExitStatus processExit_;
     qint64 processPid_;
+    /// The engine and everything it starts belong to one group, so Stop,
+    /// Pause and Resume reach all of it - a parallel pre-pass is a parent and
+    /// up to 32 worker processes, and acting on the parent alone used to leave
+    /// the workers running. On Windows a job object (a HANDLE, kept as void*
+    /// so <windows.h> stays out of this header); elsewhere the engine is
+    /// started as the leader of its own process group, whose ID is its PID.
+    void* job_ = nullptr;
 
 signals:
     void readyReadStdOut();

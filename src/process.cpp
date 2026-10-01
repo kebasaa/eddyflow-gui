@@ -30,9 +30,18 @@
 #include <QDir>
 #include <QFileInfo>
 
+#include <vector>
+
 #if defined(Q_OS_WIN)
 #include <windows.h>
 #include <tlhelp32.h>
+#elif defined(Q_OS_UNIX)
+#include <signal.h>
+#include <unistd.h>
+#endif
+
+#if defined(Q_OS_WIN)
+static void suspendResumeProcessThreads(DWORD pid, bool suspend);
 #endif
 
 
@@ -53,6 +62,21 @@ Process::Process(QObject* parent, const QString &fullPath) :
 
 Process::~Process()
 {
+    releaseRunGroup();
+}
+
+void Process::releaseRunGroup()
+{
+#if defined(Q_OS_WIN)
+    if (job_)
+    {
+        // KILL_ON_JOB_CLOSE: whatever of the finished run is still alive -
+        // a worker, a launcher, an archive being decompressed ahead - goes
+        // with the handle.
+        CloseHandle(static_cast<HANDLE>(job_));
+        job_ = nullptr;
+    }
+#endif
 }
 
 bool Process::engineProcessStart(const QString& fullPath, const QString& workingDir, const QStringList& argList)
@@ -64,9 +88,61 @@ bool Process::engineProcessStart(const QString& fullPath, const QString& working
 
     process_->setWorkingDirectory(workingDir);
 
+    // Everything the engine starts must stop when it is stopped. A parallel
+    // pre-pass is one parent and up to 32 workers, each launched through a
+    // shell script that exits at once - so the workers' parent chain is
+    // broken from the start, and nothing short of a group the OS maintains
+    // can find them all again. Killing the parent alone left six workers
+    // computing for hours on the Yatir run.
+    releaseRunGroup();
+#if defined(Q_OS_WIN)
+    // A job with KILL_ON_JOB_CLOSE: TerminateJobObject on Stop, and the
+    // handle closing - this object destroyed, or the interface exiting or
+    // crashing - takes every process in it.
+    //
+    // The engine is created suspended and only released once it is in the
+    // job, so it cannot start a child before the job exists to catch it.
+    job_ = CreateJobObjectW(nullptr, nullptr);
+    if (job_)
+    {
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION info = {};
+        info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        SetInformationJobObject(static_cast<HANDLE>(job_), JobObjectExtendedLimitInformation,
+                                &info, sizeof(info));
+        process_->setCreateProcessArgumentsModifier(
+            [](QProcess::CreateProcessArguments *args) { args->flags |= CREATE_SUSPENDED; });
+    }
+    else
+    {
+        process_->setCreateProcessArgumentsModifier({});
+    }
+#elif defined(Q_OS_UNIX)
+    // Its own session, so its own process group with the engine as leader.
+    // Workers start through `sh script &` and inherit the group.
+    process_->setChildProcessModifier([] { ::setsid(); });
+#endif
+
     // NOTE: start() function without args not parse correctly filepath with spaces, Qt bug?
     process_->start(fullPath, argList, QProcess::Unbuffered | QProcess::ReadOnly);
     processPid_ = process_->processId();
+
+#if defined(Q_OS_WIN)
+    if (job_ && processPid_ > 0)
+    {
+        HANDLE h = OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE, FALSE,
+                               static_cast<DWORD>(processPid_));
+        if (h)
+        {
+            AssignProcessToJobObject(static_cast<HANDLE>(job_), h);
+            CloseHandle(h);
+        }
+        // Released whether or not the assignment took: a run outside its job
+        // still has to run. Resuming every thread rather than Qt's own handle
+        // to the main one, which it does not expose - and resuming a thread
+        // that is already running is harmless.
+        suspendResumeProcessThreads(static_cast<DWORD>(processPid_), false);
+    }
+#endif
 
     return true;
 }
@@ -203,6 +279,37 @@ bool Process::zipContainsFiletype(const QString& fileName, const QString& filePa
 }
 
 #if defined(Q_OS_WIN)
+//! Every process currently in the job; empty if there is no job or the query
+//! fails.
+static std::vector<DWORD> jobProcessIds(HANDLE job)
+{
+    std::vector<DWORD> ids;
+    if (!job) return ids;
+    // Comfortably more than the engine can start: one parent, up to 32
+    // workers and their launchers, and an archive being unpacked ahead.
+    const DWORD room = 512;
+    std::vector<char> buf(sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST) + room * sizeof(ULONG_PTR));
+    auto *list = reinterpret_cast<JOBOBJECT_BASIC_PROCESS_ID_LIST *>(buf.data());
+    list->NumberOfAssignedProcesses = room;
+    if (!QueryInformationJobObject(job, JobObjectBasicProcessIdList, list,
+                                   static_cast<DWORD>(buf.size()), nullptr))
+        return ids;
+    for (DWORD i = 0; i < list->NumberOfProcessIdsInList; ++i)
+        ids.push_back(static_cast<DWORD>(list->ProcessIdList[i]));
+    return ids;
+}
+
+//! Suspend or resume a whole run. The parent goes first on suspend, so it
+//! cannot start another worker between the listing and the suspension, and
+//! last on resume.
+static void suspendResumeRun(HANDLE job, DWORD parent, bool suspend)
+{
+    if (suspend) suspendResumeProcessThreads(parent, true);
+    for (DWORD id : jobProcessIds(job))
+        if (id != parent) suspendResumeProcessThreads(id, suspend);
+    if (!suspend) suspendResumeProcessThreads(parent, false);
+}
+
 static void suspendResumeProcessThreads(DWORD pid, bool suspend)
 {
     HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
@@ -225,10 +332,11 @@ void Process::processPause(Defs::CurrRunStatus mode)
 {
     Q_UNUSED(mode)
 #if defined(Q_OS_WIN)
-    suspendResumeProcessThreads(static_cast<DWORD>(processPid_), true);
-#elif defined(Q_OS_MACOS) || defined(Q_OS_LINUX)
-    QProcess::startDetached(QStringLiteral("kill"),
-                            {QStringLiteral("-STOP"), QString::number(processPid_)});
+    suspendResumeRun(static_cast<HANDLE>(job_), static_cast<DWORD>(processPid_), true);
+#elif defined(Q_OS_UNIX)
+    // The whole group; the engine alone if it somehow is not leading one.
+    if (processPid_ > 0 && ::kill(-static_cast<pid_t>(processPid_), SIGSTOP) != 0)
+        ::kill(static_cast<pid_t>(processPid_), SIGSTOP);
 #endif
 }
 
@@ -236,10 +344,10 @@ void Process::processResume(Defs::CurrRunStatus mode)
 {
     Q_UNUSED(mode)
 #if defined(Q_OS_WIN)
-    suspendResumeProcessThreads(static_cast<DWORD>(processPid_), false);
-#elif defined(Q_OS_MACOS) || defined(Q_OS_LINUX)
-    QProcess::startDetached(QStringLiteral("kill"),
-                            {QStringLiteral("-CONT"), QString::number(processPid_)});
+    suspendResumeRun(static_cast<HANDLE>(job_), static_cast<DWORD>(processPid_), false);
+#elif defined(Q_OS_UNIX)
+    if (processPid_ > 0 && ::kill(-static_cast<pid_t>(processPid_), SIGCONT) != 0)
+        ::kill(static_cast<pid_t>(processPid_), SIGCONT);
 #endif
 }
 
@@ -251,7 +359,17 @@ void Process::processStop()
     disconnect(process_, &QProcess::errorOccurred,
              this, &Process::onProcessError);
 
+    // The whole run, not just the parent: its workers are separate
+    // processes and outlive it otherwise.
+#if defined(Q_OS_WIN)
+    if (job_)
+        TerminateJobObject(static_cast<HANDLE>(job_), 1);
+#elif defined(Q_OS_UNIX)
+    if (processPid_ > 0)
+        ::kill(-static_cast<pid_t>(processPid_), SIGKILL);
+#endif
     process_->kill();
+    releaseRunGroup();
     processExit_ = ExitStatus::Stopped;
 }
 
@@ -277,6 +395,10 @@ void Process::processFinished(int exitCode, QProcess::ExitStatus exitStatus)
     // to avoid multiple call
     disconnect(process_, &QProcess::finished,
              this, &Process::processFinished);
+
+    // Anything the run left behind - a worker that has not noticed yet, an
+    // archive still being unpacked - goes now, not when the next run starts.
+    releaseRunGroup();
 
     if (exitStatus == QProcess::CrashExit)
     {
