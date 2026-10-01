@@ -16,6 +16,21 @@
 	       "Remote drive..." still browses it. The head correction table
 	       folder, which remembered nothing at all, now remembers like the
 	       rest.
+	- Fix: Choosing a run mode on the Output Files page no longer opens a
+	       stack of warning windows. Pages refreshing themselves no longer
+	       interrupt: a warning raised while settings are being applied on
+	       the user's behalf - a run mode, a preset, a project load - is
+	       written to the log instead of opened in a window, since blocking
+	       the project's signals silences the project but never the pages'
+	       own widgets, whose handlers were reaching the warnings. Messages
+	       that report a failure, and every question, are unchanged. Four
+	       pieces of needless work behind the storm are gone as well: the
+	       metadata file is re-read only when the project really names a
+	       different file, the spectral page no longer fires its own method
+	       handlers while restoring them (which also stored the correction
+	       method from a stale box), the low-pass fallback warning is shown
+	       once a session as intended, and a planar fit table rebuilt from a
+	       project change no longer announces that change back.
 	- Fix: A numeric setting written empty now reads as its default instead
 	       of as zero, in both the metadata file and the project file. An ini
 	       key that exists but says nothing - `error_value=` - is not an absent

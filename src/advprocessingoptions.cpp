@@ -1448,6 +1448,11 @@ void AdvProcessingOptions::reset()
 {
     // save the modified flag to prevent side effects of setting widgets
     bool oldmod = ecProject_->modified();
+    //> Nothing a refresh writes is the user's own doing, so nothing it runs
+    //> into is worth a window. Blocking the project is not enough: these
+    //> widgets' own handlers are what reach the warnings.
+    const WidgetUtils::QuietWarnings quietWhileRefreshing;
+
     ecProject_->blockSignals(true);
 
     uOffsetSpin->setValue(ecProject_->defaultSettings.screenSetting.u_offset);
@@ -1543,6 +1548,11 @@ void AdvProcessingOptions::refresh()
 {
     // save the modified flag to prevent side effects of setting widgets
     bool oldmod = ecProject_->modified();
+    //> Nothing a refresh writes is the user's own doing, so nothing it runs
+    //> into is worth a window. Blocking the project is not enough: these
+    //> widgets' own handlers are what reach the warnings.
+    const WidgetUtils::QuietWarnings quietWhileRefreshing;
+
     ecProject_->blockSignals(true);
 
     uOffsetSpin->setValue(ecProject_->screenUOffset());

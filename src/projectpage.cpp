@@ -30,6 +30,8 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDebug>
+#include <QLineEdit>
+#include <QFileInfo>
 #include <QGridLayout>
 #include <QIcon>
 #include <QPixmap>
@@ -408,10 +410,14 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
 
     connect(biomExtDirSuffixLabel, &ClickLabel::clicked,
             this, &ProjectPage::onBiomExtDirSuffixLabelClicked);
-    connect(biomExtDirCombo, &QComboBox::currentTextChanged,
-            this, &ProjectPage::updateExtDirSuffix);
-    connect(biomExtDirCombo, &QComboBox::editTextChanged,
-            this, &ProjectPage::updateExtDirSuffix);
+    //> Validated when the user has finished, not on every character and not
+    //> on a programmatic write: refresh() restores this combo, and the pair
+    //> of change signals this replaced fired from inside it - each one that
+    //> saw an empty box opening a warning of its own.
+    connect(biomExtDirCombo->lineEdit(), &QLineEdit::editingFinished,
+            this, [this]() { updateExtDirSuffix(biomExtDirCombo->currentText()); });
+    connect(biomExtDirCombo, &QComboBox::activated,
+            this, [this](int) { updateExtDirSuffix(biomExtDirCombo->currentText()); });
 
     connect(smartfluxBar_, &SmartFluxBar::showSmartfluxBarRequest,
             this, [parent](bool on){ emit static_cast<MainWidget*>(parent)->showSmartfluxBarRequest(on); });
@@ -576,6 +582,11 @@ void ProjectPage::reset()
 {
     // save the modified flag to prevent side effects of setting widgets
     bool oldmod = ecProject_->modified();
+    //> Nothing a refresh writes is the user's own doing, so nothing it runs
+    //> into is worth a window. Blocking the project is not enough: these
+    //> widgets' own handlers are what reach the warnings.
+    const WidgetUtils::QuietWarnings quietWhileRefreshing;
+
     ecProject_->blockSignals(true);
 
     titleEdit->clear();
@@ -616,6 +627,11 @@ void ProjectPage::refresh()
 {
     // save the modified flag to prevent side effects of setting widgets
     bool oldmod = ecProject_->modified();
+    //> Nothing a refresh writes is the user's own doing, so nothing it runs
+    //> into is worth a window. Blocking the project is not enough: these
+    //> widgets' own handlers are what reach the warnings.
+    const WidgetUtils::QuietWarnings quietWhileRefreshing;
+
     ecProject_->blockSignals(true);
 
     if (titleEdit->text() != ecProject_->generalTitle())
@@ -697,11 +713,33 @@ void ProjectPage::refresh()
     ecProject_->blockSignals(false);
 }
 
+//> Compared the way the field stores it: the widget keeps the canonical
+//> spelling of a local path, so the same file named differently in the
+//> project - or a file that has gone, which the field cannot show at all -
+//> read as a different file. Every announcement then re-opened the metadata
+//> and re-ran its validation, which is up to four warning windows a click.
+static bool sameMetadataFile(const QString& one, const QString& other)
+{
+    if (one == other) { return true; }
+    if (one.isEmpty() || other.isEmpty()) { return false; }
+
+    //> A link is only ever itself; there is nothing local to compare.
+    if (RemoteSource::isRemote(one) || RemoteSource::isRemote(other))
+    {
+        return false;
+    }
+
+    const auto canonical = QFileInfo(one).canonicalFilePath();
+    return !canonical.isEmpty()
+            && canonical == QFileInfo(other).canonicalFilePath();
+}
+
 // triggered by reset() and refresh()
 void ProjectPage::refreshMetadata()
 {
     QString mdFile(ecProject_->generalMdFilepath());
-    if (mdFile != metadataFileBrowse->path())
+    if (!sameMetadataFile(mdFile, metadataFileBrowse->path())
+        && !sameMetadataFile(mdFile, lastMetadataRead_))
     {
         if (!mdFile.isEmpty())
         {
@@ -711,10 +749,12 @@ void ProjectPage::refreshMetadata()
                 if (dlIniDialog_->openFile(mdFile, embedded))
                 {
                     updateMetadataFileBrowse(mdFile);
+                    lastMetadataRead_ = mdFile;
                 }
                 // silently discard and clean metadata editor
                 else
                 {
+                    lastMetadataRead_.clear();
                     mdEditorReset();
                 }
             }
@@ -722,12 +762,14 @@ void ProjectPage::refreshMetadata()
             {
                 // schedule a silent cleanup request
                 // at the end of a project file loading (refresh)
+                lastMetadataRead_.clear();
                 emit mdCleanupRequest();
             }
         }
         // silently discard and clean metadata editor
         else
         {
+            lastMetadataRead_.clear();
             mdEditorReset();
         }
     }

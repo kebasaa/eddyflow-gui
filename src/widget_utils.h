@@ -91,6 +91,34 @@ namespace WidgetUtils
     void openForumWebsite();
     void showHelp(const QUrl& url);
 
+    ///
+    /// \brief QuietWarnings
+    /// While one of these is alive, warning() and information() write to the
+    /// log instead of opening a window. Settings applied on the user's behalf
+    /// - a run mode, an output preset, a project load - refresh every page,
+    /// and a page restoring its own widgets is not an occasion to interrupt
+    /// anybody: the pages block the project's signals while they do it, but
+    /// never their own widgets', which is how a single click used to end in a
+    /// stack of warnings.
+    ///
+    /// critical(), the questions and requestToSave() are deliberately not
+    /// quietened: each either reports a failure that stopped something or
+    /// asks something only the user can answer.
+    class QuietWarnings
+    {
+    public:
+        QuietWarnings();
+        ~QuietWarnings();
+        QuietWarnings(const QuietWarnings&) = delete;
+        QuietWarnings& operator=(const QuietWarnings&) = delete;
+
+        static bool active();
+
+    private:
+        //> Counted rather than a flag: one refresh reaches another.
+        static int depth_;
+    };
+
     // message box
     bool okToOverwrite(QWidget *parent, const QString& filename);
     bool okToRemoveColumn(QWidget* parent);

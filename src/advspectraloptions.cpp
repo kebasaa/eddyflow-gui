@@ -1231,6 +1231,11 @@ void AdvSpectralOptions::reset()
 {
     // save the modified flag to prevent side effects of setting widgets
     bool oldmod = ecProject_->modified();
+    //> Nothing a refresh writes is the user's own doing, so nothing it runs
+    //> into is worth a window. Blocking the project is not enough: these
+    //> widgets' own handlers are what reach the warnings.
+    const WidgetUtils::QuietWarnings quietWhileRefreshing;
+
     ecProject_->blockSignals(true);
 
     vmFlagsCheckBox->setChecked(ecProject_->defaultSettings.spectraSettings.use_vm_flags);
@@ -1327,6 +1332,11 @@ void AdvSpectralOptions::partialRefresh()
 {
     // save the modified flag to prevent side effects of setting widgets
     bool oldmod = ecProject_->modified();
+    //> Nothing a refresh writes is the user's own doing, so nothing it runs
+    //> into is worth a window. Blocking the project is not enough: these
+    //> widgets' own handlers are what reach the warnings.
+    const WidgetUtils::QuietWarnings quietWhileRefreshing;
+
     ecProject_->blockSignals(true);
 
     subsetCheckBox->setChecked(ecProject_->spectraSubset());
@@ -1354,6 +1364,11 @@ void AdvSpectralOptions::refresh()
 {
     // save the modified flag to prevent side effects of setting widgets
     bool oldmod = ecProject_->modified();
+    //> Nothing a refresh writes is the user's own doing, so nothing it runs
+    //> into is worth a window. Blocking the project is not enough: these
+    //> widgets' own handlers are what reach the warnings.
+    const WidgetUtils::QuietWarnings quietWhileRefreshing;
+
     ecProject_->blockSignals(true);
 
     vmFlagsCheckBox->setChecked(ecProject_->spectraUseVmFlags());
@@ -1362,32 +1377,43 @@ void AdvSpectralOptions::refresh()
     automaticSpectraConfigCheck->setChecked(ecProject_->spectraAutomaticConfig());
 
     lfMethodCheck->setChecked(ecProject_->generalLfMethod());
-    hfMethodCheck->setChecked(ecProject_->generalHfMethod());
     cospModelCombo->setCurrentIndex(ecProject_->generalCospModel());
     corrIterCheckBox->setChecked(ecProject_->generalCorrIterMethod());
     corrIterMaxSpin->setValue(ecProject_->generalCorrIterMax());
     corrIterTolSpin->setValue(ecProject_->generalCorrIterTol());
     updateCorrIterAvailability();
 
-    int hfMethod = ecProject_->generalHfMethod();
-    switch(hfMethod)
+    //> Both silenced, and the combo set before the box: the box's handler
+    //> writes setHfMethod(hfMethCombo->currentIndex()), so a refresh that set
+    //> the box first stored the method from the combo as it stood BEFORE this
+    //> switch corrected it. What followed was a genuine change of value, so
+    //> it announced itself and brought every page round again - and on the
+    //> way through, the handlers opened their own warnings.
     {
-    case 0:
-    case 1: // moncrieff
-        hfMethCombo->setCurrentIndex(0);
-        break;
-    case 2: // horst
-        hfMethCombo->setCurrentIndex(2);
-        break;
-    case 3: // ibrom
-        hfMethCombo->setCurrentIndex(3);
-        break;
-    case 4: // fratini
-        hfMethCombo->setCurrentIndex(4);
-        break;
-    case 5: // massmann
-        hfMethCombo->setCurrentIndex(1);
-        break;
+        const QSignalBlocker methodBlocker(hfMethodCheck);
+        const QSignalBlocker comboBlocker(hfMethCombo);
+
+        switch (ecProject_->generalHfMethod())
+        {
+        case 0:
+        case 1: // moncrieff
+            hfMethCombo->setCurrentIndex(0);
+            break;
+        case 2: // horst
+            hfMethCombo->setCurrentIndex(2);
+            break;
+        case 3: // ibrom
+            hfMethCombo->setCurrentIndex(3);
+            break;
+        case 4: // fratini
+            hfMethCombo->setCurrentIndex(4);
+            break;
+        case 5: // massmann
+            hfMethCombo->setCurrentIndex(1);
+            break;
+        }
+
+        hfMethodCheck->setChecked(ecProject_->generalHfMethod());
     }
 
     sonicFrequencyLabel->setEnabled(hfMethodCheck->isChecked());
@@ -1941,7 +1967,6 @@ void AdvSpectralOptions::updateHfMethod_1(bool b)
     else
     {
         ecProject_->setGeneralHfMethod(0);
-        massmanFallbackWarningShown_ = false;
 
         horstMethodLabel->setEnabled(false);
         horstCheck->setEnabled(false);
@@ -2030,11 +2055,9 @@ void AdvSpectralOptions::maybeWarnMassmanFallback()
 {
     const bool massmanSelected = hfMethodCheck->isChecked()
                                  && ecProject_->generalHfMethod() == 5;
-    if (!massmanSelected)
-    {
-        massmanFallbackWarningShown_ = false;
-        return;
-    }
+    //> Not re-armed here: shown once a session is what the flag is for, and
+    //> re-arming it meant every pass through a refresh could show it again.
+    if (!massmanSelected) { return; }
     if (massmanFallbackWarningShown_ || hasLi7500FamilyIrga())
     {
         return;

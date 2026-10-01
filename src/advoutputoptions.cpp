@@ -1083,6 +1083,11 @@ void AdvOutputOptions::reset()
 {
     // save the modified flag to prevent side effects of setting widgets
     bool oldmod = ecProject_->modified();
+    //> Nothing a refresh writes is the user's own doing, so nothing it runs
+    //> into is worth a window. Blocking the project is not enough: these
+    //> widgets' own handlers are what reach the warnings.
+    const WidgetUtils::QuietWarnings quietWhileRefreshing;
+
     ecProject_->blockSignals(true);
 
     selectMin();
@@ -1133,6 +1138,11 @@ void AdvOutputOptions::refresh()
 
     // save the modified flag to prevent side effects of setting widgets
     bool oldmod = ecProject_->modified();
+    //> Nothing a refresh writes is the user's own doing, so nothing it runs
+    //> into is worth a window. Blocking the project is not enough: these
+    //> widgets' own handlers are what reach the warnings.
+    const WidgetUtils::QuietWarnings quietWhileRefreshing;
+
     ecProject_->blockSignals(true);
 
     outBinSpectraCheckBox->setChecked(ecProject_->screenOutBinSpectra());
@@ -1252,6 +1262,9 @@ void AdvOutputOptions::applyRunModeRequirements(const std::function<void()>& app
 {
     {
         const QSignalBlocker projectBlocker(ecProject_);
+        //> And no window either, from here or from the refreshes this ends in.
+        const WidgetUtils::QuietWarnings quietWhileApplying;
+
         apply();
         updateSpectralAssessmentCreationAvailability();
         setRequiredSpectralOutputState(currentSpectralMethodIndex());

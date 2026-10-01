@@ -36,6 +36,7 @@
 #include <QHeaderView>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QScopedValueRollback>
 #include <QScrollArea>
 #include <QSpinBox>
 #include <QTimeEdit>
@@ -337,7 +338,14 @@ PlanarFitSettingsDialog::PlanarFitSettingsDialog(QWidget* parent, EcProject *ecP
             offsetSpin, &QDoubleSpinBox::setValue);
     connect(angleTableModel_, &AngleTableModel::modified,
             this, &PlanarFitSettingsDialog::modelModified);
+    //> Not straight to the project: AngleTableModel::flush() ends in
+    //> modelReset whether or not anything changed, and updateModel() flushes
+    //> *because* the project changed. Wired as it was, one modification sent
+    //> every page round again - an extra refresh per run-mode click, outside
+    //> the blocker that exists to prevent exactly that.
     connect(angleTableModel_, &AngleTableModel::modelReset,
+            this, &PlanarFitSettingsDialog::onAngleModelReset);
+    connect(this, &PlanarFitSettingsDialog::angleTableChanged,
             ecProject_, &EcProject::updateInfo);
 
     connect(anglesView_, &AnglesView::fillPieRequest,
@@ -837,8 +845,19 @@ void PlanarFitSettingsDialog::modelModified()
 
 void PlanarFitSettingsDialog::updateModel()
 {
+    //> The view still hears the reset, which is what redraws it; only the
+    //> project is spared being told about its own change.
+    const QScopedValueRollback<bool> fromProject(flushingFromProjectChange_, true);
+
     angleTableModel_->flush();
     anglesView_->updateValidItems();
+}
+
+void PlanarFitSettingsDialog::onAngleModelReset()
+{
+    if (flushingFromProjectChange_) { return; }
+
+    emit angleTableChanged();
 }
 
 void PlanarFitSettingsDialog::updateSubsetSelection(bool b)

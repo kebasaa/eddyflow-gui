@@ -323,11 +323,43 @@ QMessageBox::ButtonRole WidgetUtils::requestToSave(QWidget* parent,
     return messageBox->buttonRole(messageBox->clickedButton());
 }
 
+int WidgetUtils::QuietWarnings::depth_ = 0;
+
+WidgetUtils::QuietWarnings::QuietWarnings()
+{
+    ++depth_;
+}
+
+WidgetUtils::QuietWarnings::~QuietWarnings()
+{
+    --depth_;
+}
+
+bool WidgetUtils::QuietWarnings::active()
+{
+    return depth_ > 0;
+}
+
+//> Said where it can be read afterwards instead of in a window nobody asked
+//> for. The message handler installed in main() puts this in the log.
+static void logQuietly(const QString& title, const QString& text,
+                       const QString& infoText)
+{
+    qWarning().noquote() << "Not shown while settings were being applied:"
+                         << title << '-' << text << infoText;
+}
+
 bool WidgetUtils::information(QWidget* parent,
                               const QString& title,
                               const QString& text,
                               const QString& infoText)
 {
+    if (QuietWarnings::active())
+    {
+        logQuietly(title, text, infoText);
+        return false;
+    }
+
 //    QScopedPointer<QMessageBox> messageBox(new QMessageBox(parent));
     auto messageBox = std::make_unique<QMessageBox>(parent);
 
@@ -362,6 +394,12 @@ void WidgetUtils::warning(QWidget* parent,
                           const QString& infoText,
                           const QString& objectName)
 {
+    if (QuietWarnings::active())
+    {
+        logQuietly(title, text, infoText);
+        return;
+    }
+
     auto messageBox = std::make_unique<QMessageBox>(parent);
     messageBox.get()->setObjectName(objectName);
 

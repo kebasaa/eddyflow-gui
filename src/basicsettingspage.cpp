@@ -4303,6 +4303,11 @@ void BasicSettingsPage::reset()
 {
     // save the modified flag to prevent side effects of setting widgets
     bool oldmod = ecProject_->modified();
+    //> Nothing a refresh writes is the user's own doing, so nothing it runs
+    //> into is worth a window. Blocking the project is not enough: these
+    //> widgets' own handlers are what reach the warnings.
+    const WidgetUtils::QuietWarnings quietWhileRefreshing;
+
     ecProject_->blockSignals(true);
 
     recursionCheckBox->setChecked(ecProject_->defaultSettings.screenGeneral.recurse);
@@ -4367,6 +4372,11 @@ void BasicSettingsPage::refresh()
 {
     // save the modified flag to prevent side effects of setting widgets
     bool oldmod = ecProject_->modified();
+    //> Nothing a refresh writes is the user's own doing, so nothing it runs
+    //> into is worth a window. Blocking the project is not enough: these
+    //> widgets' own handlers are what reach the warnings.
+    const WidgetUtils::QuietWarnings quietWhileRefreshing;
+
     ecProject_->blockSignals(true);
 
     recursionCheckBox->setChecked(ecProject_->screenRecurse());
@@ -4523,6 +4533,11 @@ void BasicSettingsPage::partialRefresh()
 {
     // save the modified flag to prevent side effects of setting widgets
     bool oldmod = ecProject_->modified();
+    //> Nothing a refresh writes is the user's own doing, so nothing it runs
+    //> into is worth a window. Blocking the project is not enough: these
+    //> widgets' own handlers are what reach the warnings.
+    const WidgetUtils::QuietWarnings quietWhileRefreshing;
+
     ecProject_->blockSignals(true);
 
     subsetCheckBox->setChecked(ecProject_->generalSubset());

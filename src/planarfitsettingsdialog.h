@@ -80,6 +80,12 @@ public:
 signals:
     void saveRequest();
 
+    ///
+    /// \brief angleTableChanged
+    /// The angle table was reset by something the user did. Wired to the
+    /// project's updateInfo, where the model's own modelReset used to go.
+    void angleTableChanged();
+
 public slots:
     void close();
     void reset();
@@ -115,6 +121,7 @@ private slots:
     void fillPie();
     void modelModified();
     void updateModel();
+    void onAngleModelReset();
     void updateSubsetSelection(bool b);
 
 private:
@@ -166,6 +173,10 @@ private:
 
     EcProject *ecProject_;
     ConfigState* configState_;
+
+    //> Set while a project change is being poured into the model, so the
+    //> reset that ends it is not announced back to the project.
+    bool flushingFromProjectChange_ = false;
 
     AngleTableModel *angleTableModel_;
     AngleTableView *angleTableView_;
