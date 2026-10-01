@@ -1,3 +1,15 @@
+8.1.2 (unreleased)
+
+    GUI:
+	- Fix: Choosing "Pre-processing run" or "Production run" on the Output
+	       Files page no longer opens a stack of warning windows. The settings
+	       a run mode requires are applied as one change and the project is
+	       told once, instead of every setter announcing itself and each
+	       announcement refreshing the pages - which re-entered the error
+	       label's validation and opened its warning once per pass. The label
+	       is now checked when the field is left or an entry picked, not on
+	       every keystroke and never on a programmatic write.
+
 8.1.1 (2026-09-25)
 
     GUI:

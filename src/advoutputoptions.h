@@ -30,6 +30,7 @@
 #include <QWidget>
 #include <QWidgetList>
 
+#include <functional>
 #include <vector>
 
 class QButtonGroup;
@@ -161,6 +162,8 @@ private:
     int currentSpectralMethodIndex() const;
     bool isSpectralAssessmentCreationMode() const;
     bool isProductionRunMode() const;
+    void applyRunModeRequirements(const std::function<void()>& apply);
+    void clearAssessmentOnlyCheckBoxes();
     void applySpectralAssessmentCreationRequirements();
     void applyProductionRunRequirements();
     void clearRunModeRadios();

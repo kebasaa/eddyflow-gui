@@ -5746,6 +5746,11 @@ void EcProject::setGeneralOutMeanCosp(int n)
 
 void EcProject::setGeneralBinSpectraAvail(int n)
 {
+    //> Announced only when it changes, like setSpectraFluxRunMode:
+    //> updateInfo() is wired back to the pages that write this, so an
+    //> unconditional emit turns one run-mode change into a dozen refreshes.
+    if (ec_project_state_.projectGeneral.bin_sp_avail == n) { return; }
+
     ec_project_state_.projectGeneral.bin_sp_avail = n;
     setModified(true);
     emit updateInfo();
@@ -5753,6 +5758,11 @@ void EcProject::setGeneralBinSpectraAvail(int n)
 
 void EcProject::setGeneralFullSpectraAvail(int n)
 {
+    //> Announced only when it changes, like setSpectraFluxRunMode:
+    //> updateInfo() is wired back to the pages that write this, so an
+    //> unconditional emit turns one run-mode change into a dozen refreshes.
+    if (ec_project_state_.projectGeneral.full_sp_avail == n) { return; }
+
     ec_project_state_.projectGeneral.full_sp_avail = n;
     setModified(true);
     emit updateInfo();
@@ -6854,6 +6864,11 @@ void EcProject::setGeneralEndTime(const QString &t)
 
 void EcProject::setGeneralHfMethod(int n)
 {
+    //> Announced only when it changes, like setSpectraFluxRunMode:
+    //> updateInfo() is wired back to the pages that write this, so an
+    //> unconditional emit turns one run-mode change into a dozen refreshes.
+    if (ec_project_state_.projectGeneral.hf_meth == n) { return; }
+
     ec_project_state_.projectGeneral.hf_meth = n;
     setModified(true);
     emit updateInfo();
@@ -7501,6 +7516,11 @@ void EcProject::setPlanarFitSubset(int n)
 
 void EcProject::setPlanarFitAssessmentOnly(int n)
 {
+    //> Announced only when it changes, like setSpectraFluxRunMode:
+    //> updateInfo() is wired back to the pages that write this, so an
+    //> unconditional emit turns one run-mode change into a dozen refreshes.
+    if (ec_project_state_.screenTilt.assessment_only == n) { return; }
+
     ec_project_state_.screenTilt.assessment_only = n;
     setModified(true);
     emit updateInfo();
@@ -7532,6 +7552,11 @@ void EcProject::setSpectraEndTime(const QString& time)
 
 void EcProject::setSpectraMode(int i)
 {
+    //> Announced only when it changes, like setSpectraFluxRunMode:
+    //> updateInfo() is wired back to the pages that write this, so an
+    //> unconditional emit turns one run-mode change into a dozen refreshes.
+    if (ec_project_state_.spectraSettings.sa_mode == i) { return; }
+
     ec_project_state_.spectraSettings.sa_mode = i;
     setModified(true);
     emit updateInfo();
@@ -7714,6 +7739,11 @@ void EcProject::setTimelagOptGas4MaxLag(double d)
 
 void EcProject::setTimelagAssessmentOnly(int n)
 {
+    //> Announced only when it changes, like setSpectraFluxRunMode:
+    //> updateInfo() is wired back to the pages that write this, so an
+    //> unconditional emit turns one run-mode change into a dozen refreshes.
+    if (ec_project_state_.timelagOpt.assessment_only == n) { return; }
+
     ec_project_state_.timelagOpt.assessment_only = n;
     setModified(true);
     emit updateInfo();
