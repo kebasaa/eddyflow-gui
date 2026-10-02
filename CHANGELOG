@@ -1,6 +1,7 @@
-8.1.2 (unreleased)
+8.1.2 (2026-10-02)
 
     GUI:
+	- Version bump to match EddyFlow engine 8.1.2. Nothing in the interface changes.
 	- Fix: Browse opens where the field points. A path read from a project -
 	       raw data and output folders, metadata, dynamic metadata, biomet
 	       file and folder, planar fit, time lag and PWB files, spectral
