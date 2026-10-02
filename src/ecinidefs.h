@@ -122,7 +122,7 @@ namespace EcIni
     //> The analytic cospectrum every spectral correction is integrated
     //> against. 0 = Moncrieff et al. (1997), which is what this program has
     //> always used; 1 Kaimal et al. (1972), 2 Sakai et al. (2001), 3 Su et al.
-    //> (2003), 4 Moraes et al. (2008), 5 Kristensen et al. (1997).
+    //> (2004), 4 Moraes et al. (2008), 5 Kristensen et al. (1997).
     //> [Project] because BOTH applications read it - RP runs the analytic
     //> methods itself, and FCC never sweeps the RawProcess groups.
     const auto INI_PROJECT_83   = QStringLiteral("cosp_model");

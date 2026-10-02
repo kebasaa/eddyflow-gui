@@ -659,7 +659,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     cospModelCombo->addItem(tr("Moncrieff et al. (1997) - the default"));
     cospModelCombo->addItem(tr("Kaimal et al. (1972)"));
     cospModelCombo->addItem(tr("Sakai et al. (2001) - rough surfaces"));
-    cospModelCombo->addItem(tr("Su et al. (2003) - forest, non-flat terrain"));
+    cospModelCombo->addItem(tr("Su et al. (2004) - forest, non-flat terrain"));
     cospModelCombo->addItem(tr("Moraes et al. (2008)"));
     cospModelCombo->addItem(tr("Kristensen et al. (1997)"));
     const QString cospShared = tr("<br><br>Only the SHAPE matters: the correction "
@@ -688,7 +688,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
         "rough surfaces, where more of the flux sits at low frequency than "
         "Kaimal's curve allows.") + cospNeutral + cospShared),
         Qt::ToolTipRole);
-    cospModelCombo->setItemData(3, QString(tr("<b>Su et al. (2003):</b> Fitted over "
+    cospModelCombo->setItemData(3, QString(tr("<b>Su et al. (2004):</b> Fitted over "
         "two mixed hardwood forests in non-flat terrain.") + cospNeutral
         + cospShared),
         Qt::ToolTipRole);
