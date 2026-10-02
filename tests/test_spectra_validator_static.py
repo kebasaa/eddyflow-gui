@@ -301,16 +301,50 @@ def timelag_format(model, lines, project):
     def masked(words):
         return re.sub(r"\d+", "#", timelag_line(words))
 
-    rh = (same_timelag_label(model["rh"][0], row(lines, cursor))
-          and masked(model["rh"][1]) == masked(row(lines, cursor + 1))
-          and [w.lower() for w in model["rh"][2]]
-          == [w.lower() for w in row(lines, cursor + 2)])
-    if not rh and any(row(lines, i) for i in range(cursor, len(lines))):
+    def rh_table(start):
+        """None, or whose table starts here: "" the designated hygrometer's,
+        else the gas named after `_for_`."""
+        if not (masked(model["rh"][1]) == masked(row(lines, start + 1))
+                and [w.lower() for w in model["rh"][2]]
+                == [w.lower() for w in row(lines, start + 2)]):
+            return None
+        title, actual = timelag_label(model["rh"][0]), timelag_label(row(lines, start))
+        if actual == title:
+            return ""
+        named = title + "_for_"
+        if actual.startswith(named) and len(actual) > len(named):
+            return actual[len(named):]
+        return None
+
+    # The designated hygrometer's table under the original title, then one per
+    # other classed hygrometer, `..._for_<gas>`, each after a blank row.
+    rh, rh_gases = False, []
+    while True:
+        while cursor < len(lines) and not row(lines, cursor):
+            cursor += 1
+        whose = rh_table(cursor) if cursor < len(lines) else None
+        if whose is None:
+            break
+        if whose:
+            if project.slot_for(whose) < 0:
+                failed.append("%s is not a hygrometer of this project" % whose)
+            rh_gases.append(whose)
+        else:
+            rh = True
+        start, count = cursor + 3, 0
+        while row(lines, start + count):
+            count += 1
+            words = row(lines, start + count - 1)
+            if not words[0].isdigit() or int(words[0]) != count:
+                failed.append("inconsistent RH index")
+        cursor = start + count
+    if any(row(lines, i) for i in range(cursor, len(lines))):
         failed.append("unrecognised rows")
 
     covered = {project.slot_for(g) for g in gases}
     if rh:
         covered.add(project.primary_water())
+    covered |= {project.slot_for(g) for g in rh_gases}
     for i in range(len(project.records)):
         if project.measured(i) and i not in covered:
             failed.append("%s has no time lag" % project.file_name(i).lower())
@@ -492,6 +526,54 @@ class TimelagOptimisation(unittest.TestCase):
         lines = self.lines[:row_starting(self.lines, "H2O_timelag")]
         self.assertIn("h2o has no time lag",
                       timelag_format(self.model, lines, self.PROJECT)[0])
+
+    # A second hygrometer's own RH table, as the engine now writes one for
+    # every classed hygrometer: after the designated one's, a blank row
+    # between, titled `..._for_<gas>`.
+
+    def with_second_table(self, title_gas="h2o_2", bad_index=False):
+        start = row_starting(self.lines, "H2O_timelag")
+        table = [list(w) for w in self.lines[start:]]
+        while table and not table[-1]:
+            table.pop()
+        table[0] = [table[0][0] + "_for_" + title_gas]
+        if bad_index:
+            table[4] = ["7"] + table[4][1:]
+        return [list(w) for w in self.lines] + [[]] + table
+
+    #: The same project with a second water record that has a column.
+    TWO_WATERS = Project(("co2", 5), ("h2o", 6), ("n2o", 7), ("co2", 8),
+                         ("n2o", 9), ("h2o", 10))
+
+    def test_a_second_hygrometers_table_passes_and_covers_it(self):
+        self.assertIn("h2o_2 has no time lag",
+                      timelag_format(self.model, self.lines, self.TWO_WATERS)[0])
+        self.assertEqual([], timelag_format(self.model, self.with_second_table(),
+                                            self.TWO_WATERS)[0])
+
+    def test_a_table_for_a_hygrometer_the_project_lacks_fails(self):
+        failed = timelag_format(self.model, self.with_second_table("h2o_7"),
+                                self.TWO_WATERS)[0]
+        self.assertIn("h2o_7 is not a hygrometer of this project", failed)
+
+    def test_a_malformed_second_table_fails(self):
+        failed = timelag_format(self.model, self.with_second_table(bad_index=True),
+                                self.TWO_WATERS)[0]
+        self.assertIn("inconsistent RH index", failed)
+
+    def test_rows_after_the_last_table_still_fail(self):
+        lines = self.with_second_table() + [[], ["something", "else"]]
+        self.assertIn("unrecognised rows",
+                      timelag_format(self.model, lines, self.TWO_WATERS)[0])
+
+    def test_the_cpp_check_reads_every_table(self):
+        """The C++ this mirrors: a loop over tables, named ones resolved to a
+        record and credited with coverage."""
+        cpp = (GUI_ROOT / "src" / "ancillaryfiletest.cpp").read_text(encoding="utf-8")
+        self.assertIn("matchesRhTimelagHeader(model.rhHeader, lines, cursor, &rhGas)", cpp)
+        self.assertIn('QStringLiteral("_for_")', cpp)
+        self.assertIn("covered << slotForGasName(ecProject_, gas);", cpp)
+        self.assertIn("for (const auto& table : std::as_const(rhTimelagTables_))", cpp)
 
 
 if __name__ == "__main__":

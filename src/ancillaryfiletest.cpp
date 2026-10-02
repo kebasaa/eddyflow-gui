@@ -489,7 +489,14 @@ QString withoutNumbers(QString text)
     return text.replace(digits, QStringLiteral("#"));
 }
 
-bool matchesRhTimelagHeader(const Lines& model, const Lines& lines, int start)
+/// Whether an RH-sorted water table starts at \a start, and whose.
+///
+/// The engine writes one per classed hygrometer: the designated hygrometer's
+/// under the template's title - \a gas is then left empty - and every other
+/// one's under that title with `_for_<gas>` appended, \a gas set to the name.
+/// Note and columns are the same for all of them.
+bool matchesRhTimelagHeader(const Lines& model, const Lines& lines, int start,
+                            QString* gas = nullptr)
 {
     const auto columns = whitespaceFields(lines.value(start + 2));
     const auto modelColumns = whitespaceFields(model.value(2));
@@ -498,9 +505,23 @@ bool matchesRhTimelagHeader(const Lines& model, const Lines& lines, int start)
     {
         if (columns.at(i).compare(modelColumns.at(i), Qt::CaseInsensitive) != 0) { return false; }
     }
-    return sameTimelagLabel(model.value(0), lines.value(start))
-           && withoutNumbers(normalizedTimelagLine(model.value(1)))
-                  == withoutNumbers(normalizedTimelagLine(lines.value(start + 1)));
+    if (withoutNumbers(normalizedTimelagLine(model.value(1)))
+        != withoutNumbers(normalizedTimelagLine(lines.value(start + 1))))
+    {
+        return false;
+    }
+
+    const auto title = normalizedTimelagLabel(firstField(model.value(0)));
+    const auto actual = normalizedTimelagLabel(firstField(lines.value(start)));
+    const auto named = title + QStringLiteral("_for_");
+    QString whose;
+    if (actual != title)
+    {
+        if (!actual.startsWith(named) || actual.size() <= named.size()) { return false; }
+        whose = actual.mid(named.size());
+    }
+    if (gas) { *gas = whose; }
+    return true;
 }
 
 /// The numerosity the RH-table note says a class needs to be determined rather
@@ -1261,8 +1282,7 @@ bool AncillaryFileTest::testTimeLagF(const LineList &templateList, const LineLis
 {
     timelagGases_.clear();
     timelagValues = QVector<QVector<double>>(3);
-    h2oTimelagValues.clear();
-    h2oMinClassNumerosity_ = kDefaultMinClassNumerosity;
+    rhTimelagTables_.clear();
 
     const auto model = timelagTemplateParts(templateList);
     if (!model.isValid())
@@ -1321,13 +1341,45 @@ bool AncillaryFileTest::testTimeLagF(const LineList &templateList, const LineLis
                              .arg(timelagGases_.size())
                              .arg(timelagGases_.join(QStringLiteral(", "))));
 
-    // test c1, the RH-sorted water table
-    const auto hasRhTable = matchesRhTimelagHeader(model.rhHeader, lines, cursor);
-    if (hasRhTable)
+    // test c, the RH-sorted water tables. The designated hygrometer's comes
+    // under the title it always had; every other classed hygrometer's follows,
+    // titled `..._for_<gas>`, each after a blank row.
+    auto hasRhTable = false;
+    QStringList rhGases;
+    while (true)
     {
-        check(true, QLatin1String("Header of RH sorted H<sub>2</sub>O classes (3 rows)"));
-        h2oMinClassNumerosity_ = statedMinClassNumerosity(lines.value(cursor + 1),
-                                                          kDefaultMinClassNumerosity);
+        while (cursor < lines.size() && joinedLine(lines.at(cursor)).isEmpty()) { ++cursor; }
+        QString rhGas;
+        if (cursor >= lines.size() || !matchesRhTimelagHeader(model.rhHeader, lines, cursor, &rhGas))
+        {
+            break;
+        }
+        const auto whose = rhGas.isEmpty() ? QStringLiteral("H<sub>2</sub>O")
+                                           : QStringLiteral("<u>%1</u>").arg(rhGas.toHtmlEscaped());
+        check(true, QLatin1String("Header of RH sorted ") + whose + QLatin1String(" classes (3 rows)"));
+        if (rhGas.isEmpty())
+        {
+            //> The engine writes the designated hygrometer's table once.
+            check(!hasRhTable, QStringLiteral("One RH sorted H<sub>2</sub>O table"));
+            hasRhTable = true;
+        }
+        else
+        {
+            check(!rhGases.contains(rhGas), tr("One RH sorted table for <u>%1</u>").arg(rhGas.toHtmlEscaped()));
+            //> A table for a hygrometer the project does not name is one the
+            //> engine reads and discards; say so here rather than let it pass.
+            if (ecProject_)
+            {
+                check(slotForGasName(ecProject_, rhGas) >= 0,
+                      tr("<u>%1</u> is a hygrometer of this project").arg(rhGas.toHtmlEscaped()));
+            }
+            rhGases << rhGas;
+        }
+
+        RhTimelagTable table;
+        table.gas = rhGas;
+        table.minClassNumerosity = statedMinClassNumerosity(lines.value(cursor + 1),
+                                                            kDefaultMinClassNumerosity);
 
         // test c1' (moved from scientific to formal)
         const auto rhStart = cursor + 3;
@@ -1344,12 +1396,12 @@ bool AncillaryFileTest::testTimeLagF(const LineList &templateList, const LineLis
         // test c2
         if (rhClassCount <= 20)
         {
-            h2oTimelagValues.resize(4);
+            table.values.resize(4);
             for (auto i = 0; i < rhClassCount; ++i)
             {
                 for (auto k = 0; k < 4; ++k)
                 {
-                    h2oTimelagValues[k] << lines.value(rhStart + i).value(4 + k).toDouble();
+                    table.values[k] << lines.value(rhStart + i).value(4 + k).toDouble();
                 }
             }
             check(lines.value(rhStart).value(1) == QLatin1String("0")
@@ -1360,25 +1412,25 @@ bool AncillaryFileTest::testTimeLagF(const LineList &templateList, const LineLis
         {
             check(false, QLatin1String("RH classes <= 20"));
         }
+        rhTimelagTables_ << table;
+        cursor = rhStart + rhClassCount;
     }
-    else
+
+    //> Nothing may follow: the gas blocks and the RH tables are the whole file.
+    QString stray;
+    for (auto i = cursor; i < lines.size() && stray.isEmpty(); ++i)
     {
-        //> Without the table, the gas blocks have to be the whole file.
-        QString stray;
-        for (auto i = cursor; i < lines.size() && stray.isEmpty(); ++i)
-        {
-            stray = joinedLine(lines.at(i));
-        }
-        if (!stray.isEmpty())
-        {
-            check(false, tr("Unrecognised row after the gas blocks [%1]")
-                             .arg(stray.toHtmlEscaped()));
-        }
-        else
-        {
-            check(!timelagGases_.isEmpty(),
-                  tr("At least one gas block, or the RH sorted H<sub>2</sub>O classes"));
-        }
+        stray = joinedLine(lines.at(i));
+    }
+    if (!stray.isEmpty())
+    {
+        check(false, tr("Unrecognised row after the gas blocks [%1]")
+                         .arg(stray.toHtmlEscaped()));
+    }
+    else if (rhTimelagTables_.isEmpty())
+    {
+        check(!timelagGases_.isEmpty(),
+              tr("At least one gas block, or the RH sorted H<sub>2</sub>O classes"));
     }
 
     //> Every gas the raw data holds needs a time lag here - the primary
@@ -1392,8 +1444,13 @@ bool AncillaryFileTest::testTimeLagF(const LineList &templateList, const LineLis
         {
             covered << slotForGasName(ecProject_, gas);
         }
-        const auto water = primaryWaterSlot(ecProject_);
-        if (hasRhTable) { covered << water; }
+        //> Each RH table covers its own hygrometer: the designated one the
+        //> unnamed table, any other the table named for it.
+        if (hasRhTable) { covered << primaryWaterSlot(ecProject_); }
+        for (const auto& gas : std::as_const(rhGases))
+        {
+            covered << slotForGasName(ecProject_, gas);
+        }
 
         const auto& gases = ecProject_->gasColumns();
         for (auto i = 0; i < gases.size(); ++i)
@@ -1481,35 +1538,44 @@ bool AncillaryFileTest::testTimeLagS(const LineList &actualList)
                 QLatin1String("Time-lag values not larger than 60 seconds"));
     }
 
-    // if there are RH classes, and the primary hygrometer is measured
-    if (h2oTimelagValues.size() && !gasMeasured(ecProject_, primaryWaterSlot(ecProject_)))
+    // the RH classes of every table whose hygrometer is measured
+    for (const auto& table : std::as_const(rhTimelagTables_))
     {
-        testResults_->append(tr("<u>H<sub>2</sub>O</u> RH sorted classes: not in this "
-                                "project's raw data — <b>skipped</b>"));
-    }
-    else if (h2oTimelagValues.size())
-    {
+        if (table.values.isEmpty()) { continue; }
+        const auto slot = table.gas.isEmpty() ? primaryWaterSlot(ecProject_)
+                                              : slotForGasName(ecProject_, table.gas);
+        const auto whose = table.gas.isEmpty() ? QStringLiteral("H<sub>2</sub>O")
+                                               : QStringLiteral("<u>%1</u>").arg(table.gas.toHtmlEscaped());
+        if (!gasMeasured(ecProject_, slot))
+        {
+            testResults_->append(tr("%1 RH sorted classes: not in this "
+                                    "project's raw data — <b>skipped</b>").arg(whose));
+            continue;
+        }
+
         // test c.2
         auto rangeOk = true;
-        auto rhClassCount = h2oTimelagValues[0].size();
+        const auto rhClassCount = table.values[0].size();
         for (auto i = 0; i < rhClassCount; ++i)
         {
-            if (!((h2oTimelagValues[0][i] >= h2oTimelagValues[1][i])
-                  && (h2oTimelagValues[0][i] <= h2oTimelagValues[2][i])))
+            if (!((table.values[0][i] >= table.values[1][i])
+                  && (table.values[0][i] <= table.values[2][i])))
             {
                 rangeOk = false;
                 break;
             }
         }
-        check(rangeOk, QStringLiteral("H<sub>2</sub>O RH-sorted median values inside the "
-                                      "[minimum; maximum] range"));
+        check(rangeOk, whose + QStringLiteral(" RH-sorted median values inside the "
+                                              "[minimum; maximum] range"));
 
         // test c.3, against the numerosity the file itself says a class needs
+        const auto need = table.minClassNumerosity;
         const auto determined = std::count_if(
-            h2oTimelagValues[3].begin(), h2oTimelagValues[3].end(),
-            [this](double n){ return n >= h2oMinClassNumerosity_; });
-        check(determined >= 3, QStringLiteral("At least 3 H<sub>2</sub>O classes with numerosity >= ")
-                                   + QString::number(h2oMinClassNumerosity_));
+            table.values[3].begin(), table.values[3].end(),
+            [need](double n){ return n >= need; });
+        check(determined >= 3, QStringLiteral("At least 3 ") + whose
+                                   + QStringLiteral(" classes with numerosity >= ")
+                                   + QString::number(need));
     }
 
     auto res = true;
