@@ -937,6 +937,9 @@ void RunPage::parseEngineOutput(const QByteArray &data)
         main_progress_bar->setValue(++progressValue_);
         fromStr.clear();
         toStr.clear();
+        prodSplit_ = false;
+        prodPwb_ = false;
+        prodPhase_ = 0;
 
 #ifdef QT_DEBUG
         out << "Start raw data processing";
@@ -954,6 +957,54 @@ void RunPage::parseEngineOutput(const QByteArray &data)
 #endif
         return;
     }
+
+    // A split production pass. After its first period the engine hands the
+    // rest of the range to worker processes and reports only the pieces they
+    // finish, so the bar would otherwise stop at that period until the end.
+    // With PWB time lags every piece is read twice - first for its evidence,
+    // then for its fluxes - and each phase reports its own pieces.
+    if (cleanLine.contains(QByteArrayLiteral("Splitting the production pass across")))
+    {
+        prodSplit_ = true;
+        prodPwb_ = false;
+        prodPhase_ = 0;
+        prodBaseValue_ = progressValue_;
+        return;
+    }
+    if (prodSplit_ && cleanLine.contains(QByteArrayLiteral("PWB time lags: each piece is first read")))
+    {
+        prodPwb_ = true;
+        return;
+    }
+    if (prodSplit_ && cleanLine.contains(QByteArrayLiteral("Waiting for the workers:")))
+    {
+        ++prodPhase_;
+        return;
+    }
+    if (prodSplit_ && cleanLine.contains(QByteArrayLiteral(" pieces done.")))
+    {
+        // "   k of M pieces done."
+        const auto words = cleanLine.trimmed().split(' ');
+        const int done = words.value(0).toInt();
+        const int total = words.value(2).toInt();
+        if (done > 0 && total > 0)
+        {
+            double fraction = static_cast<double>(done) / total;
+            if (prodPwb_)
+                fraction = (prodPhase_ <= 1) ? 0.4 * fraction : 0.4 + 0.6 * fraction;
+            const int span = main_progress_bar->maximum() - 1 - prodBaseValue_;
+            const int value = prodBaseValue_ + static_cast<int>(fraction * span);
+            if (value > progressValue_)
+            {
+                progressValue_ = value;
+                main_progress_bar->setValue(progressValue_);
+            }
+            progressLabel_->setText(tr("Processing raw data in parallel: %1 of %2 pieces done")
+                                    .arg(done).arg(total));
+        }
+        return;
+    }
+
     if (cleanLine.contains(QByteArrayLiteral("From:")))
     {
         fromStr = QLatin1String(cleanLine.mid(7, 16).constData());

@@ -118,6 +118,13 @@ private:
 
     bool inPlanarFit_ = false;
     bool inTimeLag_ = false;
+
+    // A production pass split across worker processes: progress then comes
+    // from the pieces finished rather than from each averaging period.
+    bool prodSplit_ = false;
+    bool prodPwb_ = false;
+    int prodPhase_ = 0;
+    int prodBaseValue_ = 0;
 };
 
 #endif // RUNPAGE_H
