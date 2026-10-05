@@ -36,6 +36,12 @@ namespace FileUtils
 
     bool existsPath(const QString& p);
 
+    /// \brief nearestExistingDir
+    /// The directory \a path names, or the nearest one above it that still
+    /// exists. Empty for a link, for a relative value and for a path whose
+    /// root has gone as well.
+    QString nearestExistingDir(const QString& path);
+
     bool isFileEmpty(const QString& fileName);
     bool isDirEmpty(const QString& dirName);
 

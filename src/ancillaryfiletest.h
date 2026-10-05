@@ -102,12 +102,24 @@ private:
     //> file whose RH-table note does not state its own.
     static constexpr int kDefaultMinClassNumerosity = 15;
 
+    //> One RH-sorted water table of a time-lag file. The engine writes one per
+    //> classed hygrometer: the designated hygrometer's under the title it
+    //> always had (gas left empty), every other one's titled `..._for_<gas>`
+    //> after it. values holds the median, minimum, maximum and count of each
+    //> class.
+    struct RhTimelagTable
+    {
+        QString gas;
+        QVector<QVector<double>> values;
+        int minClassNumerosity = kDefaultMinClassNumerosity;
+    };
+
     //> Filled by testTimeLagF for testTimeLagS: one name per gas block, and
-    //> the median, minimum and maximum of each, in file order.
+    //> the median, minimum and maximum of each, in file order; and every RH
+    //> table, in file order.
     QStringList timelagGases_ {};
     QVector<QVector<double>> timelagValues;
-    QVector<QVector<double>> h2oTimelagValues;
-    int h2oMinClassNumerosity_ = kDefaultMinClassNumerosity;
+    QVector<RhTimelagTable> rhTimelagTables_ {};
 };
 
 #endif  // ANCILLARYFILETEST_H

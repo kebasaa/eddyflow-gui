@@ -207,6 +207,8 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     headCorrDirBrowse = new DirBrowseWidget;
     headCorrDirBrowse->setRemoteBrowseEnabled(true);
     headCorrDirBrowse->setDialogTitle(tr("Select the Metek Head Correction Table Directory"));
+    headCorrDirBrowse->setDialogWorkingDir(
+        WidgetUtils::getDialogPathHint(QStringLiteral("head_corr_dir")));
     headCorrDirBrowse->setToolTip(tr("<b>Table directory:</b> The folder "
         "holding <i>phicorr.dat</i>, <i>ucorr.dat</i> and "
         "<i>alphacorr.dat</i>, each twenty comma-separated rows of elevation "
@@ -1016,7 +1018,12 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             { ecProject_->setScreenHeadCorrDir(path); });
     connect(headCorrDirBrowse, &DirBrowseWidget::pathSelected,
             this, [=](const QString& path)
-            { headCorrDirBrowse->setPath(path); ecProject_->setScreenHeadCorrDir(path); });
+            {
+                headCorrDirBrowse->setPath(path);
+                ecProject_->setScreenHeadCorrDir(path);
+                WidgetUtils::rememberDialogPath(
+                    QStringLiteral("head_corr_dir"), path, false);
+            });
 
     connect(tiltSensorCheckBox, &RichTextCheckBox::clicked,
             this, [=]()
@@ -1441,6 +1448,11 @@ void AdvProcessingOptions::reset()
 {
     // save the modified flag to prevent side effects of setting widgets
     bool oldmod = ecProject_->modified();
+    //> Nothing a refresh writes is the user's own doing, so nothing it runs
+    //> into is worth a window. Blocking the project is not enough: these
+    //> widgets' own handlers are what reach the warnings.
+    const WidgetUtils::QuietWarnings quietWhileRefreshing;
+
     ecProject_->blockSignals(true);
 
     uOffsetSpin->setValue(ecProject_->defaultSettings.screenSetting.u_offset);
@@ -1536,6 +1548,11 @@ void AdvProcessingOptions::refresh()
 {
     // save the modified flag to prevent side effects of setting widgets
     bool oldmod = ecProject_->modified();
+    //> Nothing a refresh writes is the user's own doing, so nothing it runs
+    //> into is worth a window. Blocking the project is not enough: these
+    //> widgets' own handlers are what reach the warnings.
+    const WidgetUtils::QuietWarnings quietWhileRefreshing;
+
     ecProject_->blockSignals(true);
 
     uOffsetSpin->setValue(ecProject_->screenUOffset());

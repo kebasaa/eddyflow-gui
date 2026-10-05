@@ -64,15 +64,9 @@ void DirBrowseWidget::setReadOnly(bool on)
 
 void DirBrowseWidget::onButtonClick()
 {
-    auto workingDir = dialogWorkingDir();
-    if (workingDir.isEmpty() || !QFileInfo(workingDir).isDir())
-    {
-        workingDir = WidgetUtils::getSearchPathHint();
-    }
-
     QString dirname = QFileDialog::getExistingDirectory(this,
                           dialogTitle(),
-                          workingDir);
+                          dialogStartDir());
 
     if (dirname.isEmpty()) { return; }
 

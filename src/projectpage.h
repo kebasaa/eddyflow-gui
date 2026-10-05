@@ -128,6 +128,9 @@ private:
 
     QString previousMetadataFile_;
     QString currentMetadataFile_;
+    //> The file the metadata editor is holding, so an announcement that
+    //> changed nothing does not re-open and re-validate it.
+    QString lastMetadataRead_;
 
     void createQuestionMark();
 

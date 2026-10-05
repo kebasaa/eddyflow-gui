@@ -64,8 +64,18 @@ public:
     QString dialogTitle() const { return dialogTitle_; }
     void setDialogTitle(const QString &title) { dialogTitle_ = title; }
 
+    /// Where this field was last browsed from, remembered per field.
     QString dialogWorkingDir() const { return dialogDir_; }
     void setDialogWorkingDir(const QString &dir) { dialogDir_ = dir; }
+
+    ///
+    /// \brief setDialogPathHint
+    /// The location this field was given, whether or not it still exists.
+    /// setPath() records it itself; a page that blanks the field for a path
+    /// that has gone states it here, so the browse dialog still opens as
+    /// near to it as still exists.
+    void setDialogPathHint(const QString &path) { dialogPathHint_ = path; }
+    QString dialogPathHint() const { return dialogPathHint_; }
 
     void focusAndSelect() const;
 
@@ -101,6 +111,21 @@ signals:
 protected:
     CustomDropLineEdit *lineEdit() const;
 
+    ///
+    /// \brief dialogStartDir
+    /// An existing directory for the browse dialog to open in; never empty.
+    /// The field's own location comes first - a path read from a project is
+    /// where the user expects to land - and only then the location this
+    /// field was last browsed from.
+    QString dialogStartDir() const;
+
+    ///
+    /// \brief dialogStartFile
+    /// The field's own value while it still names a file that is there, so
+    /// the file dialog can open with it selected. Empty otherwise: Qt falls
+    /// back to a remembered directory of its own for a path that has gone.
+    QString dialogStartFile() const;
+
 public slots:
     void clear();
     void setEnabled(bool enable);
@@ -112,6 +137,9 @@ private slots:
     virtual void onRemoteButtonClick() {}
 
 private:
+    /// The field's own location, a link excluded; empty when it has none.
+    QString dialogPathCandidate() const;
+
     CustomDropLineEdit *lineEdit_;
     QPushButton *button_;
     QPushButton *remoteButton_;
@@ -119,6 +147,7 @@ private:
     bool remoteEnabled_;
     QString dialogTitle_;
     QString dialogDir_;
+    QString dialogPathHint_;
 };
 
 #endif  // LINEEDITANDBROWSEWIDGET_H
