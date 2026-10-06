@@ -59,6 +59,7 @@ public:
 
 public slots:
     void resetBuffer();
+    void flushBuffer();
     void bufferData(QByteArray &data);
 
 signals:
@@ -77,6 +78,7 @@ private slots:
 private:
     bool filterData(const QByteArray &data);
     QByteArray cleanupEngineOutput(QByteArray data);
+    static QByteArrayList splitGluedMessage(const QByteArray& line);
     void parseEngineOutput(const QByteArray& data);
     void resetProgressSoft();
     void resetProgressHard();

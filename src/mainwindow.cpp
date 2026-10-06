@@ -3518,9 +3518,9 @@ void MainWindow::createEngineProcess()
             this, &MainWindow::displayExitDialog);
 
     connect(engineProcess_, &Process::processFailure,
-            mainWidget_->runPage(), &RunPage::resetBuffer);
+            mainWidget_->runPage(), &RunPage::flushBuffer);
     connect(engineProcess_,&Process::processSuccess,
-            mainWidget_->runPage(), &RunPage::resetBuffer);
+            mainWidget_->runPage(), &RunPage::flushBuffer);
 
     connect(engineProcess_, &Process::readyReadStdOut,
             this, &MainWindow::updateConsoleReceived);

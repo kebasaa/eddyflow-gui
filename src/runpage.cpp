@@ -30,6 +30,7 @@
 #include <QFile>
 #include <QGridLayout>
 #include <QProgressBar>
+#include <QRegularExpression>
 #include <QPushButton>
 #include <QTextEdit>
 #include <QTime>
@@ -518,18 +519,25 @@ bool RunPage::filterData(const QByteArray& data)
     return false;
 }
 
+// Only complete lines are handled. The text after the last newline of a read
+// is kept until the rest of its line arrives: handling it at once as well
+// showed every line a pipe read happened to cut twice, first cut short.
 void RunPage::bufferData(QByteArray &data)
 {
     rxBuffer_.append(data);
-    QByteArray line(rxBuffer_);
-    QByteArrayList lineList(line.split('\n'));
+    const auto lastNewline = rxBuffer_.lastIndexOf('\n');
+    if (lastNewline < 0)
+        return;
 
-    // newline found
-    if (lineList.at(0) != rxBuffer_)
+    const QByteArray complete = rxBuffer_.left(lastNewline);
+    rxBuffer_ = rxBuffer_.mid(lastNewline + 1);
+
+    const QByteArrayList lineList = complete.split('\n');
+    for (const auto& rawLine : lineList)
     {
-        for (int i = 0; i < lineList.size(); ++i)
+        for (const auto& line : splitGluedMessage(rawLine))
         {
-            QByteArray tempData(lineList.at(i));
+            QByteArray tempData(line);
             data = cleanupEngineOutput(tempData);
             if (!data.isEmpty())
             {
@@ -540,21 +548,38 @@ void RunPage::bufferData(QByteArray &data)
                 }
             }
         }
-
-        if (lineList.last().endsWith('\n'))
-            resetBuffer();
-        else
-            rxBuffer_ = lineList.last();
     }
-//    else
-//    {
-//        if (!data.isEmpty())
-//        {
-//            parseEngineOutput(data);
-//            emit updateConsoleCharRequest(data);
-//        }
-////        rxBuffer_ = data;
-//    }
+}
+
+// A run that ends without a final newline still shows its last line.
+void RunPage::flushBuffer()
+{
+    if (!rxBuffer_.isEmpty())
+    {
+        QByteArray end("\n");
+        bufferData(end);
+    }
+    resetBuffer();
+}
+
+// The engine opens a progress line ("   Absolute limits test..") and ends it
+// once the step is done; a message raised in between is written onto it. The
+// progress keywords are matched first and return, so the message never
+// reached the warning panel and its first line was lost. Such a line is
+// handed on as two: the progress text, and the message from its tag.
+QByteArrayList RunPage::splitGluedMessage(const QByteArray& line)
+{
+    static const QRegularExpression tag(
+        QStringLiteral("(?:Fatal error|Warning|Error|Alert)\\(\\d+\\)>"));
+    const auto match = tag.match(QString::fromLatin1(line));
+    if (match.hasMatch() && match.capturedStart() > 0)
+    {
+        const auto at = match.capturedStart();
+        const QByteArray before = line.left(at);
+        if (!before.trimmed().isEmpty())
+            return { before, QByteArray(" ") + line.mid(at) };
+    }
+    return { line };
 }
 
 QByteArray RunPage::cleanupEngineOutput(QByteArray data)
