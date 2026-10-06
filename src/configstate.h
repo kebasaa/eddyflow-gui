@@ -49,8 +49,10 @@ struct GenConfigState
 {
     bool loadlastproject = false;
     bool showsplash = true;
-    //> Whether eddyflow_rp may split its planar-fit and time-lag pre-passes
-    //> across worker processes. A machine preference rather than a project
+    //> Whether the engines may split a run across worker processes: RP's
+    //> pre-passes and raw data processing, FCC's spectral import and flux
+    //> correction. The name is from when only the pre-passes were split, and
+    //> stays so that the stored preference does. A machine preference rather than a project
     //> one - it says how many cores this computer should give the engine,
     //> which is nothing to do with the site being processed - so it lives
     //> here and is passed on the command line, not written into the
