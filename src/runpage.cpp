@@ -1348,6 +1348,7 @@ void RunPage::parseEngineOutput(const QByteArray &data)
         progressLabel_->setText(tr("Starting flux computation and correction..."));
         resetProgressSoft();
         main_progress_bar->setValue(++progressValue_);
+        fccFluxDays_ = false;
         return;
     }
     if (cleanLine.contains(QByteArrayLiteral("Initializing retrieval of EddyFlow-RP results")))
@@ -1398,10 +1399,30 @@ void RunPage::parseEngineOutput(const QByteArray &data)
         main_progress_bar->setValue(main_progress_bar->maximum());
         return;
     }
-    if (cleanLine.contains(QByteArrayLiteral("Calculating fluxes for:")))
+    // FCC's flux loop says "  Calculating fluxes for 13 May 2019" once a
+    // day. This matched "Calculating fluxes for:", which the engine never
+    // writes, so the bar stood still for the whole flux computation. It counts
+    // the days of the project's range when one is set; without one the length
+    // is unknown here and the bar shows it is busy.
+    if (cleanLine.contains(QByteArrayLiteral("Calculating fluxes for ")))
     {
-        resetProgressSoft();
-        main_progress_bar->setValue(++progressValue_);
+        if (!fccFluxDays_)
+        {
+            fccFluxDays_ = true;
+            resetProgressSoft();
+            int days = 0;
+            if (ecProject_->generalSubset())
+            {
+                const QDate dStart(QDate::fromString(ecProject_->generalStartDate(), Qt::ISODate));
+                const QDate dEnd(QDate::fromString(ecProject_->generalEndDate(), Qt::ISODate));
+                if (dStart.isValid() && dEnd.isValid() && dStart <= dEnd)
+                    days = static_cast<int>(dStart.daysTo(dEnd)) + 1;
+            }
+            main_progress_bar->setMaximum(days);
+        }
+        if (main_progress_bar->maximum() > 0)
+            main_progress_bar->setValue(qMin(++progressValue_, main_progress_bar->maximum()));
+        avgPeriodLabel_->setText(QLatin1String(cleanLine.trimmed().constData()));
         return;
     }
     // start spectral corrections

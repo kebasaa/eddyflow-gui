@@ -127,6 +127,8 @@ private:
     bool prodPwb_ = false;
     int prodPhase_ = 0;
     int prodBaseValue_ = 0;
+    // FCC's flux loop has started reporting its days.
+    bool fccFluxDays_ = false;
 };
 
 #endif // RUNPAGE_H
