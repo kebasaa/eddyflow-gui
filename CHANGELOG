@@ -94,6 +94,21 @@
 	       hygrometer; a table for a hygrometer the project does not name, or
 	       rows after the last table, are rejected. A file with only the
 	       designated hygrometer's table reads as before.
+	- Change: The parallel processing box on the processing options page reads
+	          "Run in parallel on all processor cores", and its tooltip lists
+	          what is split - the planar fit and time lag pre-passes, the raw
+	          data processing, and in the flux correction the binned
+	          (co)spectra import and the correction of the fluxes - what is
+	          not, and that the results are identical either way. It is passed
+	          to FCC as well, and the progress bar follows FCC's split as it
+	          does RP's. A box ticked before stays ticked.
+	- Fix: The progress bar now moves through FCC's flux computation. It
+	       waited for a "Calculating fluxes for:" line the engine never
+	       writes, so it stood still from the first day to the last.
+	- Fix: Each engine line is shown once and whole. A line a pipe read
+	       happened to cut was shown twice, the first time cut short, and a
+	       warning written onto a progress line lost its first line in the
+	       warning panel; such a line is now split at the warning's tag.
 
 8.1.1 (2026-09-25)
 
