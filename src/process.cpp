@@ -299,6 +299,20 @@ static std::vector<DWORD> jobProcessIds(HANDLE job)
     return ids;
 }
 
+//! Wait until every process behind these handles has exited, limitMs in all
+//! at most, and close the handles.
+static void waitForProcessesToExit(std::vector<HANDLE>& handles, DWORD limitMs)
+{
+    const ULONGLONG deadline = GetTickCount64() + limitMs;
+    for (HANDLE h : handles) {
+        const ULONGLONG now = GetTickCount64();
+        const DWORD left = now < deadline ? static_cast<DWORD>(deadline - now) : 0;
+        WaitForSingleObject(h, left);
+        CloseHandle(h);
+    }
+    handles.clear();
+}
+
 //! Suspend or resume a whole run. The parent goes first on suspend, so it
 //! cannot start another worker between the listing and the suspension, and
 //! last on resume.
@@ -362,15 +376,58 @@ void Process::processStop()
     // The whole run, not just the parent: its workers are separate
     // processes and outlive it otherwise.
 #if defined(Q_OS_WIN)
-    if (job_)
+    // A handle on every member before the job is terminated, to wait on
+    // afterwards - see waitForRunGroupToGo. Opened now: once a process has
+    // gone its id can no longer be opened, and could even be someone else's.
+    std::vector<HANDLE> members;
+    if (job_) {
+        for (DWORD id : jobProcessIds(static_cast<HANDLE>(job_))) {
+            HANDLE h = OpenProcess(SYNCHRONIZE, FALSE, id);
+            if (h) members.push_back(h);
+        }
         TerminateJobObject(static_cast<HANDLE>(job_), 1);
+    }
 #elif defined(Q_OS_UNIX)
     if (processPid_ > 0)
         ::kill(-static_cast<pid_t>(processPid_), SIGKILL);
 #endif
     process_->kill();
+#if defined(Q_OS_WIN)
+    waitForProcessesToExit(members, 5000);
+#else
+    waitForRunGroupToGo();
+#endif
     releaseRunGroup();
     processExit_ = ExitStatus::Stopped;
+}
+
+//! Return once every process of the stopped run has exited, or after five
+//! seconds whatever happens.
+//!
+//! Terminating a job, or signalling a group, only starts the processes
+//! dying. The caller wipes the env tmp folder straight after Stop, as
+//! EddyPro always did (stopEngineProcess -> cleanEnvTmpDir), and a file a
+//! dying process still holds open cannot be deleted - so that wipe used to
+//! leave a stopped run's tmp_<timestamp> folders behind, and with parallel
+//! runs there are a dozen processes to wait for rather than one.
+//!
+//! On Windows the job's own count of active processes is no use for this:
+//! it reached zero within milliseconds of the termination while the wipe
+//! after it still found files held. What a process object signals is that
+//! it has exited completely; see waitForProcessesToExit.
+void Process::waitForRunGroupToGo()
+{
+#if defined(Q_OS_UNIX)
+    const int limitMs = 5000;
+    const int stepMs = 50;
+    if (processPid_ <= 0) return;
+    // The engine first, so it is reaped and no longer counts as a member.
+    process_->waitForFinished(limitMs);
+    for (int waited = 0; waited < limitMs; waited += stepMs) {
+        if (::kill(-static_cast<pid_t>(processPid_), 0) != 0) return;
+        ::usleep(stepMs * 1000);
+    }
+#endif
 }
 
 void Process::onProcessError(QProcess::ProcessError error)

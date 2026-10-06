@@ -29,7 +29,9 @@
 #include <QtConcurrent>
 #include <QDebug>
 #include <QDesktopServices>
+#include <QDir>
 #include <QDockWidget>
+#include <QElapsedTimer>
 #include <QErrorMessage>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -45,6 +47,7 @@
 #include <QScrollBar>
 #include <QStatusBar>
 #include <QTextDocumentFragment>
+#include <QThread>
 #include <QTimer>
 #include <QToolBar>
 #include <QUrl>
@@ -4281,9 +4284,19 @@ void MainWindow::stopEngineProcess()
 
 void MainWindow::cleanEnvTmpDir()
 {
-    FileUtils::cleanDirRecursively(appEnvPath_
-                                   + QLatin1Char('/')
-                                   + Defs::TMP_FILE_DIR);
+    // As EddyPro does after a Stop: the whole env tmp folder, wiped and made
+    // again. Process::processStop has waited for every process of the run to
+    // exit, but Windows can still hold a file it was writing for a moment
+    // longer - a virus scanner too - so the wipe is tried again for up to three
+    // seconds while anything is left.
+    const QString tmpDir = appEnvPath_ + QLatin1Char('/') + Defs::TMP_FILE_DIR;
+    QElapsedTimer clock;
+    clock.start();
+    for (;;) {
+        FileUtils::cleanDirRecursively(tmpDir);
+        if (QDir(tmpDir).isEmpty() || clock.elapsed() > 3000) break;
+        QThread::msleep(100);
+    }
 }
 
 void MainWindow::resetRunIcons()
