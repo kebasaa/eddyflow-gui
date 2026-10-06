@@ -1,7 +1,7 @@
 8.1.2 (2026-10-02)
 
     GUI:
-	- Version bump to match EddyFlow engine 8.1.2. Nothing in the interface changes.
+	- Version bump to match EddyFlow engine 8.1.2.
 	- Fix: The Su et al. cospectral model was labelled 2003; the paper is 2004.
 	- Fix: Browse opens where the field points. A path read from a project -
 	       raw data and output folders, metadata, dynamic metadata, biomet
@@ -69,6 +69,31 @@
 	       project files and the engine are unchanged - only the number shown
 	       and typed is scaled - and the table follows a unit edited in the
 	       metadata editor.
+	- New feature: The progress bar follows a production pass the engine
+	               splits across workers. Once the split is announced the
+	               engine reports only the pieces its workers finish, so the
+	               bar stopped at the first period and sat there until the run
+	               ended. It now counts the pieces; with PWB time lags every
+	               piece is read twice, for its evidence and then for its
+	               fluxes, and the two phases share the bar 40/60. The bar
+	               never runs backwards, and the label says how many pieces
+	               are done.
+	- Fix: A stopped run no longer leaves its tmp_<timestamp> folders behind.
+	       After a Stop the interface wipes the env tmp folder, as EddyPro
+	       does, but since Stop ends the run's whole job of processes it ran
+	       while they were still exiting and met files they held open. Stop
+	       now waits for every process of the run to exit, five seconds at
+	       most (on Linux and macOS, for its process group to empty), and the
+	       wipe is tried again for up to three seconds while anything is left.
+	- Fix: The time-lag file check reads every hygrometer's RH table. The
+	       engine now writes one per closed-path hygrometer - the designated
+	       one's under its usual title, each other's after it, titled
+	       H2O_timelag_determinations_as_a_function_of_relative_humidity_for_<gas>.
+	       The check stopped after the first. Each table now gets the same
+	       format and value checks and counts as coverage of its own
+	       hygrometer; a table for a hygrometer the project does not name, or
+	       rows after the last table, are rejected. A file with only the
+	       designated hygrometer's table reads as before.
 
 8.1.1 (2026-09-25)
 
