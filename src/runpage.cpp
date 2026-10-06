@@ -988,7 +988,8 @@ void RunPage::parseEngineOutput(const QByteArray &data)
     // finish, so the bar would otherwise stop at that period until the end.
     // With PWB time lags every piece is read twice - first for its evidence,
     // then for its fluxes - and each phase reports its own pieces.
-    if (cleanLine.contains(QByteArrayLiteral("Splitting the production pass across")))
+    if (cleanLine.contains(QByteArrayLiteral("Splitting the production pass across"))
+        || cleanLine.contains(QByteArrayLiteral("Splitting the flux computation across")))
     {
         prodSplit_ = true;
         prodPwb_ = false;
@@ -1349,6 +1350,9 @@ void RunPage::parseEngineOutput(const QByteArray &data)
         resetProgressSoft();
         main_progress_bar->setValue(++progressValue_);
         fccFluxDays_ = false;
+        prodSplit_ = false;
+        prodPwb_ = false;
+        prodPhase_ = 0;
         return;
     }
     if (cleanLine.contains(QByteArrayLiteral("Initializing retrieval of EddyFlow-RP results")))

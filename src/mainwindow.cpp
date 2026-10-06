@@ -4061,6 +4061,11 @@ void MainWindow::runAdvancedStep_2()
         args << Defs::HOST_OS;
         args << QStringLiteral("-e");
         args << appEnvPath_;
+        //> FCC splits its flux computation across workers too; the same box
+        //> decides, passed in both states for the same reason as RP's.
+        args << QStringLiteral("-j");
+        args << (configState_.general.parallelPrepass ? QStringLiteral("0")
+                                                      : QStringLiteral("1"));
         args << projFilePath2;
         engineProcess_->engineProcessStart(engineFilePath, workingDir, args);
 
