@@ -109,6 +109,9 @@ private:
     /// Ends the containment of the previous run: on Windows closes its job
     /// handle, which kills anything of that run still alive.
     void releaseRunGroup();
+    /// After a Stop: wait, a few seconds at most, until every process of the
+    /// run has exited, so the files it held can be deleted.
+    void waitForRunGroupToGo();
 
     QProcess* process_;
     QString fullPath_;

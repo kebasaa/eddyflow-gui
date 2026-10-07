@@ -30,6 +30,7 @@
 #include <QFile>
 #include <QGridLayout>
 #include <QProgressBar>
+#include <QRegularExpression>
 #include <QPushButton>
 #include <QTextEdit>
 #include <QTime>
@@ -518,18 +519,25 @@ bool RunPage::filterData(const QByteArray& data)
     return false;
 }
 
+// Only complete lines are handled. The text after the last newline of a read
+// is kept until the rest of its line arrives: handling it at once as well
+// showed every line a pipe read happened to cut twice, first cut short.
 void RunPage::bufferData(QByteArray &data)
 {
     rxBuffer_.append(data);
-    QByteArray line(rxBuffer_);
-    QByteArrayList lineList(line.split('\n'));
+    const auto lastNewline = rxBuffer_.lastIndexOf('\n');
+    if (lastNewline < 0)
+        return;
 
-    // newline found
-    if (lineList.at(0) != rxBuffer_)
+    const QByteArray complete = rxBuffer_.left(lastNewline);
+    rxBuffer_ = rxBuffer_.mid(lastNewline + 1);
+
+    const QByteArrayList lineList = complete.split('\n');
+    for (const auto& rawLine : lineList)
     {
-        for (int i = 0; i < lineList.size(); ++i)
+        for (const auto& line : splitGluedMessage(rawLine))
         {
-            QByteArray tempData(lineList.at(i));
+            QByteArray tempData(line);
             data = cleanupEngineOutput(tempData);
             if (!data.isEmpty())
             {
@@ -540,21 +548,38 @@ void RunPage::bufferData(QByteArray &data)
                 }
             }
         }
-
-        if (lineList.last().endsWith('\n'))
-            resetBuffer();
-        else
-            rxBuffer_ = lineList.last();
     }
-//    else
-//    {
-//        if (!data.isEmpty())
-//        {
-//            parseEngineOutput(data);
-//            emit updateConsoleCharRequest(data);
-//        }
-////        rxBuffer_ = data;
-//    }
+}
+
+// A run that ends without a final newline still shows its last line.
+void RunPage::flushBuffer()
+{
+    if (!rxBuffer_.isEmpty())
+    {
+        QByteArray end("\n");
+        bufferData(end);
+    }
+    resetBuffer();
+}
+
+// The engine opens a progress line ("   Absolute limits test..") and ends it
+// once the step is done; a message raised in between is written onto it. The
+// progress keywords are matched first and return, so the message never
+// reached the warning panel and its first line was lost. Such a line is
+// handed on as two: the progress text, and the message from its tag.
+QByteArrayList RunPage::splitGluedMessage(const QByteArray& line)
+{
+    static const QRegularExpression tag(
+        QStringLiteral("(?:Fatal error|Warning|Error|Alert)\\(\\d+\\)>"));
+    const auto match = tag.match(QString::fromLatin1(line));
+    if (match.hasMatch() && match.capturedStart() > 0)
+    {
+        const auto at = match.capturedStart();
+        const QByteArray before = line.left(at);
+        if (!before.trimmed().isEmpty())
+            return { before, QByteArray(" ") + line.mid(at) };
+    }
+    return { line };
 }
 
 QByteArray RunPage::cleanupEngineOutput(QByteArray data)
@@ -937,6 +962,9 @@ void RunPage::parseEngineOutput(const QByteArray &data)
         main_progress_bar->setValue(++progressValue_);
         fromStr.clear();
         toStr.clear();
+        prodSplit_ = false;
+        prodPwb_ = false;
+        prodPhase_ = 0;
 
 #ifdef QT_DEBUG
         out << "Start raw data processing";
@@ -954,6 +982,55 @@ void RunPage::parseEngineOutput(const QByteArray &data)
 #endif
         return;
     }
+
+    // A split production pass. After its first period the engine hands the
+    // rest of the range to worker processes and reports only the pieces they
+    // finish, so the bar would otherwise stop at that period until the end.
+    // With PWB time lags every piece is read twice - first for its evidence,
+    // then for its fluxes - and each phase reports its own pieces.
+    if (cleanLine.contains(QByteArrayLiteral("Splitting the production pass across"))
+        || cleanLine.contains(QByteArrayLiteral("Splitting the flux computation across")))
+    {
+        prodSplit_ = true;
+        prodPwb_ = false;
+        prodPhase_ = 0;
+        prodBaseValue_ = progressValue_;
+        return;
+    }
+    if (prodSplit_ && cleanLine.contains(QByteArrayLiteral("PWB time lags: each piece is first read")))
+    {
+        prodPwb_ = true;
+        return;
+    }
+    if (prodSplit_ && cleanLine.contains(QByteArrayLiteral("Waiting for the workers:")))
+    {
+        ++prodPhase_;
+        return;
+    }
+    if (prodSplit_ && cleanLine.contains(QByteArrayLiteral(" pieces done.")))
+    {
+        // "   k of M pieces done."
+        const auto words = cleanLine.trimmed().split(' ');
+        const int done = words.value(0).toInt();
+        const int total = words.value(2).toInt();
+        if (done > 0 && total > 0)
+        {
+            double fraction = static_cast<double>(done) / total;
+            if (prodPwb_)
+                fraction = (prodPhase_ <= 1) ? 0.4 * fraction : 0.4 + 0.6 * fraction;
+            const int span = main_progress_bar->maximum() - 1 - prodBaseValue_;
+            const int value = prodBaseValue_ + static_cast<int>(fraction * span);
+            if (value > progressValue_)
+            {
+                progressValue_ = value;
+                main_progress_bar->setValue(progressValue_);
+            }
+            progressLabel_->setText(tr("Processing raw data in parallel: %1 of %2 pieces done")
+                                    .arg(done).arg(total));
+        }
+        return;
+    }
+
     if (cleanLine.contains(QByteArrayLiteral("From:")))
     {
         fromStr = QLatin1String(cleanLine.mid(7, 16).constData());
@@ -1272,6 +1349,10 @@ void RunPage::parseEngineOutput(const QByteArray &data)
         progressLabel_->setText(tr("Starting flux computation and correction..."));
         resetProgressSoft();
         main_progress_bar->setValue(++progressValue_);
+        fccFluxDays_ = false;
+        prodSplit_ = false;
+        prodPwb_ = false;
+        prodPhase_ = 0;
         return;
     }
     if (cleanLine.contains(QByteArrayLiteral("Initializing retrieval of EddyFlow-RP results")))
@@ -1322,10 +1403,30 @@ void RunPage::parseEngineOutput(const QByteArray &data)
         main_progress_bar->setValue(main_progress_bar->maximum());
         return;
     }
-    if (cleanLine.contains(QByteArrayLiteral("Calculating fluxes for:")))
+    // FCC's flux loop says "  Calculating fluxes for 13 May 2019" once a
+    // day. This matched "Calculating fluxes for:", which the engine never
+    // writes, so the bar stood still for the whole flux computation. It counts
+    // the days of the project's range when one is set; without one the length
+    // is unknown here and the bar shows it is busy.
+    if (cleanLine.contains(QByteArrayLiteral("Calculating fluxes for ")))
     {
-        resetProgressSoft();
-        main_progress_bar->setValue(++progressValue_);
+        if (!fccFluxDays_)
+        {
+            fccFluxDays_ = true;
+            resetProgressSoft();
+            int days = 0;
+            if (ecProject_->generalSubset())
+            {
+                const QDate dStart(QDate::fromString(ecProject_->generalStartDate(), Qt::ISODate));
+                const QDate dEnd(QDate::fromString(ecProject_->generalEndDate(), Qt::ISODate));
+                if (dStart.isValid() && dEnd.isValid() && dStart <= dEnd)
+                    days = static_cast<int>(dStart.daysTo(dEnd)) + 1;
+            }
+            main_progress_bar->setMaximum(days);
+        }
+        if (main_progress_bar->maximum() > 0)
+            main_progress_bar->setValue(qMin(++progressValue_, main_progress_bar->maximum()));
+        avgPeriodLabel_->setText(QLatin1String(cleanLine.trimmed().constData()));
         return;
     }
     // start spectral corrections

@@ -1,7 +1,10 @@
-"""The parallel pre-pass tickbox is a machine preference, not a project one.
+"""The parallel processing tickbox is a machine preference, not a project one.
 
-`eddyflow_rp` can split its planar-fit and time-lag pre-passes across worker
-processes, and the switch that asks for it is `-j`. How many cores this
+Both engines can split a run across worker processes - `eddyflow_rp` its
+planar-fit and time-lag pre-passes and its raw data processing, `eddyflow_fcc`
+its spectral import and flux correction - and the switch that asks for it is
+`-j`. The names in the code still say "pre-pass", from when that was all it
+split, so that the stored preference carries over. How many cores this
 computer should hand the engine has nothing to do with the site being
 processed, so the tickbox writes into the application preferences rather than
 into the `.eddyflow` - which also means no new ini key, no move of the
@@ -68,9 +71,9 @@ class ThePreferenceIsStoredWithTheApplication(unittest.TestCase):
 class TheSwitchIsPassedInBothStates(unittest.TestCase):
     """Otherwise an unticked box falls through to the engine's own default."""
 
-    def test_the_switch_is_passed_twice(self):
-        """Once for the express run, once for the advanced one."""
-        self.assertEqual(MAIN.count('args << QStringLiteral("-j");'), 2)
+    def test_the_switch_is_passed_three_times(self):
+        """RP's express and advanced runs, and FCC's."""
+        self.assertEqual(MAIN.count('args << QStringLiteral("-j");'), 3)
 
     def test_each_one_chooses_between_auto_and_serial(self):
         for match in re.finditer(r'args << QStringLiteral\("-j"\);', MAIN):
@@ -79,13 +82,24 @@ class TheSwitchIsPassedInBothStates(unittest.TestCase):
             self.assertIn('QStringLiteral("0")', chunk)
             self.assertIn('QStringLiteral("1")', chunk)
 
-    def test_it_goes_only_to_the_raw_processing_engine(self):
-        """FCC has no pre-pass, and metadata retrieval never reaches one."""
+    def test_it_goes_to_both_engines(self):
+        """FCC splits its flux computation too, and without -j would use every
+        core whatever the box says."""
+        engines = []
         for match in re.finditer(r'args << QStringLiteral\("-j"\);', MAIN):
-            chunk = MAIN[match.end():match.end() + 900]
-            self.assertIn("Defs::ENGINE_RP", MAIN[:match.start()][-2500:],
-                          "-j must sit in a block that launches eddyflow_rp")
-            self.assertNotIn("ENGINE_FCC", chunk)
+            before = MAIN[:match.start()][-2500:]
+            rp = before.rfind("Defs::ENGINE_RP")
+            fcc = before.rfind("Defs::ENGINE_FCC")
+            self.assertGreaterEqual(max(rp, fcc), 0,
+                                    "-j must sit in a block that launches an engine")
+            engines.append("fcc" if fcc > rp else "rp")
+        self.assertEqual(sorted(engines), ["fcc", "rp", "rp"])
+
+    def test_metadata_retrieval_is_not_given_it(self):
+        """It never reaches a split pass."""
+        i = MAIN.index("setGeneralRunMode(Defs::CurrRunMode::Retriever)")
+        block = MAIN[i:MAIN.index("engineProcessStart", i)]
+        self.assertNotIn('QStringLiteral("-j")', block)
 
     def test_the_switch_precedes_the_project_path(self):
         """The engine reads both from one list; the path goes last."""

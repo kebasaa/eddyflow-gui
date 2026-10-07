@@ -660,17 +660,17 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     qcTitle->setProperty("groupLabel", true);
 
     parallelPrepassCheckBox = new RichTextCheckBox;
-    parallelPrepassCheckBox->setText(tr("Parallelise the planar fit and time lag pre-passes"));
-    parallelPrepassCheckBox->setToolTip(tr("<b>Parallelise the planar fit and "
-        "time lag pre-passes:</b> Before it computes any flux, EddyFlow may walk "
-        "every averaging period once to fit the planar fit planes, or to optimise "
-        "the time lags. On a long dataset that walk dominates the run. Each period "
-        "in it is independent of the others, so the range is split across the "
-        "processor cores and the pieces joined back together in order."
-        "<br><br>This does <b>not change the results</b>: the planar fit "
-        "coefficients and the optimised time lags come out identical to a run "
-        "without it. It has no effect on a project that runs no pre-pass, nor on "
-        "the flux computation itself, which is not split."
+    parallelPrepassCheckBox->setText(tr("Run in parallel on all processor cores"));
+    parallelPrepassCheckBox->setToolTip(tr("<b>Run in parallel on all processor "
+        "cores:</b> EddyFlow splits a run's averaging periods across the processor "
+        "cores and joins the pieces back together in order. Split are the planar "
+        "fit and time lag pre-passes, the raw data processing that computes the "
+        "fluxes, and, in the flux correction, the import of the binned (co)spectra "
+        "and the correction of the fluxes. What cannot be split - a run in "
+        "embedded mode, or a flux correction whose inputs come from a shared "
+        "link - runs on one core as before, and the log says why."
+        "<br><br>This does <b>not change the results</b>: every output file comes "
+        "out identical to a run on a single core."
         "<br><br>This is a setting for <i>this computer</i>, not for the project: "
         "it is remembered between sessions but is not saved into the project file, "
         "so a colleague opening the same project decides it for themselves."));

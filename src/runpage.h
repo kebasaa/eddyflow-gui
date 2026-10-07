@@ -59,6 +59,7 @@ public:
 
 public slots:
     void resetBuffer();
+    void flushBuffer();
     void bufferData(QByteArray &data);
 
 signals:
@@ -77,6 +78,7 @@ private slots:
 private:
     bool filterData(const QByteArray &data);
     QByteArray cleanupEngineOutput(QByteArray data);
+    static QByteArrayList splitGluedMessage(const QByteArray& line);
     void parseEngineOutput(const QByteArray& data);
     void resetProgressSoft();
     void resetProgressHard();
@@ -118,6 +120,15 @@ private:
 
     bool inPlanarFit_ = false;
     bool inTimeLag_ = false;
+
+    // A production pass split across worker processes: progress then comes
+    // from the pieces finished rather than from each averaging period.
+    bool prodSplit_ = false;
+    bool prodPwb_ = false;
+    int prodPhase_ = 0;
+    int prodBaseValue_ = 0;
+    // FCC's flux loop has started reporting its days.
+    bool fccFluxDays_ = false;
 };
 
 #endif // RUNPAGE_H
