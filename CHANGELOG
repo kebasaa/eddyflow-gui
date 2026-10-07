@@ -1,4 +1,4 @@
-8.1.2 (2026-10-02)
+8.1.2 (2026-10-07)
 
     GUI:
 	- Version bump to match EddyFlow engine 8.1.2.
@@ -85,6 +85,23 @@
 	       now waits for every process of the run to exit, five seconds at
 	       most (on Linux and macOS, for its process group to empty), and the
 	       wipe is tried again for up to three seconds while anything is left.
+	- Fix: Stop, Pause and Resume reach every process of an engine run.
+	       Stop ended the engine process alone, so the workers of a
+	       parallel pass - one parent and up to 32 workers - were orphaned
+	       and kept computing for hours, and Pause and Resume reached only
+	       the parent. On Windows the engine now runs in a job object that
+	       is created suspended and released once the engine is in it, so
+	       every process it starts is born inside the job; Stop terminates
+	       the job, Pause and Resume suspend and resume everything in it,
+	       and the interface closing or crashing takes the whole run with
+	       it. Elsewhere the engine leads its own session and process
+	       group, and the same three actions signal the group.
+	- Fix: Keys are heard while a run is going. A key was ignored whenever
+	       a text widget held the focus, judged by class alone, and the
+	       read-only output console and info dock hold the focus for as
+	       long as a run lasts, so no key sequence reached the main window
+	       while anything was being processed. A widget now counts as a
+	       field only when it can be typed into.
 	- Fix: The time-lag file check reads every hygrometer's RH table. The
 	       engine now writes one per closed-path hygrometer - the designated
 	       one's under its usual title, each other's after it, titled
