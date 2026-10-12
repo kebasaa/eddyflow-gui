@@ -29,6 +29,12 @@
 #include <QApplication>
 #include <QCoreApplication>
 #include <QDebug>
+#include <QDir>
+#include <QElapsedTimer>
+#include <QFile>
+#include <QFileInfo>
+#include <QRegularExpression>
+#include <QThread>
 #include <QProcessEnvironment>
 #include <QtConcurrentRun>
 
@@ -37,6 +43,7 @@
 #include "defs.h"
 #include "widget_utils.h"
 #include "remotesource.h"
+#include "process.h"
 
 // NOTE: never used
 bool FileUtils::isFileEmpty(const QString& fileName)
@@ -185,6 +192,64 @@ bool FileUtils::isDirEmpty(const QString& dirName)
     QDir dir(dirName);
     QStringList list = dir.entryList(QDir::Dirs | QDir::Files);
     return list.isEmpty();
+}
+
+// Whether an entry of the env tmp folder belongs to an engine process that is
+// still running. Each run's temporary folder, tmp_<stamp>_p<pid>, holds the id
+// of its owner in owner.pid; a worker's output folder, p<pid>_<kind><k>, names
+// its parent's. A folder without an owner file is an older engine's or a
+// crashed one's - unless it was made moments ago, by a run that has not yet
+// written the file.
+static bool tmpEntryInUse(const QFileInfo& entry)
+{
+    if (!entry.isDir()) return false;
+    const QString name = entry.fileName();
+    if (name.startsWith(QStringLiteral("tmp"))) {
+        QFile owner(entry.absoluteFilePath() + QStringLiteral("/owner.pid"));
+        if (owner.open(QIODevice::ReadOnly)) {
+            bool ok = false;
+            const qint64 pid = QString::fromLatin1(owner.readAll()).trimmed().toLongLong(&ok);
+            return ok && Process::isEngineProcessRunning(pid);
+        }
+        return entry.lastModified().secsTo(QDateTime::currentDateTime()) < 60;
+    }
+    static const QRegularExpression workerRoot(QStringLiteral("^p(\\d+)_"));
+    const auto match = workerRoot.match(name);
+    if (match.hasMatch())
+        return Process::isEngineProcessRunning(match.captured(1).toLongLong());
+    return false;
+}
+
+void FileUtils::cleanTmpDirOfFinishedRuns(const QString& tmpDir)
+{
+    // After a Stop, as EddyPro does - but only what no running engine owns.
+    // Every session of this version shares the env tmp folder, and wiping it
+    // whole deleted the scripts another session's run was still using: its
+    // workers finished and could never say so, and the run waited a day for
+    // them. Process::processStop has waited for every process of the stopped
+    // run, so its own folders are no longer in use and go; another run's stay.
+    // Windows - or a virus scanner - can hold a file a moment longer, so what
+    // was chosen is tried again for up to three seconds.
+    QStringList doomed;
+    const auto entries = QDir(tmpDir).entryInfoList(QDir::Dirs | QDir::Files
+                                                    | QDir::Hidden | QDir::NoDotAndDotDot);
+    for (const auto& entry : entries) {
+        if (!tmpEntryInUse(entry)) doomed << entry.absoluteFilePath();
+    }
+    QElapsedTimer clock;
+    clock.start();
+    while (!doomed.isEmpty()) {
+        for (int i = doomed.size() - 1; i >= 0; --i) {
+            const QFileInfo entry(doomed.at(i));
+            if (entry.isDir()) QDir(entry.absoluteFilePath()).removeRecursively();
+            else QFile::remove(entry.absoluteFilePath());
+            // Asked of the file system: a QFileInfo answers from its cache.
+            if (!QFileInfo::exists(entry.absoluteFilePath())) doomed.removeAt(i);
+        }
+        if (doomed.isEmpty() || clock.elapsed() > 3000) break;
+        QThread::msleep(100);
+    }
+    QDir().mkpath(tmpDir);
 }
 
 void FileUtils::cleanDirRecursively(const QString& d)

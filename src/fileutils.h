@@ -62,6 +62,9 @@ namespace FileUtils
     void cleanDir(const QString& d);
     void cleanDirRecursively(const QString& d);
     void cleanSmfDirRecursively(const QString& appEnvPath);
+    // Removes from the env tmp folder what no running engine owns: the
+    // folders of runs that have ended, never another session's live run.
+    void cleanTmpDirOfFinishedRuns(const QString& tmpDir);
     void cleanDirFromFiletypeRecursively(const QString& d,
                                           const QStringList& illegalFileTypes);
 

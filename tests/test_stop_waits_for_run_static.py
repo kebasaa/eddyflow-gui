@@ -1,9 +1,13 @@
-"""Stop waits for the run's processes to exit before the tmp folder is wiped.
+"""Stop waits for the run's processes to exit, then removes what is theirs.
 
 EddyPro, which this interface comes from, wipes and recreates the whole env
-tmp folder after a user Stop (stopEngineProcess -> cleanEnvTmpDir) and does
-nothing else with it; the engine removes its own run folder only when a run
-finishes cleanly. EddyFlow keeps exactly that.
+tmp folder after a user Stop (stopEngineProcess -> cleanEnvTmpDir); the engine
+removes its own run folder only when a run finishes cleanly. EddyFlow did the
+same until a second session's run lost its scripts to it: every session of a
+version shares that folder, its workers finished and could never say so, and
+it waited a day for them. The cleanup now removes only what no running engine
+owns - each run's folder names its owner in owner.pid, each worker folder its
+parent in p<pid>_ - which for a run on its own is still everything.
 
 What changed is how a run is stopped: the whole job object is terminated, a
 dozen processes in a parallel run, and termination only starts them dying.
@@ -29,6 +33,7 @@ def read(rel):
 
 
 PROCESS = read("src/process.cpp")
+FILEUTILS = read("src/fileutils.cpp")
 HEADER = read("src/process.h")
 MAIN = read("src/mainwindow.cpp")
 
@@ -66,11 +71,29 @@ class TheTmpFolderIsHandledAsEddyProHandlesIt(unittest.TestCase):
         stop = body(MAIN, "void MainWindow::stopEngineProcess()")
         self.assertLess(stop.index("processStop()"), stop.index("cleanEnvTmpDir()"))
 
-    def test_the_wipe_is_retried_while_anything_is_left(self):
-        clean = body(MAIN, "void MainWindow::cleanEnvTmpDir()")
-        self.assertIn("Defs::TMP_FILE_DIR", clean)
-        self.assertIn("FileUtils::cleanDirRecursively(tmpDir)", clean)
-        self.assertIn("QDir(tmpDir).isEmpty() || clock.elapsed() > 3000", clean)
+    def test_only_what_no_running_engine_owns_is_removed(self):
+        env = body(MAIN, "void MainWindow::cleanEnvTmpDir()")
+        self.assertIn("FileUtils::cleanTmpDirOfFinishedRuns(appEnvPath_ + QLatin1Char('/') + Defs::TMP_FILE_DIR)", env)
+        clean = body(FILEUTILS, "void FileUtils::cleanTmpDirOfFinishedRuns(")
+        self.assertIn("if (!tmpEntryInUse(entry)) doomed << entry.absoluteFilePath();", clean)
+        self.assertNotIn("cleanDirRecursively", clean)
+
+    def test_the_chosen_entries_are_retried_for_three_seconds(self):
+        clean = body(FILEUTILS, "void FileUtils::cleanTmpDirOfFinishedRuns(")
+        self.assertIn("if (doomed.isEmpty() || clock.elapsed() > 3000) break;", clean)
+        self.assertIn("if (!QFileInfo::exists(entry.absoluteFilePath())) doomed.removeAt(i);", clean)
+
+    def test_ownership_is_read_from_the_folders(self):
+        owner = body(FILEUTILS, "static bool tmpEntryInUse(")
+        self.assertIn('"/owner.pid"', owner)
+        self.assertIn("Process::isEngineProcessRunning(pid)", owner)
+        self.assertIn(r'QStringLiteral("^p(\\d+)_")', owner)
+        self.assertIn("secsTo(QDateTime::currentDateTime()) < 60", owner)
+
+    def test_a_reused_process_id_does_not_pass_for_the_engine(self):
+        alive = body(PROCESS, "bool Process::isEngineProcessRunning(qint64 pid)")
+        self.assertIn("GetExitCodeProcess(h, &code) && code == STILL_ACTIVE", alive)
+        self.assertIn('name.contains(QStringLiteral("eddyflow"), Qt::CaseInsensitive)', alive)
 
 
 if __name__ == "__main__":
