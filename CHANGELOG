@@ -1,8 +1,15 @@
 8.1.3 (2026-10-07)
 
     GUI:
-	- Version bump to match EddyFlow engine 8.1.3. Nothing in the interface
-	  changes.
+	- Version bump to match EddyFlow engine 8.1.3.
+	- Fix: Stopping a run, or closing the window or opening a project while
+	       one runs, no longer harms a run in another EddyFlow window. The
+	       cleanup after a Stop wiped the temporary folder every run of the
+	       version shares, as EddyPro does, and took another window's run with
+	       it: its workers' scripts were deleted, and it waited a day for
+	       workers that could never report. It now removes only the folders of
+	       runs that have ended - each run's folder names its owner process -
+	       so for a run on its own it is still everything.
 
 8.1.2 (2026-10-07)
 
