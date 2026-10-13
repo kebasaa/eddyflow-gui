@@ -2680,32 +2680,32 @@ void AdvSpectralOptions::createQuestionMarks()
 
 void AdvSpectralOptions::onlineHelpTrigger_11()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Ensemble_Averages.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/ensemble-averages/")));
 }
 
 void AdvSpectralOptions::onlineHelpTrigger_1()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Calculating_Spectral_Correction_Factors.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/calculate-spectral-correction-factors/")));
 }
 
 void AdvSpectralOptions::onlineHelpTrigger_2()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/High-pass_Filtering.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/high-pass-filtering/")));
 }
 
 void AdvSpectralOptions::onlineHelpTrigger_3()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Low-pass_Filtering.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/low-pass-filtering/")));
 }
 
 void AdvSpectralOptions::onlineHelpTrigger_4()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Spectral_Corrections.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/spectral-corrections/")));
 }
 
 void AdvSpectralOptions::onlineHelpTrigger_5()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Calculating_Spectra_Cospectra_and_Ogives.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/calculate-spectra-cospectra-and-ogives/")));
 }
 
 void AdvSpectralOptions::updateTooltip(int i)

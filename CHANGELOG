@@ -19,6 +19,14 @@
 	       8.1.3). It advises setting the measure type rather than unticking
 	       the box to leave one analyser alone. Its help link pointed at a
 	       host and page name the documentation site no longer has.
+	- Fix: The help question marks and buttons open the EddyFlow
+	       documentation. They pointed at keba_saa.github.io, a host that
+	       does not exist, with page names from the old LI-COR help; a few
+	       pointed at licor.com, which never had these pages. Each now opens
+	       its page on kebasaa.github.io/eddyflow-documentation, and each
+	       raw-data screening test opens its own section of the despiking
+	       page. The hidden question mark of "Label of data records" opens
+	       nothing: no page covers it.
 
 8.1.2 (2026-10-07)
 

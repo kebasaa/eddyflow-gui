@@ -244,5 +244,5 @@ void DlRawfileDescTab::clearInstrModels()
 
 void DlRawfileDescTab::onlineHelpTrigger_1()
 {
-//    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/")));
+//    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/")));
 }

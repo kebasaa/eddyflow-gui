@@ -80,48 +80,48 @@ void CustomHeader::onlineHelpTrigger()
 
     if (data == ClickLabel::AnemSwVersion)
     {
-        WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/sonic_firmware_version.html")));
+        WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/sonic-anemometer-firmware-version/")));
     }
     else if (data == ClickLabel::AnemNAlign)
     {
-        WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Axes_Alignment.html")));
+        WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/axes-alignment/")));
     }
     else if (data == ClickLabel::AnemNOffset)
     {
-        WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/North_Offset.html")));
+        WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/north-offset/")));
     }
     else if (data == ClickLabel::AnemNSep
              || data == ClickLabel::AnemESep
              || data == ClickLabel::AnemVSep)
     {
-        WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Sensor_Separation.html")));
+        WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/sensor-separation/")));
     }
     else if (data == ClickLabel::IrgaModel)
     {
-        WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Gas_Analyzer_Model.html")));
+        WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/gas-analyzer-model/")));
     }
     else if (data == ClickLabel::IrgaLPathLength
              || data == ClickLabel::IrgaTPathLength)
     {
-        WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Longitude_Transverse.html")));
+        WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/longitude-transverse-pathlengths/")));
     }
     else if (data == ClickLabel::VarIgnoreDesc
              || data == ClickLabel::VarNumericDesc
              || data == ClickLabel::VarDesc)
     {
-        WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Sensitive_and_Non-sensitive_Variables.html")));
+        WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/sensitive-and-nonsensitive-variables/")));
     }
     else if (data == ClickLabel::VarConv
              || data == ClickLabel::VarMinValue
              || data == ClickLabel::VarMaxValue)
     {
-        WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Conversion_Type.html")));
+        WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/conversion-type/")));
     }
     else if (data == ClickLabel::VarNomTLag
              || data == ClickLabel::VarMinTLag
              || data == ClickLabel::VarMaxTLag)
     {
-        WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Nominal_Time_Lag.html")));
+        WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/nominal-time-lag/")));
     }
 }
 

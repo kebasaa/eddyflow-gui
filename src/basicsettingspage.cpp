@@ -5179,22 +5179,22 @@ void BasicSettingsPage::createQuestionMark()
 
 void BasicSettingsPage::onlineHelpTrigger_2()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/support/EddyFlow/topics/using-prev-results.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/using-prev-results/")));
 }
 
 void BasicSettingsPage::onlineHelpTrigger_3()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/support/EddyFlow/topics/flags.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/flags/")));
 }
 
 void BasicSettingsPage::onlineHelpTrigger_4()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/support/EddyFlow/topics/raw-file-name-format.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/raw-file-name-format/")));
 }
 
 void BasicSettingsPage::onlineHelpTrigger_5()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/support/EddyFlow/topics/declination.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/declination/")));
 }
 
 void BasicSettingsPage::updateCrossWind(bool b)

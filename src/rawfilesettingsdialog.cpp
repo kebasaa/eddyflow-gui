@@ -195,5 +195,6 @@ void RawFileSettingsDialog::updateDataRecLabel(const QString& s)
 
 void RawFileSettingsDialog::onlineHelpTrigger_1()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Label_Data_Records.html")));
+    // No documentation page covers the label of data records, and this
+    // question mark is hidden along with the field.
 }

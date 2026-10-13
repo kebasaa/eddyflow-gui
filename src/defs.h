@@ -159,8 +159,8 @@ namespace Defs
     const auto APP_NAME_UCASE = QStringLiteral("EDDYFLOW");
     const auto ORG_DOMAIN     = QStringLiteral("github.com/kebasaa/eddyflow-gui");
     const auto ORG_NAME       = QStringLiteral("EddyFlow");
-    const auto APP_URL        = QStringLiteral("https://keba_saa.github.io/eddyflow-documentation");
-    const auto APP_FORUM_URL  = QStringLiteral("https://keba_saa.github.io/eddyflow-documentation");
+    const auto APP_URL        = QStringLiteral("https://kebasaa.github.io/eddyflow-documentation");
+    const auto APP_FORUM_URL  = QStringLiteral("https://kebasaa.github.io/eddyflow-documentation");
 
     // UTF-16 hex codes
     const auto DEGREE      = QChar(0x00B0);

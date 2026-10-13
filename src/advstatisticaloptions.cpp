@@ -3003,52 +3003,52 @@ void AdvStatisticalOptions::createQuestionMark()
 
 void AdvStatisticalOptions::onlineHelpTrigger_1()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/despiking-raw-statistical-screening/")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_2()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/despiking-raw-statistical-screening/#despiking")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_3()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/despiking-raw-statistical-screening/#amplitude-resolution")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_4()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/despiking-raw-statistical-screening/#drop-outs")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_5()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/despiking-raw-statistical-screening/#absolute-limits")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_6()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/despiking-raw-statistical-screening/#skewness-and-kurtosis")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_7()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/despiking-raw-statistical-screening/#discontinuities")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_8()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/despiking-raw-statistical-screening/#time-lags")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_9()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/despiking-raw-statistical-screening/#angle-of-attack")));
 }
 
 void AdvStatisticalOptions::onlineHelpTrigger_10()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Despiking_Raw_Stat_Screening.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/despiking-raw-statistical-screening/#steadiness-of-horizontal-wind")));
 }
 
 /// The estimator's own settings follow its switch, wherever the switch came
@@ -3093,7 +3093,7 @@ void AdvStatisticalOptions::syncRandomErrorMethod()
 
 void AdvStatisticalOptions::onlineHelpTrigger_11()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Random_Uncertainty_Estimation.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/random-uncertainty-estimation/")));
 }
 
 void AdvStatisticalOptions::updateRandomErrorArea(bool b)

@@ -143,12 +143,12 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     wBoostCheckBox = new RichTextCheckBox;
     wBoostCheckBox->setText(tr("Fix 'w boost' bug (Gill WindMaster and WindMaster Pro only)"));
     wBoostCheckBox->setToolTip(tr("<b>Fix 'w boost' bug:</b> Gill WindMaster and WindMaster Pro produced between 2006 and 2015 and identified by a firmware version of the form 2329.x.y with x &lt; 700, are affected by a bug such that the vertical wind speed is underestimated. Check this option to have EddyFlow fix the bug. For more details, please visit <a href=\"http://gillinstruments.com/data/manuals/KN1509_WindMaster_WBug_info.pdf\">Gill's Technical Key Note</a>"));
-    wBoostCheckBox->setQuestionMark(QStringLiteral("https://www.licor.com/env/help/EddyFlow/topics_EddyFlow/w-boost_bug_correction.html"));
+    wBoostCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/w-boost-correction/"));
 
     aoaCheckBox = new RichTextCheckBox;
     aoaCheckBox->setToolTip(tr("<b>Angle-of-attack correction:</b> Applies only to vertical mount Gill sonic anemometers with the same geometry of the R3 (e.g., R2, WindMaster, WindMaster Pro). This correction is meant to compensate the effects of flow distortion induced by the anemometer frame on the turbulent flow field. We recommend applying this correction whenever an R3-shaped anemometer was used."));
     aoaCheckBox->setText(tr("Angle-of-attack correction for wind components (Gill's only)"));
-    aoaCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Angle_of_Attack_Correction.html"));
+    aoaCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/angle-of-attack-correction/"));
 
     aoaMethLabel = new ClickLabel(tr("Method :"));
     aoaMethLabel->setEnabled(false);
@@ -336,7 +336,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     rotCheckBox = new RichTextCheckBox;
     rotCheckBox->setToolTip(tr("<b>Axis rotation for tilt correction:</b> Select the appropriate method for compensating anemometer tilt with respect to local streamlines. Uncheck the box to <i>not perform</i> any rotation (not recommnended). If your site has a complex or sloping topography, a planar-fit method is advisable. Click on the <b><i>Planar Fit Settings...</i></b> to configure the procedure."));
     rotCheckBox->setText(tr("Axis rotations for tilt correction"));
-    rotCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Anemometer_Tilt_Correction.html"));
+    rotCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/anemometer-tilt-correction/"));
 
     rotMethLabel = new ClickLabel(tr("Rotation method :"));
     rotMethCombo = new QComboBox;
@@ -386,7 +386,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     timeLagCheckBox = new RichTextCheckBox;
     timeLagCheckBox->setToolTip(tr("<b>Time lags compensation:</b> Select the method to compensate time lags between anemometric measurements and any other high frequency measurements included in the raw files. Time lags arise due mainly to sensors physical distances and to the passage of air into sampling lines. Uncheck this box to instruct EddyFlow not to compensate time lags (not recommended)."));
     timeLagCheckBox->setText(tr("Time lags compensation"));
-    timeLagCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Time_Lag_Detect_Correct.html"));
+    timeLagCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/time-lag-detect-correct/"));
 
     timeLagMethodLabel = new ClickLabel(tr("Time lag detection method :"));
     timeLagMethodCombo = new QComboBox;
@@ -413,7 +413,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     qcCheckBox = new RichTextCheckBox;
     qcCheckBox->setToolTip(tr("<b>Quality check:</b> Select the quality flagging policy. Flux quality flags are obtained from the combination of two partial flags that result from the application of the steady-state and the developed turbulence tests. Select the flag combination policy."));
     qcCheckBox->setText(tr("Quality check"));
-    qcCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Flux_Quality_Flags.html"));
+    qcCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/flux-quality-flags/"));
 
     qcLabel = new ClickLabel(tr("Flagging policy :"));
     qcMethodCombo = new QComboBox;
@@ -430,7 +430,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     fpCheckBox = new RichTextCheckBox;
     fpCheckBox->setToolTip(tr("<b>Footprint estimation:</b> Select whether to calculate flux footprint estimations and which method should be used. Flux crosswind-integrated footprints are provided as distances from the tower contributing for 10%, 30%, 50%, 70% and 90% to measured fluxes. Also, the location of the peak contribution is given."));
     fpCheckBox->setText(tr("Footprint estimation"));
-    fpCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Estimating_Flux_Footprint.html"));
+    fpCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/estimating-flux-footprint/"));
 
     fpLabel = new ClickLabel(tr("Footprint method :"));
     fpMethodCombo = new QComboBox;
@@ -447,7 +447,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
                               "<p>Ticking this also switches on <b>compensation of density fluctuations (WPL)</b>, because the method sorts each air parcel by the SIGN of its water and carbon dioxide fluctuation. In an uncorrected molar density from an open-path analyser, part of that fluctuation is the air expanding rather than the gas arriving, and it is large enough to reverse the sign \xe2\x80\x93 which puts the parcel in the wrong octant.</p>");
     cecCheckBox->setToolTip(cecAvailableTooltip_);
     cecCheckBox->setText(tr("Conditional Eddy Covariance"));
-    cecCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Conditional_Eddy_Covariance.html"));
+    cecCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/conditional-eddy-covariance/"));
 
     cecSettingsButton = new QPushButton(tr("CEC Settings"));
     cecSettingsButton->setProperty("mdButton", true);
@@ -608,7 +608,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     burbaAvailableTooltip_ = tr("<b>Add instrument sensible heat components, only for LI-7500:</b> Only applies to the LI-7500. It takes into account air density fluctuations due to temperature fluctuations induced by heat exchange processes at the instrument surfaces, as from Burba et al. (2008).");
     burbaCorrCheckBox->setToolTip(burbaAvailableTooltip_);
     burbaCorrCheckBox->setText(tr("Add instrument sensible heat components, only for LI-7500 "));
-    burbaCorrCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Calculating_Off-season_Uptake_Correction.html"));
+    burbaCorrCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/calculate-offseason-uptake-correction/"));
 
     burbaTypeLabel = new ClickLabel;
     burbaTypeLabel->setText(tr("Surface temperature estimation :"));
@@ -2504,17 +2504,17 @@ void AdvProcessingOptions::createQuestionMark()
 
 void AdvProcessingOptions::onlineHelpTrigger_1()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Wind_Speed_Offsets.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/windspeed-offsets/")));
 }
 
 void AdvProcessingOptions::onlineHelpTrigger_4()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Calculate_Turbulent_Flux.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/calculate-turbulent-flux/")));
 }
 
 void AdvProcessingOptions::onlineHelpTrigger_11()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Raw_Processing_Options.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/raw-processing-options/")));
 }
 
 void AdvProcessingOptions::updateTooltip(int i)

@@ -4629,7 +4629,7 @@ void MainWindow::displayExitMsg2(Process::ExitStatus exitReason)
 
 void MainWindow::onlineHelpTrigger_1()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Error_Codes.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/error-codes/")));
 }
 
 // qt5

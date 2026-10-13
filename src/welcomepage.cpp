@@ -382,6 +382,6 @@ void WelcomePage::createQuestionMark()
 
 void WelcomePage::onlineHelpTrigger_1()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/smartfluxSettings.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/smartflux-settings/")));
 }
 
