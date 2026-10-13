@@ -575,6 +575,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
         "<i>a</i> = <i>b</i> = 0. To carry a published value across, add one to <i>a</i>: an "
         "EddyUH <i>a</i> of &minus;1.39 becomes &minus;0.39 here. Typing the EddyUH value "
         "unchanged would count the dilution twice."));
+    spectroCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/raw-processing-options/#compensation-for-density-fluctuations-wpl-terms"));
 
     spectroWaterCheckBox = new RichTextCheckBox;
     spectroWaterCheckBox->setText(tr("Also correct the water channel (EddyUH form, unpublished)"));
@@ -587,6 +588,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
         "used for every other column. Select it deliberately, and report that you did. "
         "Off by default, and it does nothing unless the correction above is on and the "
         "hygrometer's own coefficients are non-zero."));
+    spectroWaterCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/raw-processing-options/#compensation-for-density-fluctuations-wpl-terms"));
 
     //> Lit only in the inconsistent state - the partition on, the correction it
     //> depends on off. A warning icon that is usually on is one nobody reads.

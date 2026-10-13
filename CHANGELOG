@@ -27,6 +27,9 @@
 	       raw-data screening test opens its own section of the despiking
 	       page. The hidden question mark of "Label of data records" opens
 	       nothing: no page covers it.
+	- Fix: "Remove the spectroscopic effect of water vapour" and "Also
+	       correct the water channel" have a help button, which opens their
+	       description under the WPL section of the processing options.
 
 8.1.2 (2026-10-07)
 

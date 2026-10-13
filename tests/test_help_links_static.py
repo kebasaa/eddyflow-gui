@@ -60,6 +60,19 @@ class NoOldHostOrPageNames(unittest.TestCase):
         self.assertGreater(len(links()), 50)
 
 
+class TheSpectroscopicBoxesHaveHelp(unittest.TestCase):
+    """Both are described under the WPL section of the processing options."""
+
+    def test_each_box_has_a_question_mark_to_its_section(self):
+        page = (ROOT / "src" / "advprocessingoptions.cpp").read_text(
+            encoding="utf-8", errors="replace")
+        for box in ("spectroCheckBox", "spectroWaterCheckBox"):
+            start = page.index(box + "->setQuestionMark(")
+            self.assertIn(SITE + "topics/raw-processing-options/"
+                          "#compensation-for-density-fluctuations-wpl-terms",
+                          page[start:page.index("\n", start)], box)
+
+
 @unittest.skipUnless(DOCS.is_dir(), "eddyflow-documentation is not checked out "
                      "next to eddyflow-gui")
 class EachLinkHasItsPage(unittest.TestCase):
