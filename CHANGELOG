@@ -10,6 +10,15 @@
 	       workers that could never report. It now removes only the folders of
 	       runs that have ended - each run's folder names its owner process -
 	       so for a run on its own it is still everything.
+	- Fix: The tooltip of "Compensate density fluctuations (WPL terms)" says
+	       how the engine decides: gas by gas, from the measure type. A dry
+	       mixing ratio is never corrected, so an analyser that reports one -
+	       the MIRO's trace gases - is not corrected twice, while its water,
+	       a mole fraction of wet air, still is; every hygrometer is corrected
+	       after its own path type; and unticked, no gas is corrected (engine
+	       8.1.3). It advises setting the measure type rather than unticking
+	       the box to leave one analyser alone. Its help link pointed at a
+	       host and page name the documentation site no longer has.
 
 8.1.2 (2026-10-07)
 

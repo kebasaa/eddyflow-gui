@@ -456,9 +456,13 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     cecSettingsButton->setToolTip(tr("<b>CEC Settings:</b> Configure Conditional Eddy Covariance partitioning constraints and QC/preprocessing limits."));
 
     wplCheckBox = new RichTextCheckBox;
-    wplCheckBox->setToolTip(tr("<b>Compensate density fluctuations:</b> This is the so-called WPL correction (Webb et al., 1980). Choose whether to apply the compensation of density fluctuations to raw gas concentrations available as molar densities or mole fractions (moles gas per mole of wet air). The correction does not apply if raw concentrations are available as mixing ratios (mole gas per mole dry air)."));
+    wplCheckBox->setToolTip(tr("<b>Compensate density fluctuations:</b> This is the so-called WPL correction (Webb et al., 1980). It is decided gas by gas, from the measure type each gas has in the Raw File Description, so instruments that report differently can share one project."
+                               "<p><b>Mixing ratios</b> (moles of gas per mole of dry air) are never corrected, ticked or not: the instrument has already removed the density effects. An analyser that reports dry mixing ratios \xe2\x80\x93 the MIRO's CO\xe2\x82\x82, N\xe2\x82\x82O and COS, for instance \xe2\x80\x93 is therefore not corrected twice. Its water, if it is reported as a mole fraction of wet air, is still corrected, as it must be.</p>"
+                               "<p><b>Mole fractions</b> (per mole of wet air) and <b>molar densities</b> are corrected. On a closed-path analyser they are converted to mixing ratios sample by sample where the data allow, otherwise corrected after Ibrom et al. (2007); on an open path, after Webb et al. (1980). Every hygrometer's evapotranspiration is corrected after its own path type, and each gas takes its water from the hygrometer its record names.</p>"
+                               "<p><b>Unticked</b>, no gas is density-corrected and every flux keeps its uncorrected value, as in EddyPro.</p>"
+                               "<p>To leave one instrument uncorrected, give its gases the measure type it really reports rather than unticking this box.</p>"));
     wplCheckBox->setText(tr("Compensate density fluctuations (WPL terms)"));
-    wplCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Converting_to_Mixing_Ratio.html"));
+    wplCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/converting-to-mixing-ratio/"));
 
     covmaxDebaselineCheckBox = new RichTextCheckBox;
     covmaxDebaselineCheckBox->setText(tr("Subtract the cross-covariance baseline"));
