@@ -30,6 +30,7 @@
 
 #include "configstate.h"
 #include "defs.h"
+#include "runeta.h"
 
 class QLabel;
 class QProgressBar;
@@ -54,6 +55,7 @@ public:
     bool pauseRun(Defs::CurrRunStatus mode);
     bool resumeRun(Defs::CurrRunStatus mode);
     void stopRun();
+    void engineExited(bool success);
     void updateSmartfluxBar();
     void updateRunPage(bool small);
 
@@ -86,10 +88,8 @@ private:
     void resetLabels();
     void resetFileLabels();
     void resetTimeEstimateLabels();
-    int updateETC(int *mean_processing_time,
-                  const int current_processing_time,
-                  const int index,
-                  const int num_steps);
+    void updateTimeEstimateLabels();
+    void setSplitProgress(const QString& tag, qint64 done, qint64 total);
 
     Defs::CurrRunStatus runMode_;
     QProgressIndicator* progressWidget_;
@@ -114,15 +114,24 @@ private:
     QTimer* pauseResumeDelayTimer_;        // delay and control the pause/resume operations
     QTimer* total_elapsed_update_timer_;   // update the overall elapsed time shown during a run
     QElapsedTimer overall_progress_timer_; // measure the total run time
-    QElapsedTimer main_progress_timer_;    // measure the main steps run time
+    QElapsedTimer eta_clock_;              // the estimate's clock, never restarted
+
+    // The time left until the whole run is done - RP's passes and, when it
+    // follows, FCC's - from the progress the engine reports.
+    RunEta eta_;
+    // FCC is to follow this RP run, and RP has finished: FCC's run continues
+    // the same estimate rather than starting one of its own.
+    bool fccFollows_ = false;
+    bool rpSucceeded_ = false;
 
     SmartFluxBar* smartfluxBar_;
 
     bool inPlanarFit_ = false;
     bool inTimeLag_ = false;
 
-    // A production pass split across worker processes: progress then comes
-    // from the pieces finished rather than from each averaging period.
+    // A pass split across worker processes: the bar then follows the
+    // engine's progress lines, which count every process's periods, rather
+    // than this process's own.
     bool prodSplit_ = false;
     bool prodPwb_ = false;
     int prodPhase_ = 0;

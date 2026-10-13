@@ -4,8 +4,10 @@ After its first fully processed half-hour the engine may hand the rest of the
 range to worker processes. From then on the parent prints no more
 "processing new flux averaging period" lines - only the pieces its workers
 finish - so a progress bar that counts periods stops at the first one and sits
-there until the run ends. The page reads the piece counts instead. FCC splits
-its flux computation the same way, and says so in the same words.
+there until the run ends. The page follows the engine's progress lines instead
+(see test_run_eta_static), which count every process's periods, and shows the
+piece counts under the bar. The pre-passes and FCC split the same way, and say
+so in the same words.
 
 These are the engine's own lines, matched as text, so both sides are pinned:
 a reworded message in the engine would otherwise freeze the bar again without
@@ -35,15 +37,19 @@ engine_available = ENGINE_MAIN.is_file() and ENGINE_POOL.is_file() and ENGINE_FC
 class ThePageReadsThePieces(unittest.TestCase):
 
     def test_it_recognises_the_split_and_its_phases(self):
-        for text in ("Splitting the production pass across",
-                     "Splitting the flux computation across",
+        # Every split pass says "Splitting the <what> across N worker
+        # processes." - the pre-passes, production, FCC's import and fluxes.
+        for text in ("Splitting the ",
+                     " worker processes",
                      "PWB time lags: each piece is first read",
                      "Waiting for the workers:",
                      " pieces done."):
             self.assertIn('QByteArrayLiteral("%s")' % text, PAGE)
 
     def test_it_starts_afresh_with_every_run(self):
-        for start in ("Start raw data processing", "Starting flux computation and correction"):
+        for start in ("Executing EddyFlow", "Performing time-lag optimization",
+                      "Performing planar-fit assessment", "Start raw data processing",
+                      "Starting flux computation and correction"):
             i = PAGE.index('QByteArrayLiteral("%s")' % start)
             block = PAGE[i:PAGE.index("return;", i)]
             self.assertIn("prodSplit_ = false;", block, start)

@@ -66,6 +66,7 @@ HEADERS += \
     src/QProgressIndicator.h \
     src/rawfilenamedialog.h \
     src/rawfilesettingsdialog.h \
+    src/runeta.h \
     src/runpage.h \
     src/splitter.h \
     src/splitterhandle.h \
@@ -182,6 +183,7 @@ SOURCES +=  \
     src/QProgressIndicator.cpp \
     src/rawfilenamedialog.cpp \
     src/rawfilesettingsdialog.cpp \
+    src/runeta.cpp \
     src/runpage.cpp \
     src/splitter.cpp \
     src/splitterhandle.cpp \

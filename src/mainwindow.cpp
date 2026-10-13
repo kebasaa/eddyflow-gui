@@ -4366,6 +4366,8 @@ void MainWindow::displayExitDialog()
     updateConsoleReceived();
     setCurrentStatus(Defs::CurrStatus::Ready);
     setCurrentRunStatus(Defs::CurrRunStatus::Express);
+    mainWidget_->runPage()->engineExited(
+        engineProcess_->processExit() == Process::ExitStatus::Success);
     mainWidget_->runPage()->stopRun();
 
     if (!neededEngineStep2_)
