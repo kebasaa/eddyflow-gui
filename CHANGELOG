@@ -30,6 +30,32 @@
 	- Fix: "Remove the spectroscopic effect of water vapour" and "Also
 	       correct the water channel" have a help button, which opens their
 	       description under the WPL section of the processing options.
+	- Fix: The estimated time to completion is right in a parallel run, and is
+	       of the whole run: every pass still to come, RP's and FCC's, with
+	       the one under way named beside it. It was this process's own
+	       periods times the periods left - the serial time, while a split
+	       pass's workers did most of the work out of sight - and stood still
+	       while the run waited for them; it covered only the pass under way
+	       and stayed on screen into the next. It is now timed from the
+	       engine's progress over every process, over the last ten minutes,
+	       and passes still to come from what they took the last time this
+	       project ran, or else from how they compare with the pass being
+	       timed. On three days of CH-LAE data, from a tenth of the way in, it
+	       was off by 15 % (median) on a first run, serial or in four
+	       processes, against 41 % serial and 130 % in four processes before;
+	       on a second run of the project 8 % and 1 %. It counts down between
+	       the engine's lines, leaves a pause out, goes past 24 hours and is
+	       never negative.
+	- Fix: The progress bar of a split pass follows the periods done over
+	       every process, a split pre-pass included, rather than stopping at
+	       this process's first piece; with PWB time lags the detection round
+	       takes the first 40 % of it.
+	- Fix: The spectral assessment's bar never moved: it waited for "Starting
+	       Spectral Assessment", which the engine does not print. And the end
+	       of the time-lag optimization was never seen ("Time lag" for the
+	       engine's "Time-lag"), so the run read as in it to its end.
+	- Fix: A split in one run no longer carries over to how the next run's
+	       progress is read.
 
 8.1.2 (2026-10-07)
 
