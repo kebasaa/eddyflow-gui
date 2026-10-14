@@ -108,6 +108,12 @@
 	       engine's "Time-lag"), so the run read as in it to its end.
 	- Fix: A split in one run no longer carries over to how the next run's
 	       progress is read.
+	- Change: "Run in parallel on all processor cores" is ticked by default on
+	          a computer where EddyFlow has not stored the setting yet. It was
+	          off until splitting a run had been shown to change nothing;
+	          every regression fixture now comes out byte-identical split and
+	          serial. A computer where the setting is stored keeps it, ticked
+	          or not.
 
 8.1.2 (2026-10-07)
 
