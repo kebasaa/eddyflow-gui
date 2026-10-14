@@ -128,12 +128,18 @@ Histogram bin(const QVector<double>& lags, const QVector<bool>& atEdge, double w
 
 double defaultSamplePercent(qint64 periods)
 {
+    //> 10 % of a month, falling as a power of the size, so that the share
+    //> shrinks while the number of half-hours assessed still grows slowly:
+    //> about 29 for three days, 144 for a month, 290 for a year. Capped at
+    //> 20 % for a small dataset, floored at 1 % from two years on.
     constexpr double month = 1440.0;
-    constexpr double year = 17520.0;
-    if (periods <= month) { return 10.0; }
-    if (periods >= year) { return 1.0; }
-    const double t = std::log(periods / month) / std::log(year / month);
-    return std::round(10.0 * std::pow(10.0, -t) * 10.0) / 10.0;
+    constexpr double twoYears = 35040.0;
+    constexpr double MaxDefault = 20.0;
+    constexpr double MinDefault = 1.0;
+    if (periods <= 0) { return MaxDefault; }
+    const double exponent = std::log(10.0) / std::log(twoYears / month);
+    const double pct = 10.0 * std::pow(month / static_cast<double>(periods), exponent);
+    return std::round(std::clamp(pct, MinDefault, MaxDefault) * 10.0) / 10.0;
 }
 
 qint64 sampledCount(qint64 periods, double percent, qint64 minimum)

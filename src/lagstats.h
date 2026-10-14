@@ -70,8 +70,10 @@ struct Histogram
 //> Bins aligned to multiples of `width`, spanning every lag given.
 Histogram bin(const QVector<double>& lags, const QVector<bool>& atEdge, double width);
 
-//> The share of the half-hours to assess, in percent: 10 % for a month of
-//> data or less, 1 % for a year or more, and in between on a log scale.
+//> The default share of the half-hours to assess, in percent: 20 % for a
+//> small dataset (up to about 11 days), 10 % for a month, then falling slowly
+//> - 10 % x (1440 / periods)^0.72 - to 1 % from two years on. Only the
+//> slider's starting point; any share can be chosen.
 double defaultSamplePercent(qint64 periods);
 
 //> How many half-hours a share of `periods` comes to - never fewer than

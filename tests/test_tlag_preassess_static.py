@@ -269,8 +269,11 @@ class TheSuggestionsAndWhereTheyGo(unittest.TestCase):
 
     def test_the_default_share(self):
         body = function(STATS, "double defaultSamplePercent(")
-        self.assertIn("if (periods <= month) { return 10.0; }", body)
-        self.assertIn("if (periods >= year) { return 1.0; }", body)
+        # 10 % of a month, capped at 20 % and floored at 1 % from two years on.
+        self.assertIn("constexpr double MaxDefault = 20.0;", body)
+        self.assertIn("constexpr double MinDefault = 1.0;", body)
+        self.assertIn("std::log(10.0) / std::log(twoYears / month)", body)
+        self.assertIn("10.0 * std::pow(month / static_cast<double>(periods), exponent)", body)
 
     def test_written_to_the_gas_column_and_the_methods_own_window(self):
         body = function(DIALOG, "void TimelagPreassessDialog::setInMetadata()")
