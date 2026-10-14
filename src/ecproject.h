@@ -69,6 +69,9 @@ public:
 
     // save the current project
     bool saveEcProject(const QString &filename);
+    //> A copy of the project as it stands, for a run that must not touch the
+    //> user's file. Leaves the modified flag as it was and signals nothing.
+    bool saveEcProjectCopy(const QString &filename);
 
     // load a project
     bool loadEcProject(const QString &filename, bool checkVersion = true, bool *modified = nullptr);

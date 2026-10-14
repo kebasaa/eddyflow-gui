@@ -61,6 +61,11 @@ HEADERS += \
     src/nonzerodoublespinbox.h \
     src/planarfitsettingsdialog.h \
     src/pwbtimelagsettingsdialog.h \
+    src/engineprogress.h \
+    src/lagstats.h \
+    src/laghistogramwidget.h \
+    src/logpercentslider.h \
+    src/timelagpreassessdialog.h \
     src/process.h \
     src/proxystyle.h \
     src/QProgressIndicator.h \
@@ -177,6 +182,10 @@ SOURCES +=  \
     src/nonzerodoublespinbox.cpp \
     src/planarfitsettingsdialog.cpp \
     src/pwbtimelagsettingsdialog.cpp \
+    src/lagstats.cpp \
+    src/laghistogramwidget.cpp \
+    src/logpercentslider.cpp \
+    src/timelagpreassessdialog.cpp \
     src/basicsettingspage.cpp \
     src/process.cpp \
     src/proxystyle.cpp \

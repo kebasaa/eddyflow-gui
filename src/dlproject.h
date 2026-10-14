@@ -67,6 +67,11 @@ public:
     bool loadProject(const QString& filename, bool checkVersion = true, bool *modified = nullptr, bool firstReading = false);
     // save the current project
     bool saveProject(const QString& filename);
+    //> A copy of the metadata as it stands, for a run that must not touch
+    //> the user's file (the time-lag preliminary assessment). Unlike
+    //> saveProject it leaves the modified flag as it was and signals nothing:
+    //> an unsaved project stays unsaved, and no autosave is set off.
+    bool saveCopy(const QString& filename);
     // insert tag for native format files
     bool tagProject(const QString& filename);
     // is the file in native format?

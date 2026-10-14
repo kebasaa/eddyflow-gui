@@ -60,6 +60,7 @@
 #include "pwbtimelagsettingsdialog.h"
 #include "richtextcheckbox.h"
 #include "timelagsettingsdialog.h"
+#include "timelagpreassessdialog.h"
 #include "stringutils.h"
 #include "widget_utils.h"
 
@@ -410,6 +411,11 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     tlSettingsButton->setProperty("mdButton", true);
     tlSettingsButton->setMaximumWidth(tlSettingsButton->sizeHint().width());
 
+    tlPreassessButton = new QPushButton(tr("Timelag preliminary assessment..."));
+    tlPreassessButton->setProperty("mdButton", true);
+    tlPreassessButton->setMaximumWidth(tlPreassessButton->sizeHint().width());
+    tlPreassessButton->setToolTip(tr("<b>Timelag preliminary assessment:</b> Detects the time lags of a random sample of the half-hours over a wide search window, ignoring the nominal, minimum and maximum time lags set in the metadata, and shows where they fall for each gas. Suggests a nominal, minimum and maximum time lag per gas, which you can edit and then write to the metadata. Needs a raw data folder (Basic Settings)."));
+
     qcCheckBox = new RichTextCheckBox;
     qcCheckBox->setToolTip(tr("<b>Quality check:</b> Select the quality flagging policy. Flux quality flags are obtained from the combination of two partial flags that result from the application of the steady-state and the developed turbulence tests. Select the flag combination policy."));
     qcCheckBox->setText(tr("Quality check"));
@@ -742,6 +748,9 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     settingsLayout->addWidget(timeLagMethodLabel, 13, 1, Qt::AlignRight);
     settingsLayout->addWidget(timeLagMethodCombo, 13, 2);
     settingsLayout->addWidget(tlSettingsButton, 13, 3);
+    //> Beside the settings button, in a column of its own, so no row below
+    //> moves.
+    settingsLayout->addWidget(tlPreassessButton, 13, 4);
     //> Indented under the method it modifies, in the combo's own column.
     settingsLayout->addWidget(covmaxDebaselineCheckBox, 14, 2, 1, 2);
     settingsLayout->addWidget(tlagBorrowCheckBox, 15, 2, 1, 2);
@@ -873,6 +882,8 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             this, &AdvProcessingOptions::showPfSettingsDialog);
     connect(tlSettingsButton, &QPushButton::clicked,
             this, &AdvProcessingOptions::showTlSettingsDialog);
+    connect(tlPreassessButton, &QPushButton::clicked,
+            this, &AdvProcessingOptions::showTlPreassessDialog);
     connect(detrendMethLabel, &ClickLabel::clicked,
             this, &AdvProcessingOptions::onClickDetrendLabel);
     connect(timeConstantLabel, &ClickLabel::clicked,
@@ -889,6 +900,8 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             timeLagMethodLabel, &ClickLabel::setEnabled);
     connect(timeLagCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateTlSettingsButton);
+    connect(timeLagCheckBox, &RichTextCheckBox::toggled,
+            tlPreassessButton, &QPushButton::setEnabled);
     connect(timeLagCheckBox, &RichTextCheckBox::toggled,
             timeLagMethodCombo, &QComboBox::setEnabled);
     connect(timeLagMethodLabel, &ClickLabel::clicked,
@@ -1121,6 +1134,9 @@ AdvProcessingOptions::~AdvProcessingOptions()
 
     if (pwbTlDialog_)
         delete pwbTlDialog_;
+
+    if (tlPreassessDialog_)
+        delete tlPreassessDialog_;
 
     if (cecDialog_)
         delete cecDialog_;
@@ -1480,6 +1496,7 @@ void AdvProcessingOptions::reset()
     timeLagCheckBox->setChecked(true);
     timeLagMethodCombo->setCurrentIndex(1);
     tlSettingsButton->setEnabled(false);
+    tlPreassessButton->setEnabled(true);
 
     pfDialog_->reset();
     tlDialog_->reset();
@@ -1618,6 +1635,7 @@ void AdvProcessingOptions::refresh()
         timeLagMethodCombo->setCurrentIndex(0);
     }
     tlSettingsButton->setEnabled(ecProject_->screenTlagMeth() == 4 || ecProject_->screenTlagMeth() == 5);
+    tlPreassessButton->setEnabled(ecProject_->screenTlagMeth() != 0);
     covmaxDebaselineCheckBox->setChecked(ecProject_->screenCovmaxDebaseline());
     parallelPrepassCheckBox->setChecked(configState_->general.parallelPrepass);
     tlagBorrowCheckBox->setChecked(ecProject_->screenTlagBorrowMethod());
@@ -1789,6 +1807,32 @@ void AdvProcessingOptions::showTlSettingsDialog()
         tlDialog_->raise();
         tlDialog_->activateWindow();
     }
+}
+
+/// Only with raw data to assess. The button stays clickable without a raw
+/// data folder so that it can say what is missing, rather than sit greyed
+/// with no reason given.
+void AdvProcessingOptions::showTlPreassessDialog()
+{
+    const QString problem = TimelagPreassessDialog::rawDataProblem(ecProject_);
+    if (!problem.isEmpty())
+    {
+        WidgetUtils::warning(this,
+            tr("Raw Data Folder Not Set"),
+            tr("<b>The time lag preliminary assessment needs raw data.</b>"),
+            problem + QLatin1Char(' ')
+                + tr("Set the raw data folder on the Basic Settings page first."));
+        return;
+    }
+
+    if (!tlPreassessDialog_)
+    {
+        tlPreassessDialog_ = new TimelagPreassessDialog(this, dlProject_, ecProject_);
+    }
+    tlPreassessDialog_->refresh();
+    tlPreassessDialog_->show();
+    tlPreassessDialog_->raise();
+    tlPreassessDialog_->activateWindow();
 }
 
 void AdvProcessingOptions::showCecSettingsDialog()

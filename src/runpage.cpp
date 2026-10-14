@@ -42,6 +42,7 @@
 
 #include "clicklabel.h"
 #include "ecproject.h"
+#include "engineprogress.h"
 #include "mainwidget.h"
 #include "smartfluxbar.h"
 #include "widget_utils.h"
@@ -792,16 +793,13 @@ void RunPage::parseEngineOutput(const QByteArray &data)
     }
     // How far the pass under way has got, over every process of a split one:
     // "  Progress [rp]: 1234 of 17520 periods done."
-    if (cleanLine.startsWith(QByteArrayLiteral("  Progress [")))
+    if (EngineProgress::isProgressLine(cleanLine))
     {
-        const auto open = cleanLine.indexOf('[');
-        const auto close = cleanLine.indexOf(']');
-        if (close > open)
+        QString tag;
+        qint64 done = 0;
+        qint64 total = 0;
+        if (EngineProgress::parse(cleanLine, &tag, &done, &total))
         {
-            const QString tag = QString::fromLatin1(cleanLine.mid(open + 1, close - open - 1));
-            const auto words = cleanLine.mid(close + 2).trimmed().split(' ');
-            const qint64 done = words.value(0).toLongLong();
-            const qint64 total = words.value(2).toLongLong();
             eta_.progress(tag, done, total, eta_clock_.elapsed());
             if (prodSplit_ || tag == QLatin1String("sa"))
                 setSplitProgress(tag, done, total);

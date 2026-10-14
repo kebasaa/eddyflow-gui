@@ -1249,6 +1249,14 @@ bool DlProject::tagProject(const QString& filename)
 }
 
 // Save a project
+bool DlProject::saveCopy(const QString& filename)
+{
+    const bool wasModified = modified_;
+    const bool ok = saveProject(filename);
+    modified_ = wasModified;
+    return ok;
+}
+
 bool DlProject::saveProject(const QString& filename)
 {
     QDateTime now = QDateTime::currentDateTime();

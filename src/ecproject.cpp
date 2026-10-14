@@ -1591,6 +1591,14 @@ bool EcProject::readMeasurementRecords(IniFile& project_ini)
     return true;
 }
 
+bool EcProject::saveEcProjectCopy(const QString &filename)
+{
+    const bool wasModified = modified_;
+    const bool ok = saveEcProject(filename);
+    modified_ = wasModified;
+    return ok;
+}
+
 bool EcProject::saveEcProject(const QString &filename)
 {
     // try to open file just for checking

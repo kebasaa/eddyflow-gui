@@ -48,13 +48,20 @@ class ThePageReadsTheEngine(unittest.TestCase):
     def test_the_plan_and_the_progress_are_read_before_anything_else(self):
         # Ahead of every substring match below them, which could take one.
         plan_line = 'cleanLine.startsWith(QByteArrayLiteral("  Run plan:"))'
-        progress_line = 'cleanLine.startsWith(QByteArrayLiteral("  Progress ["))'
+        # Read through EngineProgress, which the time-lag preliminary
+        # assessment's own engine run shares.
+        progress_line = 'EngineProgress::isProgressLine(cleanLine)'
         first_other = PAGE.index('QByteArrayLiteral("Performing planar-fit assessment")')
         self.assertLess(PAGE.index(plan_line), first_other)
         self.assertLess(PAGE.index(progress_line), first_other)
         self.assertIn("eta_.plan(stages, periods);", block(PAGE, plan_line))
         self.assertIn("eta_.progress(tag, done, total, eta_clock_.elapsed());",
                       block(PAGE, progress_line))
+
+    def test_one_reading_of_the_progress_line(self):
+        helper = read(GUI_ROOT / "src" / "engineprogress.h")
+        self.assertIn('line.startsWith(QByteArrayLiteral("  Progress ["))', helper)
+        self.assertIn("EngineProgress::parse(cleanLine, &tag, &done, &total)", PAGE)
 
     def test_they_are_not_shown_in_the_console(self):
         i = PAGE.index("bool RunPage::filterData(")
