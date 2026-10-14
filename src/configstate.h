@@ -56,8 +56,11 @@ struct GenConfigState
     //> one - it says how many cores this computer should give the engine,
     //> which is nothing to do with the site being processed - so it lives
     //> here and is passed on the command line, not written into the
-    //> .eddyflow. Off until the equivalence runs are signed off.
-    bool parallelPrepass = false;
+    //> .eddyflow. On for a computer that has no stored preference yet - a
+    //> split run's output is byte-identical to a serial one's, so there is
+    //> nothing to lose but the time. One where the preference is stored
+    //> keeps its choice: this is only the fallback readSettings starts from.
+    bool parallelPrepass = true;
     int recentnum = 4;
     QString env = QString();
     QStringList recentfiles = QStringList();

@@ -48,12 +48,17 @@ class ThePreferenceIsStoredWithTheApplication(unittest.TestCase):
     def test_it_lives_in_the_general_config_state(self):
         block = STATE[STATE.index("struct GenConfigState"):
                       STATE.index("struct ProjConfigState")]
-        self.assertIn("bool parallelPrepass = false;", block)
+        self.assertIn("bool parallelPrepass = true;", block)
 
-    def test_it_ships_off(self):
-        """Until the serial-versus-parallel equivalence runs are signed off."""
-        self.assertIn("bool parallelPrepass = false;", STATE)
-        self.assertNotIn("bool parallelPrepass = true;", STATE)
+    def test_it_ships_on(self):
+        """A computer with no stored preference splits its runs: every sweep
+        fixture comes out byte-identical split and serial. The default is only
+        the fallback the stored value is read against, so a computer that has
+        a preference keeps it."""
+        self.assertIn("bool parallelPrepass = true;", STATE)
+        self.assertNotIn("bool parallelPrepass = false;", STATE)
+        self.assertIn("settings.value(Defs::CONF_GEN_PARALLEL_PREPASS, "
+                      "configState_.general.parallelPrepass)", MAIN)
 
     def test_it_has_a_settings_key(self):
         self.assertIn("CONF_GEN_PARALLEL_PREPASS", DEFS)
