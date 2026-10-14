@@ -2,6 +2,43 @@
 
     GUI:
 	- Version bump to match EddyFlow engine 8.1.3.
+	- Change: "Timelag preliminary assessment...", beside the time lag
+	          settings on the Advanced Settings page. It detects the time lags
+	          of a random sample of the half-hours - 10 % for a month of data
+	          or less, 1 % for a year or more, at least 10 - over a wide
+	          search window per gas, ignoring the nominal, minimum and maximum
+	          lags of the metadata, with the method selected (covariance
+	          maximization for any method but pre-whitening block-bootstrap).
+	          It charts the lags found for each gas, lags at a window edge
+	          stacked apart, and suggests a nominal lag and a window the way
+	          the automatic time lag optimization does (median, and to_pg_range
+	          robust deviations either side). The suggestions can be edited
+	          and then set in the metadata; under automatic optimization or
+	          pre-whitening block-bootstrap they also become that method's
+	          search window. The engine runs on a throw-away copy of the
+	          project with a folder and a home of its own, so the project's
+	          files are not touched, an unsaved project stays unsaved, and a
+	          run of the main window is not disturbed. Its outputs are removed
+	          on closing unless "Keep pre-assessment outputs" is ticked, which
+	          copies them to tlag_preassessment_<date-time> in the output
+	          folder. Without a raw data folder holding raw files the button
+	          says so instead of opening. Needs engine 8.1.3 with the
+	          preliminary assessment keys.
+	          The share is set on a log-scaled slider from 0.1 % to 100 %,
+	          the default marked under it (double-click returns to it).
+	          "Run entire dataset" assesses every half-hour - the slider shows
+	          100 % until it is unticked, then goes back where it was - and
+	          leaves the time lag optimization file a normal pre-pass leaves
+	          (_timelag_opt_, or PWB's _pwb_timelag_ table and summary) in the
+	          output folder whether or not the outputs are kept; "Use time lag
+	          file in project" then points the project at it, setting the PWB
+	          windows to the ones the table was detected with. Kept outputs
+	          include each gas's chart as a PNG and suggested_timelags.csv.
+	          The search windows and the suggestions are two tables, one
+	          column per gas; a gas's remark (no clear peak, too few lags, the
+	          water vapour compromise) is an icon in its heading and a tooltip
+	          over its column. The assessment always runs split across the
+	          cores, whatever the parallel pre-pass setting says.
 	- Fix: Stopping a run, or closing the window or opening a project while
 	       one runs, no longer harms a run in another EddyFlow window. The
 	       cleanup after a Stop wiped the temporary folder every run of the
