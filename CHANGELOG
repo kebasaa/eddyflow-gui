@@ -51,7 +51,9 @@
 	          CO2"), and undo it. A "View" dropdown beside the bin width
 	          switches the chart between the histogram (the default) and a
 	          time series of each half-hour's lag, which shows a drift, a jump
-	          or a daily cycle; kept outputs include both as PNGs.
+	          or a daily cycle; kept outputs include both as PNGs. Both views
+	          zoom: drag across the chart, or use the mouse wheel (Shift for
+	          the time series' lag axis); a double-click shows everything.
 	- Fix: Stopping a run, or closing the window or opening a project while
 	       one runs, no longer harms a run in another EddyFlow window. The
 	       cleanup after a Stop wiped the temporary folder every run of the
