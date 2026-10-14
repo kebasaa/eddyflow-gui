@@ -328,6 +328,36 @@ class HistogramOrTimeSeries(unittest.TestCase):
         self.assertIn('QStringLiteral("_timelag_timeseries.png")', figures)
 
 
+class TheChartZooms(unittest.TestCase):
+
+    CHART = GUI_ROOT / "src" / "laghistogramwidget.cpp"
+
+    def test_drag_wheel_and_double_click(self):
+        chart = read(self.CHART)
+        for handler in ("mousePressEvent(", "mouseMoveEvent(", "mouseReleaseEvent(",
+                        "mouseDoubleClickEvent(", "wheelEvent("):
+            self.assertIn("void LagHistogramWidget::" + handler, chart)
+        self.assertIn("resetZoom();", function(self.CHART, "void LagHistogramWidget::mouseDoubleClickEvent("))
+
+    def test_the_histogram_zooms_along_the_lag_axis_only(self):
+        release = function(self.CHART, "void LagHistogramWidget::mouseReleaseEvent(")
+        self.assertIn("if (mode_ == Mode::TimeSeries && std::abs(dragTo_.y() - dragFrom_.y()) >= 6)", release)
+
+    def test_counts_fit_the_bars_in_view(self):
+        hist = function(self.CHART, "void LagHistogramWidget::paintHistogram(")
+        self.assertIn("if (a + histogram_.width < x0 || a > x1) { continue; }", hist)
+
+    def test_never_further_out_than_everything(self):
+        zoom = function(self.CHART, "void LagHistogramWidget::zoomX(")
+        self.assertIn("if (from <= fullX0_ && to >= fullX1_)", zoom)
+
+    def test_a_new_gas_or_view_starts_unzoomed_and_saved_charts_are_whole(self):
+        self.assertIn("histogram_->resetZoom();", function(DIALOG, "void TimelagPreassessDialog::showGas("))
+        figures = function(DIALOG, "void TimelagPreassessDialog::saveFigures(")
+        self.assertIn("LagHistogramWidget figure;", figures)
+        self.assertNotIn("histogram_->", figures)
+
+
 class AlwaysParallel(unittest.TestCase):
 
     def test_split_across_the_cores_whatever_the_main_window_says(self):

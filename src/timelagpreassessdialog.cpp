@@ -358,6 +358,7 @@ TimelagPreassessDialog::TimelagPreassessDialog(QWidget* parent,
     //> The bins are the histogram's alone.
     connect(viewCombo_, &QComboBox::currentIndexChanged, this, [this](int view) {
         binSpin_->setEnabled(view == ViewHistogram);
+        histogram_->resetZoom();
         redrawCurrent();
     });
     connect(edgeCheck_, &QCheckBox::toggled, this, [this] { updateSuggestions(); redrawCurrent(); });
@@ -1268,6 +1269,8 @@ void TimelagPreassessDialog::toggleBorrow(int column)
 void TimelagPreassessDialog::showGas(int comboIndex)
 {
     Q_UNUSED(comboIndex)
+    //> Another gas's lags may lie anywhere; start from all of them.
+    histogram_->resetZoom();
     redrawCurrent();
 }
 

@@ -7,7 +7,9 @@
 #include "laghistogramwidget.h"
 
 #include <QFontMetrics>
+#include <QMouseEvent>
 #include <QPainter>
+#include <QWheelEvent>
 #include <QTimeZone>
 
 #include <algorithm>
@@ -32,7 +34,7 @@ double niceStep(double range, int ticks)
 //> A round step for a time axis spanning `seconds`, about `ticks` of them.
 qint64 niceTimeStep(qint64 seconds, int ticks)
 {
-    static const qint64 steps[] = { 1800, 3600, 2 * 3600, 3 * 3600, 6 * 3600, 12 * 3600,
+    static const qint64 steps[] = { 300, 600, 900, 1800, 3600, 2 * 3600, 3 * 3600, 6 * 3600, 12 * 3600,
                                     86400, 2 * 86400, 7 * 86400, 14 * 86400, 28 * 86400,
                                     91 * 86400, 182 * 86400, 365 * 86400 };
     const qint64 raw = seconds / std::max(1, ticks);
@@ -49,10 +51,30 @@ LagHistogramWidget::LagHistogramWidget(QWidget* parent) :
     QWidget(parent),
     nominal_(std::numeric_limits<double>::quiet_NaN()),
     minimum_(std::numeric_limits<double>::quiet_NaN()),
-    maximum_(std::numeric_limits<double>::quiet_NaN())
+    maximum_(std::numeric_limits<double>::quiet_NaN()),
+    zoomX0_(std::numeric_limits<double>::quiet_NaN()),
+    zoomX1_(std::numeric_limits<double>::quiet_NaN()),
+    zoomY0_(std::numeric_limits<double>::quiet_NaN()),
+    zoomY1_(std::numeric_limits<double>::quiet_NaN())
 {
     setAttribute(Qt::WA_OpaquePaintEvent, false);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    setCursor(Qt::CrossCursor);
+    setToolTip(tr("<b>Zoom:</b> drag across the chart to zoom to that stretch, or use the "
+                  "mouse wheel (Shift+wheel for the time lag axis of the time series). "
+                  "Double-click to show everything again."));
+}
+
+void LagHistogramWidget::resetZoom()
+{
+    zoomX0_ = zoomX1_ = zoomY0_ = zoomY1_ = std::numeric_limits<double>::quiet_NaN();
+    dragging_ = false;
+    update();
+}
+
+bool LagHistogramWidget::isZoomed() const
+{
+    return std::isfinite(zoomX0_) || std::isfinite(zoomY0_);
 }
 
 void LagHistogramWidget::setHistogram(const LagStats::Histogram& histogram)
@@ -86,6 +108,7 @@ void LagHistogramWidget::setMarkers(double nominal, double minimum, double maxim
 
 void LagHistogramWidget::setMessage(const QString& message)
 {
+    resetZoom();
     message_ = message;
     histogram_ = LagStats::Histogram();
     times_.clear();
@@ -178,9 +201,20 @@ void LagHistogramWidget::paintHistogram(QPainter& p, int head)
     faint.setAlphaF(0.18);
 
     const int nBins = histogram_.counts.size();
-    const int top = std::max(1, histogram_.maxStack());
-    const double x0 = histogram_.start;
-    const double x1 = histogram_.start + nBins * histogram_.width;
+    fullX0_ = histogram_.start;
+    fullX1_ = histogram_.start + nBins * histogram_.width;
+    const bool zoomed = std::isfinite(zoomX0_) && zoomX1_ > zoomX0_;
+    const double x0 = zoomed ? zoomX0_ : fullX0_;
+    const double x1 = zoomed ? zoomX1_ : fullX1_;
+    //> The count axis fits the bars in view, so a small peak zoomed into
+    //> is not flattened by a tall one outside.
+    int top = 1;
+    for (int i = 0; i < nBins; ++i)
+    {
+        const double a = fullX0_ + i * histogram_.width;
+        if (a + histogram_.width < x0 || a > x1) { continue; }
+        top = std::max(top, histogram_.counts.at(i) + histogram_.edgeCounts.at(i));
+    }
 
     // Plot area, leaving room for the axes' labels.
     const int left = fm.horizontalAdvance(QString::number(top)) + 14;
@@ -190,6 +224,11 @@ void LagHistogramWidget::paintHistogram(QPainter& p, int head)
 
     auto xPix = [&](double x) { return plot.left() + (x - x0) / (x1 - x0) * plot.width(); };
     auto yPix = [&](double y) { return plot.bottom() - y / top * plot.height(); };
+    plot_ = plot;
+    shownX0_ = x0;
+    shownX1_ = x1;
+    shownY0_ = fullY0_ = 0.0;
+    shownY1_ = fullY1_ = top;
 
     // Grid and y axis.
     const double yStep = std::max(1.0, std::round(niceStep(top, 4)));
@@ -206,16 +245,21 @@ void LagHistogramWidget::paintHistogram(QPainter& p, int head)
     // Bars: off-edge lags in the accent colour, edge lags stacked above.
     const QColor bar = pal.color(QPalette::Highlight);
     const QColor edge = pal.color(QPalette::Mid);
-    const double gap = std::min(2.0, plot.width() / nBins * 0.15);
+    const double binPixels = plot.width() * histogram_.width / (x1 - x0);
+    const double gap = std::min(2.0, binPixels * 0.15);
+    p.save();
+    p.setClipRect(plot);
     for (int i = 0; i < nBins; ++i)
     {
-        const double a = xPix(x0 + i * histogram_.width) + gap / 2.0;
-        const double b = xPix(x0 + (i + 1) * histogram_.width) - gap / 2.0;
+        const double a = xPix(fullX0_ + i * histogram_.width) + gap / 2.0;
+        const double b = xPix(fullX0_ + (i + 1) * histogram_.width) - gap / 2.0;
+        if (b < plot.left() || a > plot.right()) { continue; }
         const int c = histogram_.counts.at(i);
         const int e = histogram_.edgeCounts.at(i);
         if (c > 0) { p.fillRect(QRectF(QPointF(a, yPix(c)), QPointF(b, yPix(0))), bar); }
         if (e > 0) { p.fillRect(QRectF(QPointF(a, yPix(c + e)), QPointF(b, yPix(c))), edge); }
     }
+    p.restore();
 
     // x axis and its labels.
     p.setPen(ink);
@@ -249,6 +293,7 @@ void LagHistogramWidget::paintHistogram(QPainter& p, int head)
     marker(nominal_, Qt::SolidLine, tr("nominal"), 0);
     marker(minimum_, Qt::DashLine, tr("min"), 1);
     marker(maximum_, Qt::DashLine, tr("max"), 2);
+    paintZoomOverlay(p);
 }
 
 void LagHistogramWidget::paintTimeSeries(QPainter& p, int head)
@@ -284,6 +329,21 @@ void LagHistogramWidget::paintTimeSeries(QPainter& p, int head)
     t0 -= 1800;
     t1 += 1800;
 
+    fullX0_ = static_cast<double>(t0);
+    fullX1_ = static_cast<double>(t1);
+    fullY0_ = y0;
+    fullY1_ = y1;
+    if (std::isfinite(zoomX0_) && zoomX1_ > zoomX0_)
+    {
+        t0 = static_cast<qint64>(std::floor(zoomX0_));
+        t1 = std::max(t0 + 60, static_cast<qint64>(std::ceil(zoomX1_)));
+    }
+    if (std::isfinite(zoomY0_) && zoomY1_ > zoomY0_)
+    {
+        y0 = zoomY0_;
+        y1 = zoomY1_;
+    }
+
     const double yStep = niceStep(y1 - y0, 5);
     const double yFirst = std::ceil(y0 / yStep) * yStep;
     int labelWidth = 0;
@@ -307,6 +367,11 @@ void LagHistogramWidget::paintTimeSeries(QPainter& p, int head)
 
     auto xPix = [&](qint64 t) { return plot.left() + double(t - t0) / double(t1 - t0) * plot.width(); };
     auto yPix = [&](double y) { return plot.bottom() - (y - y0) / (y1 - y0) * plot.height(); };
+    plot_ = plot;
+    shownX0_ = static_cast<double>(t0);
+    shownX1_ = static_cast<double>(t1);
+    shownY0_ = y0;
+    shownY1_ = y1;
 
     // Grid and lag axis.
     for (double y = yFirst; y <= y1 + 1e-9; y += yStep)
@@ -337,7 +402,17 @@ void LagHistogramWidget::paintTimeSeries(QPainter& p, int head)
     // The lags: one dot per half-hour, edge lags grey like the bars.
     const QColor dot = pal.color(QPalette::Highlight);
     const QColor edge = pal.color(QPalette::Mid);
-    const double r = std::clamp(plot.width() / std::max<qsizetype>(1, lags_.size()) / 2.0, 1.5, 3.0);
+    //> Dots grow as fewer of them are in view, up to a size still easy to
+    //> tell apart.
+    int inView = 0;
+    for (int i = 0; i < lags_.size(); ++i)
+    {
+        const auto& t = times_.value(i);
+        if (t.isValid() && t.toSecsSinceEpoch() >= t0 && t.toSecsSinceEpoch() <= t1) { ++inView; }
+    }
+    const double r = std::clamp(plot.width() / std::max(1, inView) / 2.0, 1.5, 3.5);
+    p.save();
+    p.setClipRect(plot.adjusted(-r, -r, r, r));
     p.setPen(Qt::NoPen);
     for (int i = 0; i < lags_.size(); ++i)
     {
@@ -346,7 +421,7 @@ void LagHistogramWidget::paintTimeSeries(QPainter& p, int head)
         p.setBrush(atEdge_.value(i) ? edge : dot);
         p.drawEllipse(QPointF(xPix(t.toSecsSinceEpoch()), yPix(lags_.at(i))), r, r);
     }
-    p.setBrush(Qt::NoBrush);
+    p.restore();
 
     // Time axis: dates, with the time of day only when the span is short.
     p.setPen(ink);
@@ -366,4 +441,157 @@ void LagHistogramWidget::paintTimeSeries(QPainter& p, int head)
     }
     p.drawText(QRectF(plot.left(), plot.bottom() + fm.height() + 6, plot.width(), fm.height()),
                Qt::AlignHCenter, tr("End of averaging period"));
+    paintZoomOverlay(p);
+}
+
+void LagHistogramWidget::paintZoomOverlay(QPainter& p)
+{
+    const QPalette pal = palette();
+    if (dragging_)
+    {
+        //> The stretch a release will zoom to: the full height in the
+        //> histogram, which zooms along its lag axis only.
+        QRectF band(dragFrom_, dragTo_);
+        band = band.normalized();
+        if (mode_ == Mode::Histogram) { band.setTop(plot_.top()); band.setBottom(plot_.bottom()); }
+        band = band.intersected(plot_);
+        QColor fill = pal.color(QPalette::Highlight);
+        fill.setAlphaF(0.18);
+        p.fillRect(band, fill);
+        p.setPen(QPen(pal.color(QPalette::Highlight), 1.0, Qt::DashLine));
+        p.drawRect(band);
+    }
+    if (isZoomed())
+    {
+        const QString hint = tr("Zoomed - double-click to show everything");
+        p.setPen(pal.color(QPalette::PlaceholderText));
+        p.drawText(QRectF(plot_.left() + 6, plot_.top() + 2, plot_.width() - 12, fontMetrics().height()),
+                   Qt::AlignLeft, hint);
+    }
+}
+
+double LagHistogramWidget::xData(double px) const
+{
+    return shownX0_ + (px - plot_.left()) / plot_.width() * (shownX1_ - shownX0_);
+}
+
+double LagHistogramWidget::yData(double py) const
+{
+    return shownY0_ + (plot_.bottom() - py) / plot_.height() * (shownY1_ - shownY0_);
+}
+
+void LagHistogramWidget::zoomX(double from, double to)
+{
+    if (to < from) { std::swap(from, to); }
+    // No further out than everything, and no further in than a sensible
+    // smallest span: a tenth of a second of lag, ten minutes of time.
+    const double smallest = mode_ == Mode::Histogram ? 0.1 : 600.0;
+    if (to - from < smallest)
+    {
+        const double mid = 0.5 * (from + to);
+        from = mid - smallest / 2.0;
+        to = mid + smallest / 2.0;
+    }
+    if (from <= fullX0_ && to >= fullX1_)
+    {
+        zoomX0_ = zoomX1_ = std::numeric_limits<double>::quiet_NaN();
+    }
+    else
+    {
+        zoomX0_ = std::max(from, fullX0_);
+        zoomX1_ = std::min(to, fullX1_);
+    }
+}
+
+void LagHistogramWidget::zoomY(double from, double to)
+{
+    if (to < from) { std::swap(from, to); }
+    if (to - from < 0.1)
+    {
+        const double mid = 0.5 * (from + to);
+        from = mid - 0.05;
+        to = mid + 0.05;
+    }
+    if (from <= fullY0_ && to >= fullY1_)
+    {
+        zoomY0_ = zoomY1_ = std::numeric_limits<double>::quiet_NaN();
+    }
+    else
+    {
+        zoomY0_ = std::max(from, fullY0_);
+        zoomY1_ = std::min(to, fullY1_);
+    }
+}
+
+void LagHistogramWidget::mousePressEvent(QMouseEvent* event)
+{
+    if (event->button() == Qt::LeftButton && plot_.contains(event->position()))
+    {
+        dragging_ = true;
+        dragFrom_ = dragTo_ = event->position();
+        update();
+        return;
+    }
+    QWidget::mousePressEvent(event);
+}
+
+void LagHistogramWidget::mouseMoveEvent(QMouseEvent* event)
+{
+    if (dragging_)
+    {
+        dragTo_ = event->position();
+        update();
+        return;
+    }
+    QWidget::mouseMoveEvent(event);
+}
+
+void LagHistogramWidget::mouseReleaseEvent(QMouseEvent* event)
+{
+    if (!dragging_ || event->button() != Qt::LeftButton)
+    {
+        QWidget::mouseReleaseEvent(event);
+        return;
+    }
+    dragging_ = false;
+    dragTo_ = event->position();
+    //> A click, not a drag, zooms nothing.
+    if (std::abs(dragTo_.x() - dragFrom_.x()) >= 6)
+    {
+        zoomX(xData(dragFrom_.x()), xData(dragTo_.x()));
+    }
+    if (mode_ == Mode::TimeSeries && std::abs(dragTo_.y() - dragFrom_.y()) >= 6)
+    {
+        zoomY(yData(dragFrom_.y()), yData(dragTo_.y()));
+    }
+    update();
+}
+
+void LagHistogramWidget::mouseDoubleClickEvent(QMouseEvent* event)
+{
+    Q_UNUSED(event)
+    resetZoom();
+}
+
+void LagHistogramWidget::wheelEvent(QWheelEvent* event)
+{
+    if (!plot_.contains(event->position()) || event->angleDelta().y() == 0)
+    {
+        QWidget::wheelEvent(event);
+        return;
+    }
+    //> One notch zooms by a fifth, around the point under the cursor.
+    const double factor = std::pow(0.8, event->angleDelta().y() / 120.0);
+    if (mode_ == Mode::TimeSeries && (event->modifiers() & Qt::ShiftModifier))
+    {
+        const double at = yData(event->position().y());
+        zoomY(at - (at - shownY0_) * factor, at + (shownY1_ - at) * factor);
+    }
+    else
+    {
+        const double at = xData(event->position().x());
+        zoomX(at - (at - shownX0_) * factor, at + (shownX1_ - at) * factor);
+    }
+    update();
+    event->accept();
 }
