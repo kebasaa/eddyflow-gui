@@ -223,8 +223,9 @@ class TheGasesAreColumns(unittest.TestCase):
     def test_two_tables_with_the_settings_as_rows(self):
         body = read(DIALOG)
         self.assertIn('createGasTable({ tr("From [s]"), tr("To [s]") }, 1, this)', body)
-        self.assertIn('createGasTable({ tr("Lags used"), tr("Nominal [s]"), tr("Minimum [s]"), tr("Maximum [s]") },',
+        self.assertIn('createGasTable({ tr("Lags used"), tr("Nominal [s]"), tr("Minimum [s]"), tr("Maximum [s]"),',
                       body)
+        self.assertIn('tr("Same analyser") },', body)
         build = function(DIALOG, "void TimelagPreassessDialog::buildGasRows()")
         self.assertIn("windowTable_->setColumnCount(rows_.size());", build)
         self.assertIn("resultTable_->setColumnCount(rows_.size());", build)
@@ -240,6 +241,91 @@ class TheGasesAreColumns(unittest.TestCase):
         self.assertIn("item->setToolTip(row.note);", note)
         self.assertIn("QStyle::SP_MessageBoxWarning", note)
         self.assertNotIn("row.note->setText", read(DIALOG))
+
+
+class SuggestionsComeFromThePeak(unittest.TestCase):
+    """A weak gas finds its lag in a minority of half-hours and returns noise
+    spread over the window in the rest; the median of all of them lands
+    mid-window, far from the peak (N2O on a MIRO: 13 s against a peak at 8 s).
+    So the suggestion is taken from the lags around the peak."""
+
+    def test_the_dialog_asks_for_the_peak(self):
+        body = function(DIALOG, "void TimelagPreassessDialog::updateSuggestions()")
+        self.assertIn("LagStats::suggestFromPeak(lags, pgRange, row.closedPath, searchLo, searchHi)", body)
+        self.assertNotIn("LagStats::suggest(lags", body)
+
+    def test_mode_then_the_lags_around_it_then_the_optimisers_rule(self):
+        body = function(STATS, "PeakSuggestion suggestFromPeak(")
+        self.assertIn("constexpr double bandwidth = 0.3;", body)
+        self.assertIn("std::exp(-0.5 * z * z)", body)
+        self.assertIn("3.0 * mad(inPeak) / 0.6745", body)
+        self.assertIn("= suggest(inPeak, pgRange, closedPath);", body)
+
+    def test_clear_against_an_even_spread(self):
+        body = function(STATS, "PeakSuggestion suggestFromPeak(")
+        self.assertIn("p.used >= MinLagsForSuggestion && p.used >= clearFactor * evenSpread", body)
+
+    def test_a_minority_peak_is_named_with_its_share(self):
+        body = function(DIALOG, "void TimelagPreassessDialog::applyRemark(")
+        self.assertIn("else if (p.share < 0.5)", body)
+        self.assertIn("on the same analyser: %2 s (%3 % of its half-hours).", body)
+
+
+class BorrowingFromATubeMate(unittest.TestCase):
+
+    def test_only_the_same_real_analyser_and_never_water(self):
+        body = function(DIALOG, "int TimelagPreassessDialog::donorFor(")
+        self.assertIn("if (me.isWater || !MeasurementRecords::isRealInstrument(me.instrumentId)) { return -1; }", body)
+        self.assertIn("other.isWater || other.instrumentId != me.instrumentId", body)
+        # A donor has a clear peak of its own, not a borrowed one.
+        self.assertIn("!other.peak.clear || other.borrowedFrom != 0", body)
+
+    def test_offered_only_without_a_clear_peak(self):
+        body = function(DIALOG, "void TimelagPreassessDialog::updateBorrowCell(")
+        self.assertIn("const bool offer = donor >= 0 && (!row.peak.ok || !row.peak.clear);", body)
+        self.assertIn("resultTable_->setCellWidget(ResultBorrow, column, button);", body)
+
+    def test_borrowed_values_are_the_donors_as_shown_and_undo_restores_its_own(self):
+        body = function(DIALOG, "void TimelagPreassessDialog::toggleBorrow(")
+        self.assertIn("cellValue(resultTable_, ResultNominal, donor)", body)
+        self.assertIn("showSuggestion(column, row.peak.nominal, row.peak.minimum, row.peak.maximum);", body)
+
+    def test_a_new_assessment_forgets_borrowing(self):
+        run = function(DIALOG, "void TimelagPreassessDialog::runOrCancel()")
+        self.assertIn("row.borrowedFrom = 0;", run)
+        self.assertIn("row.borrowedFrom = 0;", function(DIALOG, "void TimelagPreassessDialog::updateSuggestions()"))
+
+    def test_it_is_said_where_it_lands(self):
+        self.assertIn('tr("(borrowed from %1)")', function(DIALOG, "void TimelagPreassessDialog::setInMetadata()"))
+        self.assertIn("peak_share,nominal_s,minimum_s,maximum_s,borrowed_from,note",
+                      function(DIALOG, "void TimelagPreassessDialog::saveFigures("))
+
+
+class HistogramOrTimeSeries(unittest.TestCase):
+
+    def test_a_view_dropdown_after_the_bin_width_histogram_first(self):
+        body = read(DIALOG)
+        self.assertIn('viewCombo_->addItem(tr("Histogram"));', body)
+        self.assertLess(body.index('viewCombo_->addItem(tr("Histogram"));'),
+                        body.index('viewCombo_->addItem(tr("Time series"));'))
+        self.assertLess(body.index("chartControls->addWidget(binSpin_);"),
+                        body.index("chartControls->addWidget(viewCombo_);"))
+        self.assertLess(body.index("chartControls->addWidget(viewCombo_);"),
+                        body.index("chartControls->addWidget(edgeCheck_);"))
+
+    def test_the_bins_are_the_histograms_alone(self):
+        self.assertIn("binSpin_->setEnabled(view == ViewHistogram);", read(DIALOG))
+
+    def test_one_dot_per_half_hour_at_its_own_time(self):
+        redraw = function(DIALOG, "void TimelagPreassessDialog::redrawCurrent()")
+        self.assertIn("histogram_->setTimeSeries(times, lags, edge, any->windowMin, any->windowMax);", redraw)
+        end = function(DIALOG, "QDateTime TimelagPreassessDialog::periodEnd(")
+        self.assertIn("t.setTimeZone(QTimeZone::UTC);", end)
+
+    def test_both_views_are_kept(self):
+        figures = function(DIALOG, "void TimelagPreassessDialog::saveFigures(")
+        self.assertIn('QStringLiteral("_timelag_histogram.png")', figures)
+        self.assertIn('QStringLiteral("_timelag_timeseries.png")', figures)
 
 
 class AlwaysParallel(unittest.TestCase):

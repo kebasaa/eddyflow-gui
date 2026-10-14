@@ -58,6 +58,29 @@ constexpr int MinLagsForSuggestion = 5;
 //> closed path cannot lead the anemometer, so its minimum stops at zero.
 Suggestion suggest(const QVector<double>& lags, double pgRange, bool closedPath);
 
+struct PeakSuggestion : Suggestion
+{
+    int total = 0;          //< lags offered; `used` is those in the peak
+    double share = 0.0;     //< used / total
+    double peak = 0.0;      //< the mode the peak was found at [s]
+    bool clear = false;     //< the peak stands out from an even spread
+};
+
+//> The suggestion from the peak, not from every lag. A weak gas finds its lag
+//> in a minority of half-hours and returns noise, spread over the whole
+//> window, in the rest; the median of all of them then lands mid-window, far
+//> from the peak plainly visible in the chart. So: the mode of a kernel
+//> density (bandwidth 0.3 s), the lags around it - narrowed to the median
+//> plus or minus three robust deviations until the set settles - and the
+//> optimiser's rule (suggest) on those. On a gas whose lags are nearly all in
+//> one peak this is the same answer as suggest() on all of them.
+//>
+//> The peak is clear when it holds at least MinLagsForSuggestion lags and at
+//> least three times as many as an even spread over the window would put in
+//> its width.
+PeakSuggestion suggestFromPeak(const QVector<double>& lags, double pgRange, bool closedPath,
+                               double windowMin, double windowMax);
+
 struct Histogram
 {
     double start = 0.0;     //< left edge of the first bin [s]

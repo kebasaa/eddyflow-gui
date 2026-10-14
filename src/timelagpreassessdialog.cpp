@@ -14,6 +14,7 @@
 #include <QDirIterator>
 #include <QDoubleSpinBox>
 #include <QFileInfo>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
@@ -22,6 +23,7 @@
 #include <QPushButton>
 #include <QRandomGenerator>
 #include <QRegularExpression>
+#include <QScreen>
 #include <QScrollBar>
 #include <QSet>
 #include <QSettings>
@@ -30,6 +32,7 @@
 #include <QTableWidget>
 #include <QTemporaryDir>
 #include <QTextStream>
+#include <QTimeZone>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -215,7 +218,7 @@ TimelagPreassessDialog::TimelagPreassessDialog(QWidget* parent,
         "project's output folder, together with each gas's chart as a PNG and "
         "the suggested time lags."));
 
-    runButton_ = new QPushButton(tr("Run assessment"));
+    runButton_ = new QPushButton(tr("Run pre-assessment"));
     runButton_->setProperty("mdButton", true);
     progressBar_ = new QProgressBar;
     progressBar_->setTextVisible(true);
@@ -242,6 +245,10 @@ TimelagPreassessDialog::TimelagPreassessDialog(QWidget* parent,
     // --- Results -----------------------------------------------------------
     auto resultTitle = WidgetUtils::createBlueLabel(this, tr("Detected time lags"));
     gasCombo_ = new QComboBox;
+    //> As wide as its longest gas name - "CO2 (li7200_1)" and the like - not
+    //> the width of the first item it was laid out with.
+    gasCombo_->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    gasCombo_->setMinimumContentsLength(8);
     gasCombo_->setToolTip(tr("<b>Gas:</b> whose detected time lags the chart shows."));
     binSpin_ = new QDoubleSpinBox;
     binSpin_->setDecimals(2);
@@ -250,6 +257,16 @@ TimelagPreassessDialog::TimelagPreassessDialog(QWidget* parent,
     binSpin_->setValue(0.5);
     binSpin_->setSuffix(tr("  [s]", "Second"));
     binSpin_->setToolTip(tr("<b>Bin width:</b> the width of each bar of the chart."));
+    viewCombo_ = new QComboBox;
+    viewCombo_->addItem(tr("Histogram"));
+    viewCombo_->addItem(tr("Time series"));
+    viewCombo_->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    viewCombo_->setToolTip(tr(
+        "<b>View:</b> how the detected time lags are shown. <b>Histogram</b>: how "
+        "many half-hours found each lag, which is where the suggestion comes "
+        "from. <b>Time series</b>: each half-hour's lag at its time, which shows "
+        "whether the lag drifts, jumps - a tube or flow change - or follows the "
+        "time of day."));
     edgeCheck_ = new QCheckBox(tr("Include lags at the window edges"));
     edgeCheck_->setToolTip(tr(
         "<b>Include lags at the window edges:</b> a lag found at either end of "
@@ -272,6 +289,9 @@ TimelagPreassessDialog::TimelagPreassessDialog(QWidget* parent,
     chartControls->addWidget(new QLabel(tr("Bin width :")));
     chartControls->addWidget(binSpin_);
     chartControls->addSpacing(12);
+    chartControls->addWidget(new QLabel(tr("View :")));
+    chartControls->addWidget(viewCombo_);
+    chartControls->addSpacing(12);
     chartControls->addWidget(edgeCheck_);
     chartControls->addWidget(fluxCheck_);
     chartControls->addStretch(1);
@@ -281,13 +301,16 @@ TimelagPreassessDialog::TimelagPreassessDialog(QWidget* parent,
     histogramNote_->setWordWrap(true);
 
     auto suggestTitle = WidgetUtils::createBlueLabel(this, tr("Suggested time lags"));
-    resultTable_ = createGasTable({ tr("Lags used"), tr("Nominal [s]"), tr("Minimum [s]"), tr("Maximum [s]") },
+    resultTable_ = createGasTable({ tr("Lags used"), tr("Nominal [s]"), tr("Minimum [s]"), tr("Maximum [s]"),
+                                    tr("Same analyser") },
                                   2, this);
     resultTable_->setToolTip(tr(
-        "<b>Suggested time lags:</b> the median of the lags found, and a window "
-        "of the automatic time lag optimization's width either side of it. Edit "
-        "any value before setting it in the metadata. A gas with a remark shows "
-        "an icon in its heading; hover over the column to read it."));
+        "<b>Suggested time lags:</b> taken from the peak of the lags found: the "
+        "median of the lags around it, and a window of the automatic time lag "
+        "optimization's width either side. Edit any value before setting it in "
+        "the metadata. A gas with a remark shows an icon in its heading; hover "
+        "over the column to read it. A gas with no clear peak of its own can "
+        "borrow the suggestion of a gas on the same analyser."));
 
     setButton_ = new QPushButton(tr("Set in metadata"));
     setButton_->setProperty("mdButton", true);
@@ -332,6 +355,11 @@ TimelagPreassessDialog::TimelagPreassessDialog(QWidget* parent,
     connect(logToggle_, &QPushButton::toggled, engineLog_, &QWidget::setVisible);
     connect(gasCombo_, &QComboBox::currentIndexChanged, this, &TimelagPreassessDialog::showGas);
     connect(binSpin_, &QDoubleSpinBox::valueChanged, this, &TimelagPreassessDialog::redrawCurrent);
+    //> The bins are the histogram's alone.
+    connect(viewCombo_, &QComboBox::currentIndexChanged, this, [this](int view) {
+        binSpin_->setEnabled(view == ViewHistogram);
+        redrawCurrent();
+    });
     connect(edgeCheck_, &QCheckBox::toggled, this, [this] { updateSuggestions(); redrawCurrent(); });
     connect(fluxCheck_, &QCheckBox::toggled, this, [this] { updateSuggestions(); redrawCurrent(); });
     //> An edited suggestion moves its marker on the chart.
@@ -346,7 +374,11 @@ TimelagPreassessDialog::TimelagPreassessDialog(QWidget* parent,
     connect(keepCheck_, &QCheckBox::toggled, this, &TimelagPreassessDialog::keepToggled);
     connect(closeButton, &QPushButton::clicked, this, &TimelagPreassessDialog::reject);
 
-    resize(820, 800);
+    //> Room for the chart from the start: up to 1280 x 1000, but never more
+    //> than nine tenths of the screen the window opens on.
+    const QScreen* screen = parent ? parent->screen() : QGuiApplication::primaryScreen();
+    const QRect avail = screen ? screen->availableGeometry() : QRect(0, 0, 1280, 1000);
+    resize(std::min(1280, avail.width() * 9 / 10), std::min(1000, avail.height() * 9 / 10));
 }
 
 TimelagPreassessDialog::~TimelagPreassessDialog()
@@ -539,6 +571,8 @@ void TimelagPreassessDialog::buildGasRows()
         GasRow row;
         row.record = i + 1;
         row.name = gas.slug.toUpper();
+        row.instrumentId = gas.instrumentId;
+        row.isWater = gas.slug == QLatin1String("h2o");
         if (slugCount.value(gas.slug) > 1)
         {
             row.name += QStringLiteral(" (%1)").arg(gas.instrumentId.isEmpty()
@@ -620,7 +654,7 @@ void TimelagPreassessDialog::buildGasRows()
 
 void TimelagPreassessDialog::setRunning(bool running)
 {
-    runButton_->setText(running ? tr("Cancel") : tr("Run assessment"));
+    runButton_->setText(running ? tr("Cancel") : tr("Run pre-assessment"));
     slider_->setEnabled(!running && !wholeCheck_->isChecked());
     wholeCheck_->setEnabled(!running);
     keepCheck_->setEnabled(!running);
@@ -705,11 +739,14 @@ void TimelagPreassessDialog::runOrCancel()
         row.suggestion = false;
         row.note.clear();
         row.noteIsWarning = false;
+        row.peak = LagStats::PeakSuggestion();
+        row.borrowedFrom = 0;
     }
     {
         const QSignalBlocker block(resultTable_);
         for (int c = 0; c < rows_.size(); ++c)
         {
+            resultTable_->removeCellWidget(ResultBorrow, c);
             for (int r = 0; r < resultTable_->rowCount(); ++r)
             {
                 setTextCell(resultTable_, r, c, QStringLiteral("-"));
@@ -1014,10 +1051,13 @@ void TimelagPreassessDialog::updateSuggestions()
     if (table_.isEmpty()) { return; }
     const double pgRange = ecProject_->timelagOptPgRange() > 0.0 ? ecProject_->timelagOptPgRange() : 1.5;
     const QSignalBlocker block(resultTable_);
-    bool any = false;
+
+    //> Every gas's own suggestion first: the remarks and the offers to
+    //> borrow look across the gases of an analyser.
     for (int c = 0; c < rows_.size(); ++c)
     {
         auto& row = rows_[c];
+        row.borrowedFrom = 0;
         QVector<double> lags;
         for (const auto* r : usableRows(row.record, true)) { lags.append(r->lag); }
         int total = 0;
@@ -1030,52 +1070,199 @@ void TimelagPreassessDialog::updateSuggestions()
             searchHi = r.windowMax;
         }
 
-        auto s = LagStats::suggest(lags, pgRange, row.closedPath);
+        auto p = LagStats::suggestFromPeak(lags, pgRange, row.closedPath, searchLo, searchHi);
         //> Nothing outside what was searched: a lag there was never looked for.
-        bool noPeak = false;
-        if (s.ok && std::isfinite(searchLo) && std::isfinite(searchHi) && searchHi > searchLo)
+        if (p.ok && std::isfinite(searchLo) && std::isfinite(searchHi) && searchHi > searchLo)
         {
-            s.minimum = std::max(s.minimum, searchLo);
-            s.maximum = std::min(s.maximum, searchHi);
-            noPeak = s.maximum - s.minimum > 0.5 * (searchHi - searchLo);
+            p.minimum = std::max(p.minimum, searchLo);
+            p.maximum = std::min(p.maximum, searchHi);
         }
-        setTextCell(resultTable_, ResultUsed, c, tr("%1 of %2").arg(s.used).arg(total));
-        row.suggestion = s.ok;
-        if (!s.ok)
+        row.peak = p;
+        row.suggestion = p.ok;
+        setTextCell(resultTable_, ResultUsed, c,
+                    p.ok ? tr("%1 of %2 (peak)").arg(p.used).arg(total)
+                         : tr("%1 of %2").arg(lags.size()).arg(total));
+        if (p.ok)
+        {
+            showSuggestion(c, p.nominal, p.minimum, p.maximum);
+        }
+        else
         {
             setTextCell(resultTable_, ResultNominal, c, QStringLiteral("-"));
             setTextCell(resultTable_, ResultMinimum, c, QStringLiteral("-"));
             setTextCell(resultTable_, ResultMaximum, c, QStringLiteral("-"));
-            row.note = total == 0 ? tr("Not detected in any half-hour.")
-                                  : tr("Too few usable lags (fewer than %1) to suggest anything.")
-                                        .arg(LagStats::MinLagsForSuggestion);
-            row.noteIsWarning = true;
-            applyNote(c);
-            continue;
         }
-        any = true;
-        setValueCell(resultTable_, ResultNominal, c, s.nominal, true);
-        setValueCell(resultTable_, ResultMinimum, c, s.minimum, true);
-        setValueCell(resultTable_, ResultMaximum, c, s.maximum, true);
-        if (noPeak)
+    }
+    for (int c = 0; c < rows_.size(); ++c)
+    {
+        applyRemark(c);
+        updateBorrowCell(c);
+    }
+    setButton_->setEnabled(std::any_of(rows_.cbegin(), rows_.cend(),
+                                       [](const GasRow& r) { return r.suggestion; }));
+}
+
+void TimelagPreassessDialog::showSuggestion(int column, double nominal, double minimum, double maximum)
+{
+    setValueCell(resultTable_, ResultNominal, column, nominal, true);
+    setValueCell(resultTable_, ResultMinimum, column, minimum, true);
+    setValueCell(resultTable_, ResultMaximum, column, maximum, true);
+}
+
+QDateTime TimelagPreassessDialog::periodEnd(const LagStats::Row& row)
+{
+    //> Read as UTC so no daylight-saving shift is applied: the timestamps
+    //> are shown exactly as the raw files have them.
+    auto t = QDateTime::fromString(row.date + QLatin1Char(' ') + row.time, QStringLiteral("yyyy-MM-dd HH:mm"));
+    t.setTimeZone(QTimeZone::UTC);
+    return t;
+}
+
+QString TimelagPreassessDialog::nameOfRecord(int record) const
+{
+    for (const auto& row : rows_)
+    {
+        if (row.record == record) { return row.name; }
+    }
+    return QString();
+}
+
+int TimelagPreassessDialog::donorFor(int column) const
+{
+    //> Only a gas on the same analyser - the same intake tube, so the same
+    //> lag - and never water vapour, whose lag grows with humidity; the
+    //> engine's PWB borrows by the same rule (SameAnalyser).
+    const auto& me = rows_.at(column);
+    if (me.isWater || !MeasurementRecords::isRealInstrument(me.instrumentId)) { return -1; }
+    int best = -1;
+    for (int d = 0; d < rows_.size(); ++d)
+    {
+        const auto& other = rows_.at(d);
+        if (d == column || other.isWater || other.instrumentId != me.instrumentId) { continue; }
+        if (!other.peak.ok || !other.peak.clear || other.borrowedFrom != 0) { continue; }
+        if (best < 0 || other.peak.share > rows_.at(best).peak.share) { best = d; }
+    }
+    return best;
+}
+
+void TimelagPreassessDialog::applyRemark(int column)
+{
+    auto& row = rows_[column];
+    const auto& p = row.peak;
+    row.note.clear();
+    row.noteIsWarning = false;
+    bool mentionTubeMate = false;
+
+    if (row.borrowedFrom != 0)
+    {
+        row.note = tr("Borrowed from %1 on the same analyser; this gas showed no clear peak of its own.")
+                       .arg(nameOfRecord(row.borrowedFrom));
+    }
+    else if (!p.ok)
+    {
+        row.note = p.total == 0 && std::none_of(table_.cbegin(), table_.cend(),
+                                                [&row](const LagStats::Row& r) { return r.record == row.record; })
+            ? tr("Not detected in any half-hour.")
+            : tr("Too few usable lags (fewer than %1) to suggest anything.").arg(LagStats::MinLagsForSuggestion);
+        row.noteIsWarning = true;
+        mentionTubeMate = true;
+    }
+    else if (!p.clear)
+    {
+        row.note = tr("No clear peak: the lags spread over the search window.");
+        row.noteIsWarning = true;
+        mentionTubeMate = true;
+    }
+    else if (p.share < 0.5)
+    {
+        row.note = tr("Peak at %1 s, found by %2 of %3 half-hours (%4 %); the rest are scattered over the "
+                      "search window.")
+                       .arg(p.peak, 0, 'f', 1).arg(p.used).arg(p.total).arg(std::lround(100.0 * p.share));
+        mentionTubeMate = true;
+    }
+    else if (row.isWater)
+    {
+        row.note = tr("Water vapour's lag grows with relative humidity; one window is a compromise.");
+    }
+
+    if (mentionTubeMate)
+    {
+        const int donor = donorFor(column);
+        if (donor >= 0)
         {
-            row.note = tr("No clear peak: the lags spread over most of the search window. "
-                          "Check the chart before using these.");
-            row.noteIsWarning = true;
+            const auto& d = rows_.at(donor);
+            row.note += QLatin1Char(' ')
+                + tr("%1 on the same analyser: %2 s (%3 % of its half-hours).")
+                      .arg(d.name)
+                      .arg(cellValue(resultTable_, ResultNominal, donor), 0, 'f', 2)
+                      .arg(std::lround(100.0 * d.peak.share));
         }
-        else if (ecProject_->gasColumns().value(row.record - 1).slug == QLatin1String("h2o"))
+    }
+    applyNote(column);
+}
+
+void TimelagPreassessDialog::updateBorrowCell(int column)
+{
+    resultTable_->removeCellWidget(ResultBorrow, column);
+    const auto& row = rows_.at(column);
+    const int donor = donorFor(column);
+    //> Offered only where the gas has no clear peak of its own.
+    const bool offer = donor >= 0 && (!row.peak.ok || !row.peak.clear);
+    setTextCell(resultTable_, ResultBorrow, column,
+                offer || row.borrowedFrom != 0 ? QString() : QStringLiteral("-"));
+    if (auto item = resultTable_->item(ResultBorrow, column)) { item->setToolTip(row.note); }
+    if (!offer && row.borrowedFrom == 0) { return; }
+
+    auto button = new QPushButton(row.borrowedFrom != 0
+                                      ? tr("Use own suggestion")
+                                      : tr("Borrow from %1").arg(rows_.at(donor).name));
+    button->setToolTip(row.borrowedFrom != 0
+        ? tr("Put back this gas's own suggestion.")
+        : tr("Fill this gas's nominal, minimum and maximum time lag with those of %1, measured by the "
+             "same analyser and so through the same intake tube, which shows a clear peak.")
+              .arg(rows_.at(donor).name));
+    connect(button, &QPushButton::clicked, this, [this, column] { toggleBorrow(column); });
+    resultTable_->setCellWidget(ResultBorrow, column, button);
+}
+
+void TimelagPreassessDialog::toggleBorrow(int column)
+{
+    auto& row = rows_[column];
+    {
+        const QSignalBlocker block(resultTable_);
+        if (row.borrowedFrom != 0)
         {
-            row.note = tr("Water vapour's lag grows with relative humidity; one window is a compromise.");
-            row.noteIsWarning = false;
+            row.borrowedFrom = 0;
+            row.suggestion = row.peak.ok;
+            if (row.peak.ok)
+            {
+                showSuggestion(column, row.peak.nominal, row.peak.minimum, row.peak.maximum);
+            }
+            else
+            {
+                setTextCell(resultTable_, ResultNominal, column, QStringLiteral("-"));
+                setTextCell(resultTable_, ResultMinimum, column, QStringLiteral("-"));
+                setTextCell(resultTable_, ResultMaximum, column, QStringLiteral("-"));
+            }
         }
         else
         {
-            row.note.clear();
-            row.noteIsWarning = false;
+            const int donor = donorFor(column);
+            if (donor < 0) { return; }
+            //> The donor's values as they stand, edits included.
+            showSuggestion(column, cellValue(resultTable_, ResultNominal, donor),
+                           cellValue(resultTable_, ResultMinimum, donor),
+                           cellValue(resultTable_, ResultMaximum, donor));
+            row.borrowedFrom = rows_.at(donor).record;
+            row.suggestion = true;
         }
-        applyNote(c);
+        applyRemark(column);
+        updateBorrowCell(column);
     }
-    setButton_->setEnabled(any);
+    setButton_->setEnabled(std::any_of(rows_.cbegin(), rows_.cend(),
+                                       [](const GasRow& r) { return r.suggestion; }));
+    selectGasColumn(column);
+    redrawCurrent();
 }
 
 void TimelagPreassessDialog::showGas(int comboIndex)
@@ -1098,12 +1285,14 @@ void TimelagPreassessDialog::redrawCurrent()
 
     QVector<double> lags;
     QVector<bool> edge;
+    QVector<QDateTime> times;
     int nEdge = 0;
     const LagStats::Row* any = nullptr;
     for (const auto* r : usableRows(record, false))
     {
         lags.append(r->lag);
         edge.append(r->atEdge);
+        times.append(periodEnd(*r));
         nEdge += r->atEdge ? 1 : 0;
         any = r;
     }
@@ -1113,7 +1302,14 @@ void TimelagPreassessDialog::redrawCurrent()
         histogramNote_->clear();
         return;
     }
-    histogram_->setHistogram(LagStats::bin(lags, edge, binSpin_->value()));
+    if (viewCombo_->currentIndex() == ViewTimeSeries)
+    {
+        histogram_->setTimeSeries(times, lags, edge, any->windowMin, any->windowMax);
+    }
+    else
+    {
+        histogram_->setHistogram(LagStats::bin(lags, edge, binSpin_->value()));
+    }
     int column = -1;
     for (int c = 0; c < rows_.size(); ++c)
     {
@@ -1206,9 +1402,14 @@ void TimelagPreassessDialog::setInMetadata()
             gases[i].proc.pwbMaxLag = ceilTenth(hi);
             windowChanged = true;
         }
-        done << tr("%1: nominal %2 s, from %3 s to %4 s")
-                    .arg(row.name, QString::number(nom, 'f', 2), QString::number(lo, 'f', 2),
-                         QString::number(hi, 'f', 2));
+        QString line = tr("%1: nominal %2 s, from %3 s to %4 s")
+                           .arg(row.name, QString::number(nom, 'f', 2), QString::number(lo, 'f', 2),
+                                QString::number(hi, 'f', 2));
+        if (row.borrowedFrom != 0)
+        {
+            line += QLatin1Char(' ') + tr("(borrowed from %1)").arg(nameOfRecord(row.borrowedFrom));
+        }
+        done << line;
     }
     if (done.isEmpty()) { return; }
 
@@ -1391,13 +1592,17 @@ void TimelagPreassessDialog::saveFigures(const QString& dir)
         const auto& row = rows_.at(c);
         QVector<double> lags;
         QVector<bool> edge;
+        QVector<QDateTime> times;
+        double windowMin = NaN, windowMax = NaN;
         for (const auto* r : usableRows(row.record, false))
         {
             lags.append(r->lag);
             edge.append(r->atEdge);
+            times.append(periodEnd(*r));
+            windowMin = r->windowMin;
+            windowMax = r->windowMax;
         }
         if (lags.isEmpty()) { continue; }
-        figure.setHistogram(LagStats::bin(lags, edge, binSpin_->value()));
         if (row.suggestion)
         {
             figure.setMarkers(cellValue(resultTable_, ResultNominal, c),
@@ -1410,14 +1615,18 @@ void TimelagPreassessDialog::saveFigures(const QString& dir)
         }
         figure.setTitle(tr("%1 - %2 half-hours").arg(row.name).arg(lags.size()));
         const QString name = QString(row.name).replace(unsafe, QStringLiteral("_")).toLower();
+        //> Both views, whichever is on screen.
+        figure.setHistogram(LagStats::bin(lags, edge, binSpin_->value()));
         figure.renderImage(FigureSize).save(dir + QLatin1Char('/') + name + QStringLiteral("_timelag_histogram.png"));
+        figure.setTimeSeries(times, lags, edge, windowMin, windowMax);
+        figure.renderImage(FigureSize).save(dir + QLatin1Char('/') + name + QStringLiteral("_timelag_timeseries.png"));
     }
 
     //> The suggestions as they stand, beside the charts.
     QFile file(dir + QStringLiteral("/suggested_timelags.csv"));
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) { return; }
     QTextStream csv(&file);
-    csv << "gas,gas_record,lags_used,nominal_s,minimum_s,maximum_s,note\n";
+    csv << "gas,gas_record,lags_used,peak_share,nominal_s,minimum_s,maximum_s,borrowed_from,note\n";
     for (int c = 0; c < rows_.size(); ++c)
     {
         const auto& row = rows_.at(c);
@@ -1426,7 +1635,9 @@ void TimelagPreassessDialog::saveFigures(const QString& dir)
         };
         const auto* used = resultTable_->item(ResultUsed, c);
         csv << row.name << ',' << row.record << ',' << (used ? used->text() : QString()) << ','
+            << (row.peak.ok ? QString::number(row.peak.share, 'f', 3) : QString()) << ','
             << value(ResultNominal) << ',' << value(ResultMinimum) << ',' << value(ResultMaximum) << ','
+            << nameOfRecord(row.borrowedFrom) << ','
             << '"' << QString(row.note).replace(QLatin1Char('"'), QStringLiteral("\"\"")) << "\"\n";
     }
 }

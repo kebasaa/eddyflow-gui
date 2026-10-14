@@ -7,6 +7,7 @@
 #ifndef TIMELAGPREASSESSDIALOG_H
 #define TIMELAGPREASSESSDIALOG_H
 
+#include <QDateTime>
 #include <QDialog>
 #include <QElapsedTimer>
 #include <QHash>
@@ -82,11 +83,17 @@ private:
         bool suggestion = false;        //< the results column holds one
         QString note;                   //< shown as the column's tooltip
         bool noteIsWarning = false;
+        QString instrumentId;           //< the analyser, for borrowing
+        bool isWater = false;
+        LagStats::PeakSuggestion peak;  //< its own, from its own lags
+        int borrowedFrom = 0;           //< record lent from, 0 for its own
     };
 
     //> Rows of the two tables.
     enum WindowRow { WindowFrom = 0, WindowTo = 1 };
-    enum ResultRow { ResultUsed = 0, ResultNominal = 1, ResultMinimum = 2, ResultMaximum = 3 };
+    enum ChartView { ViewHistogram = 0, ViewTimeSeries = 1 };
+    enum ResultRow { ResultUsed = 0, ResultNominal = 1, ResultMinimum = 2, ResultMaximum = 3,
+                     ResultBorrow = 4 };
 
     void buildGasRows();
     void fitTableHeight(QTableWidget* table) const;
@@ -101,6 +108,17 @@ private:
     void loadResults();
     QVector<const LagStats::Row*> usableRows(int record, bool forSuggestion) const;
     void updateSuggestions();
+    //> The gas on the same analyser whose own peak is clearest, which `column`
+    //> may borrow from; -1 for none. Never water vapour, either way round.
+    int donorFor(int column) const;
+    //> The column's remark and its icon, from its peak, any borrowing and its
+    //> tube-mates.
+    void applyRemark(int column);
+    QString nameOfRecord(int record) const;
+    static QDateTime periodEnd(const LagStats::Row& row);
+    void showSuggestion(int column, double nominal, double minimum, double maximum);
+    void updateBorrowCell(int column);
+    void toggleBorrow(int column);
     QString outputBaseDir() const;
     void copyOptimisationFiles();
     void keepOutputs();
@@ -123,6 +141,7 @@ private:
 
     QComboBox* gasCombo_;
     QDoubleSpinBox* binSpin_;
+    QComboBox* viewCombo_;
     QCheckBox* edgeCheck_;
     QCheckBox* fluxCheck_;
     LagHistogramWidget* histogram_;

@@ -99,6 +99,80 @@ Suggestion suggest(const QVector<double>& lags, double pgRange, bool closedPath)
     return s;
 }
 
+PeakSuggestion suggestFromPeak(const QVector<double>& lags, double pgRange, bool closedPath,
+                               double windowMin, double windowMax)
+{
+    PeakSuggestion p;
+    p.total = lags.size();
+    if (lags.size() < MinLagsForSuggestion) { return p; }
+
+    constexpr double bandwidth = 0.3;   // s
+    constexpr double gridStep = 0.05;   // s
+    constexpr double seedHalfWidth = 2.0;
+    constexpr double minHalfWidth = 0.5;
+    constexpr double clearFactor = 3.0;
+
+    const auto [lo, hi] = std::minmax_element(lags.begin(), lags.end());
+    double from = *lo, to = *hi;
+    if (windowMax > windowMin)
+    {
+        from = std::min(from, windowMin);
+        to = std::max(to, windowMax);
+    }
+
+    // The mode: highest point of a Gaussian kernel density. Of equal
+    // heights, the one nearest the median of all lags.
+    const double allMedian = median(lags);
+    double bestDensity = -1.0;
+    for (double x = from; x <= to + 1e-9; x += gridStep)
+    {
+        double density = 0.0;
+        for (double l : lags)
+        {
+            const double z = (x - l) / bandwidth;
+            if (std::abs(z) < 5.0) { density += std::exp(-0.5 * z * z); }
+        }
+        if (density > bestDensity + 1e-12
+            || (std::abs(density - bestDensity) <= 1e-12
+                && std::abs(x - allMedian) < std::abs(p.peak - allMedian)))
+        {
+            bestDensity = density;
+            p.peak = x;
+        }
+    }
+
+    // The lags around it, narrowed until the set settles.
+    auto within = [&lags](double centre, double halfWidth) {
+        QVector<double> out;
+        for (double l : lags)
+        {
+            if (std::abs(l - centre) <= halfWidth) { out.append(l); }
+        }
+        return out;
+    };
+    QVector<double> inPeak = within(p.peak, seedHalfWidth);
+    for (int round = 0; round < 10 && inPeak.size() >= MinLagsForSuggestion; ++round)
+    {
+        const double halfWidth = std::max(minHalfWidth, 3.0 * mad(inPeak) / 0.6745);
+        QVector<double> next = within(median(inPeak), halfWidth);
+        if (next == inPeak) { break; }
+        inPeak = next;
+    }
+
+    static_cast<Suggestion&>(p) = suggest(inPeak, pgRange, closedPath);
+    p.total = lags.size();
+    p.share = lags.isEmpty() ? 0.0 : static_cast<double>(inPeak.size()) / lags.size();
+    if (!p.ok) { return p; }
+
+    // Clear when the peak holds well more than an even spread would put in
+    // its width.
+    const double span = std::max(to - from, gridStep);
+    const double width = std::max(p.maximum - p.minimum, 2.0 * minHalfWidth);
+    const double evenSpread = lags.size() * std::min(1.0, width / span);
+    p.clear = p.used >= MinLagsForSuggestion && p.used >= clearFactor * evenSpread;
+    return p;
+}
+
 int Histogram::maxStack() const
 {
     int m = 0;
