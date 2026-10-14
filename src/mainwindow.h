@@ -339,6 +339,7 @@ private:
     bool newClicked_;
 
     Defs::CurrPage previousPage_;
+    int lastEasterEggVariant_;
 
     Defs::CurrPage currentPage_;
     Defs::CurrPage currentPage() const;

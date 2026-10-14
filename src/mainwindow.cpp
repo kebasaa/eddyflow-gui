@@ -112,6 +112,7 @@ MainWindow::MainWindow(const QString& filename,
     runAdvancedAvailable_(false),
     newClicked_(false),
     previousPage_(Defs::CurrPage::Welcome),
+    lastEasterEggVariant_(-1),
     currentPage_(Defs::CurrPage::Welcome),
     currentStatus_(Defs::CurrStatus::Ready),
     currentRunStatus_(Defs::CurrRunStatus::Express),
@@ -2341,8 +2342,13 @@ void MainWindow::unlockEasterEgg()
     if (viewEasterEggAction->isVisible())
         return;
 
-    auto variant = static_cast<EasterEggPage::Variant>(
-        QRandomGenerator::global()->bounded(static_cast<int>(EasterEggPage::Variant::Count)));
+    // never the same variant twice in a row
+    const int count = static_cast<int>(EasterEggPage::Variant::Count);
+    int v = QRandomGenerator::global()->bounded(lastEasterEggVariant_ < 0 ? count : count - 1);
+    if (lastEasterEggVariant_ >= 0 && v >= lastEasterEggVariant_)
+        ++v;
+    lastEasterEggVariant_ = v;
+    auto variant = static_cast<EasterEggPage::Variant>(v);
     mainWidget_->easterEggPage()->setVariant(variant);
     viewEasterEggAction->setText(EasterEggPage::tabText(variant));
     viewEasterEggAction->setIcon(EasterEggPage::tabIcon(variant));
