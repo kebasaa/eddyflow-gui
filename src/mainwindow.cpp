@@ -1892,8 +1892,6 @@ void MainWindow::readSettings()
     settings.beginGroup(Defs::CONFGROUP_GENERAL);
         configState_.general.showsplash =
             settings.value(Defs::CONF_GEN_SHOW_SPLASH, configState_.general.showsplash).toBool();
-        configState_.general.recentnum =
-            settings.value(Defs::CONF_GEN_RECENTNUM, configState_.general.recentnum).toInt();
         configState_.general.loadlastproject =
             settings.value(Defs::CONF_GEN_LOADLAST, configState_.general.loadlastproject).toBool();
         configState_.general.parallelPrepass =
@@ -1941,7 +1939,6 @@ void MainWindow::writeSettings()
     // write general state
     settings.beginGroup(Defs::CONFGROUP_GENERAL);
         settings.setValue(Defs::CONF_GEN_RECENTFILES, configState_.general.recentfiles);
-        settings.setValue(Defs::CONF_GEN_RECENTNUM, configState_.general.recentnum);
         settings.setValue(Defs::CONF_GEN_LOADLAST, configState_.general.loadlastproject);
         settings.setValue(Defs::CONF_GEN_PARALLEL_PREPASS, configState_.general.parallelPrepass);
     settings.endGroup();
@@ -4754,8 +4751,6 @@ void MainWindow::minimizeGui()
 
     mainWidget_->welcomePage()->updateWelcomePage(true);
     mainWidget_->runPage()->updateRunPage(true);
-
-    configState_.general.recentnum = 2;
 }
 
 void MainWindow::maximizeGui()
@@ -4768,8 +4763,6 @@ void MainWindow::maximizeGui()
     mainWidget_->runPage()->updateRunPage(false);
 
     updateMenuActionStatus(currentPage());
-
-    configState_.general.recentnum = 4;
 }
 
 void MainWindow::updateSpectraPaths()

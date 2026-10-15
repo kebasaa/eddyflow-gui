@@ -61,7 +61,9 @@ struct GenConfigState
     //> nothing to lose but the time. One where the preference is stored
     //> keeps its choice: this is only the fallback readSettings starts from.
     bool parallelPrepass = true;
-    int recentnum = 4;
+    //> Not stored: older versions saved 4, or 2 from a small window, and
+    //> reading it back would keep that cap.
+    int recentnum = 20;
     QString env = QString();
     QStringList recentfiles = QStringList();
 };

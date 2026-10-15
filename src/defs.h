@@ -313,7 +313,6 @@ namespace Defs
     const auto CONF_GEN_SHOW_SPLASH   = QStringLiteral("/showsplash");
     const auto CONF_GEN_LOADLAST      = QStringLiteral("/loadlast");
     const auto CONF_GEN_RECENTFILES   = QStringLiteral("/recentfiles");
-    const auto CONF_GEN_RECENTNUM     = QStringLiteral("/recentnum");
     const auto CONF_GEN_ENV           = QStringLiteral("/env");
     const auto CONF_GEN_PARALLEL_PREPASS = QStringLiteral("/parallelprepass");
 

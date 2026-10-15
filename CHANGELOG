@@ -114,6 +114,11 @@
 	          every regression fixture now comes out byte-identical split and
 	          serial. A computer where the setting is stored keeps it, ticked
 	          or not.
+	- Fix: The list of recent projects keeps 20, not 4, whatever the size
+	       of the window. A window of 1200x900 or smaller cut it to 2 and
+	       saved the cut, so opening a project on a laptop lost all but the
+	       two latest. The cap is no longer stored, so the old 4 or 2 an
+	       earlier version saved does not carry over.
 
 8.1.2 (2026-10-07)
 
