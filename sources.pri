@@ -18,6 +18,7 @@ HEADERS += \
     src/cecsettingsdialog.h \
     src/clicklabel.h \
     src/detlimsettingsdialog.h \
+    src/langfordsettingsdialog.h \
     src/configstate.h \
     src/customcombomodel.h \
     src/customheader.h \
@@ -148,6 +149,7 @@ SOURCES +=  \
     src/cecsettingsdialog.cpp \
     src/clicklabel.cpp \
     src/detlimsettingsdialog.cpp \
+    src/langfordsettingsdialog.cpp \
     src/customcombomodel.cpp \
     src/customheader.cpp \
     src/customsplashscreen.cpp \

@@ -45,6 +45,7 @@
 
 #include "clicklabel.h"
 #include "detlimsettingsdialog.h"
+#include "langfordsettingsdialog.h"
 #include "dlproject.h"
 #include "ecproject.h"
 #include "measurement_record.h"
@@ -171,6 +172,7 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     randomMethodCombo->addItem(tr("Mann and Lenschow (1994)"));
     randomMethodCombo->addItem(tr("Billesbach (2011)"));
     randomMethodCombo->addItem(tr("Lenschow et al. (2000) - instrument noise"));
+    randomMethodCombo->addItem(tr("Limit of detection (Langford et al. 2015)"));
     randomMethodCombo->setItemData(0, tr("<b>Finkelstein and Sims (2001):</b> Based on a mathematically rigorous expression for the variance of a covariance, which includes the auto- and cross-covariance terms for atmospheric fluxes. The uncertainty estimate is based on Eqs. 8-10 of the referenced paper."), Qt::ToolTipRole);
     randomMethodCombo->setItemData(1, tr("<b>Mann and Lenschow (1994):</b> Define the error variance of the central moment of the time series. The uncertainty estimate is based on, e.g. Eqs. 5 of Finkelstein and Sims (2001)."), Qt::ToolTipRole);
     randomMethodCombo->setItemData(2, tr("<b>Billesbach (2011):</b> The \"random shuffle\" method. Reordering a scalar at random destroys every real correlation with vertical wind, so whatever covariance survives the shuffle was produced by noise alone; the mean of twenty such covariances is a floor below which a flux cannot be told from zero. This is a <b>noise floor, not a sampling error</b>: it answers whether a flux is resolvable, not how uncertain it is, and it is systematically smaller than the two methods above. Most useful for weak-flux species such as carbonyl sulfide or nitrous oxide."), Qt::ToolTipRole);
@@ -193,10 +195,40 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     //> The stored value IS ru_meth. Five, not four, because four is
     //> already Billesbach - the row and the method number have not run
     //> in step since three became Mahrt.
+    randomMethodCombo->setItemData(4, tr("<b>Limit of detection (Langford et al. 2015):</b> Far from the transport lag, vertical wind and "
+        "the scalar are no longer correlated, so the cross-covariance function out there is noise. Its root mean square, "
+        "RE<sub>RMSE</sub> = &radic;(&sigma;<sup>2</sup> + &mu;<sup>2</sup>) (their Eq. 9), or its standard deviation is the random "
+        "flux error, and the limit of detection is LoD = &alpha; &times; RE, with &alpha; = 1.96 for 95 %. Written for Tau, H, LE, ET "
+        "and every gas, as <i>rand_err_*</i> and <i>lod_*</i>."
+        "<br><br>Like Billesbach, it includes instrument noise, which makes it well suited to weak-flux species such as carbonyl "
+        "sulfide, nitrous oxide or methane (Maier et al. 2022). Window, statistic and &alpha; are under <b>Settings...</b>."), Qt::ToolTipRole);
+
+    //> The stored value IS ru_meth. Five, not four, because four is
+    //> already Billesbach - the row and the method number have not run
+    //> in step since three became Mahrt. Langford is six.
     randomMethodCombo->setItemData(0, 1);
     randomMethodCombo->setItemData(1, 2);
     randomMethodCombo->setItemData(2, 4);
     randomMethodCombo->setItemData(3, 5);
+    randomMethodCombo->setItemData(4, 6);
+
+    lodSettingsButton = new QPushButton(tr("Settings..."));
+    lodSettingsButton->setToolTip(tr("<b>Settings:</b> The lag window, statistic and coverage factor of the limit of detection "
+        "after Langford et al. (2015). Only for that method. The same settings apply to the flux detection limit when it uses "
+        "Langford et al. (2015)."));
+    lodSettingsButton->setProperty("mdButton", true);
+    lodSettingsButton->setMaximumWidth(lodSettingsButton->sizeHint().width());
+
+    specCorrCheckBox = new QCheckBox(tr("Spectrally correct the random uncertainty"));
+    specCorrCheckBox->setToolTip(tr("<b>Spectrally correct the random uncertainty:</b> Multiply each flux's random uncertainty "
+        "by the same spectral correction factor the flux itself was multiplied by - Tau, H, LE and ET, and every gas by its own "
+        "factor - as Langford et al. (2015) recommend: corrections applied to the fluxes should also be applied to their random "
+        "error. The limit of detection of the Langford et al. (2015) method, &alpha; &times; random uncertainty, follows. "
+        "<b>Off by default</b>, as in EddyPro, which reports the random uncertainty of the uncorrected covariance. Applies to "
+        "every method above. Only the "
+        "spectral correction is applied: the density (WPL) and sonic temperature corrections add terms from other covariances "
+        "and are not carried over. The flux detection limit (<i>&lt;gas&gt;_detlim</i>) stays in uncorrected covariance units."));
+    specCorrCheckBox->setProperty("paddedCheckbox", true);
 
     auto itsLabel = WidgetUtils::createBlueLabel(this, tr("Integral turbulence scale (ITS)"));
     itsLabel->setToolTip(tr(""));
@@ -241,8 +273,9 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     detlimSettingsButton = new QPushButton(tr("Flux Detection Limit..."));
     detlimSettingsButton->setToolTip(tr("<b>Flux detection limit:</b> "
         "Estimate the noise floor of each gas's covariance with vertical "
-        "wind, after Wienhold et al. (1994), by measuring the scatter of the "
-        "cross-covariance function away from its peak. A flux smaller than "
+        "wind, after Wienhold et al. (1994) or Langford et al. (2015), by "
+        "measuring the scatter of the cross-covariance function away from its "
+        "peak. A flux smaller than "
         "its detection limit cannot be distinguished from zero. Off by "
         "default; switching it on changes no flux, it only reports the limit "
         "alongside. Particularly worth having for weak-flux species such as "
@@ -255,6 +288,7 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     downLayout->addWidget(randomErrorCheckBox, 1, 0);
     downLayout->addWidget(randomMethodLabel, 1, 1, Qt::AlignRight);
     downLayout->addWidget(randomMethodCombo, 1, 2);
+    downLayout->addWidget(lodSettingsButton, 1, 3, Qt::AlignLeft);
     downLayout->addWidget(itsLabel, 2, 1);
     downLayout->addWidget(itsDefinitionLabel, 3, 1, Qt::AlignRight);
     downLayout->addWidget(itsDefinitionCombo, 3, 2);
@@ -262,11 +296,13 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
     downLayout->addWidget(timelagMaxSpin, 4, 2);
     downLayout->addWidget(securityCoeffLabel, 5, 1, Qt::AlignRight);
     downLayout->addWidget(securityCoeffSpin, 5, 2);
-    //> Row 6, and the stretch moves down with it. The grid is hand-numbered,
-    //> so anything added below has to push the stretch again.
-    downLayout->addWidget(detlimSettingsButton, 6, 1, 1, 2, Qt::AlignLeft);
-    downLayout->setRowStretch(7, 1);
-    downLayout->setColumnStretch(3, 1);
+    //> Row 6 the spectral correction of the reported errors, row 7 the
+    //> detection limit, and the stretch below them. The grid is
+    //> hand-numbered, so anything added below has to push the stretch again.
+    downLayout->addWidget(specCorrCheckBox, 6, 1, 1, 2, Qt::AlignLeft);
+    downLayout->addWidget(detlimSettingsButton, 7, 1, 1, 2, Qt::AlignLeft);
+    downLayout->setRowStretch(8, 1);
+    downLayout->setColumnStretch(4, 1);
 
     auto downFrame = new QWidget;
     downFrame->setLayout(downLayout);
@@ -518,6 +554,12 @@ AdvStatisticalOptions::AdvStatisticalOptions(QWidget *parent,
 
     connect(detlimSettingsButton, &QPushButton::clicked,
             this, &AdvStatisticalOptions::showDetlimSettingsDialog);
+    connect(lodSettingsButton, &QPushButton::clicked,
+            this, &AdvStatisticalOptions::showLangfordSettingsDialog);
+    //> clicked, not toggled: refresh() sets it without the user.
+    connect(specCorrCheckBox, &QCheckBox::clicked, this, [this](bool checked) {
+        ecProject_->setRandomErrorSpecCorr(checked ? 1 : 0);
+    });
     connect(randomErrorCheckBox, &QCheckBox::toggled,
             this, &AdvStatisticalOptions::updateRandomErrorArea);
     //> This control is not the only thing that writes ru_meth: the CEC
@@ -2552,6 +2594,13 @@ void AdvStatisticalOptions::reset()
     ecProject_->setScreenDetlimOffset(ecProject_->defaultSettings.screenSetting.detlim_offset_s);
     ecProject_->setScreenDetlimWindow(ecProject_->defaultSettings.screenSetting.detlim_window_s);
     if (detlimDialog_) { detlimDialog_->refresh(); }
+    ecProject_->setScreenLodWindow(ecProject_->defaultSettings.screenSetting.lod_window);
+    ecProject_->setScreenLodStat(ecProject_->defaultSettings.screenSetting.lod_stat);
+    ecProject_->setScreenLodItsMult(ecProject_->defaultSettings.screenSetting.lod_its_mult);
+    ecProject_->setRandomErrorLodAlpha(ecProject_->defaultSettings.randomError.lod_alpha);
+    ecProject_->setRandomErrorSpecCorr(ecProject_->defaultSettings.randomError.spec_corr);
+    specCorrCheckBox->setChecked(ecProject_->defaultSettings.randomError.spec_corr != 0);
+    if (lodDialog_) { lodDialog_->refresh(); }
 
     randomErrorCheckBox->setChecked(false);
     randomMethodLabel->setEnabled(false);
@@ -2562,6 +2611,7 @@ void AdvStatisticalOptions::reset()
     timelagMaxSpin->setEnabled(false);
     securityCoeffLabel->setEnabled(false);
     securityCoeffSpin->setEnabled(false);
+    specCorrCheckBox->setEnabled(false);
     WidgetUtils::resetComboToItem(randomMethodCombo, 0);
     WidgetUtils::resetComboToItem(itsDefinitionCombo, 0);
 
@@ -2571,6 +2621,7 @@ void AdvStatisticalOptions::reset()
 
     timelagMaxSpin->setValue(ecProject_->defaultSettings.projectGeneral.its_tlag_max);
     securityCoeffSpin->setValue(ecProject_->defaultSettings.randomError.its_sec_factor);
+    updateLodSettingsButton();
 
     // restore modified flag
     ecProject_->setModified(oldmod);
@@ -2587,11 +2638,34 @@ void AdvStatisticalOptions::showDetlimSettingsDialog()
     if (!detlimDialog_)
     {
         detlimDialog_ = new DetlimSettingsDialog(this, ecProject_);
+        connect(detlimDialog_, &DetlimSettingsDialog::langfordSettingsRequested,
+                this, &AdvStatisticalOptions::showLangfordSettingsDialog);
     }
     detlimDialog_->refresh();
     detlimDialog_->show();
     detlimDialog_->raise();
     detlimDialog_->activateWindow();
+}
+
+/// Lazily, like the detection limit dialog, and the one instance whichever
+/// button asked for it.
+void AdvStatisticalOptions::showLangfordSettingsDialog()
+{
+    if (!lodDialog_)
+    {
+        lodDialog_ = new LangfordSettingsDialog(this, ecProject_);
+    }
+    lodDialog_->refresh();
+    lodDialog_->show();
+    lodDialog_->raise();
+    lodDialog_->activateWindow();
+}
+
+/// Live only while the random uncertainty method is Langford's.
+void AdvStatisticalOptions::updateLodSettingsButton()
+{
+    lodSettingsButton->setEnabled(randomErrorCheckBox->isChecked()
+                                  && randomMethodCombo->currentData().toInt() == 6);
 }
 
 void AdvStatisticalOptions::refresh()
@@ -2608,6 +2682,7 @@ void AdvStatisticalOptions::refresh()
     //> Only if it has been opened. A project loaded while the dialog is up
     //> would otherwise leave it showing the previous project's windows.
     if (detlimDialog_) { detlimDialog_->refresh(); }
+    if (lodDialog_) { lodDialog_->refresh(); }
 
     spikeRemCheckBox->setChecked(ecProject_->screenTestSr());
     amplitudeResCheckBox->setChecked(ecProject_->screenTestAr());
@@ -2723,6 +2798,9 @@ void AdvStatisticalOptions::refresh()
     itsDefinitionCombo->setCurrentIndex(ecProject_->randErrorItsMehod());
     timelagMaxSpin->setValue(ecProject_->randErrorTlagMax());
     securityCoeffSpin->setValue(ecProject_->randErrorSecFactor());
+    specCorrCheckBox->setChecked(ecProject_->randErrorSpecCorr() != 0);
+    specCorrCheckBox->setEnabled(randomErrorCheckBox->isChecked());
+    updateLodSettingsButton();
 
     // restore modified flag
     ecProject_->setModified(oldmod);
@@ -3063,6 +3141,8 @@ void AdvStatisticalOptions::setRandomErrorControlsEnabled(bool b)
     timelagMaxSpin->setEnabled(b);
     securityCoeffLabel->setEnabled(b);
     securityCoeffSpin->setEnabled(b);
+    specCorrCheckBox->setEnabled(b);
+    updateLodSettingsButton();
 }
 
 /// Re-read ru_meth after something outside this page wrote it.
@@ -3121,6 +3201,7 @@ void AdvStatisticalOptions::onClickRandomMethodLabel()
 void AdvStatisticalOptions::updateRandomMethod(int n)
 {
     ecProject_->setRandomErrorMethod(randomMethodCombo->itemData(n).toInt());
+    updateLodSettingsButton();
 }
 
 void AdvStatisticalOptions::onClickItsDefinitionLabel()

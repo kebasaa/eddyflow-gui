@@ -12,6 +12,7 @@
 class QComboBox;
 class QDoubleSpinBox;
 class QLabel;
+class QPushButton;
 class EcProject;
 
 /// Settings for the flux detection limit after Wienhold et al. (1994).
@@ -30,6 +31,11 @@ public:
 public slots:
     void refresh();
 
+signals:
+    /// The Langford settings live in their own dialog, shared with the
+    /// random uncertainty method; the page that owns both opens it.
+    void langfordSettingsRequested();
+
 private slots:
     void restoreDefaults();
     void updateWindowWarning();
@@ -41,6 +47,8 @@ private:
     QLabel *methodLabel;
     QLabel *offsetLabel;
     QLabel *windowLabel;
+    QPushButton *langfordButton;
+    void updateEnabled();
     /// Lit when the half-width reaches the peak, which is the one way to
     /// configure this so that it measures the flux instead of the noise.
     QLabel *windowWarningLabel;

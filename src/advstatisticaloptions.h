@@ -60,6 +60,7 @@ class QToolBox;
 
 class ClickLabel;
 class DetlimSettingsDialog;
+class LangfordSettingsDialog;
 class DlProject;
 class EcProject;
 
@@ -91,6 +92,9 @@ private slots:
     /// Open the flux detection limit dialog, non-modally, as the CEC and PWB
     /// buttons open theirs.
     void showDetlimSettingsDialog();
+    /// Open the Langford et al. (2015) limit of detection settings, shared by
+    /// the random uncertainty method and the flux detection limit.
+    void showLangfordSettingsDialog();
 
     void on_spikeRemCheckBox_clicked(bool checked);
     void on_amplitudeResCheckBox_clicked(bool checked);
@@ -452,6 +456,17 @@ private:
     //> live control, so the method plus its two windows go in a dialog.
     QPushButton* detlimSettingsButton;
     DetlimSettingsDialog* detlimDialog_{};
+
+    //> Limit of detection after Langford et al. (2015). One dialog for both
+    //> places the method is offered; this button beside the method combo is
+    //> live only while that method is chosen, and the detection limit dialog
+    //> asks for the same one.
+    QPushButton* lodSettingsButton;
+    //> Spectral correction of the reported random errors, Langford et al.
+    //> (2015). Live with the random uncertainty checkbox.
+    QCheckBox* specCorrCheckBox;
+    LangfordSettingsDialog* lodDialog_{};
+    void updateLodSettingsButton();
 
     //> The four grids that carry generated gas rows. Held because the rows,
     //> and everything the grid places below them, are positioned in
