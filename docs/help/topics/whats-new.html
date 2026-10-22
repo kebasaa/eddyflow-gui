@@ -1,0 +1,6146 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="EddyFlow software documentation and physics reference">
+      
+      
+      
+        <link rel="canonical" href="https://kebasaa.github.io/eddyflow-documentation/topics/whats-new.html">
+      
+      
+        <link rel="prev" href="diagnostics-for-gas-analyzers.html">
+      
+      
+        <link rel="next" href="../reference/faqs.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/app-logo-mini.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>What's New - EddyFlow Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/site.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="green">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#whats-new-in-this-version" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../index.html" title="EddyFlow Documentation" class="md-header__button md-logo" aria-label="EddyFlow Documentation" data-md-component="logo">
+      
+  <img src="../assets/app-logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            EddyFlow Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              What's New
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="EddyFlow Documentation" class="md-nav__button md-logo" aria-label="EddyFlow Documentation" data-md-component="logo">
+      
+  <img src="../assets/app-logo.svg" alt="logo">
+
+    </a>
+    EddyFlow Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Using EddyFlow
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    2. Using EddyFlow
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tutorials.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Processing Eddy Covariance Datasets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="processing-ascii-and-tob1-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Processing ASCII and TOB1 Files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="importing-legacy-projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Importing EddyPro and EddyUH Projects
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="remote-folders.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Remote Folders and Shared Links
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="smartflux-settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running EddyFlow on the SmartFlux System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="metadata-file-editor-using.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using the Metadata File Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="metadata-retriever-tool.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metadata Retriever Tool
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Basic Settings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Basic Settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="dataset-selection-page.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset Selection Page
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="using-biomet-data.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using Biomet Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="biomet-data-format.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supported Biomet File Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using Advanced Settings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Using Advanced Settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="using-advanced-settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="smarflux-configuration-no-ghg.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SmartFlux Advanced Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="advanced-settings-processing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Processing Options
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="advanced-settings-statistical-tests.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Statistical Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="advanced-settings-spectral-corrections.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spectral Analysis and Corrections
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="advanced-settings-outputs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output Files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="assessment-tests.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assessment Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="advanced-mode.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="selecting-advanced-options.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Selecting Advanced Options
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="command-line.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command Line
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Output Files
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    3. Output Files
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="output-files-overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview and Time Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="outputs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    List of Output Files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="output-files-full-output.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The Full Output File
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="output-files-stats-folder.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The Stats Folder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    4. Troubleshooting
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="troubleshooting.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting and Tips
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="error-codes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. The Interface
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    5. The Interface
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction-welcome-page.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview of the Interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction-interface.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project Page
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="metadata-file-editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metadata File Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction-dataset-selection.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Basic Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="raw-processing-options.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="statistical-tests.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Statistical Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="spectral-corrections.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spectral Analysis and Corrections
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="output-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output Files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_9" id="__nav_6_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interface Feature Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Interface Feature Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="software-reference-introduction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="axes-alignment.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Axes Alignment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="beginning-of-dataset.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Beginning of Data Set
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="conversion-type.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Linear Scaling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="declination.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Magnetic Declination
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="displacement-height.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Displacement Height
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="dynamic-metadata.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dynamic Metadata
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="flags.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flags
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="flow-distortion-correction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow Distortion Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="gas-analyzer-model.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gas Analyzer Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="generic-binary-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generic Binary File Type
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ghg-file-format.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GHG File Type
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ghg-extended-format.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extended GHG Files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="longitude-transverse-pathlengths.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Path Lengths and Time Response
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="metadata-file-use-alternative.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Use Alternative Metadata File
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="nominal-time-lag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nominal Time Lag
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="north-offset.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    North Offset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cec-settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CEC Settings Dialog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="flux-detection-limit-settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flux Detection Limit Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="limit-of-detection-settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Limit of Detection Settings (Langford et al. 2015)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="planar-fit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Planar Fit Configuration Dialog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="pwb-time-lag-settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PWB Time Lag Optimization Settings Dialog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="timelag-preliminary-assessment.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Timelag Preliminary Assessment Dialog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="raw-file-name-format.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raw File Name Format
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="roughness-length.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roughness Length
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="sensitive-and-nonsensitive-variables.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensitive and Non-sensitive Variables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="sensor-separation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor Separation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="sonic-anemometer-firmware-version.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sonic Firmware Version
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tob1-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TOB1 File Type
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="using-prev-results.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using Results from a Previous Run
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="windspeed-offsets.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wind Speed Measurement Offsets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. Data Processing Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    6. Data Processing Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="software-reference.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculation Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="express-defaults.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Express Default Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_3" id="__nav_7_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preliminary Processing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Preliminary Processing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="preliminary-processing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="adjusting-anemometer-coordinate-system.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adjusting the Coordinate System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="anemometer-tilt-correction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Anemometer Tilt Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="angle-of-attack-correction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Angle-of-Attack Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="average-gas-concentrations-densities.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Concentrations and Densities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-ambient-and-cell-parameters.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Ambient and Cell Parameters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-ambient-and-cell-statistics.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Ambient and Cell Statistics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-cell-temperature.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Cell Temperature
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-instrument-separation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Instrument Separations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-micromet-variables.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Micrometeorological Variables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-spectra-cospectra-and-ogives.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Spectra, Cospectra and Ogives
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-turbulent-flux.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Turbulent Fluctuations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="converting-to-mixing-ratio.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Converting Raw Data to Mixing Ratios
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cross-wind-correction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crosswind Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="defining-the-dataset.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Defining the EddyFlow Express Data Set
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="despiking-raw-statistical-screening.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Despiking and Statistical Screening
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ensemble-averaged-spectra-and-cospectra.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ensemble Averaged Spectra and Cospectra
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ensemble-averages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QA/QC of Spectra and Cospectra
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="importing-data.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Importing Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="mixed-acquisition-rates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mixed Acquisition Rates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="iterative-calculation-of-micromet-vars.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Iterative Calculation of Micromet Variables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="random-uncertainty-estimation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Random Uncertainty Estimation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="time-lag-detect-correct.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detecting and Compensating Time Lags
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="w-boost-correction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    'w-boost' Bug Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_4" id="__nav_7_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Fluxes
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Calculating Fluxes
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-fluxes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="conditional-eddy-covariance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conditional Eddy Covariance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-li-7700-multipliers.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Multipliers for Spectroscopic Corrections (LI-7700)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-flux-7200-and-7700.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Fluxes for the LI-7200 and LI-7700
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-flux-level-0.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Fluxes Level 0
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-flux-level-123.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Fluxes Level 1, 2, and 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-flux-open-path-analyzers.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Fluxes for Open Path Analyzers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-offseason-uptake-correction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating the Off-season Uptake Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-spectral-correction-factors.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Spectral Correction Factors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="estimating-flux-footprint.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Estimating the Flux Footprint
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="flux-detection-limit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flux Detection Limit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="flux-quality-flags.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flux Quality Flags
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="high-pass-filtering.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    High-pass Filtering Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="low-pass-filtering.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Low-pass Filtering Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="references.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A. References
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    B. Additional Topics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    B. Additional Topics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="spectral-analysis.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analyzing Spectra and Cospectra
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ttp059-how-to-change-metadata.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changing Metadata After Collection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="diagnostics-for-gas-analyzers.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gas Analyzer Diagnostics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What's New
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="whats-new.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What's New
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#812-2026-10-02" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1.2 (2026-10-02)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#811-2026-09-25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1.1 (2026-09-25)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#810-2026-08-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1.0 (2026-08-22)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#800-2026-08-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.0.0 (2026-08-20)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#725-2026-07-27" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2.5 (2026-07-27)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#724-2026-07-07" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2.4 (2026-07-07)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#723-2026-07-02" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2.3 (2026-07-02)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#722-2026-07-01" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2.2 (2026-07-01)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#721-2026-06-29" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2.1 (2026-06-29)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#720-2026-06-25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2.0 (2026-06-25)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#710-2026-06-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1.0 (2026-06-23)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#704-2026-06-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.0.4 (2026-06-19)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-2022-01-27" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        .9 (2022-01-27)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-2021-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        .8 (2021-11-22)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-2021-04-16" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        .7 (2021-04-16)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-2019-12-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        .6 (2019-12-18)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-2019-06-25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        .4 (2019-06-25)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-622-2018-05-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 6.2.2 (2018-05-20)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-621-2017-10-09" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 6.2.1 (2017-10-09)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-620-2016-08-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 6.2.0 (2016-08-23)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-610-2015-12-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 6.1.0 (2015-12-14)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-600-2015-08-01" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 6.0.0 (2015-08-01)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-521-2015-01-29" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 5.2.1 (2015-01-29)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-52" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 5.2
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-511-2014-03-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 5.1.1 (2014-03-14)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-510-2014-01-29" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 5.1.0 (2014-01-29)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-500-2013-12-09" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 5.0.0 (2013-12-09)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-421-2013-10-03" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 4.2.1 (2013-10-03)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-42-2013-08-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 4.2 (2013-08-22)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-41-2013-01-01" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 4.1 (2013-01-01)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-40-2012-04-25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 4.0 (2012-04-25)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-301-not-public" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 3.0.1 (not public)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-300-2012-02-06" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 3.0.0 (2012-02-06)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#300-beta-2011-12-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.0.0 Beta (2011-12-14)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#230-2011-07-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3.0 (2011-07-20)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#220-2011-06-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2.0 (2011-06-20)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#214-2011-06-02" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1.4 (2011-06-02)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#213-2011-05-31" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1.3 (2011-05-31)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#212-2011-05-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1.2 (2011-05-18)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#211-2011-04-26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1.1 (2011-04-26)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#210-2011-04-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1.0 (2011-04-21)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#200-2011-04-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.0.0 (2011-04-05)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/faqs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#812-2026-10-02" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1.2 (2026-10-02)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#811-2026-09-25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1.1 (2026-09-25)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#810-2026-08-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1.0 (2026-08-22)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#800-2026-08-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.0.0 (2026-08-20)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#725-2026-07-27" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2.5 (2026-07-27)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#724-2026-07-07" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2.4 (2026-07-07)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#723-2026-07-02" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2.3 (2026-07-02)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#722-2026-07-01" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2.2 (2026-07-01)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#721-2026-06-29" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2.1 (2026-06-29)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#720-2026-06-25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2.0 (2026-06-25)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#710-2026-06-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1.0 (2026-06-23)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#704-2026-06-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.0.4 (2026-06-19)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-2022-01-27" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        .9 (2022-01-27)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-2021-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        .8 (2021-11-22)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-2021-04-16" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        .7 (2021-04-16)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-2019-12-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        .6 (2019-12-18)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-2019-06-25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        .4 (2019-06-25)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-622-2018-05-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 6.2.2 (2018-05-20)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-621-2017-10-09" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 6.2.1 (2017-10-09)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-620-2016-08-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 6.2.0 (2016-08-23)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-610-2015-12-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 6.1.0 (2015-12-14)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-600-2015-08-01" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 6.0.0 (2015-08-01)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-521-2015-01-29" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 5.2.1 (2015-01-29)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-52" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 5.2
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-511-2014-03-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 5.1.1 (2014-03-14)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-510-2014-01-29" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 5.1.0 (2014-01-29)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-500-2013-12-09" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 5.0.0 (2013-12-09)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-421-2013-10-03" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 4.2.1 (2013-10-03)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-42-2013-08-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 4.2 (2013-08-22)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-41-2013-01-01" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 4.1 (2013-01-01)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-40-2012-04-25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 4.0 (2012-04-25)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-301-not-public" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 3.0.1 (not public)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-300-2012-02-06" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version 3.0.0 (2012-02-06)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#300-beta-2011-12-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.0.0 Beta (2011-12-14)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#230-2011-07-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3.0 (2011-07-20)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#220-2011-06-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2.0 (2011-06-20)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#214-2011-06-02" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1.4 (2011-06-02)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#213-2011-05-31" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1.3 (2011-05-31)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#212-2011-05-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1.2 (2011-05-18)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#211-2011-04-26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1.1 (2011-04-26)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#210-2011-04-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1.0 (2011-04-21)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#200-2011-04-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.0.0 (2011-04-05)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="whats-new-in-this-version">What's new in this version<a class="headerlink" href="#whats-new-in-this-version" title="Permanent link">&para;</a></h1>
+<p>EddyFlow is an open-source fork of EddyPro, maintained by ETH Zurich starting with version 7.0.4. This is why the version numbering below jumps from the EddyPro-era <code>.9</code> (i.e. 7.0.9) directly to <code>7.0.4</code>, and why entries from 7.0.4 onward use full <code>x.y.z</code> version numbers instead of the decimal-suffix shorthand used in older EddyPro-era entries below.</p>
+<h2 id="812-2026-10-02">8.1.2 (2026-10-02)<a class="headerlink" href="#812-2026-10-02" title="Permanent link">&para;</a></h2>
+<p>Engine:</p>
+<ul>
+<li>New feature: Pre-pass work is cut into about four pieces per worker and handed to whichever worker is free, so uneven data or slower cores no longer leave workers idle; results stay identical to a serial run.</li>
+<li>Fix: Engine processes opt out of Windows execution-speed throttling, so on hybrid processors they are no longer confined to the efficiency cores.</li>
+<li>Fix/Refine: Progress is flushed to the console as it is written, so workers and the interface show it as it happens.</li>
+<li>Fix: A gas sampled more slowly than the file rate (for example a 1 Hz laser on a 20 Hz grid) is now time-lagged by PWB at its own rate and refined at the file's, instead of failing the validity test in every period, and its spectra are built from its real sample rows; see <a href="time-lag-detect-correct.html#pwb-behaviour-in-detail">Time lag detection</a>.</li>
+<li>New feature: Pre-pass worker processes (<code>-j</code>/<code>--jobs</code>) now stop when the process that started them ends, so stopping or killing a run no longer leaves workers running; see <a href="command-line.html#worker-processes-j-and-jobs">Command line</a>.</li>
+<li>Fix: Pre-pass workers remove their temporary folders when they finish.</li>
+</ul>
+<p>GUI:</p>
+<ul>
+<li>New feature: The Browse button opens at the folder the field already points to, falling back to the nearest existing parent, the last place the field was browsed and the last project folder; see <a href="introduction-interface.html">Where Browse opens</a>.</li>
+<li>Fix/Refine: Warnings and information boxes raised while the interface applies settings on your behalf (run mode, output presets, project loading) go to the message log instead of opening windows; failures and questions are unchanged.</li>
+<li>Fix: A page that refreshes itself while settings are restored no longer interrupts anything.</li>
+<li>Fix: Stop, Pause and Resume now reach every process of an engine run, the parent and all workers; on Windows closing or crashing the interface also ends the run.</li>
+<li>Fix: The Su et al. cospectral model is labelled 2004 (the paper year) instead of 2003.</li>
+</ul>
+<h2 id="811-2026-09-25">8.1.1 (2026-09-25)<a class="headerlink" href="#811-2026-09-25" title="Permanent link">&para;</a></h2>
+<p>Engine:</p>
+<ul>
+<li>New feature: Every input location can be a Google Drive or Dropbox shared link; raw files are downloaded on demand and removed after use. Output locations must stay local (Fatal error 122). See <a href="remote-folders.html#top">Remote folders and shared links</a>.</li>
+<li>New feature: Projects whose GHG files change acquisition rate part way are processed in full: each period is read at its own rate, a period spanning a change is skipped (Warning 116), and the spectral assessment is done per rate. See <a href="mixed-acquisition-rates.html#top">Mixed acquisition rates</a>.</li>
+<li>New feature: New warnings 116, 117, 118, 119 and 121 and fatal errors 120 and 122; see <a href="error-codes.html#top">Error codes</a>.</li>
+<li>Fix: Dynamic metadata no longer overrides the acquisition frequency or file duration a GHG file states about itself (Warning 118).</li>
+<li>Fix: The cut-off frequency is checked against each gas's own Nyquist frequency; gases whose fit is unresolved fall back to the analytic correction, which changes results in single-rate projects too.</li>
+<li>Fix: The Fratini et al. (2012) full cospectrum is sized from each period's own file instead of the first file of the run.</li>
+<li>Fix: An empty numeric setting in a metadata or project file is read as its default instead of 0.</li>
+<li>Fix: Pre-pass workers (<code>-j</code>) also split the PWB cache pre-pass, and a switch placed after the project path is honoured.</li>
+<li>Fix: <code>S4_instrument_filled</code> in the PWB summary is now <code>S4_borrowed</code>, and half-hourly PWB output no longer reports a stale donor gas.</li>
+</ul>
+<p>GUI:</p>
+<ul>
+<li>New feature: <strong>Remote drive...</strong> buttons beside twelve input fields, with a Remote Drive link dialog and a file-browser dialog for the shared folder.</li>
+<li>New feature: Minimum and maximum flux thresholds on the spectral QA/QC table and in the Time Lag Optimization dialog are shown in the gas's own unit (nmol, pmol or µmol m⁻² s⁻¹); stored values are unchanged.</li>
+<li>New feature: Spectral-assessment and time-lag assessment file tests check each gas block against its prototype; a measured gas without a block now fails the test.</li>
+<li>Fix: The Fluxnet output settings stay on in all three output presets.</li>
+<li>Fix: Choosing a run mode applies its settings in one go instead of opening a stack of warnings.</li>
+<li>Fix: An empty or unparseable number in a project or metadata file is read as the default rather than 0.</li>
+<li>Fix: Create Package in SmartFlux mode downloads assessment, planar-fit and time-lag inputs from a drive first.</li>
+</ul>
+<h2 id="810-2026-08-22">8.1.0 (2026-08-22)<a class="headerlink" href="#810-2026-08-22" title="Permanent link">&para;</a></h2>
+<p>Engine:</p>
+<ul>
+<li>New feature: Two optional sonic hardware corrections, both off by default: an inclinometer-based tilt correction for tilt that changes within an averaging period, and a Metek USA-1 head correction for flow distortion (requires user-supplied Metek calibration tables, not shipped with EddyFlow).</li>
+<li>New feature: Optional iterative spectral-correction/stability convergence loop, off by default, that re-evaluates the spectral correction against updated atmospheric stability until the two agree.</li>
+<li>Fix: Time-lag "borrowing" for weak gas signals can now optionally use a Lenschow instrument-noise floor and the analyser's carbon dioxide as donor gas; existing projects keep their previous behavior by default.</li>
+<li>New feature: New random-uncertainty method based on Lenschow et al. (2000) / Mauder et al. (2013) instrument noise.</li>
+<li>New feature: New consecutive-difference despiking method using absolute per-variable step limits instead of statistical thresholds.</li>
+<li>New feature: Selectable analytic cospectrum model used to shape spectral corrections (Moncrieff, the default, plus Kaimal, Sakai, Su, Moraes, and Kristensen).</li>
+<li>New feature: Optional time-lag "borrowing" from a better-resolved tube-mate gas when a species' signal can't be distinguished from noise; off by default, requires the detection-limit method to be enabled.</li>
+<li>New feature: Optional "de-baselined" covariance maximization for time-lag selection, improving handling of weak fluxes.</li>
+<li>Fix: Time-lag search no longer returns an undefined or error-coded covariance as the selected lag.</li>
+<li>New feature: New flux detection-limit method (Wienhold et al. 1994), reporting per-gas noise floors so weak fluxes can be judged resolvable or not.</li>
+<li>New feature: <code>-j</code>/<code>--jobs</code> option parallelizes the planar-fit and time-lag pre-passes across CPU cores; output is identical to a serial run.</li>
+<li>Fix: A command-line switch placed after the project path was previously silently ignored.</li>
+<li>Fix: Spectral assessment files that failed to open were written to meaningless stray files instead of failing cleanly.</li>
+<li>New feature: Optional spectroscopic water-vapor correction for closed-path laser analysers, off by default, removing the effect of water on absorption-line broadening from mixing-ratio gas readings (including an optional self-broadening correction for the water channel itself).</li>
+<li>New feature: Billesbach (2011) random-shuffle noise-floor method added to the random-uncertainty options; the earlier implementation of this method was broken and has been fixed.</li>
+<li>
+<p>Fix/Refine: Several correctness fixes and improvements to the EddyPro-project importer, which now produces a fully runnable EddyFlow project without further manual conversion.</p>
+</li>
+<li>
+<p>New feature: Optional extra raw-signal diagnostics (AL1, DDI, HF5, HF10, HD5, HD10, DIP, CCF; <code>test_rf</code>), off by default, appended at the end of the FLUXNET output row.</p>
+</li>
+<li>New feature: Optional post-flux despiking of the whole NEE, H and LE series by STL decomposition (<code>test_pfd</code>), writing a separate <code>..._flux_despiking...csv</code> file.</li>
+<li>New feature: Optional storage-flux cleaning (<code>test_stor_clean</code>) using a Tukey far-out fence by time of day, with interior gaps interpolated.</li>
+<li>New feature: Fourth quality-flagging policy, Vitale et al. (2020) (<code>qc_meth</code> = 4); when spectral corrections are handed to the flux-correction stage the grade is the ITC deviation alone.</li>
+<li>Fix: The <code>*_KID</code> column is now the flat-line-corrected kurtosis index of differences and changes values wherever a sensor flat-lined.</li>
+<li>Fix: LI-7700 methane fluxes now apply the spectroscopic multipliers B and C, not only A (previously about 10.6 % low in the test project), and Burba surface heating is applied per gas using that gas's own analyser.</li>
+<li>BREAKING: FLUXNET output carries <code>SPEC_CORR_LI7700_&lt;A|B|C&gt;_&lt;GAS&gt;</code> per gas instead of three fixed <code>SPEC_CORR_LI7700_A/_B/_C</code> columns, so the number of main fields rises from 278 to 287; positional parsers must be updated.</li>
+<li>Fix: <code>T*</code> (full output) and <code>TSTAR</code> (FLUXNET) written by the flux-correction stage had the wrong sign; the values are now correct.</li>
+<li>Fix: A biomet pressure given in <code>ATM</code> now converts with 101325 Pa (previously 98066.5 Pa).</li>
+<li>Fix: PWB terminal fallback uses the period's own covariance maximum, which changes some lags.</li>
+<li>New feature: Biomet channels accept per-channel <code>_gain</code> and <code>_offset</code> calibration, and external biomet files can take their channel description from a sidecar <code>.metadata</code> file (<code>biom_use_native_header</code> = 0).</li>
+<li>Fix: Runs on GHG files with embedded biomet no longer crash.</li>
+<li>New feature: Dynamic metadata can change the invalid wind sectors over time (<code>wdf_sec1_center</code> to <code>wdf_sec3_width</code>).</li>
+<li>Fix/Refine: Metadata conversion type <code>zero_fullscale</code> is upgraded once on read to the exact gain and offset equivalent.</li>
+</ul>
+<p>GUI:</p>
+<ul>
+<li>New feature: Burba sensible-heat correction control now automatically greys out when no LI-7500-family analyser is present.</li>
+<li>New feature: New "parallelise the planar fit and time lag pre-passes" processing option (off by default).</li>
+<li>Fix: Burba multiple-regression day/night tabs were unclickable due to a layout overlap; fixed.</li>
+<li>New feature: File &gt; Import EddyUH Project — a new importer that brings across site, instrument, column, rotation, and time-lag settings from EddyUH project files, and reports which settings could and could not be converted.</li>
+<li>New feature: New Advanced Processing Options for Metek USA-1 head correction and inclinometer tilt correction, including guardrails for missing calibration files.</li>
+<li>New feature: New "Iterate the correction" option (with passes/tolerance) on the Spectral Corrections page.</li>
+<li>New feature: New controls for time-lag tube-mate borrowing and de-baselined covariance maximization.</li>
+<li>New feature: New "Remove the spectroscopic effect of water vapour" option with per-column coefficient fields.</li>
+<li>New feature: New "Flux Detection Limit..." dialog on the Statistical Analysis page.</li>
+<li>New feature: Lenschow (2000), consecutive-difference despiking, cospectral model choice, and Billesbach (2011) options added to their respective settings menus.</li>
+<li>Fix: Random-uncertainty dropdown was mapping methods by row position instead of stored value, risking silently running the wrong method; corrected.</li>
+<li>Fix/Refine: Measurement type entries in the Raw File Description now read "Mole fraction (wet)" and "Mixing ratio (dry)".</li>
+<li>Fix: EC150, IRGASON and TILDAS geometry cells are editable, Metek instrument keys are written as the engine expects, and a malformed instrument label no longer crashes the editor.</li>
+<li>Fix: Biomet variables are matched by their whole name after the positional qualifier is removed, so FLUXNET names such as SW_IN and LW_IN are offered (together with RG, R_G, RGLOBAL, R_GLOBAL, SWIN and LWIN) and sensors such as TA_1_1_1 and TA_1_3_1 are no longer merged.</li>
+<li>Fix: A GHG file that cannot be extracted raises "Raw Data Unreadable" or "Biomet Data Unreadable", and the raw-data prototype filter no longer skips files.</li>
+<li>New feature: The EddyUH importer's summary lists what was read from the project and the caveats about what was not carried across.</li>
+<li>Fix: Converting legacy projects now writes the correct <code>zero_fullscale</code> offset.</li>
+<li>Fix: SmartFlux mode no longer crashes on Ctrl+F, names its copy <code>&lt;name&gt;-smartflux.eddyflow</code>, and is not engaged if the copy fails to load.</li>
+</ul>
+<h2 id="800-2026-08-20">8.0.0 (2026-08-20)<a class="headerlink" href="#800-2026-08-20" title="Permanent link">&para;</a></h2>
+<p>Engine:</p>
+<ul>
+<li>New feature: Conditional Eddy Covariance (CEC) gained an option to refuse partitioning a flux that isn't statistically distinguishable from zero, avoiding spurious splits during weak turbulence.</li>
+<li>New feature: Alternate CEC stationarity test that judges stability of the octant split itself, rather than Foken's ratio-based statistic, which was rejecting many valid nighttime periods.</li>
+<li>New feature: CEC channel pairings can now be defined explicitly, letting a site run several CO2/H2O (and additional species) partitions at once.</li>
+<li>BREAKING: Conditional Eddy Covariance was substantially rebuilt — new settings, new output column names, and a new essentials-file format. Older engine versions will refuse newer project files.</li>
+<li>New feature: Direct support for running EddyPro projects — an equivalent EddyFlow project/metadata pair is generated automatically, without a manual conversion step.</li>
+<li>New feature: Multi-gas/multi-instrument architecture replaces the old fixed-4-gas-slot model, supporting up to 64 gas slots and multiple analysers/hygrometers; the WPL density correction is now tied per-gas to its own water record.</li>
+<li>New feature: A run log file is now written alongside every run's outputs, recording warnings and skipped periods.</li>
+<li>New feature: New path-existence validation for project settings.</li>
+<li>Fix: Several CEC, signal-strength-column (AGC/RSSI), and diagnostic-record correctness fixes, including cases where the signal-strength screen wasn't reading any data at all.</li>
+<li>Fix: Species molecular weights corrected (CO2 and N2O previously shared an identical, incorrect value).</li>
+<li>Fix: EddyPro import without an explicit time-lag method now correctly defaults to covariance maximization, matching EddyPro's own default, instead of silently disabling time-lag compensation.</li>
+<li>Refine: Pre-whitening block-bootstrap (PWB) time-lag optimization now runs as a full pre-pass, so it can correctly fill lag values before the first reliable detection and across gaps; several fidelity fixes bring it closer to reference implementations.</li>
+</ul>
+<p>GUI:</p>
+<ul>
+<li>New feature: New "only partition a resolvable flux" and "judge the partition, not the flux" CEC options.</li>
+<li>New feature: Channel-pairing table added to CEC Settings, letting users explicitly map CO2/H2O channels and additional species.</li>
+<li>New feature: Direct <code>.eddypro</code> project import/auto-conversion; opening an EddyPro project no longer overwrites the original metadata file, and conversion stays in-memory until explicitly saved.</li>
+<li>New feature: Per-instrument acquisition frequency, sampling mode, and missing-data allowance settings added to the Metadata File Editor and Basic Settings.</li>
+<li>New feature: Per-species absolute-limit defaults are now seeded with realistic, species-specific values instead of one shared generic pair.</li>
+<li>Fix: Windows-style file paths in project files were being corrupted by the settings parser; now converted safely, with automatic repair and notification.</li>
+<li>Change: Retired the non-functional "Detect time lag on raw data" checkbox and PWB "speed options," which were dead or actively harmful.</li>
+</ul>
+<h2 id="725-2026-07-27">7.2.5 (2026-07-27)<a class="headerlink" href="#725-2026-07-27" title="Permanent link">&para;</a></h2>
+<p>Engine:</p>
+<ul>
+<li>Refine: PWB time-lag detection now runs before flux calculations.</li>
+<li>New feature: Spectral assessment diagnostics.</li>
+<li>Refine: More detailed failure message on spectral file creation.</li>
+</ul>
+<p>GUI:</p>
+<ul>
+<li>New feature: New options for time-lag and time-lag files in output and spectral settings.</li>
+<li>New feature: Bundled sample file templates (planar fit, spectral assessment, timelag optimization).</li>
+<li>Change: PWB now runs before flux calculations.</li>
+<li>Change: Simplified file opening, with file dialogs narrowed to relevant file types.</li>
+<li>Change: Allow up to 99% missing samples.</li>
+</ul>
+<h2 id="724-2026-07-07">7.2.4 (2026-07-07)<a class="headerlink" href="#724-2026-07-07" title="Permanent link">&para;</a></h2>
+<p>Engine:</p>
+<ul>
+<li>Fix: AR max order corrected to match reference implementation.</li>
+<li>New feature: PWB time-lag detection can optionally run pre-WPL.</li>
+<li>New feature: Time-lag sharing between co-located sensors on the same instrument.</li>
+</ul>
+<p>GUI:</p>
+<ul>
+<li>New feature: Optional pre-whitening block-bootstrap (PWB) time-lag method available in pre-processing.</li>
+<li>Change: Updated default project settings.</li>
+</ul>
+<h2 id="723-2026-07-02">7.2.3 (2026-07-02)<a class="headerlink" href="#723-2026-07-02" title="Permanent link">&para;</a></h2>
+<p>Engine:</p>
+<ul>
+<li>Fix: Minor output file naming bugs; corrected gas-4 output units.</li>
+<li>Change: Renamed <code>campbell_</code> prefixes to <code>csi_</code>.</li>
+</ul>
+<p>GUI:</p>
+<ul>
+<li>New feature: Added configurable Conditional Eddy Covariance settings.</li>
+</ul>
+<h2 id="722-2026-07-01">7.2.2 (2026-07-01)<a class="headerlink" href="#722-2026-07-01" title="Permanent link">&para;</a></h2>
+<p>GUI:</p>
+<ul>
+<li>Fix: Mandate required output file options for spectral corrections.</li>
+<li>Fix: Correct links to help documentation.</li>
+</ul>
+<h2 id="721-2026-06-29">7.2.1 (2026-06-29)<a class="headerlink" href="#721-2026-06-29" title="Permanent link">&para;</a></h2>
+<p>Engine:</p>
+<ul>
+<li>New feature: Pre-Whitening Block-Bootstrap (PWB) time-lag compensation, implemented end-to-end.</li>
+</ul>
+<p>GUI:</p>
+<ul>
+<li>New feature: Added controls for pre-whitening block-bootstrap time-lag compensation, with its own settings dialog.</li>
+</ul>
+<h2 id="720-2026-06-25">7.2.0 (2026-06-25)<a class="headerlink" href="#720-2026-06-25" title="Permanent link">&para;</a></h2>
+<p>Engine:</p>
+<ul>
+<li>New feature: Additional trace gases supported.</li>
+<li>New feature: Conditional Eddy Covariance (CEC, Zahn et al. 2022) implemented, partitioning the H2O flux into evaporation/transpiration (E_cec/Tr_cec, plus ET forms) and reporting net photosynthesis (P_cec).</li>
+<li>Fix: NH3 diffusivity coefficient corrected.</li>
+<li>Fix: Fixed a crash (segmentation fault) in CEC processing.</li>
+</ul>
+<p>GUI:</p>
+<ul>
+<li>New feature: Conditional Eddy Covariance (CEC) implemented in the interface, with its own settings dialog and channel-pairing table.</li>
+<li>New feature: Added warning when both fast temperature and speed-of-sound/sonic-temperature channels are available in data files.</li>
+<li>Change: Updated copyright notice.</li>
+</ul>
+<h2 id="710-2026-06-23">7.1.0 (2026-06-23)<a class="headerlink" href="#710-2026-06-23" title="Permanent link">&para;</a></h2>
+<p>Engine:</p>
+<ul>
+<li>Fix: <code>.ghg</code> metadata was not detected correctly when both fast-temperature and speed-of-sound channels were present in the file.</li>
+</ul>
+<h2 id="704-2026-06-19">7.0.4 (2026-06-19)<a class="headerlink" href="#704-2026-06-19" title="Permanent link">&para;</a></h2>
+<p>Engine:</p>
+<ul>
+<li>Fix: Additional fixes to usage of dynamic metadata, including "file_length" and "ac_freq".</li>
+<li>Fix: Writing of FLUXNET output in RP when only biomet data (no fast EC data) is available.</li>
+<li>Fix: Harmonized Full Output and FLUXNET output for footprint model selection.</li>
+<li>Fix: Implementation of Horst and Lenschow (2009) now uses Eq. 16 instead of Eq. 13.</li>
+<li>Fix: Eliminated spurious Potential Radiation offset.</li>
+<li>Fix: Reporting of QC flags in FLUXNET output when using the FCC executable; header error with custom variables also fixed.</li>
+<li>Fix: Reading of full cospectra files fixed for the Fratini et al. (2012) spectral correction method.</li>
+<li>Fix: Planar fit settings fixed when the fit fails for a sector.</li>
+<li>Fix: Evapotranspiration (ET) units harmonized to mm/hour throughout output files.</li>
+<li>Refine: Improved detection of Spectral Assessment file when running in embedded mode (SmartFlux).</li>
+<li>Refine: Added variable Cp (specific heat at constant pressure) to FLUXNET output.</li>
+<li>New feature: New wind-direction-sector filtering tool, to exclude raw records from up to 16 specified sectors.</li>
+<li>New feature: New output file conforming to FLUXNET/Ameriflux standards, with many new intermediate results, statistics, and covariances.</li>
+<li>New feature: New stationarity test and random-uncertainty method after Mahrt (1998).</li>
+<li>New feature: New KID (Kurtosis Index on Differenced variable) despiking test.</li>
+<li>New feature: New test to identify periods of repeated data and drop-outs.</li>
+<li>New feature: New supported anemometers: Metek uSonic-3 Class A MP and Metek uSonic-3 Cage MP.</li>
+<li>New feature: ET is now treated as a first-class flux (FLUXNET output only).</li>
+<li>Refine: More accurate computation of mean wind direction; statistical moment calculations now fully robust to missing data.</li>
+<li>Change: Removed obsolete GHG-Europe and AmeriFlux outputs.</li>
+</ul>
+<p>GUI:</p>
+<ul>
+<li>Fix: Log file directory now created correctly at startup.</li>
+<li>Fix: Time-lag dialog double popup during file upload fixed.</li>
+<li>New feature: Added FLUXNET output settings.</li>
+<li>New feature: New visual tool for wind-direction filtering settings, to specify up to 16 sectors.</li>
+<li>New feature: Added random uncertainty estimation method after Mahrt (1998).</li>
+<li>New feature: Added support for Metek uSonic-3 Class A MP and Metek uSonic-3 Cage MP anemometers.</li>
+<li>Change: Moved random uncertainty settings for backward compatibility.</li>
+<li>Change: Removed obsolete GHG-Europe and AmeriFlux outputs, and the "previous data results" setting.</li>
+</ul>
+<h2 id="9-2022-01-27">.9 (2022-01-27)<a class="headerlink" href="#9-2022-01-27" title="Permanent link">&para;</a></h2>
+<p>Engine:</p>
+<ul>
+<li>Fix: Additional updates to usage of dynamic metadata.</li>
+<li>Fix: Writing of FLUXNET output in RP when "not_enough_data" (i.e., only biomet to be written).</li>
+</ul>
+<p>GUI</p>
+<ul>
+<li>Fix: Output format not reset when restoring advanced default values.</li>
+</ul>
+<h2 id="8-2021-11-22">.8 (2021-11-22)<a class="headerlink" href="#8-2021-11-22" title="Permanent link">&para;</a></h2>
+<p>Updated end-user license agreement (EULA) privacy policy.</p>
+<h2 id="7-2021-04-16">.7 (2021-04-16)<a class="headerlink" href="#7-2021-04-16" title="Permanent link">&para;</a></h2>
+<p>Engine:</p>
+<ul>
+<li>Refine: Improved detection of Spectral Assessment file when running in embedded mode (SmartFlux).</li>
+<li>Refine: Add variable CP (specific heat at constant pressure) to FLUXNET output.</li>
+<li>Fix: Fix usage of dynamic metadata "file_length" and "ac_freq".</li>
+<li>Fix: Harmonize Full Output and FLUXNET output for footprint model selection.</li>
+<li>Fix: Implementation of Horst and Leschow 2009 now use Eq. 16 instead of Eq. 13. Thanks M. Aubinet for the notification!</li>
+<li>Fix: Eliminated spurious Potential Radiation offset.</li>
+<li>Fix: Reporting QC flags in the FLUXNET output when using FCC executable.</li>
+<li>Fix: Header error with custom variables when using FCC executable.</li>
+<li>Fix: Reading full cospectra files when using the Fratini et al. 2012 spectral correction method.</li>
+<li>Fix: Planar fit settings when planar fit fails for a sector.</li>
+</ul>
+<p>GUI:</p>
+<ul>
+<li>Fix: Magnetic declination retrieval from NOAA.</li>
+<li>Fix: Timelag optimization dialog not reloading correctly settings for maximum values of searching windows.</li>
+<li>Change: Added handling of "SWIN", "SW_IN", and "LW_IN" biomet variables.</li>
+<li>Change: Changed checkbox label for spike removal in advanced settings for statistical analysis.</li>
+</ul>
+<h2 id="6-2019-12-18">.6 (2019-12-18)<a class="headerlink" href="#6-2019-12-18" title="Permanent link">&para;</a></h2>
+<p>Engine:</p>
+<ul>
+<li>Fix: ET unit in the standard output changed from [mm] to [mm/h].</li>
+</ul>
+<p>GUI</p>
+<ul>
+<li>Fix: Issue using Metek Classic A anemometer.</li>
+<li>Fix: Loss of random uncertainty values while importing project files from past versions.</li>
+<li>Fix: Improved look and feel on macOS Mojave.</li>
+<li>Fix: Corrected 404 on video tutorials link.</li>
+<li>Change: Scrolling behavior of metadata editor tables.</li>
+<li>Change: Restyle tables.</li>
+<li>Change: Removed obsolete forum links.</li>
+</ul>
+<h2 id="4-2019-06-25">.4 (2019-06-25)<a class="headerlink" href="#4-2019-06-25" title="Permanent link">&para;</a></h2>
+<p>Engine</p>
+<ul>
+<li>Add: Data filtering tool to eliminate raw records corresponding to instantaneous wind directions from specified sectors (under <strong>Basic Settings &gt; Select Items for Flux Computation &gt; Wind Filter</strong>).</li>
+<li>Add: New output file conforming to FLUXNET and AmeriFlux's FP-In Standards for labels, units, and format. FLUXNET output features a large amount of new output variables, including many intermediate results, statistics on all high-frequency variables, covariances between all high-frequency variables, biomet mean values and metadata, as well as results of new implementations.</li>
+<li>Add: Stationarity test after Mahrt (1998).</li>
+<li>Add: Random Uncertainty estimation method after Mahrt (1998).</li>
+<li>Add: QC test named KID (Kurtosis Index on Differenced variable) test (Vitale et al., in preparation).</li>
+<li>Add: Test to identify period of repeated data and drop-outs (Vitale et al., in preparation).</li>
+<li>Add: new supported anemometers: Metek uSonic-3 Class A MP and Metek uSonic-3 Cage MP.</li>
+<li>Add: Computation of wind direction variance.</li>
+<li>Add: ET is now treated as a first-class flux (results only available in FLUXNET output).</li>
+<li>Refine: Improve computation of statistical moments which is now fully robust to the presence of missing data.</li>
+<li>Refine: More accurate computation of mean wind direction.</li>
+<li>Refine: Potential Radiation is now computed using timestamp of END of period instead of START.</li>
+<li>Remove: Obsolete GHG-Europe and AmeriFlux outputs.</li>
+<li>Refine: Changed sign (+/-) of Tau reported in data outputs from negative to positive to conform with network standards.</li>
+<li>Refine: The footprint computation will no longer automatically switch between models when the selected footprint model cannot be applied.</li>
+<li>Refine: Reduced the number of significant digits recorded in processed data. Reduces size of output files.</li>
+</ul>
+<p>GUI</p>
+<ul>
+<li>Add: Fluxnet output settings.</li>
+<li>Add: Visual tool for wind directions filtering settings to specify up to 16 sectors.</li>
+<li>Add: Random uncertainty estimation method after Mahrt (1998).</li>
+<li>Add: New supported anemometers: Metek uSonic-3 Class A MP and Metek uSonic-3 Cage MP.</li>
+<li>Change: Move random uncertainty settings from [RawProcess_RandomUncertainty_Settings] to [Project] managing backward compatibility.</li>
+<li>Remove: Obsolete GHG-Europe and AmeriFlux outputs.</li>
+<li>Remove: Previous data results setting.</li>
+</ul>
+<h2 id="version-622-2018-05-20">Version 6.2.2 (2018-05-20)<a class="headerlink" href="#version-622-2018-05-20" title="Permanent link">&para;</a></h2>
+<p>Engine</p>
+<ul>
+<li>Add: Support for RM Young 81000V, 81000RE, and 81000VRE anemometers.</li>
+</ul>
+<p>GUI</p>
+<ul>
+<li>Add: Support for RM Young 81000V, 81000RE, and 81000VRE anemometers.</li>
+<li>Add: References to Tovi software.</li>
+<li>Fix: Raw File Settings persistence.</li>
+<li>Fix: Local help not showing.</li>
+</ul>
+<h2 id="version-621-2017-10-09">Version 6.2.1 (2017-10-09)<a class="headerlink" href="#version-621-2017-10-09" title="Permanent link">&para;</a></h2>
+<p>Engine</p>
+<ul>
+<li>Add: Support for new LI-7500DS instruments.</li>
+</ul>
+<p>GUI</p>
+<ul>
+<li>Add: Support for new LI-7500DS instruments.</li>
+<li>Fix: Magnetic declination retrieval from NOAA.</li>
+</ul>
+<h2 id="version-620-2016-08-23">Version 6.2.0 (2016-08-23)<a class="headerlink" href="#version-620-2016-08-23" title="Permanent link">&para;</a></h2>
+<p>Engine</p>
+<ul>
+<li>Add: New supported variable "anemometer_diagnostic". If selected, it filters anemometer data if the diagnostic value is different from zero.</li>
+<li>Add: Now biomet variables that are provided without positional qualifiers are by default given a "null qualifier" in the form of _0_0_n, with n progressing from 1. This applies now also to external biomet files, which means that users no longer need to assign 'fake' positional qualifiers to variables.</li>
+<li>Add: Support of Gill WindMaster and WindMaster Pro "w-boost" correction, necessary to fix firmware bug for firmware versions: [2329.x.y with x&lt;700].</li>
+<li>Refine: AoA correction policy. Now Nakai et al. 2006 is applied only to R3 family and R2. Nakai and Shimoyama 2012 is applied to WindMaster and WindMaster Pro. The combination of "w-boost" and AoA correction for the WindMaster/Pro is handled automatically by EddyFlow. Effectively, the user has the options of (1) applying or not the w-boost correction alone for WindMaster/Pro; (2) applying or not Nakai's AoA corrections. However, EddyFlow controls that both corrections are applicable to the current anemometer and overrides user's settings (and outputs corresponding warnings) if necessary.</li>
+<li>Refine: Now planar fit settings are not read if planar-fit file is used. The useless reading operation did not cause any problems.</li>
+<li>Refine: Changed "time lag" into "time-lag" everywhere.</li>
+<li>Fix: Shut down BA/ZOH correction, which is currently implemented but not exposed via the GUI.</li>
+<li>Fix: Kelvin/Celsius conversion factor harmonized everywhere (273.15 instead of some occurring 273.16)</li>
+<li>Fix: Now biomet data is not read in during planar fit (which was never useful anyway) and this fixes an array allocation issue that was causing a crash when both planar fit and biomet data were used.</li>
+<li>Fix: Eliminate 'allocatable' property for TempFact in drift_correction.f90, which is, however, not yet enabled and therefore it was causing no issues.</li>
+<li>Fix: Missing time-lag optimization file when requested caused tilt correction method to be set to non-existent value and thus default to no correction.</li>
+<li>Fix: Flags for absolute limits are now correctly calculated. Flags for this test obtained so far are unreliable.</li>
+<li>Fix: Output of full (co)spectra. The bug was such that there was a misalignment of one data point between frequencies and associated (co)spectra values. The bug did not affect calculation and output of binned cospectra, nor usage of full cospectra in spectral corrections.</li>
+<li>Fix: Now files with timestamps referring to end of the dataset are processed correctly. The bug did not allow processing them in rather unusual (but not impossible) situations, such as when files shorter than the flux averaging interval were processed.</li>
+<li>Fix: Handle inconsistent selection of embedded biomet data and non-GHG file type. This pair of inconsistent settings is not possible with the GUI, only with manual editing of the .eddypro file.</li>
+<li>Fix: Definitions of <strong>Hamming and Hann</strong> windows were mistakenly inverted. Now they are correct. The difference between the two windows is minimal and resulting binned (co)spectra are thus only minimally affected, and only at the low frequency end.</li>
+</ul>
+<p>GUI</p>
+<ul>
+<li>Fix: Make non blocking a zero flow rate gas analyzer description.</li>
+<li>Fix: Make sure that an ignored variable in the metadata raw file description table has almost all the fields disabled.</li>
+<li>Fix: toolbar with no labels in initial maximized state.</li>
+<li>Fix: inconsistent value of the "data set available" date on the "detect range" dialog that shows when running in advanced mode.</li>
+<li>Refine: Make sure that on Mac it is possible to load any kind of external biomet files.</li>
+<li>Refine: Remove italic from anemometer firmware version.</li>
+<li>Refine: Trim spaces reading variables in external biomet files.</li>
+<li>Add: Set the Angle of Attack checkbox default setting to disabled.</li>
+<li>Add: "Build Continuous Dataset" to the Minimal Advanced Output Settings (the current default).</li>
+<li>Add: some textual hints in the metadata tables.</li>
+<li>Add: Accept Gill WindMaster/Pro two or three fields firmware versions.</li>
+<li>Add: Change max plausibility range from 12 to 20 sigma as per user request.</li>
+<li>Add: Enable drag and drop tips on Windows.</li>
+<li>Add: the registered trademark symbol to the main window title.</li>
+<li>Add: <strong>Master Anemometer Flags</strong> combo in Basic Settings page.</li>
+<li>Add: support for Campbell CSAT-3B.</li>
+<li>Add: Raise variable flags decimals from 4 to 10 digits.</li>
+<li>Add: Make anemometer firmware version mandatory for Gill WindMaster/Pro.</li>
+<li>Add: checkbox for Gill's w-boost bug.</li>
+</ul>
+<h2 id="version-610-2015-12-14">Version 6.1.0 (2015-12-14)<a class="headerlink" href="#version-610-2015-12-14" title="Permanent link">&para;</a></h2>
+<p>Version 6.1.0 is a minor update with bug fixes and refinements.</p>
+<p><strong>Engine bugs fixed</strong></p>
+<ul>
+<li>FLUXNET biomet output file now contains biomet results also when fast EC data are not available (similar to standard biomet output file). Also fixed initialization, so that if biomet data are not available, FLUXNET biomet output file reports -9999.</li>
+<li>Detection of EndIndex in the list of binned spectra files when a subperiod is selected, which coincides with the period covered by available spectra files. The bug caused EddyFlow to not create ensemble averaged spectra/cospectra, nor to perform the spectral assessment.</li>
+<li>SplitCount function, that caused biomet files not to be properly read (and engine to crash) when only one biomet variable is present in the external biomet files, besides the timestamp(s).</li>
+</ul>
+<p><strong>Engine refinements</strong></p>
+<ul>
+<li>Added support for new LI-7500RS and LI-7200RS instruments.</li>
+<li>Introduced a mechanism to allow user to ask EddyFlow to select the most appropriate Angle of Attack (AoA) correction method, based on sonic anemometer model and firmware version. User can also force a selection or disable the correction completely.</li>
+</ul>
+<p><strong>GUI refinements</strong></p>
+<ul>
+<li>Added support for new LI-7500RS and LI-7200RS instruments.</li>
+<li>Added automatic selection for the AoA correction method.</li>
+<li>Set the default AoA correction method to automatic selection.</li>
+<li>Added embedded software version (firmware) field in the anemometer description table in the metadata editor.</li>
+<li>Enabled embedded software version (firmware) field for any gas analyzer and changed it to a free text form.</li>
+<li>Allowed project file opening with double-click on Mac.</li>
+</ul>
+<p><strong>GUI bugs fixed</strong></p>
+<ul>
+<li>Spectral file assessment load button not working properly.</li>
+<li>Essential file path not properly preserved during a run on Windows.</li>
+</ul>
+<h2 id="version-600-2015-08-01">Version 6.0.0 (2015-08-01)<a class="headerlink" href="#version-600-2015-08-01" title="Permanent link">&para;</a></h2>
+<p>Version 6 is a major release with a number of new features and improvements that enhance the utility of the software for web applications.</p>
+<p><strong>New Features</strong></p>
+<ul>
+<li>Mac OS 10.10 version</li>
+</ul>
+<p><strong>Engine bugs fixed</strong></p>
+<ul>
+<li>Improved retrieval of dynamic meta data.</li>
+<li>Missing array allocation reported by Sebastien Lafont (INRA, France). Thanks for reporting this issue!</li>
+<li>Bug that caused processing to stop under some temperature measurement configurations.</li>
+</ul>
+<p><strong>Engine refinements</strong></p>
+<ul>
+<li>Criteria for (co)spectra filtering are now explicitly set by the user.</li>
+<li>Settings for (co)spectra filtering are now independent from the selection of the spectral correction method and are the same for ensemble averaging, model fit and discrimination between model and direct method in spectral correction after Fratini et al. (2012).</li>
+<li>Improved support for biomet data.</li>
+<li>Biomet data time is derived from the file, rather than the file name.</li>
+<li>Improved automatic testing of file names.</li>
+<li>Improved subperiod handling. Now, when both 'Select a sub-period' in Basic Settings and 'Build continuous dataset' in Outputs are selected, all output files will span the selected time period regardless of the period covered by raw data files.</li>
+<li>Improved alignment of biomet data and flux results. Now biomet output and full output always span the same time period. However, alignment row-by-row is guaranteed only when option 'Build continuous dataset' is selected. Otherwise, alignment will depend on data availability.</li>
+<li>Empty spaces in labels of custom variables are replaced with underscore (_) characters.</li>
+<li>Improved despiking of Vickers and Mahrt (1997) against error values in raw data.</li>
+<li>Now WPL interface only allows selection of "on" or "off." The way it is applied is determined automatically depending on open- or closed-path analyzer, the type of concentration data, and the availability of other high-frequency data.</li>
+<li>Added support for longer file names and file paths.</li>
+<li>Test variable number, order, and units of biomet files. If they do not match between files, EddyFlow stops using biomet data.</li>
+<li>Improved plausibility checking of some variables, such as canopy height, altitude, and more.</li>
+<li>Added suffix to output file names, indicating if processing was in Express (exp) or Advanced (adv) mode.</li>
+<li>Added despiking method of Mauder (2013) as an alternative to the method of Vickers and Mahrt (1997).</li>
+<li>Ensemble averaged spectra output also includes de-noised spectra. If noise elimination was not selected, de-noised spectra are equal to the original spectra.</li>
+<li>Improved "Missing Sample Allowance" to include individual variables, in addition to null records.</li>
+<li>Linear detrending time constant set automatically to the flux averaging interval.</li>
+<li>GHG-Europe output now complies with new specifications of AmeriFlux and European Carbon databases. EddyFlow creates two files—eddy covariance results and biomet results. Both can be submitted directly to the databases.</li>
+<li>Binned (co)spectra filtering based on results of micro-meteorological tests. Users can select whether to discard (co)spectra when the corresponding period is flagged as moderate or low quality.</li>
+<li>More explicit start/end period selection when importing binned cospecta files.</li>
+</ul>
+<p><strong>GUI (Graphical User Interface) additions</strong></p>
+<ul>
+<li>Implemented drag-and-drop capabilities in supported operating systems,</li>
+<li>Improved guided mode messages to indicate implausible sensor separation values and flow rates.</li>
+<li>Added option for "Ensemble Average Spectra" in outputs.</li>
+<li>New setting for (co)spectra filtering according to Mauder and Foken, 2004.</li>
+<li>Many other minor additions.</li>
+</ul>
+<p><strong>GUI refinements</strong></p>
+<ul>
+<li>Set maximum missing samples allowed to 40%.</li>
+<li>Improved spectral analysis settings.</li>
+<li>Improved update notification regarding SmartFlux System updates.</li>
+<li>Additional minor improvements.</li>
+</ul>
+<h2 id="version-521-2015-01-29">Version 5.2.1 (2015-01-29)<a class="headerlink" href="#version-521-2015-01-29" title="Permanent link">&para;</a></h2>
+<p>Version 5.2.1 is a minor update with bug fixes and a refinement.</p>
+<p><strong>Engine bug fixed</strong></p>
+<p>Bug causing the engine to hang before run completion if no averaging period could be processed completely. The bug was unlikely to affect EddyFlow desktop users, but could at times show up in the SmartFlux System.</p>
+<p><strong>GUI refinement</strong></p>
+<p>Added <strong>Save</strong> and <strong>Continue</strong> buttons to Spectral, Planar fit and Time lag assessment files testing dialog.</p>
+<p><strong>GUI bugs fixed</strong></p>
+<ul>
+<li>Time lag assessment file testing crash in case of missing RH classes</li>
+<li>Planar fit assessment file testing too restrictive</li>
+<li>Fourth gas molecular weight and diffusivity automatic management</li>
+<li>Magnetic declination retrieval from NOAA website was broken due to changes in the website response</li>
+</ul>
+<h2 id="version-52">Version 5.2<a class="headerlink" href="#version-52" title="Permanent link">&para;</a></h2>
+<p>Version 5.2 is a minor update with bug fixes, refinements, and a few new features.</p>
+<p><strong>New features</strong></p>
+<ul>
+<li>Implementation of assessment tests for ancillary files (spectral assessment, planar fit, and timelag optimization).</li>
+<li>Analytic spectra correction after Massman (2000, 2001).</li>
+<li>Biomet data are output for periods when corresponding high-frequency data are not available or are corrupted.</li>
+<li>Option to run engine with command-line specified .eddypro file (full path). See help for usage (run "$eddypro_rp -h").</li>
+<li>eddypro_rp now edits .eddypro file, so that eddypro_fcc can be launched when eddypro_rp completes, without further interventions. This improves portability and facilitates usages from command line and automation.</li>
+</ul>
+<p><strong>Engine bugs fixed</strong></p>
+<ul>
+<li>Bug that caused duplicated biomet outputs when raw biomet data are missing.</li>
+<li>Bug causing off-season uptake correction to switch to 'simple linear' and stick there, if radiation measurements were missing for just one half-hour.</li>
+<li>Management of external biomet files (1 file, files in folder, 1 minute time-step).</li>
+<li>Bug causing TOB1 files without header (rare case) to be deleted from the data folder, if they happened to contain less data than expected.</li>
+<li>Bug causing soil temperature not to be duly treated as a biomet variable.</li>
+<li>Call to CorrectionFactorsIbrom07 in BPCF_Fratini12. The wrong call prevented use of backup solution (Ibrom model) in periods of too-low fluxes. So, the correction was always using the direct method of Fratini et al. 2012, also in low-flux conditions.</li>
+<li>Functioning of metadata retriever, that got broken after refactoring for 5.0.</li>
+<li>Footprint model of Kormann and Meixner 2001, as implemented in 'eddypro_fcc' (no corresponding bug in 'eddypro_rp').</li>
+<li>Bug causing cross-wind correction to be applied to 'fast temperature' measurements, but only if those were used in conjunction with an R2 anemometer.</li>
+<li>Exit condition for subs importing ASCII data. Was crashing in some conditions, if a file contained more records than expected.</li>
+<li>Module call to m_common_global_var in RenameTmpFilesCommon. The bug was not causing problems because the same module is called by the module that was mistakenly called.</li>
+<li>Fixed issue that caused biomet output files to be duplicated in some circumstances.</li>
+</ul>
+<p><strong>Engine refinements</strong></p>
+<ul>
+<li>Eliminated squared root operating on the transfer function H, in Fratini et al. (2012) spectral correction method. This refinement shall be made publicly available in the form of a corrigendum to the paper. Thanks a lot to Johannes Laubach for suggesting the change, demonstrating its foundation and verifying the new implementation in EddyFlow!</li>
+<li>Refined format of GHG-Europe output file after specifications from European Database managers.</li>
+<li>In timelag optimization session and in main raw data processing session, moved call to retrieve_sensor_params before time-lag estimations to have instruments properties available for refined "starting time-lags" definition.</li>
+<li>Moved 'normal exit instruction' in all subs importing raw data, in such a way that the exception of reaching the end of the file is caught in most (possibly all) occasions.</li>
+<li>Implementation of random error after Finkelstein and Sims (2001): Improved code quality and readability and improved speed in calculating the ITS.</li>
+<li>Revised retrieval of files in list, to safely skip files that do not comply with the raw file name format.</li>
+<li>Eliminated N = N - 1 at the end of sub ReadSLTEddySoft.</li>
+<li>Completely rewritten subroutine to import full cospectra and modified approach in FCC to get the size of cospectra from the first file instead of allocating in advance.</li>
+<li>Improved control over missing lines, with an additional control after statistical screening, so that period is skipped if not enough data remain after the screening, also including native missing data such as -9999.</li>
+<li>Improved format and function calls related to exception handling and corresponding output messages.</li>
+<li>Simplified ShowDailyAdvancement and introduced advancement marks on output, to allow for GUI estimates of processing time.</li>
+<li>Revised the text displayed when running engines with option -h.</li>
+<li>In "filelist_by_ext", anticipated exception handling if no files are found in folder.</li>
+<li>Proper setting of FileEndReached in ReadSLTEddySoft and ReadSLTEdisol.</li>
+<li>Adjusted algorithms to calculated default timelags, which now include "tube time", "cell time" and a "safety margin".</li>
+<li>Eliminated useless "+1" on both sides of a "greater than" test, in subs importing all binary files (TOB1, generic binary).</li>
+<li>Removed the usage of auxiliary folder ..\mod in both RPP and FCC projects, to ease and streamline the port to other OS.</li>
+<li>In case of space separation in raw file with non-numeric field, defaults to considering multiple consecutive separations as only one.</li>
+<li>Calculation of cutoff frequencies and dependence cutoff/RH when data for very few RH classes are available.</li>
+<li>Moved definition of 'null' spectra from fx to common module.</li>
+<li>Moved function NameMatchesTemplate into src_common/dir_sub.f90 file.</li>
+<li>Eliminated useless "+1" on both sides of a "greater than" test, in subs importing SLT files.</li>
+<li>Eliminated useless output 'Verifying time series integrity' during planar fit data import.</li>
+<li>Corrected the spelling of subroutine ShrinkString.</li>
+</ul>
+<p><strong>GUI bugs fixed</strong></p>
+<ul>
+<li>Improve information available in Run page (for example, show warnings and errors, computation time estimates, etc.).</li>
+<li>Improve progress bars in Run page.</li>
+<li>Add separation of standard variables and custom variables in the <strong>Metadata Editor</strong>; <strong>Raw File Description</strong>. Provide a <strong>Clear</strong> button for the <strong>Custom</strong> variables.</li>
+<li>Fix minor bugs.</li>
+</ul>
+<p><strong>GUI refinements</strong></p>
+<ul>
+<li>Integrate Massman 2000/2001 correction.</li>
+<li>Implement testing of ancillary files (Spectral correction, Planar fit and Time lag optimization) at loading time.</li>
+<li>Add a dialog to inform about the Angle of Attack automatic selection.</li>
+<li>Added an 'Open output directory' button in Run page.</li>
+<li>Added keyboard shortcuts to navigate between pages (Alt+1...Alt+5).</li>
+</ul>
+<h2 id="version-511-2014-03-14">Version 5.1.1 (2014-03-14)<a class="headerlink" href="#version-511-2014-03-14" title="Permanent link">&para;</a></h2>
+<p>Version 5.1.1 is a minor update with bug fixes and refinements.</p>
+<p><strong>Engine bugs fixed</strong></p>
+<ul>
+<li>Bug causing EddyFlow to ignore the next raw file when current file is shorter than expected.</li>
+<li>Bug causing 'full co-spectra' files not to be read in 'eddypro_fcc'.</li>
+</ul>
+<h2 id="version-510-2014-01-29">Version 5.1.0 (2014-01-29)<a class="headerlink" href="#version-510-2014-01-29" title="Permanent link">&para;</a></h2>
+<p>Version 5.1.0 is a minor update with bug fixes and refinements.</p>
+<p><strong>Engine bugs fixed</strong></p>
+<ul>
+<li>Import of TOB1 files, now avoids copying the same TOB1 file multiple times and speeds up processing of long TOB1 files (typical use case).</li>
+<li>Bug that was causing storage fluxes to be identically zero in most use cases.</li>
+<li>File in src_common was importing module rp-related (did not cause computation issues).</li>
+</ul>
+<p><strong>Engine refinements</strong></p>
+<ul>
+<li>Modified Absolute Limits Statistical test defaults as follows: Minimum sonic temperature set to -40 °C (was -20 °C).Maximum CO2 set to 900 ppm (was 600 ppm)</li>
+<li>Fixed ranges of accepted biomet values:Changed minimum ambient pressure to 40 kPa (was 80 kPa).Made all interval min/max closed instead of open, most importantly for RH, to include values of 0 and 100.</li>
+<li>Optimized the output time stamp in case of shorter-than-expected raw files.</li>
+</ul>
+<p><strong>GUI bugs fixed</strong></p>
+<ul>
+<li>Improved computation progress bar to represent progress more accurately.</li>
+<li>Decimal digits of the 4th gas molecular values were lost in the Basic Settings page when saved.</li>
+</ul>
+<p><strong>GUI refinements</strong></p>
+<ul>
+<li>Improved information available in Run page.</li>
+<li>Added default button selection to SmartFlux System package dialog.</li>
+<li>Modified absolute limits statistical tests as described above.</li>
+</ul>
+<h2 id="version-500-2013-12-09">Version 5.0.0 (2013-12-09)<a class="headerlink" href="#version-500-2013-12-09" title="Permanent link">&para;</a></h2>
+<p>EddyFlow Version 5.0 introduces the SmartFlux System configuration file creator.</p>
+<p><strong>GUI</strong></p>
+<ul>
+<li>Implemented SmartFlux System bar and file package creation buttons.</li>
+<li>Removed "Number of files to merge" control.</li>
+<li>Removed "Gas analyzer height" from Metadata editor.</li>
+<li>Introduced "Open Sans" font.</li>
+</ul>
+<p><strong>Engine bugs fixed</strong></p>
+<ul>
+<li>Bug causing crash on short raw files.</li>
+<li>Software not reading strings longer than 200 characters in <code>.eddypro</code> file.</li>
+<li>Potential problems with timestamps in non-ISO format.</li>
+<li>Crash if last raw file of the dataset is not a valid one (too short, invalid header, etc.).</li>
+<li>Bug causing the software not to process correctly averaging intervals shorter than file length in certain circumstances.</li>
+<li>Use dynamic metadata files. Same variables as usual, but now full independence of processed time period from definition of dynamic metadata dates.</li>
+<li>Bug causing the spectral correction of Fratini et al. (2012) to virtually always use the fallback solution (model) rather than the direct method (thanks Olli Peltola and Ivan Mammarella!).</li>
+<li>Bug causing the spectral assessment to fail if a large number of spectra files were to be used.</li>
+</ul>
+<p><strong>Engine refinements</strong></p>
+<ul>
+<li>Changed units of ET fluxes in the full output file. New units are mm+1hour-1.</li>
+<li>Changed Express settings. Cross-wind correction is no longer applied by default.</li>
+<li>Exception handling with SLT-EdiSol files if header reports implausible record length.</li>
+<li>Merged and simplified spectral correction code.</li>
+<li>Period to be processed extended to include the very last averaging interval, which was excluded from the automatic selection of start&amp;end date performed in the GUI.</li>
+<li>Initialization of stats and their values when variables are missing.</li>
+</ul>
+<p><strong>Engine new features</strong></p>
+<ul>
+<li>Creation of unique temp folder for allowing parallel runs.</li>
+<li>Possibility to process indefinitely long raw files. Possibility to process datasets for multiple years in one session.</li>
+<li>Smart understanding of initial timestamp in the dataset.</li>
+</ul>
+<h2 id="version-421-2013-10-03">Version 4.2.1 (2013-10-03)<a class="headerlink" href="#version-421-2013-10-03" title="Permanent link">&para;</a></h2>
+<p><strong>GUI improvement</strong></p>
+<p>EddyFlow update 4.2.1 is a minor update that fixes a GUI bug related to the retrieval of declination correction for magnetic north from the U.S. National Oceanic and Atmospheric Administration (NOAA) website. The update corrects an error that occurs when the website is unavailable.</p>
+<h2 id="version-42-2013-08-22">Version 4.2 (2013-08-22)<a class="headerlink" href="#version-42-2013-08-22" title="Permanent link">&para;</a></h2>
+<p>EddyFlow update 4.2 is a minor update that includes several bug fixes and improvements to the processing engine and graphical user interface (GUI), including:</p>
+<p><strong>Engine improvements</strong></p>
+<ul>
+<li>Fixed use of "Flags" (set in the "Basic Settings" page) for filtering out individual raw data records.</li>
+<li>Fixed import of SLT-EddySoft raw files featuring low-resolution data.</li>
+<li>Fixed formulation of tube transfer function for laminar regimes and—only in FCC—for turbulent regimes.</li>
+<li>Fixed problem with <a href="references.html#Fratini2012">references.html#Fratini2012</a><a href="references.html#Fratini2012">Fratini et al. 2012</a> spectral correction giving NaN in cases of high fluxes.</li>
+<li>Fixed bug in the running mean and exponential running mean detrending algorithms.</li>
+<li>Fixed bug in planar fit with no velocity bias that caused rotations not to be performed.</li>
+<li>Fixed bug in time lag optimizer causing a crash.</li>
+<li>Fixed initialization of footprint results for <a href="references.html#Kormann">Kormann and Meixner (2001)</a> and <a href="references.html#Hsieh">Hsieh (2000)</a> models.</li>
+<li>Fixed labels of custom variables in full output, when created by FCC program (added "_mean" padding to each variable name).</li>
+<li>Fixed management of missing variables when passing from raw processing engine to FCC.</li>
+<li>Fixed the use of flow rate from raw data files when available, with both .ghg and non-.ghg files, if time lags are not explicitly set by user.</li>
+<li>Fixed bug that caused mismatch in full output headers when advanced processing settings were used.</li>
+<li>Fixed missing LI-7700 CH4 flux output in full output file when data is screened using LI-7700 Diagnostic Value.</li>
+<li>Fixed wind coordinates rotation when AXIS configuration (Gill anemometers) or R2 anemometer is selected, for Angle of Attack correction.</li>
+<li>Added ET (evapotranspiration flux, in mm) to full output results.</li>
+<li>Added optional crosswind correction of sonic temperature for Gill WindMaster™ and WindMaster™ Pro anemometers (needed for type 1352, not for types 1561 or 1590).</li>
+<li>Refinement: extended range of accepted ambient pressures, now the minimum value accepted by EddyFlow is 40 kPa, which replaces the former value of 80 kPa.</li>
+<li>Refinement: when running in Express mode, the default version of the Angle of Attack correction depends on the anemometer model (Nakai et al. 2006 for R3 and R2).</li>
+<li>Refinement: increased resolution of footprint results, from 5 to 1 meter, <a href="references.html#Kormann">Kormann and Meixner (2001)</a> and <a href="references.html#Hsieh">Hsieh (2000)</a> models.</li>
+<li>Refinement: support for TOB1 files with no header lines (explicit user specification of variable types 'IEEE4' or 'FP2' is needed).</li>
+<li>Refinement: inverted time lag compensation and tilt correction procedures.</li>
+<li>Refinement: stationarity test evaluated after time lag compensation and tilt correction.</li>
+<li>Refinement: minor modifications to QC flags to better match flag definitions according to TK3 approach (M. Mauder, personal communications).</li>
+<li>Refinement: resolving to the Integral Turbulence Time Scale simple definition from <a href="references.html#Billesbach1">Billesbach (2011)</a> if direct calculation fails.</li>
+</ul>
+<p><strong>GUI improvements</strong></p>
+<ul>
+<li>Fixed behavior of North alignment for Generic Anemometer in the Metadata Editor</li>
+<li>Fixed bug that caused the default Angle of Attack to override user selection when re-opening a saved project.</li>
+<li>Fixed flags threshold and policy persistence when re-opening a saved project.</li>
+<li>Fix bug that prevented overriding "Lowest noise frequency" settings.</li>
+<li>Fixed overwriting of the anemometer user selection on the Basic Settings page in case of multiple anemometers.</li>
+<li>Fixed bug that prevented undue field persistence when changing units of the input in the Metadata Editor.</li>
+<li>Fixed Magnetic Declination fetching not working properly due to NOAA website changes.</li>
+<li>Refinement: Added dialog when clearing the raw data directory.</li>
+<li>Refinement: Modified raw file name format displayed in the corresponding dialog.</li>
+<li>Refinement: Permitted negative altitudes in Metadata Editor</li>
+<li>Refinement: Improved Metadata Editor stability.</li>
+<li>Refinement: Added Gain-Offset automatic selection in the Metadata Editor.</li>
+<li>Refinement: Added colors to variables ignored or not numeric in the Metadata Editor.</li>
+<li>Refinement: Disabled unnecessary fields and set Ignore to "yes" in case of non-numeric variables in the Metadata Editor.</li>
+<li>Refinement: Prevented column selection bug in metadata tables that triggered first row editing.</li>
+<li>Refinement: Ctrl+mouse-wheel resizes the GUI main window.</li>
+<li>Refinement: Disabled Ctrl+F12 shortcut to launch the program.</li>
+<li>Refinement: Cross-wind correction checkbox is always enabled, though checked as suggestion when needed.</li>
+<li>Refinement: Changed Angle of Attack correction policy with Gill anemometers.</li>
+<li>Refinement: Increased absolute limits ranges for statistical test on gases.</li>
+<li>Refinement: Changed policies to update software, project and metadata file versions at saving time.</li>
+<li>Refinement: Custom variables created in the file description table of the Metadata Editor will be permanently available in the local computer for future uses.</li>
+</ul>
+<h2 id="version-41-2013-01-01">Version 4.1 (2013-01-01)<a class="headerlink" href="#version-41-2013-01-01" title="Permanent link">&para;</a></h2>
+<p>EddyFlow version 4.1 introduced 2 new major data processing options, completed a few features already drafted in version 4.0, and fixed a number of bugs found in version 4.0. The improvements in this version include:</p>
+<p><strong>New features</strong></p>
+<ul>
+<li>Spectral correction scheme, implemented after <a href="references.html#Fratini2012">Fratini et al. (2012)</a>, specifically designed for closed-path systems, but applicable to any eddy covariance setup.</li>
+<li>New Angle of Attack correction algorithm from <a href="references.html#NakaiandShim2012">Nakai and Shimoyama (2012)</a>.</li>
+</ul>
+<p><strong>Improvements</strong></p>
+<ul>
+<li>Use of previous results to dramatically reduce program execution time.</li>
+<li>Express processing uses the new Angle of Attack correction algorithm from <a href="references.html#NakaiandShim2012">Nakai and Shimoyama (2012)</a> rather than the correction from <a href="references.html#Nakai">Nakai et al. (2006)</a> used in previous versions.</li>
+<li>Support for binary SLT files containing more than 6 variables.</li>
+<li>External biomet data files are no longer limited to 18,000 records.</li>
+<li>Renamed <strong>Dataset Selection</strong> page to <strong>Basic Settings</strong> page.</li>
+</ul>
+<p><strong>Major bug fixes</strong></p>
+<p><strong>Automatic time lag optimization</strong></p>
+<ul>
+<li><strong>Bug description:</strong> The bug was under the <strong>Automatic time lag optimization</strong> procedure (Advanced Settings &gt; Processing Options &gt; Time lag compensation). The bug is such that time lags assessed for H2O (if this gas is treated in flux computation) are erroneously used also for CO2 or CH4. Selection of an erroneous time lag results in flux underestimations: the more the used time lag deviates from the real one, the more fluxes are underestimated.</li>
+<li><strong>Who is affected:</strong> Anyone who used the <strong>Automatic time lag optimization</strong> option for flux computations in a previous version of EddyFlow is likely to be affected. However, the severity of the effects depends upon the gas analyzer in use. For open-path analyzers (e.g., LI-7500A), the bias if most likely negligible, if present at all. For enclosed-path analyzers (e.g., LI-7200), the bias is probably detectable but still negligible, because time lags of H2O do not deviate dramatically from those of CO2, especially if conditions of low relative humidity (&lt;50-60%, typically during daytime). In such analyzers, effects are further minimized if a short (&lt; 1 m) and/or heated or insulated sampling line was used. For closed-path analyzers with sampling lines longer than 2 m, (e.g., LI-7000 or LI-6262), the effects are likely to be relevant and we thus recommend that you recalculate fluxes using EddyFlow version 4.1.</li>
+<li><strong>Who is not affected:</strong> All users who ran EddyFlow in Express Mode or those who did not use the <strong>Automatic time lag optimization</strong>.</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>We recommend using the <strong>Automatic time lag optimization</strong> procedure especially for closed-path setups featuring medium and long (&gt;3-4 m) sampling lines. The bug that affected this option is corrected in EddyFlow 4.1.</p>
+</div>
+<p><strong>Calculation of average CH4 mole fractions and mixing ratios from the LI-7700</strong></p>
+<ul>
+<li><strong>Bug description:</strong> The bug prevented the band-broadening correction from being applied in the calculation of average CH4 concentrations. Note that this did not affect flux calculations, as the band-broadening correction is applied to fluxes separately in EddyFlow 4.0. The effects of this bug were visible especially in conditions of very low ambient pressure with respect to normal values.</li>
+</ul>
+<p><strong>Other bug fixes</strong></p>
+<ul>
+<li>Fixed bug that caused the program to crash when the number of files selected for planar fit calculations were more than the maximum allowed (3,000). The bug was fixed and this maximum value was increased to 18,000.</li>
+<li>Fixed bug that caused the calculation of maximum wind speed to fail in cases in which raw data records have at least one wind component set to -9999 (EddyFlow's internal error code). Most often this bug resulted in a maximum wind speed of 17318.7 m/s, that was the result of wind speed calculated from 3 wind components set to -9999. This bug had no effect on fluxes.</li>
+<li>Fixed bug that caused the crosswind correction of sonic temperature to be calculated erroneously for individual data records that have any wind component set to -9999. This bug resulted in implausible values for sonic temperature and thus either in fluxes set to -9999, or to extremely spiky fluxes. Note that for most anemometers the crosswind correction is applied in the firmware, so there is no need to apply it at processing time with EddyFlow.</li>
+<li>Fixed bug that caused the header of "full output" file to be erroneous when using the option <strong>Use standard output format</strong>.</li>
+<li>Fixed bug that caused the night-time/daytime indication in the "full output" file to fail in some circumstances.</li>
+<li>Fixed a bug in the <strong>Random uncertainty estimate</strong>, that caused the software to crash with an "Out of memory" error message.</li>
+</ul>
+<p><strong>GUI changes</strong></p>
+<ul>
+<li>Added a general <strong>Restore Default Values</strong> button to restore all the Advanced Settings to the Express (default) Settings.</li>
+<li>Added constraints between fields to help fill the <strong>Metadata File Editor</strong> tables.</li>
+<li>Improved management of previous versions of Project and Metadata files for backward compatibility.</li>
+<li>Added a Software Version field in the <strong>Metadata File Editor</strong> IRGA table.</li>
+<li>Added an automatic <strong>Detect Dataset Dates</strong> button for the raw data files.</li>
+<li>Prevented wheel mouse scrolling on setting controls.</li>
+<li>Improved management on low resolution displays.</li>
+<li>Added automatic saving when exiting sub-dialog.</li>
+<li>Fixed opening of associated .eddypro project files when double clicking the file.</li>
+<li>Added button to clear the output console.</li>
+<li>Improved guided mode information messages.</li>
+<li>Fixed many minor GUI bugs.</li>
+</ul>
+<h2 id="version-40-2012-04-25">Version 4.0 (2012-04-25)<a class="headerlink" href="#version-40-2012-04-25" title="Permanent link">&para;</a></h2>
+<p>EddyFlow version 4.0 introduced additional computation options that were limited in the earlier releases of the software known as EddyFlow 3.0 and EddyFlow Express. This version provides a wide variety of options that make it possible to compute eddy covariance fluxes using one of many established techniques.</p>
+<p><strong>New features</strong></p>
+<ul>
+<li>Support for biomet data (biological and meteorological data) collected from ancillary sensors.</li>
+<li>Ensemble spectra, cospectra, modeled spectra, and ensemble spectra based on time period.</li>
+<li>New Metadata Retriever tool to compile all site metadata from .ghg files into a single metadata file that can be edited or viewed.</li>
+<li>Planar Fit tool customization with graphical controls.</li>
+<li>Time Lag Optimization tool now supports automatic time lag optimization to account for time lags.</li>
+<li>Random Uncertainty estimation tool.</li>
+</ul>
+<h2 id="version-301-not-public">Version 3.0.1 (not public)<a class="headerlink" href="#version-301-not-public" title="Permanent link">&para;</a></h2>
+<p><strong>Bug fixes</strong></p>
+<ul>
+<li>Fixed initialization of latitude, longitude, and altitude when using dynamic metadata.</li>
+<li>Fixed Kljun et al. (2004) Footprint Estimation: Now uses measurement height minus displacement height to compute footprint. Previously used measurement height.</li>
+<li>Fixed sampling line flow-rate calculation when average flow rate from high-frequency data is used to initialize nominal, minimum and maximum time lags.</li>
+<li>Dialog boxes: Fixed bug that caused dialog boxes to display default settings when a project is re-opened, even if the settings had been altered previously. This presented risk that a setting could be reset to the default if a user opened a dialog box and clicked OK while the incorrect settings were displayed, and subsequently saved the project.</li>
+<li>Other minor bug fixes. See EddyFlow® &gt; Help &gt; About &gt; Changes for more information.</li>
+</ul>
+<h2 id="version-300-2012-02-06">Version 3.0.0 (2012-02-06)<a class="headerlink" href="#version-300-2012-02-06" title="Permanent link">&para;</a></h2>
+<p><strong>New features</strong></p>
+<ul>
+<li>Support for additional raw data file types, including ASCII Table, TOB1, SLT (EddySoft), SLT (EdiRe), Generic binary.</li>
+<li>Support for the "dynamic metadata," or site parameters that change over time.</li>
+<li>Support for other trace gases measured by an additional gas analyzer.</li>
+<li>Advanced processing options:</li>
+<li>Fully configurable statistical tests, including:</li>
+<li>Comprehensive output files, including</li>
+</ul>
+<h2 id="300-beta-2011-12-14">3.0.0 Beta (2011-12-14)<a class="headerlink" href="#300-beta-2011-12-14" title="Permanent link">&para;</a></h2>
+<p>First public release of 3.0.0 Beta. This version introduced the Advanced Options for testing.</p>
+<h2 id="230-2011-07-20">2.3.0 (2011-07-20)<a class="headerlink" href="#230-2011-07-20" title="Permanent link">&para;</a></h2>
+<p><strong>Major bug fixes</strong></p>
+<ul>
+<li>An error occurred in the calculation of corrected fluxes if the N2O analyzer was a closed-path one, while the CH4 analyzer was open-path or CH4 was not present at all. The bug resulted in corrected fluxes of N2O equal to -9999 (that is, if your N2O fluxes are not -9999, they are not affected by this bug).</li>
+<li>Definition of "relative separations". No impact on calculations, only on the output metadata.</li>
+<li>Control on use of cell temperature (fixed re-initialization of column information).</li>
+<li>In statistical tests (Spike count/removal and Amplitude Resolution/Drop Out) length of implied windows modified so as to scale with the length of the averaging period.</li>
+</ul>
+<p><strong>Improvements</strong></p>
+<ul>
+<li>Handling of situations where H2O readings are not available (air density, momentum flux).</li>
+<li>Control over peculiar situations in Fluxes23 (WPL section).</li>
+<li>Introduced support for TOB1 format "FP2."</li>
+<li>Introduced detection of very implausible values in the raw files, and their substitution with error codes.</li>
+<li>Error codes in raw files (-9999) are no longer modified during conversions of raw units into EddyFlow units.</li>
+<li>Better handling of situation when all .ghg files have invalid metadata or are corrupted.</li>
+<li>Better handling of the computations exit codes.</li>
+</ul>
+<h2 id="220-2011-06-20">2.2.0 (2011-06-20)<a class="headerlink" href="#220-2011-06-20" title="Permanent link">&para;</a></h2>
+<p><strong>Bug fixes</strong></p>
+<ul>
+<li>Fixed bug concerning fluxes calculated from CH4 and N2O mole fraction measurements from closed path systems. The bug affected also fluxes calculated with CO2 mole fractions, if the paired H2O was measured as either molar density or mixing ratio. In all cases, the bug resulted in flux values =-9999 (that is, if your fluxes are not -9999, they are not affected by this bug).</li>
+<li>Fixed Altitude field zeroing in the Metadata editor.</li>
+<li>Changed the docking policies of the Tips dock: now it's movable and floatable top and bottom and it could also be tabbed with the Console.</li>
+<li>Changed the dimension policy of the Tips dock: now it's expandable.</li>
+<li>Fixed misspellings.</li>
+<li>Used native dialog for the 'Save metadata as' button.</li>
+<li>GUI code cleaned up.</li>
+</ul>
+<h2 id="214-2011-06-02">2.1.4 (2011-06-02)<a class="headerlink" href="#214-2011-06-02" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Fixed incorrect filtering of CH4 vars in the Processing page, in case of Generic gas analyzer.</li>
+<li>Added the Change Log file viewer in the About dialog.</li>
+</ul>
+<h2 id="213-2011-05-31">2.1.3 (2011-05-31)<a class="headerlink" href="#213-2011-05-31" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Fixed the SoS to temperature conversion.</li>
+<li>More detailed diagnostic on the metadata file validation at console.</li>
+<li>Quality flags recalculated according to Mauder and Foken (2004), which should eliminate most (possibly not all) of the -9999 in the quality flags.</li>
+<li>Added CHANGELOG.txt to source and installer packages.</li>
+</ul>
+<h2 id="212-2011-05-18">2.1.2 (2011-05-18)<a class="headerlink" href="#212-2011-05-18" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Fixed problem of Access denied authorization during the processing of the data.</li>
+</ul>
+<h2 id="211-2011-04-26">2.1.1 (2011-04-26)<a class="headerlink" href="#211-2011-04-26" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Fixed typo about the unit of measure of the Raw Data Description table (umol/mol^3, instead of umol/m^3).</li>
+</ul>
+<h2 id="210-2011-04-21">2.1.0 (2011-04-21)<a class="headerlink" href="#210-2011-04-21" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Optimized GUI for support of low resolution screens (up to 800x600 px).</li>
+<li>Rearranged widgets between Project page and Processing page (ID moved to Processing).</li>
+<li>Added input dialog for the ID field.</li>
+<li>Improved look and feel of Combo box and Spin box.</li>
+<li>Changed policies for scrollbar and scrolling behavior into the tables.</li>
+<li>Changed default value in some table fields.</li>
+<li>Changed from QByteArrays to QString where there is the possibility of weak conversions.</li>
+<li>Fixed selection of "None" variables into <strong>Processing Page</strong> combo's when there are already some variables selected.</li>
+<li>Updated the manual.</li>
+</ul>
+<h2 id="200-2011-04-05">2.0.0 (2011-04-05)<a class="headerlink" href="#200-2011-04-05" title="Permanent link">&para;</a></h2>
+<ul>
+<li>First public release of EddyFlow (Express version only).</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../assets/mathjax-config.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

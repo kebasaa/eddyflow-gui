@@ -15,6 +15,7 @@
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QPushButton>
 #include <QRadioButton>
 #include <QSpinBox>
 #include <QVBoxLayout>
@@ -229,6 +230,9 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
     pwbOptionsContainer->setLayout(pwbOptionsLayout);
 
     auto buttons = new QDialogButtonBox(QDialogButtonBox::Close);
+    buttons->addButton(WidgetUtils::createQuestionMarkButton(this,
+        QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/pwb-time-lag-settings/")),
+        QDialogButtonBox::HelpRole);
     connect(buttons, &QDialogButtonBox::rejected, this, &PwbTimelagSettingsDialog::hide);
 
     auto mainLayout = new QVBoxLayout(this);

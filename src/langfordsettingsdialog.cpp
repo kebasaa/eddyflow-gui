@@ -16,6 +16,7 @@
 #include <QVBoxLayout>
 
 #include "ecproject.h"
+#include "widget_utils.h"
 
 namespace
 {
@@ -142,6 +143,9 @@ LangfordSettingsDialog::LangfordSettingsDialog(QWidget *parent, EcProject *ecPro
                                "scales and α = 1.96."));
     auto closeButtons = new QDialogButtonBox(QDialogButtonBox::Close, this);
     closeButtons->addButton(resetButton, QDialogButtonBox::ResetRole);
+    closeButtons->addButton(WidgetUtils::createQuestionMarkButton(this,
+        QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/limit-of-detection-settings/")),
+        QDialogButtonBox::HelpRole);
 
     auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(intro);

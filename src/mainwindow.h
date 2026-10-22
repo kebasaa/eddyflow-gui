@@ -105,7 +105,6 @@ private slots:
 
     // displays help contents
     void showHelp();
-    void showPdfHelp();
     void showStarterPdfHelp();
     void setOfflineHelp(bool yes);
     void setSmartfluxMode(bool on);
@@ -288,7 +287,6 @@ private:
     QAction *toggleConsoleOutputAct;
     QActionGroup *changeStyleAction;
     QAction *helpAction;
-    QAction *pdfHelpAction;
     QAction *starterPdfHelpAction;
     QAction *toggleOfflineHelpAct;
     QAction *whatsHelpAction;

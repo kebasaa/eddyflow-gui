@@ -2360,16 +2360,6 @@ void AdvOutputOptions::onlineHelpTrigger_5()
     WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/calculate-spectra-cospectra-and-ogives/")));
 }
 
-void AdvOutputOptions::onlineHelpTrigger_6()
-{
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://")));
-}
-
-void AdvOutputOptions::onlineHelpTrigger_7()
-{
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://")));
-}
-
 void AdvOutputOptions::onlineHelpTrigger_8()
 {
     WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/output-files-stats-folder/")));

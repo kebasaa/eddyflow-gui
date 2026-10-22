@@ -1,1 +1,0 @@
-define({'skin':{'default':{'Search Auto-complete Item: Description.Search History/Label':'Search',},'top_nav':{'Search Auto-complete Item: Description.Search History/Label':'Search',}},'toc':{'default':{'OpenBookIconAlternateText':'Open Book','ClosedBookIconAlternateText':'Closed Book','TopicIconAlternateText':'Topic','MarkAsNewIconAlternateText':'New Topic'}}});

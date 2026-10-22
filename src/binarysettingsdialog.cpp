@@ -27,6 +27,7 @@
 #include <QComboBox>
 #include <QDebug>
 #include <QGridLayout>
+#include <QHBoxLayout>
 #include <QPushButton>
 #include <QSpinBox>
 
@@ -100,7 +101,14 @@ BinarySettingsDialog::BinarySettingsDialog(QWidget* parent, EcProject *ecProject
     auto okButton = WidgetUtils::createCommonButton(this, tr("Ok"));
 
     auto mainLayout = new QGridLayout(this);
-    mainLayout->addWidget(groupTitle, 0, 0);
+    auto titleLayout = new QHBoxLayout;
+    titleLayout->addWidget(groupTitle);
+    titleLayout->addWidget(WidgetUtils::createQuestionMarkButton(this,
+        QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/generic-binary-files/")),
+        0, Qt::AlignVCenter);
+    titleLayout->addStretch();
+
+    mainLayout->addLayout(titleLayout, 0, 0);
     mainLayout->addWidget(hrLabel, 1, 0);
     mainLayout->addWidget(binPropertiesWidget, 2, 0);
     mainLayout->addWidget(okButton, 3, 0, 1, 1, Qt::AlignCenter);

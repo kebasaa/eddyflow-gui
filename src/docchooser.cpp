@@ -141,17 +141,20 @@ void DocChooserDialog::restoreOfflineState()
 
 void DocChooserDialog::close()
 {
-    if (onlineHelpRadio->isChecked())
+    auto url = url_;
+
+    if (!onlineHelpRadio->isChecked())
     {
-        // browse online help version
-        QDesktopServices::openUrl(url_);
+        // open local help, online for a page the bundle does not carry
+        const auto localUrl = WidgetUtils::localHelpUrl(url_);
+
+        if (localUrl.isValid())
+        {
+            url = localUrl;
+        }
     }
-    else
-    {
-        // open local help
-        QString htmlHelpPath = qApp->applicationDirPath()
-                + QStringLiteral("/docs/help/topics_EddyFlow/EddyFlow_Home.html");
-    }
+
+    QDesktopServices::openUrl(url);
 
     // set the variable to true to indicate that the dialog ran once
     // this is the only reason to date to use it.

@@ -1513,11 +1513,6 @@ void MainWindow::createActions()
     helpAction->setIcon(QIcon(QStringLiteral(":/icons/img/menu-help.png")));
     helpAction->setShortcut(QKeySequence(tr("Ctrl+F1")));
 
-    pdfHelpAction = new QAction(this);
-    pdfHelpAction->setText(tr("Instruction Manual (PDF)"));
-    pdfHelpAction->setIcon(QIcon(QStringLiteral(":/icons/img/menu-help.png")));
-    pdfHelpAction->setShortcut(tr("Ctrl+M"));
-
     starterPdfHelpAction = new QAction(this);
     starterPdfHelpAction->setText(tr("Getting Started"));
     starterPdfHelpAction->setIcon(QIcon(QStringLiteral(":/icons/img/menu-help.png")));
@@ -1615,8 +1610,6 @@ void MainWindow::connectActions()
     // Help actions
     connect(helpAction, &QAction::triggered,
             this, &MainWindow::showHelp);
-    connect(pdfHelpAction, &QAction::triggered,
-            this, &MainWindow::showPdfHelp);
     connect(starterPdfHelpAction, &QAction::triggered,
             this, &MainWindow::showStarterPdfHelp);
     connect(toggleOfflineHelpAct, &QAction::triggered,
@@ -1682,7 +1675,6 @@ void MainWindow::createMenus()
 
     helpMenu = menuBar()->addMenu(tr("&Help"));
     helpMenu->addAction(helpAction);
-    helpMenu->addAction(pdfHelpAction);
     helpMenu->addAction(starterPdfHelpAction);
     helpMenu->addAction(toggleOfflineHelpAct);
     helpMenu->addSeparator();
@@ -2042,17 +2034,12 @@ void MainWindow::viewInfoOutput(bool on)
 
 void MainWindow::showHelp()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://github.com/kebasaa/eddyflow-documentation"), QUrl::StrictMode));
-}
-
-void MainWindow::showPdfHelp()
-{
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://boxenterprise.net/s/1ium2zmwm6hl36yz9bu4"), QUrl::StrictMode));
+    WidgetUtils::showHelp(QUrl(Defs::EP_DOCUMENTATION, QUrl::StrictMode));
 }
 
 void MainWindow::showStarterPdfHelp()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://github.com/kebasaa/eddyflow-documentation"), QUrl::StrictMode));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/tutorials/"), QUrl::StrictMode));
 }
 
 void MainWindow::setOfflineHelp(bool yes)

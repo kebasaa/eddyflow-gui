@@ -17,6 +17,7 @@
 #include <QVBoxLayout>
 
 #include "ecproject.h"
+#include "widget_utils.h"
 
 namespace
 {
@@ -137,6 +138,9 @@ DetlimSettingsDialog::DetlimSettingsDialog(QWidget *parent, EcProject *ecProject
                                "Wienhold's values, with the method off."));
     auto closeButtons = new QDialogButtonBox(QDialogButtonBox::Close, this);
     closeButtons->addButton(resetButton, QDialogButtonBox::ResetRole);
+    closeButtons->addButton(WidgetUtils::createQuestionMarkButton(this,
+        QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/flux-detection-limit-settings/")),
+        QDialogButtonBox::HelpRole);
 
     auto mainLayout = new QVBoxLayout;
     mainLayout->addLayout(grid);

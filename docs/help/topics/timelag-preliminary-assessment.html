@@ -1,0 +1,4914 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="EddyFlow software documentation and physics reference">
+      
+      
+      
+        <link rel="canonical" href="https://kebasaa.github.io/eddyflow-documentation/topics/timelag-preliminary-assessment.html">
+      
+      
+        <link rel="prev" href="pwb-time-lag-settings.html">
+      
+      
+        <link rel="next" href="raw-file-name-format.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/app-logo-mini.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Timelag Preliminary Assessment Dialog - EddyFlow Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/site.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="green">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#timelag-preliminary-assessment" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../index.html" title="EddyFlow Documentation" class="md-header__button md-logo" aria-label="EddyFlow Documentation" data-md-component="logo">
+      
+  <img src="../assets/app-logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            EddyFlow Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Timelag Preliminary Assessment Dialog
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="EddyFlow Documentation" class="md-nav__button md-logo" aria-label="EddyFlow Documentation" data-md-component="logo">
+      
+  <img src="../assets/app-logo.svg" alt="logo">
+
+    </a>
+    EddyFlow Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Using EddyFlow
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    2. Using EddyFlow
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tutorials.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Processing Eddy Covariance Datasets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="processing-ascii-and-tob1-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Processing ASCII and TOB1 Files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="importing-legacy-projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Importing EddyPro and EddyUH Projects
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="remote-folders.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Remote Folders and Shared Links
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="smartflux-settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running EddyFlow on the SmartFlux System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="metadata-file-editor-using.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using the Metadata File Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="metadata-retriever-tool.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metadata Retriever Tool
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Basic Settings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Basic Settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="dataset-selection-page.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset Selection Page
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="using-biomet-data.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using Biomet Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="biomet-data-format.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supported Biomet File Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using Advanced Settings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Using Advanced Settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="using-advanced-settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="smarflux-configuration-no-ghg.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SmartFlux Advanced Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="advanced-settings-processing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Processing Options
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="advanced-settings-statistical-tests.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Statistical Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="advanced-settings-spectral-corrections.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spectral Analysis and Corrections
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="advanced-settings-outputs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output Files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="assessment-tests.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assessment Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="advanced-mode.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="selecting-advanced-options.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Selecting Advanced Options
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="command-line.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command Line
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Output Files
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    3. Output Files
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="output-files-overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview and Time Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="outputs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    List of Output Files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="output-files-full-output.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The Full Output File
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="output-files-stats-folder.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The Stats Folder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    4. Troubleshooting
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="troubleshooting.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting and Tips
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="error-codes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. The Interface
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    5. The Interface
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction-welcome-page.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview of the Interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction-interface.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project Page
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="metadata-file-editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metadata File Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction-dataset-selection.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Basic Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="raw-processing-options.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="statistical-tests.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Statistical Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="spectral-corrections.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spectral Analysis and Corrections
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="output-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output Files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_9" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6_9" id="__nav_6_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interface Feature Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Interface Feature Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="software-reference-introduction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="axes-alignment.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Axes Alignment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="beginning-of-dataset.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Beginning of Data Set
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="conversion-type.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Linear Scaling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="declination.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Magnetic Declination
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="displacement-height.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Displacement Height
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="dynamic-metadata.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dynamic Metadata
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="flags.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flags
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="flow-distortion-correction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow Distortion Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="gas-analyzer-model.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gas Analyzer Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="generic-binary-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generic Binary File Type
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ghg-file-format.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GHG File Type
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ghg-extended-format.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extended GHG Files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="longitude-transverse-pathlengths.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Path Lengths and Time Response
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="metadata-file-use-alternative.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Use Alternative Metadata File
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="nominal-time-lag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nominal Time Lag
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="north-offset.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    North Offset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cec-settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CEC Settings Dialog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="flux-detection-limit-settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flux Detection Limit Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="limit-of-detection-settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Limit of Detection Settings (Langford et al. 2015)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="planar-fit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Planar Fit Configuration Dialog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="pwb-time-lag-settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PWB Time Lag Optimization Settings Dialog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Timelag Preliminary Assessment Dialog
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="timelag-preliminary-assessment.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Timelag Preliminary Assessment Dialog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sample" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sample
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#search-window" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search window
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-the-assessment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running the assessment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#detected-time-lags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detected time lags
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#suggested-time-lags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Suggested time lags
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Suggested time lags">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#taken-from-the-peak-not-from-every-lag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Taken from the peak, not from every lag
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#remarks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remarks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#borrowing-from-a-gas-on-the-same-analyser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Borrowing from a gas on the same analyser
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#set-in-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Set in metadata
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-the-result-as-the-projects-time-lag-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using the result as the project's time lag file
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outputs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project-file-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project-file keys
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dialog-buttons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dialog buttons
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="raw-file-name-format.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raw File Name Format
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="roughness-length.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roughness Length
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="sensitive-and-nonsensitive-variables.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensitive and Non-sensitive Variables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="sensor-separation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor Separation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="sonic-anemometer-firmware-version.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sonic Firmware Version
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tob1-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TOB1 File Type
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="using-prev-results.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using Results from a Previous Run
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="windspeed-offsets.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wind Speed Measurement Offsets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. Data Processing Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    6. Data Processing Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="software-reference.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculation Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="express-defaults.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Express Default Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_3" id="__nav_7_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preliminary Processing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Preliminary Processing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="preliminary-processing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="adjusting-anemometer-coordinate-system.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adjusting the Coordinate System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="anemometer-tilt-correction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Anemometer Tilt Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="angle-of-attack-correction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Angle-of-Attack Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="average-gas-concentrations-densities.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Concentrations and Densities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-ambient-and-cell-parameters.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Ambient and Cell Parameters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-ambient-and-cell-statistics.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Ambient and Cell Statistics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-cell-temperature.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Cell Temperature
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-instrument-separation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Instrument Separations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-micromet-variables.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Micrometeorological Variables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-spectra-cospectra-and-ogives.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Spectra, Cospectra and Ogives
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-turbulent-flux.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Turbulent Fluctuations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="converting-to-mixing-ratio.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Converting Raw Data to Mixing Ratios
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cross-wind-correction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crosswind Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="defining-the-dataset.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Defining the EddyFlow Express Data Set
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="despiking-raw-statistical-screening.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Despiking and Statistical Screening
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ensemble-averaged-spectra-and-cospectra.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ensemble Averaged Spectra and Cospectra
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ensemble-averages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QA/QC of Spectra and Cospectra
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="importing-data.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Importing Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="mixed-acquisition-rates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mixed Acquisition Rates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="iterative-calculation-of-micromet-vars.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Iterative Calculation of Micromet Variables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="random-uncertainty-estimation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Random Uncertainty Estimation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="time-lag-detect-correct.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detecting and Compensating Time Lags
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="w-boost-correction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    'w-boost' Bug Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_4" id="__nav_7_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Fluxes
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Calculating Fluxes
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-fluxes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="conditional-eddy-covariance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conditional Eddy Covariance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-li-7700-multipliers.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Multipliers for Spectroscopic Corrections (LI-7700)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-flux-7200-and-7700.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Fluxes for the LI-7200 and LI-7700
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-flux-level-0.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Fluxes Level 0
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-flux-level-123.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Fluxes Level 1, 2, and 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-flux-open-path-analyzers.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Fluxes for Open Path Analyzers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-offseason-uptake-correction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating the Off-season Uptake Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-spectral-correction-factors.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Spectral Correction Factors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="estimating-flux-footprint.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Estimating the Flux Footprint
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="flux-detection-limit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flux Detection Limit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="flux-quality-flags.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flux Quality Flags
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="high-pass-filtering.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    High-pass Filtering Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="low-pass-filtering.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Low-pass Filtering Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="references.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A. References
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    B. Additional Topics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    B. Additional Topics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="spectral-analysis.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analyzing Spectra and Cospectra
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ttp059-how-to-change-metadata.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changing Metadata After Collection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="diagnostics-for-gas-analyzers.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gas Analyzer Diagnostics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="whats-new.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What's New
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/faqs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sample" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sample
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#search-window" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search window
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-the-assessment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running the assessment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#detected-time-lags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detected time lags
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#suggested-time-lags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Suggested time lags
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Suggested time lags">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#taken-from-the-peak-not-from-every-lag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Taken from the peak, not from every lag
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#remarks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remarks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#borrowing-from-a-gas-on-the-same-analyser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Borrowing from a gas on the same analyser
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#set-in-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Set in metadata
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-the-result-as-the-projects-time-lag-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using the result as the project's time lag file
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outputs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project-file-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project-file keys
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dialog-buttons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dialog buttons
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="timelag-preliminary-assessment">Timelag preliminary assessment<a class="headerlink" href="#timelag-preliminary-assessment" title="Permanent link">&para;</a></h1>
+<p>Under: Advanced Settings &gt; Processing Options &gt; Time lags compensation &gt; Timelag preliminary assessment...</p>
+<p>Before processing, you have to tell EddyFlow where to look for each gas's time lag: a <strong>Nominal time lag</strong> and a window between a <strong>Minimum</strong> and a <strong>Maximum time lag</strong>, per column of the metadata (see <a href="nominal-time-lag.html#top">Nominal, minimal, and maximum time lag</a>). A window that misses the real lag pins covariance maximization or PWB to its edge, or makes the run fall back to the nominal value. The preliminary assessment finds out where the lags actually are first. It detects the time lag of a random sample of the half-hours, or of all of them, over a wide search window that ignores the nominal, minimum and maximum lags already set. It then shows, gas by gas, where the detected lags fall, suggests a nominal lag and a window, and writes them to the metadata on request.</p>
+<p><img alt="The Timelag Preliminary Assessment dialog after a run" src="../assets/timelag-preliminary-assessment-dialog.png" /></p>
+<p>The assessment detects lags with the method selected under <strong>Time lag detection method</strong>: with <strong>Pre-whitening block-bootstrap</strong>, by PWB (see <a href="time-lag-detect-correct.html#pre-whitening-block-bootstrap-pwb">Pre-whitening block-bootstrap</a>); with any other method, by covariance maximization over the search window, with the project's covariance options (maximized variable, stochastic detrending, baseline subtraction). The button is available whenever <strong>Time lags compensation</strong> is ticked.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The assessment needs raw data. If no raw data folder is set on the Basic Settings page, the folder does not exist, or it holds no raw files of the project's type, the button says so instead of opening the dialog. A raw data folder given as a Google Drive or Dropbox shared link is accepted; its files are listed when the run starts.</p>
+</div>
+<h2 id="sample">Sample<a class="headerlink" href="#sample" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Half-hours to assess:</strong> A slider for the share of the half-hours with raw data that are drawn at random and assessed, on a log scale from 0.1 % to 100 %: each tenfold step takes the same travel. The label beside it gives the share and about how many half-hours that is. At least <strong>10</strong> half-hours are always drawn, however small the share.</li>
+<li>
+<p><strong>Default:</strong> The slider opens at a default that depends on the size of the dataset, marked by a small triangle under the slider; double-click the slider to return to it. The default is only a starting point, and any share can be chosen.</p>
+<table>
+<thead>
+<tr>
+<th>Dataset</th>
+<th>Half-hours</th>
+<th>Default share</th>
+<th>Half-hours assessed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 day</td>
+<td>48</td>
+<td>20 %</td>
+<td>10 (the minimum)</td>
+</tr>
+<tr>
+<td>3 days</td>
+<td>144</td>
+<td>20 %</td>
+<td>29</td>
+</tr>
+<tr>
+<td>1 week</td>
+<td>336</td>
+<td>20 %</td>
+<td>67</td>
+</tr>
+<tr>
+<td>2 weeks</td>
+<td>672</td>
+<td>17.3 %</td>
+<td>116</td>
+</tr>
+<tr>
+<td>1 month</td>
+<td>1440</td>
+<td>10 %</td>
+<td>144</td>
+</tr>
+<tr>
+<td>3 months</td>
+<td>4380</td>
+<td>4.5 %</td>
+<td>197</td>
+</tr>
+<tr>
+<td>1 year</td>
+<td>17520</td>
+<td>1.6 %</td>
+<td>280</td>
+</tr>
+<tr>
+<td>2 years or more</td>
+<td>35040 or more</td>
+<td>1 %</td>
+<td>350 or more</td>
+</tr>
+</tbody>
+</table>
+<p>The default is 20 % for a dataset of up to about 11 days, 10 % for a month, and falls slowly after that, as 10 % × (1440 / half-hours)<sup>0.72</sup>, to 1 % from two years on. The share shrinks as the dataset grows while the number of half-hours assessed still rises slowly.</p>
+</li>
+<li>
+<p><strong>Run entire dataset:</strong> Assess every half-hour with raw data instead of a sample. The slider moves to 100 % and is locked; unticking the box returns it to where it was. A run over the entire dataset takes as long as the time lag pre-pass of a full run, and it is one. See <a href="#using-the-result-as-the-projects-time-lag-file">Using the result as the project's time lag file</a>.</p>
+</li>
+</ul>
+<p>The sample is drawn from the whole raw data folder, not from the project's processing period (<strong>Select a different period</strong> on the Basic Settings page), so that a short processing period can still be assessed against all the data available.</p>
+<h2 id="search-window">Search window<a class="headerlink" href="#search-window" title="Permanent link">&para;</a></h2>
+<p>A table with one column per gas of the project and two rows, <strong>From [s]</strong> and <strong>To [s]</strong>: the lags searched for that gas. Double-click a cell to edit it. The heading's tooltip says whether the gas is measured by a closed-path or an open-path analyser and, for a closed path, the transit time of its intake tube.</p>
+<p>The window opens wide, so that the real lag is inside it whatever the metadata says:</p>
+<ul>
+<li><strong>Open path:</strong> from −5 s to +5 s.</li>
+<li><strong>Closed path:</strong> from 0 s to three times the tube transit time plus 10 s, rounded up. The transit time is the tube's volume divided by its flow rate, from the analyser's tube length, inner diameter and flow rate in the metadata, as EddyFlow derives a default lag. Where the tube is not described, 0 s to 30 s.</li>
+</ul>
+<p>A wider window costs processing time, and with PWB it also lengthens the bootstrap blocks (see <strong>Block length</strong> in <a href="pwb-time-lag-settings.html#bootstrap-and-reliability">PWB time lag optimization settings dialog</a>). If many lags come out at an edge of the window, widen it and run again.</p>
+<h2 id="running-the-assessment">Running the assessment<a class="headerlink" href="#running-the-assessment" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Run pre-assessment:</strong> Start the assessment. While it runs the button reads <strong>Cancel</strong> and stops it, the sample and the search windows cannot be changed, and the main window waits. A progress bar shows how many of the drawn half-hours are done and about how long is left. Until the engine has listed the raw files and read the metadata, the bar shows that it is busy without a count.</li>
+<li><strong>Keep pre-assessment outputs:</strong> See <a href="#outputs">Outputs</a>. Off by default.</li>
+<li><strong>Show engine output:</strong> Appears when a run fails or detects no lag, and shows what the engine printed.</li>
+</ul>
+<p>The assessment always runs split across all the processor cores, whatever the main window's <strong>Parallelise the planar fit and time lag pre-passes</strong> setting says (see <a href="raw-processing-options.html#parallelise-the-planar-fit-and-time-lag-pre-passes">Advanced settings: processing options</a>). Its result does not depend on how the half-hours are shared out.</p>
+<p>The engine runs on a throw-away copy of the project and of its metadata, written to a temporary folder with an engine home folder of its own. Your project and metadata files are not written, a project with unsaved changes stays unsaved (and the copy includes those changes), and a run started from the main window is not disturbed. The copy runs in advanced mode over the whole dataset as an assessment-only time lag pre-pass, without the flux correction step.</p>
+<h2 id="detected-time-lags">Detected time lags<a class="headerlink" href="#detected-time-lags" title="Permanent link">&para;</a></h2>
+<p>A chart of the lags found for one gas, as a histogram or as a time series:</p>
+<ul>
+<li><strong>Gas:</strong> The gas shown. Clicking a gas's column in the suggestions table below shows it too.</li>
+<li><strong>Bin width:</strong> The width of each bar of the histogram, in seconds (default 0.5 s). Not used by the time series.</li>
+<li><strong>View:</strong><ul>
+<li><strong>Histogram</strong> (the default): how many half-hours found each lag. This is where the suggestion comes from.</li>
+<li><strong>Time series:</strong> one dot per half-hour at its lag, against the end of its averaging period, with the suggested nominal lag and window as horizontal lines. It shows what the histogram cannot: whether the lag drifts, jumps (for instance after a change of tube or flow), or follows the time of day, as a lag that is well defined by day and scattered at night, when the flux is weak, often does. The times are shown as in the raw files, with no daylight-saving shift.</li>
+</ul>
+</li>
+<li><strong>Include lags at the window edges:</strong> A lag at either end of the search window is where the covariance was still rising, not a peak. Such lags are always drawn, stacked in grey on top of the others; ticked, they also count towards the suggestions. Unticked by default.</li>
+<li><strong>Only half-hours above the flux threshold:</strong> Use only the half-hours whose flux cleared the minimum flux of the automatic time lag optimization (<code>gas_&lt;i&gt;_to_min_flux</code>, and <code>to_le_min_flux</code> for water vapor, set in the <a href="time-lag-detect-correct.html#automatic-time-lag-optimization">Time lag optimization settings</a>). A weak flux gives a poorly defined lag, but the threshold is compared with the signed flux, so for a gas that is mostly taken up rather than emitted it may drop every half-hour. Unticked by default, and not available with PWB, which judges each detection itself.</li>
+</ul>
+<p>Lines mark the suggested <strong>nominal</strong> lag (solid) and the <strong>min</strong> and <strong>max</strong> of the window (dashed), vertical in the histogram and horizontal in the time series.</p>
+<p>Both views can be zoomed:</p>
+<ul>
+<li><strong>Drag</strong> across the chart to zoom to that stretch. The histogram zooms along the lag axis, and its count axis fits the bars in view, so a small peak is no longer flattened by a tall one outside. The time series zooms along the time axis, and also along the lag axis if a box is dragged.</li>
+<li><strong>Mouse wheel:</strong> zoom in or out around the point under the cursor. In the time series, <strong>Shift</strong>+wheel zooms the lag axis.</li>
+<li><strong>Double-click</strong> to show everything again. While zoomed, a note in the corner of the chart says so.</li>
+</ul>
+<p>The zoom is reset when another gas or view is chosen, and saved charts always show everything. They follow any edit to the suggestions. Below the chart, a line gives how many half-hours are shown, the window searched and, if any, how many lags fell at a window edge.</p>
+<h2 id="suggested-time-lags">Suggested time lags<a class="headerlink" href="#suggested-time-lags" title="Permanent link">&para;</a></h2>
+<p>A table with one column per gas and five rows:</p>
+<ul>
+<li><strong>Lags used:</strong> How many lags the suggestion is made from, out of all those detected for the gas. "(peak)" marks a count of the lags around the peak (see below).</li>
+<li><strong>Nominal [s]:</strong> The median of the lags around the peak.</li>
+<li><strong>Minimum [s]</strong> and <strong>Maximum [s]:</strong> That median minus and plus <code>to_pg_range</code> robust standard deviations of the same lags. The robust standard deviation is the median absolute deviation divided by 0.6745, never taken as less than 0.1 s. This is the rule the <a href="time-lag-detect-correct.html#time-lag-optimization-for-passive-gases">automatic time lag optimization</a> uses for passive gases, with its <strong>Plausibility range around median value</strong> setting (<code>to_pg_range</code>, 1.5 by default). For a closed path the minimum is never below 0 s, and neither value goes outside the window searched.</li>
+<li><strong>Same analyser:</strong> A <strong>Borrow from &lt;gas&gt;</strong> button, where the gas may take another gas's suggestion (see <a href="#borrowing-from-a-gas-on-the-same-analyser">Borrowing from a gas on the same analyser</a>); otherwise "-".</li>
+</ul>
+<p>Double-click a value to edit it before setting it in the metadata.</p>
+<h3 id="taken-from-the-peak-not-from-every-lag">Taken from the peak, not from every lag<a class="headerlink" href="#taken-from-the-peak-not-from-every-lag" title="Permanent link">&para;</a></h3>
+<p>The suggestion is taken from the <strong>peak</strong> of the detected lags, not from all of them. A gas with a weak flux, a trace gas especially, finds its real lag in only some of the half-hours. In the rest, covariance maximization returns a lag anywhere in the search window. The median of all the lags then lands in the middle of the window, far from the peak plainly visible in the chart, and their spread gives a window nearly as wide as the one searched. So the suggestion is built in three steps:</p>
+<ol>
+<li><strong>The peak:</strong> the highest point of the lags' density, each lag counted as a small bell curve 0.3 s wide.</li>
+<li><strong>The lags around it:</strong> first those within 2 s of the peak. Then, until the set stops changing, those within three robust standard deviations (but at least 0.5 s) of the set's median.</li>
+<li><strong>The suggestion:</strong> the median and window above, from those lags only.</li>
+</ol>
+<p>For a gas whose lags nearly all sit in one peak, this gives the same answer as using every lag.</p>
+<p>A peak is <strong>clear</strong> when it holds at least 5 lags and at least three times as many as an even spread over the search window would put in its width.</p>
+<h3 id="remarks">Remarks<a class="headerlink" href="#remarks" title="Permanent link">&para;</a></h3>
+<p>A gas with a remark shows an icon in its column heading: a warning sign for a remark that calls the suggestion into question, an information sign otherwise. Hover anywhere over the column to read it. The remarks are:</p>
+<ul>
+<li><strong>Peak at &lt;lag&gt; s, found by &lt;n&gt; of &lt;total&gt; half-hours (&lt;share&gt; %); the rest are scattered over the search window:</strong> A clear peak, but held by fewer than half the lags. The suggestion is taken from it.</li>
+<li><strong>No clear peak: the lags spread over the search window:</strong> The values, where there are any, are not to be trusted without a look at the chart.</li>
+<li><strong>Too few usable lags:</strong> Fewer than 5 lags in the peak, and the column holds no values.</li>
+<li><strong>Not detected in any half-hour.</strong></li>
+<li><strong>Water vapor:</strong> Its lag grows with relative humidity, so a single window is a compromise. The automatic time lag optimization handles this with humidity classes (see <a href="time-lag-detect-correct.html#time-lag-optimization-for-water-vapor">Time lag optimization for water vapor</a>).</li>
+<li><strong>Borrowed from &lt;gas&gt; on the same analyser.</strong></li>
+</ul>
+<p>Where a gas has a minority peak, no clear peak or too few lags, the remark also gives the lag of the gas on the same analyser with the clearest peak, if there is one, and how many of its half-hours found it. For example: "CO2 (miro_mga4_6_2) on the same analyser: 8.00 s (95 % of its half-hours)".</p>
+<h3 id="borrowing-from-a-gas-on-the-same-analyser">Borrowing from a gas on the same analyser<a class="headerlink" href="#borrowing-from-a-gas-on-the-same-analyser" title="Permanent link">&para;</a></h3>
+<p>Gases measured by one analyser are drawn through the same intake tube, so they share its time lag. When a gas has no clear peak of its own, or too few lags, and a gas on the same analyser has a clear one, the <strong>Same analyser</strong> row offers <strong>Borrow from &lt;gas&gt;</strong>. Clicking it copies that gas's nominal, minimum and maximum lag, as they stand in the table including any edits, into this gas's column. The chart then shows the borrowed values over this gas's own lags. The button turns into <strong>Use own suggestion</strong>, which puts this gas's own values back.</p>
+<p>Typically a trace gas borrows from the CO2 of the same laser analyser, for instance COS or N2O from a MIRO's CO2.</p>
+<p>A gas borrows only from a gas:</p>
+<ul>
+<li>on the <strong>same analyser</strong>, as named in the gas's record on the Basic Settings page; a gas whose analyser is not known neither lends nor borrows</li>
+<li>that is <strong>not water vapor</strong>, because water's lag depends on humidity in a way the other gases' does not; water vapor does not borrow either</li>
+<li>with a <strong>clear peak</strong> of its own, not itself borrowed</li>
+</ul>
+<p>If several gases qualify, the one whose peak holds the largest share of its lags is offered. These are the same rules by which PWB lends a lag between gases during processing (see <a href="pwb-time-lag-settings.html#top">PWB time lag optimization settings dialog</a>).</p>
+<p>Running the assessment again, or changing <strong>Include lags at the window edges</strong> or <strong>Only half-hours above the flux threshold</strong>, recomputes every suggestion and undoes any borrowing.</p>
+<h2 id="set-in-metadata">Set in metadata<a class="headerlink" href="#set-in-metadata" title="Permanent link">&para;</a></h2>
+<p>Writes each gas's nominal, minimum and maximum lag, as they stand in the table, to that gas's column in the metadata (<code>col_&lt;N&gt;_nom_timelag</code>, <code>col_&lt;N&gt;_min_timelag</code>, <code>col_&lt;N&gt;_max_timelag</code>). The metadata is then saved as after any other edit. Gases without a suggestion are left as they are. A summary says what was written where, and which values were borrowed from which gas.</p>
+<p>What else changes depends on the time lag detection method:</p>
+<ul>
+<li><strong>Automatic time lag optimization</strong> and <strong>Pre-whitening block-bootstrap</strong> search windows of their own (<code>gas_&lt;i&gt;_to_min_lag</code> / <code>gas_&lt;i&gt;_to_max_lag</code>, <code>gas_&lt;i&gt;_pwb_min_lag</code> / <code>gas_&lt;i&gt;_pwb_max_lag</code>), which would otherwise go on overriding the metadata. The minimum and maximum also become that window, rounded outwards to 0.1 s.</li>
+<li><strong>Covariance maximization</strong> and <strong>Covariance maximization with default</strong> read the metadata directly.</li>
+<li><strong>Constant</strong> uses only the nominal lag.</li>
+</ul>
+<p>If the project reads its metadata from the raw files (GHG files without an alternative metadata file), the metadata is not changed; only the methods' own windows are.</p>
+<p>If the project reads the PWB time lag table of an earlier entire-dataset assessment (see below), you are asked first. That table was detected with the search window, and the engine refuses a PWB table whose windows differ from the project's, stopping with "PWB time-lag file was written under different PWB settings". Answer <strong>Yes</strong> to set the suggested windows and have the project detect its lags itself again. Answer <strong>No</strong> to write the metadata only and keep using the table.</p>
+<h2 id="using-the-result-as-the-projects-time-lag-file">Using the result as the project's time lag file<a class="headerlink" href="#using-the-result-as-the-projects-time-lag-file" title="Permanent link">&para;</a></h2>
+<p>A run over the entire dataset is a time lag pre-pass like any other. Whether or not the outputs are kept, it leaves in the project's output folder the file that pre-pass leaves:</p>
+<ul>
+<li><strong>Covariance-based methods:</strong> the time lag optimization results (<code>&lt;id&gt;_timelag_opt_&lt;timestamp&gt;.txt</code>), with the project's water vapor humidity classes.</li>
+<li><strong>Pre-whitening block-bootstrap:</strong> the half-hourly PWB time lag table (<code>&lt;id&gt;_pwb_timelag_&lt;timestamp&gt;.csv</code>) and its aggregate summary (<code>&lt;id&gt;_pwb_timelag_opt_&lt;timestamp&gt;.txt</code>).</li>
+</ul>
+<p>With <strong>Automatic time lag optimization</strong> or <strong>Pre-whitening block-bootstrap</strong> selected, the <strong>Use time lag file in project</strong> button then appears. It sets the project to <strong>Time-lag file available</strong> (<code>to_mode=0</code>) and selects the file (<code>to_file</code>), so the project's run reads its time lags from it instead of repeating the pre-pass. Under PWB, where the file is the half-hourly table, the project's PWB search windows are also set to the windows searched, the ones the table was detected with, since the engine accepts the table only under those. The other methods do not read such a file, so the button does not appear for them.</p>
+<p>The file reflects the wide search windows of the assessment, not the narrower windows you may set afterwards. Under the automatic optimization that is what the pre-pass is for. Under PWB, see the question described in <a href="#set-in-metadata">Set in metadata</a>.</p>
+<h2 id="outputs">Outputs<a class="headerlink" href="#outputs" title="Permanent link">&para;</a></h2>
+<p>The assessment's outputs are written to its temporary folder and removed when the dialog closes, unless <strong>Keep pre-assessment outputs</strong> is ticked. Then the folder is copied to <code>tlag_preassessment_&lt;yyyyMMdd-HHmm&gt;</code> in the project's output folder, or beside the project file if the output folder is not a local folder. The copy is refreshed when the dialog closes, so the charts and suggestions saved are the ones you ended with. It holds:</p>
+<ul>
+<li><code>&lt;gas&gt;_timelag_histogram.png</code> and <code>&lt;gas&gt;_timelag_timeseries.png</code>: each gas's chart in both views, whichever is shown in the dialog, with the same bins, options and suggestion, in light colors whatever the interface's theme.</li>
+<li><code>suggested_timelags.csv</code>: one row per gas with the lags used, the share of the gas's lags in its peak (<code>peak_share</code>), the nominal, minimum and maximum lags, the gas they were borrowed from if any (<code>borrowed_from</code>), and the remark.</li>
+<li><code>out/&lt;id&gt;_tlag_preassess_&lt;timestamp&gt;.csv</code>: every lag detected, one row per half-hour and gas, with the columns <code>date</code>, <code>time</code>, <code>gas</code>, <code>gas_record</code> (the project's <code>gas_&lt;i&gt;</code> record), <code>method</code> (<code>maxcov</code> or <code>pwb</code>), <code>detected_lag_s</code>, <code>window_min_s</code>, <code>window_max_s</code>, <code>at_edge</code>, <code>flux</code> and <code>flux_ok</code>. The lags are taken before the automatic optimization's flux and window-edge filters drop anything. Under PWB the lag is each half-hour's own detection, before any gap-filling, and the flux columns are empty.</li>
+<li><code>out/</code>: the rest of the engine's output, among them the time lag optimization file and the run log.</li>
+<li><code>preassess.&lt;ext&gt;</code> and <code>preassess.metadata</code>: the copies of the project and metadata the engine ran on.</li>
+<li><code>home/</code>: the engine's working folder.</li>
+</ul>
+<h2 id="project-file-keys">Project-file keys<a class="headerlink" href="#project-file-keys" title="Permanent link">&para;</a></h2>
+<p>The assessment adds four keys to the copy of the project it runs, in <code>[RawProcess_TimelagOptimization_Settings]</code>. They are never written to your project. They are listed here for running the engine by hand:</p>
+<ul>
+<li><code>to_sample_frac</code>: Share of the half-hours with raw data to walk, from 0 to 1. Absent or 0, every half-hour is walked.</li>
+<li><code>to_sample_min_n</code>: The fewest half-hours drawn (default 10).</li>
+<li><code>to_sample_seed</code>: Seed of the random draw. The same seed draws the same half-hours, serial or split across workers.</li>
+<li><code>to_dump_lags</code>: <code>1</code> writes <code>&lt;id&gt;_tlag_preassess_&lt;timestamp&gt;.csv</code>.</li>
+</ul>
+<p>They act only in an on-the-fly time lag pre-pass (<code>to_mode=1</code> with <code>tlag_meth</code> 4 or 5). With <code>tlag_assessment_only=1</code> the run stops after the pre-pass.</p>
+<h2 id="dialog-buttons">Dialog buttons<a class="headerlink" href="#dialog-buttons" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Set in metadata:</strong> See <a href="#set-in-metadata">Set in metadata</a>.</li>
+<li><strong>Use time lag file in project:</strong> See <a href="#using-the-result-as-the-projects-time-lag-file">Using the result as the project's time lag file</a>.</li>
+<li><strong>Close:</strong> Close the dialog. A running assessment is stopped first, after you confirm. The outputs are removed unless kept.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../assets/mathjax-config.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

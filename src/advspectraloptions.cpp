@@ -2658,11 +2658,6 @@ void AdvSpectralOptions::createQuestionMarks()
     questionMark_44->setFlat(true);
     questionMark_44->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
     questionMark_44->setIconSize(QSize(12, 12));
-    questionMark_55 = new QPushButton;
-    questionMark_55->setObjectName(QStringLiteral("questionMarkImg"));
-    questionMark_55->setFlat(true);
-    questionMark_55->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
-    questionMark_55->setIconSize(QSize(12, 12));
 
     connect(questionMark_1, &QPushButton::clicked,
             this, &AdvSpectralOptions::onlineHelpTrigger_11);
@@ -2674,8 +2669,6 @@ void AdvSpectralOptions::createQuestionMarks()
             this, &AdvSpectralOptions::onlineHelpTrigger_3);
     connect(questionMark_44, &QPushButton::clicked,
             this, &AdvSpectralOptions::onlineHelpTrigger_4);
-    connect(questionMark_55, &QPushButton::clicked,
-            this, &AdvSpectralOptions::onlineHelpTrigger_5);
 }
 
 void AdvSpectralOptions::onlineHelpTrigger_11()
@@ -2701,11 +2694,6 @@ void AdvSpectralOptions::onlineHelpTrigger_3()
 void AdvSpectralOptions::onlineHelpTrigger_4()
 {
     WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/spectral-corrections/")));
-}
-
-void AdvSpectralOptions::onlineHelpTrigger_5()
-{
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/calculate-spectra-cospectra-and-ogives/")));
 }
 
 void AdvSpectralOptions::updateTooltip(int i)

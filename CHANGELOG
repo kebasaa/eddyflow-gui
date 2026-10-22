@@ -143,6 +143,41 @@
 	       saved the cut, so opening a project on a laptop lost all but the
 	       two latest. The cap is no longer stored, so the old 4 or 2 an
 	       earlier version saved does not carry over.
+	- Change: Help opens the documentation at
+	          https://kebasaa.github.io/eddyflow-documentation/. "EddyFlow
+	          Help" and the welcome page's "Getting started" opened the
+	          documentation's git repository rather than the site it
+	          publishes; "Getting started" now lands on "Processing Eddy
+	          Covariance Datasets". "Instruction Manual (PDF)" is gone - it
+	          opened a LI-COR Box share that no longer resolves, and there
+	          is no PDF manual to put in its place.
+	- New: Offline help is a build of that same documentation, under
+	       docs/help, so "Use Offline Help" works again. It had looked under
+	       docs/help/topics_EddyFlow/, a layout from the LI-COR help that
+	       the program has not shipped for several versions, so with offline
+	       help on every question mark opened nothing. The pages that did
+	       ship, the MadCap bundle under docs/support, are gone; no part of
+	       the program ever read them. A page the bundle does not carry - an
+	       older bundle, a topic added since - opens online rather than
+	       failing. Offline search is not available, because a browser will
+	       not fetch the search index over file://. Regenerate the bundle
+	       with scripts/update-offline-help.ps1 whenever the documentation
+	       changes.
+	- New: A question mark on the dialogs that offered no help at all: CEC
+	       Settings, "Limit of detection (Langford et al. 2015)", Flux
+	       Detection Limit, Planar Fit Settings, PWB Time Lag Optimization
+	       Settings, Timelag Preliminary Assessment, the time lag and binary
+	       file settings, the raw file name format and remote browsing
+	       dialogs, the raw file settings, and the metadata editor's Raw
+	       File Description tab, whose help handler had its one line
+	       commented out.
+	- Fix: Choosing "Use local help" in the "Set Remote/Local Help" dialog
+	       opens the page. It worked out where the page was and then threw
+	       the answer away, so the first question mark of a new installation
+	       did nothing at all.
+	- Fix: The question marks that were built but never placed on a page are
+	       gone, along with two that would have opened the bare URL
+	       "http://".
 
 8.1.2 (2026-10-07)
 

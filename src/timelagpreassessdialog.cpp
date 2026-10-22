@@ -326,6 +326,9 @@ TimelagPreassessDialog::TimelagPreassessDialog(QWidget* parent,
     auto closeButton = new QPushButton(tr("Close"));
 
     auto bottomRow = new QHBoxLayout;
+    bottomRow->addWidget(WidgetUtils::createQuestionMarkButton(this,
+        QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/timelag-preliminary-assessment/")),
+        0, Qt::AlignVCenter);
     bottomRow->addWidget(setButton_);
     bottomRow->addWidget(useFileButton_);
     bottomRow->addStretch(1);

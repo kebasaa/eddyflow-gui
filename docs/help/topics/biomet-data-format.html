@@ -1,0 +1,4972 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="EddyFlow software documentation and physics reference">
+      
+      
+      
+        <link rel="canonical" href="https://kebasaa.github.io/eddyflow-documentation/topics/biomet-data-format.html">
+      
+      
+        <link rel="prev" href="using-biomet-data.html">
+      
+      
+        <link rel="next" href="using-advanced-settings.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/app-logo-mini.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Supported Biomet File Formats - EddyFlow Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/site.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="green">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#supported-biomet-file-formats" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../index.html" title="EddyFlow Documentation" class="md-header__button md-logo" aria-label="EddyFlow Documentation" data-md-component="logo">
+      
+  <img src="../assets/app-logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            EddyFlow Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Supported Biomet File Formats
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../index.html" title="EddyFlow Documentation" class="md-nav__button md-logo" aria-label="EddyFlow Documentation" data-md-component="logo">
+      
+  <img src="../assets/app-logo.svg" alt="logo">
+
+    </a>
+    EddyFlow Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Using EddyFlow
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    2. Using EddyFlow
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tutorials.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Processing Eddy Covariance Datasets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="processing-ascii-and-tob1-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Processing ASCII and TOB1 Files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="importing-legacy-projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Importing EddyPro and EddyUH Projects
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="remote-folders.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Remote Folders and Shared Links
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="smartflux-settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running EddyFlow on the SmartFlux System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="metadata-file-editor-using.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using the Metadata File Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="metadata-retriever-tool.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metadata Retriever Tool
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Basic Settings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Basic Settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="dataset-selection-page.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dataset Selection Page
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="using-biomet-data.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using Biomet Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supported Biomet File Formats
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="biomet-data-format.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supported Biomet File Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#biomet-data-files-embedded-in-ghg-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Biomet data files embedded in .ghg files
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#external-biomet-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        External biomet files
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#variable-names-aliases-and-the-positional-qualifier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Variable names, aliases and the positional qualifier
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#per-channel-calibration-with-gain-and-offset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-channel calibration with gain and offset
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#describing-an-external-biomet-file-with-a-sidecar-metadata-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Describing an external biomet file with a sidecar metadata file
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pressure-units" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pressure units
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#embedded-biomet-crash" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embedded biomet crash
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using Advanced Settings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Using Advanced Settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="using-advanced-settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="smarflux-configuration-no-ghg.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SmartFlux Advanced Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="advanced-settings-processing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Processing Options
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="advanced-settings-statistical-tests.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Statistical Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="advanced-settings-spectral-corrections.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spectral Analysis and Corrections
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="advanced-settings-outputs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output Files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="assessment-tests.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assessment Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="advanced-mode.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="selecting-advanced-options.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Selecting Advanced Options
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="command-line.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command Line
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Output Files
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    3. Output Files
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="output-files-overview.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview and Time Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="outputs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    List of Output Files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="output-files-full-output.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The Full Output File
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="output-files-stats-folder.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The Stats Folder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    4. Troubleshooting
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="troubleshooting.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting and Tips
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="error-codes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. The Interface
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    5. The Interface
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction-welcome-page.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview of the Interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction-interface.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project Page
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="metadata-file-editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metadata File Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="introduction-dataset-selection.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Basic Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="raw-processing-options.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="statistical-tests.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Statistical Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="spectral-corrections.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spectral Analysis and Corrections
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="output-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output Files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_9" id="__nav_6_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interface Feature Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Interface Feature Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="software-reference-introduction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="axes-alignment.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Axes Alignment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="beginning-of-dataset.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Beginning of Data Set
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="conversion-type.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Linear Scaling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="declination.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Magnetic Declination
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="displacement-height.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Displacement Height
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="dynamic-metadata.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dynamic Metadata
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="flags.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flags
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="flow-distortion-correction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flow Distortion Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="gas-analyzer-model.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gas Analyzer Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="generic-binary-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generic Binary File Type
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ghg-file-format.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GHG File Type
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ghg-extended-format.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extended GHG Files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="longitude-transverse-pathlengths.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Path Lengths and Time Response
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="metadata-file-use-alternative.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Use Alternative Metadata File
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="nominal-time-lag.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nominal Time Lag
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="north-offset.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    North Offset
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cec-settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CEC Settings Dialog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="flux-detection-limit-settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flux Detection Limit Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="limit-of-detection-settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Limit of Detection Settings (Langford et al. 2015)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="planar-fit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Planar Fit Configuration Dialog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="pwb-time-lag-settings.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PWB Time Lag Optimization Settings Dialog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="timelag-preliminary-assessment.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Timelag Preliminary Assessment Dialog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="raw-file-name-format.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raw File Name Format
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="roughness-length.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roughness Length
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="sensitive-and-nonsensitive-variables.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensitive and Non-sensitive Variables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="sensor-separation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor Separation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="sonic-anemometer-firmware-version.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sonic Firmware Version
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tob1-files.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TOB1 File Type
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="using-prev-results.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using Results from a Previous Run
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="windspeed-offsets.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wind Speed Measurement Offsets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. Data Processing Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    6. Data Processing Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="software-reference.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculation Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="express-defaults.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Express Default Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_3" id="__nav_7_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preliminary Processing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Preliminary Processing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="preliminary-processing.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="adjusting-anemometer-coordinate-system.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adjusting the Coordinate System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="anemometer-tilt-correction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Anemometer Tilt Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="angle-of-attack-correction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Angle-of-Attack Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="average-gas-concentrations-densities.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Concentrations and Densities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-ambient-and-cell-parameters.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Ambient and Cell Parameters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-ambient-and-cell-statistics.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Ambient and Cell Statistics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-cell-temperature.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Cell Temperature
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-instrument-separation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Instrument Separations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-micromet-variables.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Micrometeorological Variables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-spectra-cospectra-and-ogives.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Spectra, Cospectra and Ogives
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-turbulent-flux.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Turbulent Fluctuations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="converting-to-mixing-ratio.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Converting Raw Data to Mixing Ratios
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cross-wind-correction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crosswind Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="defining-the-dataset.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Defining the EddyFlow Express Data Set
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="despiking-raw-statistical-screening.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Despiking and Statistical Screening
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ensemble-averaged-spectra-and-cospectra.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ensemble Averaged Spectra and Cospectra
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ensemble-averages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QA/QC of Spectra and Cospectra
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="importing-data.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Importing Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="mixed-acquisition-rates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mixed Acquisition Rates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="iterative-calculation-of-micromet-vars.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Iterative Calculation of Micromet Variables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="random-uncertainty-estimation.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Random Uncertainty Estimation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="time-lag-detect-correct.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detecting and Compensating Time Lags
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="w-boost-correction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    'w-boost' Bug Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_7_4" id="__nav_7_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Fluxes
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Calculating Fluxes
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-fluxes.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="conditional-eddy-covariance.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conditional Eddy Covariance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-li-7700-multipliers.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Multipliers for Spectroscopic Corrections (LI-7700)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-flux-7200-and-7700.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Fluxes for the LI-7200 and LI-7700
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-flux-level-0.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Fluxes Level 0
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-flux-level-123.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Fluxes Level 1, 2, and 3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-flux-open-path-analyzers.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Fluxes for Open Path Analyzers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-offseason-uptake-correction.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating the Off-season Uptake Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="calculate-spectral-correction-factors.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Calculating Spectral Correction Factors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="estimating-flux-footprint.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Estimating the Flux Footprint
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="flux-detection-limit.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flux Detection Limit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="flux-quality-flags.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Flux Quality Flags
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="high-pass-filtering.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    High-pass Filtering Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="low-pass-filtering.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Low-pass Filtering Correction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="references.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A. References
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    B. Additional Topics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    B. Additional Topics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="spectral-analysis.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analyzing Spectra and Cospectra
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ttp059-how-to-change-metadata.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changing Metadata After Collection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="diagnostics-for-gas-analyzers.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gas Analyzer Diagnostics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="whats-new.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What's New
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/faqs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#biomet-data-files-embedded-in-ghg-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Biomet data files embedded in .ghg files
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#external-biomet-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        External biomet files
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#variable-names-aliases-and-the-positional-qualifier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Variable names, aliases and the positional qualifier
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#per-channel-calibration-with-gain-and-offset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-channel calibration with gain and offset
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#describing-an-external-biomet-file-with-a-sidecar-metadata-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Describing an external biomet file with a sidecar metadata file
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pressure-units" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pressure units
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#embedded-biomet-crash" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embedded biomet crash
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="supported-biomet-file-formats">Supported biomet file formats<a class="headerlink" href="#supported-biomet-file-formats" title="Permanent link">&para;</a></h1>
+<p>EddyFlow supports biomet data in two main formats: embedded in compressed .ghg eddy covariance data files, and as external text files. These are described in detail below.</p>
+<h2 id="biomet-data-files-embedded-in-ghg-files">Biomet data files embedded in .ghg files<a class="headerlink" href="#biomet-data-files-embedded-in-ghg-files" title="Permanent link">&para;</a></h2>
+<p>The preferred, easiest, and most robust system to store and process biomet data is to collect them with a LI-COR biomet station. When collected through the SmartFlux 2 or 3 System, biomet data are stored in an ASCII, tab-separated file in a format that closely resembles that of the EddyFlow data files, featuring a preamble and a header with variable names and units. This biomet file, identified by the suffix -biomet.data, comes with a paired -biomet.metadata file, which describes the format and, more importantly, the content of the file, with identification of the variables, their units, the sampling and averaging rates, etc. This structure closely replicates that of the EddyFlow .data and .metadata. If the SmartFlux 2 or 3 System is collecting both eddy and biomet data, all four files are bundled together in a unique file with a .ghg extension containing all data corresponding to every time period of the specified length, and the corresponding metadata.</p>
+<p>You can download a sample .ghg file including eddy and biomet files from the LI-COR web site. We suggest taking a few minutes to explore its content of this file. Unzip the file using, for example, 7-zip (after installation, right-click → 7zip → Extract Here) and open any of the files with a text editor. You will quickly figure out the format of both the .data and .metadata files and the organization of the content.</p>
+<h2 id="external-biomet-files">External biomet files<a class="headerlink" href="#external-biomet-files" title="Permanent link">&para;</a></h2>
+<p>If you don't have biomet data collected with the .ghg files, or if you want to process data collected as text files, you can still do so by formatting your biomet file(s) as described below.</p>
+<p>External biomet files must be formatted (outside EddyFlow, for example using MS Excel) in such a way that EddyFlow can interpret them without the need to specify anything in the EddyFlow interface. This means that extreme care must be given in correctly labeling variables, writing units, defining timestamps, etc.</p>
+<p>Following you can find detailed guidelines that should allow you to correctly format your biomet file(s):</p>
+<ul>
+<li>Files are formatted as ASCII, comma-separated files;</li>
+<li>Each data line—terminated by CR/LF (Windows) or by LF (Mac/Linux)—is a record of biomet measurements, identified by a timestamp;</li>
+<li>
+<p>Each file starts with a 2-line header:In the first line, a label is associated to each data column (including the timestamp) to identify the variable. For the naming convention, refer to the tables below;In the second line, a label is associated with each data column (including the timestamp) to identify the unit of each measurement. For the naming convention, refer to the tables below;Capitalization in the header is irrelevant;Location qualifier: The variable labels in the first line of the header can include as a suffix the "location qualifier" designed by the <a href="http://www.europe-fluxdata.eu/home/guidelines/how-to-submit-data/variables-codes">European Fluxes Database Cluster</a>. The location qualifier is comprised of a numeric triplet in the form _X_Y_Z where X, Y and Z are integer numbers identifying the location of the instrument/sensor that measured the variable. An example of a label with location qualifier is: TA_1_2_3. If you are not required to use the location qualifier, you can simply use the variable label. Note, however, that EddyFlow outputs are standardized on the usage of the location qualifier. Any time EddyFlow encounters a variable without the qualifier, EddyFlow will rename it by adding a default qualifier as a suffix to the label provided. As an example, if the variable is labeled TA, the variable will be identified as TA_0_0_1 in the biomet output. If there are multiple instances of the same variable, the last number of the default qualifier will be increased: TA_0_0_2, …, TA_0_0_5", …Since the official usage of the location qualifier does not foresee the use of zeros, having zeros in the first two positions of the qualifier in EddyFlow's output is an indication that the variable was provided without qualifier.</p>
+</li>
+<li>
+<p>Timestamps: Timestamps can occupy up to 7 (comma-separated) fields, that can appear anywhere in the file (i.e., not necessarily in the first columns). In the first header line, timestamp columns are identified by the labels:</p>
+</li>
+</ul>
+<p>TIMESTAMP_1, TIMESTAMP_2, ..., TIMESTAMP_7</p>
+<p>In the second header line, the format of the timestamp is specified according to the following conventions:</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>EddyFlow Label</th>
+<th>Description of corresponding data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>yyyy</td>
+<td>year</td>
+<td>4-digit integer number</td>
+</tr>
+<tr>
+<td>mm</td>
+<td>month of year</td>
+<td>2-digit integer number, between 01 and 12</td>
+</tr>
+<tr>
+<td>ddd</td>
+<td>day of year</td>
+<td>3-digit integer number, between 001 and 366</td>
+</tr>
+<tr>
+<td>dd</td>
+<td>day of month</td>
+<td>2-digit integer number, between 01 and 31</td>
+</tr>
+<tr>
+<td>HH</td>
+<td>hour of the day</td>
+<td>2-digit integer number between 00 and 23</td>
+</tr>
+<tr>
+<td>MM</td>
+<td>minute of the hour</td>
+<td>2-digit integer number between 00 and 59</td>
+</tr>
+</tbody>
+</table>
+<p>The following examples are of valid timestamp headers and data:</p>
+<p>TIMESTAMP_1, ...</p>
+<p>yyyy-mm-dd HHMM, ...</p>
+<p>2012-04-05 0800, ...</p>
+<p>TIMESTAMP_1, TiMeStAmP_2, ...<br />
+yyyy-mm-dd, HHMM, ...<br />
+2012-04-05, 0800, ...</p>
+<p>TIMESTAMP_1, TIMESTAMP_2, Timestamp_3, ...</p>
+<p>yyyy, ddd, HHMM, ...</p>
+<p>2012, 96, 0800, ...</p>
+<p>TIMESTAMP_1, Timestamp_2, TIMESTAMP_3, Timestamp_4, ...</p>
+<p>yyyy, ddd, HH, MM, ...</p>
+<p>2012, 096, 8, 00, ...</p>
+<p>Labeling and units conventions for formatting external biomet files:</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>EddyFlow Label</th>
+<th>EddyFlow Units</th>
+<th>How to Write Units</th>
+<th>Other Supported Units</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Air Temperature</td>
+<td>Ta</td>
+<td>K</td>
+<td>K</td>
+<td>C, cC, F, cF, cK</td>
+</tr>
+<tr>
+<td>Atmospheric pressure</td>
+<td>Pa</td>
+<td>Pa</td>
+<td>Pa</td>
+<td>hPa, kPa, PSI, Torr, mmHg, Atm, Bar</td>
+</tr>
+<tr>
+<td>Relative humidity</td>
+<td>RH</td>
+<td>%</td>
+<td>%</td>
+<td>#</td>
+</tr>
+<tr>
+<td>Canopy temperature</td>
+<td>Tc</td>
+<td>K</td>
+<td>K</td>
+<td>C, cC, F, cF, cK</td>
+</tr>
+<tr>
+<td>Air temperature below canopy</td>
+<td>Tbc</td>
+<td>K</td>
+<td>K</td>
+<td>C, cC, F, cF, cK</td>
+</tr>
+<tr>
+<td>Diffuse radiation</td>
+<td>Rd</td>
+<td>W m-2</td>
+<td>W+1m-2</td>
+<td>J s-1 m-2</td>
+</tr>
+<tr>
+<td>Reflected radiation</td>
+<td>Rr</td>
+<td>W m-2</td>
+<td>W+1m-2</td>
+<td>J s-1 m-2</td>
+</tr>
+<tr>
+<td>Global radiation</td>
+<td>Rg</td>
+<td>W m-2</td>
+<td>W+1m-2</td>
+<td>J s-1 m-2</td>
+</tr>
+<tr>
+<td>Net radiation</td>
+<td>Rn</td>
+<td>W m-2</td>
+<td>W+1m-2</td>
+<td>J s-1 m-2</td>
+</tr>
+<tr>
+<td>UVA radiation</td>
+<td>R_uva</td>
+<td>W m-2</td>
+<td>W+1m-2</td>
+<td>J s-1 m-2</td>
+</tr>
+<tr>
+<td>UVB radiation</td>
+<td>R_uvb</td>
+<td>W m-2</td>
+<td>W+1m-2</td>
+<td>J s-1 m-2</td>
+</tr>
+<tr>
+<td>Longwave incoming radiation</td>
+<td>LWin</td>
+<td>W m-2</td>
+<td>W+1m-2</td>
+<td>J s-1 m-2</td>
+</tr>
+<tr>
+<td>Longwave outgoing radiation</td>
+<td>LWout</td>
+<td>W m-2</td>
+<td>W+1m-2</td>
+<td>J s-1 m-2</td>
+</tr>
+<tr>
+<td>Shortwave incoming radiation</td>
+<td>SWin</td>
+<td>W m-2</td>
+<td>W+1m-2</td>
+<td>J s-1 m-2</td>
+</tr>
+<tr>
+<td>Shortwave outgoing radiation</td>
+<td>SWout</td>
+<td>W m-2</td>
+<td>W+1m-2</td>
+<td>J s-1 m-2</td>
+</tr>
+<tr>
+<td>Shortwave below canopy</td>
+<td>SWbc</td>
+<td>W m-2</td>
+<td>W+1m-2</td>
+<td>J s-1 m-2</td>
+</tr>
+<tr>
+<td>Shortwave incoming diffuse</td>
+<td>SWdif</td>
+<td>W m-2</td>
+<td>W+1m-2</td>
+<td>J s-1 m-2</td>
+</tr>
+<tr>
+<td>Photosynthetic photon flux density</td>
+<td>PPFD</td>
+<td>μmol m-2 s-1</td>
+<td>umol+1m-2s-1</td>
+<td>μE m-2 s-1</td>
+</tr>
+<tr>
+<td>Diffuse PPFD</td>
+<td>PPFDd</td>
+<td>μmol m-2 s-1</td>
+<td>umol+1m-2s-1</td>
+<td>μE m-2 s-1</td>
+</tr>
+<tr>
+<td>Reflected PPFD</td>
+<td>PPFDr</td>
+<td>μmol m-2 s-1</td>
+<td>umol+1m-2s-1</td>
+<td>μE m-2 s-1</td>
+</tr>
+<tr>
+<td>Below Canopy PPFD</td>
+<td>PPFDbc</td>
+<td>μmol m-2 s-1</td>
+<td>umol+1m-2s-1</td>
+<td>μE m-2 s-1</td>
+</tr>
+<tr>
+<td>Total precipitation</td>
+<td>P</td>
+<td>m</td>
+<td>m</td>
+<td>um, μm, mm, cm, km</td>
+</tr>
+<tr>
+<td>Rain precipitation</td>
+<td>P_rain</td>
+<td>m</td>
+<td>m</td>
+<td>um, μm, mm, cm, km</td>
+</tr>
+<tr>
+<td>Snow precipitation</td>
+<td>P_snow</td>
+<td>m</td>
+<td>m</td>
+<td>um, μm, mm, cm, km</td>
+</tr>
+<tr>
+<td>Snow depth</td>
+<td>SNOWd</td>
+<td>m</td>
+<td>m</td>
+<td>um, μm, mm, cm, km</td>
+</tr>
+<tr>
+<td>Maximum wind speed</td>
+<td>MWS</td>
+<td>m s-1</td>
+<td>m+1m-1</td>
+<td>cm s-1, km h-1</td>
+</tr>
+<tr>
+<td>Wind direction</td>
+<td>WD</td>
+<td>deg. from N</td>
+<td>degrees</td>
+<td>-</td>
+</tr>
+<tr>
+<td>Bole temperature</td>
+<td>Tbole</td>
+<td>K</td>
+<td>K</td>
+<td>C, cC, F, cF, cK</td>
+</tr>
+<tr>
+<td>SapFlow</td>
+<td>SapFlow</td>
+<td>g h-1</td>
+<td>g+1h-1</td>
+<td>-</td>
+</tr>
+<tr>
+<td>StemFlow</td>
+<td>StemFlow</td>
+<td>g h-1</td>
+<td>g+1h-1</td>
+<td>-</td>
+</tr>
+<tr>
+<td>Soil temperature</td>
+<td>Ts</td>
+<td>K</td>
+<td>K</td>
+<td>C, cC, F, cF, cK</td>
+</tr>
+<tr>
+<td>Soil heat flux</td>
+<td>SHF</td>
+<td>W m-2</td>
+<td>W+1m-2</td>
+<td>J s-1 m-2</td>
+</tr>
+<tr>
+<td>Soil water content</td>
+<td>SWC</td>
+<td>m3 m-3</td>
+<td>m+3m-3</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<h2 id="variable-names-aliases-and-the-positional-qualifier">Variable names, aliases and the positional qualifier<a class="headerlink" href="#variable-names-aliases-and-the-positional-qualifier" title="Permanent link">&para;</a></h2>
+<p>The label in the first header line identifies the variable. EddyFlow reads it as follows.</p>
+<ol>
+<li><strong>The positional qualifier is stripped first.</strong> Trailing <code>_&lt;integer&gt;</code> groups are removed from the right, one at a time, until the next segment is not a number. <code>SW_IN_1_1_1</code> becomes <code>SW_IN</code>, <code>TA_1_3_1</code> becomes <code>TA</code>, <code>P_RAIN_1_1_1</code> becomes <code>P_RAIN</code>, and a label with no qualifier, such as <code>SW_IN</code> itself, is left alone. This is why the number of underscores in a name does not matter.</li>
+<li><strong>The remaining base name is matched whole</strong>, ignoring capitalization, against the alias sets below. It is not matched by substring: <code>PPFD_OUT</code> is outgoing PAR and is not taken for incoming PAR just because it contains <code>PPFD</code>.</li>
+<li><strong>The full label, qualifier included, is kept.</strong> A file with <code>TA_1_1_1</code> and <code>TA_1_3_1</code> has two air-temperature channels, each averaged and written under its own label. Earlier versions kept only the part before the first underscore, which merged the two into a single <code>TA</code>.</li>
+</ol>
+<p>The aliases below are accepted for the quantities EddyFlow uses in flux computation and correction.</p>
+<table>
+<thead>
+<tr>
+<th>Quantity</th>
+<th>Accepted base names</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Air temperature</td>
+<td><code>TA</code>, <code>T_A</code>, <code>T_AIR</code>, <code>TAIR</code></td>
+</tr>
+<tr>
+<td>Atmospheric pressure</td>
+<td><code>PA</code>, <code>P_A</code>, <code>PAIR</code>, <code>P_AIR</code></td>
+</tr>
+<tr>
+<td>Relative humidity</td>
+<td><code>RH</code></td>
+</tr>
+<tr>
+<td>Global radiation (incoming shortwave)</td>
+<td><code>RG</code>, <code>R_G</code>, <code>RGLOBAL</code>, <code>R_GLOBAL</code>, <code>SWIN</code>, <code>SW_IN</code></td>
+</tr>
+<tr>
+<td>Longwave incoming radiation</td>
+<td><code>LWIN</code>, <code>LW_IN</code></td>
+</tr>
+<tr>
+<td>Photosynthetically active radiation, incoming</td>
+<td><code>PPFD</code>, <code>PPFD_IN</code></td>
+</tr>
+</tbody>
+</table>
+<p>Global radiation and incoming shortwave radiation are the same quantity, so all six spellings are filed together as <code>SW_IN</code>. <code>LWIN</code> and <code>LW_IN</code> are filed as <code>LW_IN</code>. Outgoing PAR (<code>PPFDR</code>, <code>PPFD_R</code>, <code>PPFD_OUT</code>) is a separate quantity and is never used as incoming PAR. A single-letter name such as <code>G</code> or <code>P</code> used to slip into the interface's list of offered channels by matching part of a longer name; it no longer does. Whole-name matching decides what is offered for the ambient-measurement slots.</p>
+<p>Other aliases recognized by the engine include (the full set is longer): <code>TBC</code>, <code>T_BC</code>, <code>T_BELOW_CANOPY</code>; <code>TS</code>, <code>T_S</code>, <code>T_SOIL</code>, <code>TSOIL</code>; <code>RN</code>, <code>R_N</code>, <code>NETRAD</code>, <code>NET_RAD</code>, <code>NET_RADIATION</code>, <code>RNET</code>, <code>R_NET</code>; <code>SWDIF</code>, <code>SW_DIF</code>, <code>RD</code>, <code>R_D</code>; <code>SWOUT</code>, <code>SW_OUT</code>, <code>RR</code>, <code>R_R</code>; <code>LWOUT</code>, <code>LW_OUT</code>; <code>PPFD_DIF</code>, <code>PPFDDIF</code>, <code>PPFDD</code>, <code>PPFD_D</code>; <code>PPFDBC</code>, <code>PPFD_BC</code>; <code>WS</code>, <code>WIND_SPEED</code>; <code>MWS</code>, <code>MAX_WIND_SPEED</code>; <code>WD</code>, <code>WIND_DIRECTION</code>; <code>P_RAIN</code>, <code>PRAIN</code>; <code>P_SNOW</code>, <code>PSNOW</code>; <code>SNOWD</code>, <code>SNOW_D</code>, <code>D_SNOW</code>, <code>DSNOW</code>; <code>SHF</code>, <code>G</code>; <code>SWC</code>; <code>TC</code>, <code>T_C</code>, <code>T_CANOPY</code>, <code>TCANOPY</code>; <code>TBOLE</code>, <code>T_BOLE</code>; <code>SAP_FLOW</code>, <code>SAPFLOW</code>; <code>STEMFLOW</code>, <code>STEM_FLOW</code>. The same spellings are accepted for embedded biomet (see <a href="#biomet-data-files-embedded-in-ghg-files">Biomet data embedded in .ghg files</a>).</p>
+<p>In the interface, the <strong>Ambient measurements</strong> variables (Basic Settings, dataset selection) list the channel that was matched, for example <strong>Global Radiation 'SW_IN_1_1_1' (col 22)</strong> or <strong>Longwave Incoming Radiation 'LW_IN_1_1_1' (col 5)</strong>, with the source <strong>biomet files: Column # N</strong>. See <a href="introduction-dataset-selection.html#variables-ambient-measurements">Variables: Ambient measurements</a>.</p>
+<h2 id="per-channel-calibration-with-gain-and-offset">Per-channel calibration with gain and offset<a class="headerlink" href="#per-channel-calibration-with-gain-and-offset" title="Permanent link">&para;</a></h2>
+<p>A biomet channel can be calibrated before it is used, which lets raw counts or voltages from a logger become physical readings without a pre-processing step outside EddyFlow. Two optional numbers per channel, <code>_gain</code> and <code>_offset</code>, are applied as</p>
+<pre><code>value = raw × gain + offset
+</code></pre>
+<p><strong>before</strong> the unit conversion, so the calibration is stated in the channel's own input unit and the result is then converted to EddyFlow standard units. Details:</p>
+<ul>
+<li>A channel that states neither is left untouched. A channel that states only a gain uses an offset of 0, and one that states only an offset uses a gain of 1.</li>
+<li>Missing-value codes are preserved: a record that is missing is not calibrated.</li>
+<li>There is no quadratic term.</li>
+<li>It applies to biomet embedded in .ghg files, where each channel's metadata carries <code>biomet_&lt;n&gt;_gain</code> and <code>biomet_&lt;n&gt;_offset</code>, and to external biomet files once <code>biom_use_native_header</code> is switched off (next section), because the two-line header of an external file has no room for calibration.</li>
+</ul>
+<h2 id="describing-an-external-biomet-file-with-a-sidecar-metadata-file">Describing an external biomet file with a sidecar metadata file<a class="headerlink" href="#describing-an-external-biomet-file-with-a-sidecar-metadata-file" title="Permanent link">&para;</a></h2>
+<p><strong>Project file key:</strong> <code>biom_use_native_header</code> in the <code>[RawProcess_BiometMeasurements]</code> section. Default <code>1</code>: an external biomet file describes itself through its own two-line header, as described above, and nothing changes. There is no control for it in the interface; it is set in the project file (<code>biom_use_native_header=0</code>).</p>
+<p>With <code>biom_use_native_header=0</code>, EddyFlow takes the per-channel description from a sidecar <code>.metadata</code> file in the same key=value format that biomet embedded in .ghg files uses, instead of from the header. This gives an external biomet file the calibration and channel description that embedded biomet has. Consequences:</p>
+<ul>
+<li><strong>Location of the sidecar.</strong> For <strong>Use external file</strong>, the sidecar has the biomet file's name with the extension replaced by <code>metadata</code>, in the same folder (for <code>site_biomet.csv</code>, <code>site_biomet.metadata</code>). For <strong>Use external directory</strong>, it is named <code>biomet.metadata</code> and sits in the biomet directory.</li>
+<li><strong>One layout for all files.</strong> Every file in a directory must share the column layout stated in the sidecar; the sidecar is read once, and each file's own header lines are skipped by count (<code>biomet_header_rows</code>, for a file with a two-line header write 2) and not parsed.</li>
+<li>
+<p><strong>Contents.</strong> <code>biomet_separator</code> (<code>tab</code>, <code>comma</code>, <code>semicolon</code>, <code>space</code>, or the character itself), <code>biomet_data_label</code>, <code>biomet_header_rows</code>, <code>biomet_file_duration</code>, <code>biomet_data_rate</code>, and per column <code>biomet_&lt;n&gt;_variable</code> (the label, with the <code>DATE</code> and <code>TIME</code> columns marked by those words), <code>biomet_&lt;n&gt;_id</code>, <code>biomet_&lt;n&gt;_instrument</code>, <code>biomet_&lt;n&gt;_unit_in</code>, <code>biomet_&lt;n&gt;_gain</code>, <code>biomet_&lt;n&gt;_offset</code>. A minimal sidecar:</p>
+<pre><code>biomet_separator=comma
+biomet_data_label=none
+biomet_header_rows=0
+biomet_file_duration=daily
+biomet_data_rate=30
+biomet_1_variable=DATE
+biomet_2_variable=TIME
+biomet_3_variable=TA
+biomet_3_unit_in=K
+</code></pre>
+</li>
+<li>
+<p><strong>If the sidecar cannot be read</strong>, the log states "Biomet: could not read the sidecar metadata file" with its path and the biomet data are not used for the run.</p>
+</li>
+</ul>
+<h2 id="pressure-units">Pressure units<a class="headerlink" href="#pressure-units" title="Permanent link">&para;</a></h2>
+<p>A biomet pressure channel stated in <code>Atm</code> is converted with the standard atmosphere, 101325 Pa exactly. Earlier versions used 98066.5 Pa (a technical atmosphere), so a channel in <code>Atm</code> came out 3.3% low. The conversions for <code>mmHg</code>, <code>Torr</code> and <code>PSI</code> were also tightened, by less than 0.003%. Channels in Pa, hPa or kPa are unaffected.</p>
+<h2 id="embedded-biomet-crash">Embedded biomet crash<a class="headerlink" href="#embedded-biomet-crash" title="Permanent link">&para;</a></h2>
+<p>Processing .ghg files with embedded biomet data used to end in a segmentation fault on every run. This is fixed; embedded biomet is read, calibrated and averaged as described above.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../assets/mathjax-config.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
