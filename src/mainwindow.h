@@ -291,7 +291,6 @@ private:
     QAction *toggleOfflineHelpAct;
     QAction *whatsHelpAction;
     QAction* appWebpageAction;
-    QAction* forumWebpageAction;
     QAction* checkUpdateAction;
     QAction *aboutAction;
     QAction *aboutQtAction;

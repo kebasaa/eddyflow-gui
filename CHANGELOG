@@ -178,6 +178,9 @@
 	- Fix: The question marks that were built but never placed on a page are
 	       gone, along with two that would have opened the bare URL
 	       "http://".
+	- Change: "EddyFlow Forum" is gone from the Help menu. There is no
+	          forum, and the entry opened the documentation, the same page as
+	          "EddyFlow Web Page" beside it.
 
 8.1.2 (2026-10-07)
 

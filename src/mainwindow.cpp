@@ -1524,9 +1524,6 @@ void MainWindow::createActions()
     appWebpageAction = new QAction(this);
     appWebpageAction->setText(tr("EddyFlow Web Page"));
 
-    forumWebpageAction = new QAction(this);
-    forumWebpageAction->setText(tr("EddyFlow Forum"));
-
     checkUpdateAction = new QAction(this);
     checkUpdateAction->setText(tr("Check for Updates..."));
     checkUpdateAction->setShortcut(tr("Ctrl+U"));
@@ -1616,8 +1613,6 @@ void MainWindow::connectActions()
             this, &MainWindow::setOfflineHelp);
     connect(appWebpageAction, &QAction::triggered,
             this, &WidgetUtils::openAppWebsite);
-    connect(forumWebpageAction, &QAction::triggered,
-            this, &WidgetUtils::openForumWebsite);
     connect(checkUpdateAction, &QAction::triggered,
             this, &MainWindow::showUpdateDialog);
     connect(aboutAction, &QAction::triggered,
@@ -1679,7 +1674,6 @@ void MainWindow::createMenus()
     helpMenu->addAction(toggleOfflineHelpAct);
     helpMenu->addSeparator();
     helpMenu->addAction(appWebpageAction);
-    helpMenu->addAction(forumWebpageAction);
     helpMenu->addAction(checkUpdateAction);
     helpMenu->addSeparator();
     helpMenu->addAction(aboutAction);

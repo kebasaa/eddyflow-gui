@@ -91,7 +91,6 @@ namespace WidgetUtils
 
     // browser launcher
     void openAppWebsite();
-    void openForumWebsite();
     void showHelp(const QUrl& url);
 
     ///

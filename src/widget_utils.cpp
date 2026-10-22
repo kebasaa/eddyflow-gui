@@ -265,11 +265,6 @@ void WidgetUtils::openAppWebsite()
     QDesktopServices::openUrl(QUrl(Defs::APP_URL));
 }
 
-void WidgetUtils::openForumWebsite()
-{
-    QDesktopServices::openUrl(QUrl(Defs::APP_FORUM_URL));
-}
-
 bool WidgetUtils::okToOverwrite(QWidget* parent, const QString& filename)
 {
     return yesNoQuestion(parent,

@@ -5044,11 +5044,6 @@ Retriever</source>
         <translation>EddyFlow Web Page</translation>
     </message>
     <message>
-        <location filename="../src/mainwindow.cpp" line="1161"/>
-        <source>EddyFlow Forum</source>
-        <translation>EddyFlow Forum</translation>
-    </message>
-    <message>
         <location filename="../src/mainwindow.cpp" line="1164"/>
         <source>Check for Updates...</source>
         <translation>Check for Updates...</translation>

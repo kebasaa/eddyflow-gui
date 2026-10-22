@@ -97,6 +97,15 @@ class NoOldHostOrPageNames(unittest.TestCase):
         for path, text in sources():
             self.assertNotIn("docs/support", text, path.name)
 
+    def test_the_help_menu_offers_no_forum(self):
+        """There is no EddyFlow forum; the entry opened APP_URL a second time."""
+        menu = (ROOT / "src" / "mainwindow.cpp").read_text(
+            encoding="utf-8", errors="replace")
+        self.assertNotIn("Forum", menu)
+        defs = (ROOT / "src" / "defs.h").read_text(
+            encoding="utf-8", errors="replace")
+        self.assertNotIn("APP_FORUM_URL", defs)
+
     def test_the_links_are_found(self):
         """Guards the pattern: a typo in it would let every check pass."""
         self.assertGreater(len(links()), 50)
