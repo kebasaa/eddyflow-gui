@@ -53,8 +53,8 @@ class QStringLiteral;
 /// \brief Contains global string literals
 namespace Defs
 {
-    const auto APP_VERSION = 0x080102;
-    const auto APP_VERSION_STR = QStringLiteral("8.1.2");
+    const auto APP_VERSION = 0x080103;
+    const auto APP_VERSION_STR = QStringLiteral("8.1.3");
     const auto APP_STAGE_STR = QStringLiteral(""); // -rc1
 
     //> 5.0.0 is the record format: gases, cell measurements and diagnostics
@@ -159,8 +159,7 @@ namespace Defs
     const auto APP_NAME_UCASE = QStringLiteral("EDDYFLOW");
     const auto ORG_DOMAIN     = QStringLiteral("github.com/kebasaa/eddyflow-gui");
     const auto ORG_NAME       = QStringLiteral("EddyFlow");
-    const auto APP_URL        = QStringLiteral("https://keba_saa.github.io/eddyflow-documentation");
-    const auto APP_FORUM_URL  = QStringLiteral("https://keba_saa.github.io/eddyflow-documentation");
+    const auto APP_URL        = QStringLiteral("https://kebasaa.github.io/eddyflow-documentation");
 
     // UTF-16 hex codes
     const auto DEGREE      = QChar(0x00B0);
@@ -313,7 +312,6 @@ namespace Defs
     const auto CONF_GEN_SHOW_SPLASH   = QStringLiteral("/showsplash");
     const auto CONF_GEN_LOADLAST      = QStringLiteral("/loadlast");
     const auto CONF_GEN_RECENTFILES   = QStringLiteral("/recentfiles");
-    const auto CONF_GEN_RECENTNUM     = QStringLiteral("/recentnum");
     const auto CONF_GEN_ENV           = QStringLiteral("/env");
     const auto CONF_GEN_PARALLEL_PREPASS = QStringLiteral("/parallelprepass");
 

@@ -1,1 +1,0 @@
-define({'/EddyFlow/home.html':{i:[0],t:['EddyFlow Home'],b:['']},'/EddyFlow/menu.html':{i:[1],t:['Using EddyFlow Software'],b:['']}});

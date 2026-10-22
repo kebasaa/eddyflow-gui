@@ -83,6 +83,9 @@ RawFilenameDialog::RawFilenameDialog(QWidget *parent,
     auto buttonBox = new QDialogButtonBox;
     buttonBox->addButton(okButton, QDialogButtonBox::AcceptRole);
     buttonBox->addButton(cancelButton, QDialogButtonBox::RejectRole);
+    buttonBox->addButton(WidgetUtils::createQuestionMarkButton(this,
+        QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/raw-file-name-format/")),
+        QDialogButtonBox::HelpRole);
 
     auto dialogLayout = new QGridLayout(this);
     dialogLayout->addWidget(title, 0, 0);

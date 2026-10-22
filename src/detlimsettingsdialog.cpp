@@ -17,6 +17,7 @@
 #include <QVBoxLayout>
 
 #include "ecproject.h"
+#include "widget_utils.h"
 
 namespace
 {
@@ -43,6 +44,7 @@ DetlimSettingsDialog::DetlimSettingsDialog(QWidget *parent, EcProject *ecProject
     methodCombo = new QComboBox(this);
     methodCombo->addItem(tr("None"));
     methodCombo->addItem(tr("Wienhold et al. (1994)"));
+    methodCombo->addItem(tr("Langford et al. (2015)"));
     methodCombo->setItemData(0, tr("<b>None:</b> Do not estimate a detection "
         "limit. The output columns are written, carrying the error code."),
         Qt::ToolTipRole);
@@ -54,6 +56,14 @@ DetlimSettingsDialog::DetlimSettingsDialog(QWidget *parent, EcProject *ecProject
         "from zero. Two windows are placed symmetrically either side of the "
         "lag actually used for each gas, and their standard deviations "
         "averaged."), Qt::ToolTipRole);
+    methodCombo->setItemData(2, tr("<b>Langford et al. (2015):</b> The same "
+        "idea, measured as Langford et al. recommend: the root mean square of "
+        "the cross-covariance over both far-lag windows together, "
+        "RE<sub>RMSE</sub> = &radic;(&sigma;<sup>2</sup> + &mu;<sup>2</sup>) "
+        "(their Eq. 9), which also counts an offset of the function from zero "
+        "that the standard deviation misses. Its window and statistic are "
+        "shared with the random uncertainty method of that name, under "
+        "<b>Langford Settings...</b>."), Qt::ToolTipRole);
     methodCombo->setToolTip(tr("<b>Method:</b> Select how the flux detection "
         "limit is estimated. Off by default; switching it on does not change "
         "any flux, it only adds the limit alongside it."));
@@ -98,6 +108,11 @@ DetlimSettingsDialog::DetlimSettingsDialog(QWidget *parent, EcProject *ecProject
         "refuses this combination and falls back to 100 s and 50 s."));
     windowWarningLabel->setVisible(false);
 
+    langfordButton = new QPushButton(tr("Langford Settings..."), this);
+    langfordButton->setToolTip(tr("<b>Langford settings:</b> The lag window and "
+        "statistic of the limit of detection after Langford et al. (2015). "
+        "Shared with the random uncertainty method of that name."));
+
     auto grid = new QGridLayout;
     grid->addWidget(methodLabel, 0, 0, Qt::AlignRight);
     grid->addWidget(methodCombo, 0, 1);
@@ -106,8 +121,9 @@ DetlimSettingsDialog::DetlimSettingsDialog(QWidget *parent, EcProject *ecProject
     grid->addWidget(windowLabel, 2, 0, Qt::AlignRight);
     grid->addWidget(windowSpin, 2, 1);
     grid->addWidget(windowWarningLabel, 2, 2);
+    grid->addWidget(langfordButton, 3, 1, Qt::AlignLeft);
     grid->setColumnStretch(3, 1);
-    grid->setRowStretch(3, 1);
+    grid->setRowStretch(4, 1);
 
     auto note = new QLabel(tr("The limit is reported per gas in <b>covariance "
         "units</b>, as <i>&lt;gas&gt;_detlim</i> in the full output and "
@@ -122,6 +138,9 @@ DetlimSettingsDialog::DetlimSettingsDialog(QWidget *parent, EcProject *ecProject
                                "Wienhold's values, with the method off."));
     auto closeButtons = new QDialogButtonBox(QDialogButtonBox::Close, this);
     closeButtons->addButton(resetButton, QDialogButtonBox::ResetRole);
+    closeButtons->addButton(WidgetUtils::createQuestionMarkButton(this,
+        QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/flux-detection-limit-settings/")),
+        QDialogButtonBox::HelpRole);
 
     auto mainLayout = new QVBoxLayout;
     mainLayout->addLayout(grid);
@@ -132,15 +151,12 @@ DetlimSettingsDialog::DetlimSettingsDialog(QWidget *parent, EcProject *ecProject
 
     connect(methodCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this](int index) {
+        //> The row is the stored value: 0 none, 1 Wienhold, 2 Langford.
         ecProject_->setScreenDetlimMethod(index);
-        //> The windows mean nothing with no method to use them.
-        const bool on = index > 0;
-        offsetLabel->setEnabled(on);
-        offsetSpin->setEnabled(on);
-        windowLabel->setEnabled(on);
-        windowSpin->setEnabled(on);
-        updateWindowWarning();
+        updateEnabled();
     });
+    connect(langfordButton, &QPushButton::clicked,
+            this, &DetlimSettingsDialog::langfordSettingsRequested);
     connect(offsetSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, [this](double v) {
         ecProject_->setScreenDetlimOffset(v);
@@ -166,16 +182,26 @@ void DetlimSettingsDialog::refresh()
     const QSignalBlocker blockOffset(offsetSpin);
     const QSignalBlocker blockWindow(windowSpin);
 
+    //> A value from a later version lands on no row; show what the engine
+    //> will do with it, which is nothing.
     const int method = ecProject_->screenDetlimMethod();
-    methodCombo->setCurrentIndex(method > 0 ? 1 : 0);
+    methodCombo->setCurrentIndex((method >= 0 && method <= 2) ? method : 0);
     offsetSpin->setValue(ecProject_->screenDetlimOffset());
     windowSpin->setValue(ecProject_->screenDetlimWindow());
+    updateEnabled();
+}
 
-    const bool on = method > 0;
-    offsetLabel->setEnabled(on);
-    offsetSpin->setEnabled(on);
-    windowLabel->setEnabled(on);
-    windowSpin->setEnabled(on);
+/// Each method's own settings, and nothing else: Wienhold's windows mean
+/// nothing to Langford, whose settings live in the shared dialog.
+void DetlimSettingsDialog::updateEnabled()
+{
+    const int method = methodCombo->currentIndex();
+    const bool wienhold = method == 1;
+    offsetLabel->setEnabled(wienhold);
+    offsetSpin->setEnabled(wienhold);
+    windowLabel->setEnabled(wienhold);
+    windowSpin->setEnabled(wienhold);
+    langfordButton->setEnabled(method == 2);
     updateWindowWarning();
 }
 
@@ -199,7 +225,7 @@ void DetlimSettingsDialog::restoreDefaults()
 /// while setting the numbers rather than afterwards in the log.
 void DetlimSettingsDialog::updateWindowWarning()
 {
-    const bool on = methodCombo->currentIndex() > 0;
+    const bool on = methodCombo->currentIndex() == 1;
     const bool reachesPeak = windowSpin->value() >= offsetSpin->value();
     windowWarningLabel->setVisible(on && reachesPeak);
 }

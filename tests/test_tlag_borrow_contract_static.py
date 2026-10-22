@@ -114,7 +114,9 @@ class TheDependencyOnTheDetectionLimitHolds(unittest.TestCase):
         #> Lenschow floor needs nothing else switched on.
         src = read(ENGINE_BORROW)
         self.assertIn("if (RPSetup%tlag_borrow_noise == 'detlim' .and. &", src)
-        self.assertIn("RPSetup%detlim_meth /= 'wienhold_94') return", src)
+        #> Either detection limit is a floor: Wienhold's or Langford's.
+        self.assertIn("RPSetup%detlim_meth /= 'wienhold_94' .and. &", src)
+        self.assertIn("RPSetup%detlim_meth /= 'langford_15') return", src)
 
     def test_the_tooltip_says_where_to_switch_the_limit_on(self):
         #> It is on another page, so "requires the detection limit" alone

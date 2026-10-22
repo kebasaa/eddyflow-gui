@@ -27,6 +27,7 @@
 
 #include <QDebug>
 #include <QGridLayout>
+#include <QHBoxLayout>
 #include <QGroupBox>
 #include <QHeaderView>
 #include <QPushButton>
@@ -41,6 +42,7 @@
 #include "variable_delegate.h"
 #include "variable_model.h"
 #include "variable_view.h"
+#include "widget_utils.h"
 
 DlRawfileDescTab::DlRawfileDescTab(QWidget* parent, DlProject* dlProject) :
     QWidget(parent),
@@ -117,6 +119,9 @@ DlRawfileDescTab::DlRawfileDescTab(QWidget* parent, DlProject* dlProject) :
 
     auto mainlayout = new QGridLayout(this);
     mainlayout->setRowMinimumHeight(0, 18);
+    mainlayout->addWidget(WidgetUtils::createQuestionMarkButton(this,
+        QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/metadata-file-editor/#raw-file-description")),
+        0, 0, 1, 1, Qt::AlignTop | Qt::AlignLeft);
     mainlayout->addWidget(rawSettingsButton, 1, 0, 1, 1, Qt::AlignTop);
     mainlayout->addWidget(clearCustomVarsButton, 2, 0, 1, 1, Qt::AlignTop);
     mainlayout->addWidget(varScrollArea, 0, 1, -1, -1);
@@ -242,7 +247,3 @@ void DlRawfileDescTab::clearInstrModels()
     variableModel_->setInstrModels(modelList);
 }
 
-void DlRawfileDescTab::onlineHelpTrigger_1()
-{
-//    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/")));
-}

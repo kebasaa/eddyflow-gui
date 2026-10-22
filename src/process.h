@@ -99,6 +99,9 @@ public:
     void processResume(Defs::CurrRunStatus mode);
     void processStop();
     inline ExitStatus processExit() const { return processExit_; }
+    /// Whether process pid is running and is one of the engine's: a check
+    /// of the image name keeps a reused process id from passing for one.
+    static bool isEngineProcessRunning(qint64 pid);
     bool isRunning() const { return (process_->state() == QProcess::Running); }
 
 private slots:

@@ -32,6 +32,7 @@ ROWS = {
     1: (2, "mann_lenschow_94"),
     2: (4, "billesbach_11"),
     3: (5, "lenschow_00"),
+    4: (6, "langford_15"),
 }
 
 
@@ -43,7 +44,7 @@ class TheRowIsNotTheMethodNumber(unittest.TestCase):
                 "randomMethodCombo->setItemData(%d, %d);" % (row, value), PAGE,
                 "combo row %d does not store ru_meth %d" % (row, value))
 
-    def test_the_menu_has_exactly_those_four_rows(self):
+    def test_the_menu_has_exactly_those_rows(self):
         block = PAGE[PAGE.index("randomMethodCombo->addItem("):]
         block = block[:block.index("randomMethodCombo->setItemData(0,")]
         self.assertEqual(block.count("randomMethodCombo->addItem("), len(ROWS))

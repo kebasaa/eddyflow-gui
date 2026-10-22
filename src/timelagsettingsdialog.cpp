@@ -31,6 +31,7 @@
 #include <QDoubleSpinBox>
 #include <QEvent>
 #include <QGridLayout>
+#include <QHBoxLayout>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSpinBox>
@@ -223,7 +224,14 @@ TimeLagSettingsDialog::TimeLagSettingsDialog(QWidget *parent, DlProject *dlProje
     auto okButton = WidgetUtils::createCommonButton(this, tr("Ok"));
 
     auto mainLayout = new QGridLayout(this);
-    mainLayout->addWidget(groupTitle, 0, 0);
+    auto titleLayout = new QHBoxLayout;
+    titleLayout->addWidget(groupTitle);
+    titleLayout->addWidget(WidgetUtils::createQuestionMarkButton(this,
+        QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/time-lag-detect-correct/")),
+        0, Qt::AlignVCenter);
+    titleLayout->addStretch();
+
+    mainLayout->addLayout(titleLayout, 0, 0);
     mainLayout->addWidget(hrLabel, 1, 0);
     mainLayout->addWidget(propertiesFrame, 2, 0);
     mainLayout->addWidget(okButton, 3, 0, 1, 1, Qt::AlignCenter);

@@ -27,6 +27,7 @@
 #include "dlproject.h"
 #include "ecproject.h"
 #include "variable_desc.h"
+#include "widget_utils.h"
 
 namespace
 {
@@ -257,6 +258,9 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject,
     restoreButton->setToolTip(tr("<b>Restore Default Values:</b> Resets CEC limits to the defaults used by Zahn et al. (2022)."));
 
     auto closeButtons = new QDialogButtonBox(QDialogButtonBox::Close, this);
+    closeButtons->addButton(WidgetUtils::createQuestionMarkButton(this,
+        QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/cec-settings/")),
+        QDialogButtonBox::HelpRole);
 
     auto buttonLayout = new QHBoxLayout;
     buttonLayout->addWidget(restoreButton);

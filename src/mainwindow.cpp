@@ -112,6 +112,7 @@ MainWindow::MainWindow(const QString& filename,
     runAdvancedAvailable_(false),
     newClicked_(false),
     previousPage_(Defs::CurrPage::Welcome),
+    lastEasterEggVariant_(-1),
     currentPage_(Defs::CurrPage::Welcome),
     currentStatus_(Defs::CurrStatus::Ready),
     currentRunStatus_(Defs::CurrRunStatus::Express),
@@ -1512,11 +1513,6 @@ void MainWindow::createActions()
     helpAction->setIcon(QIcon(QStringLiteral(":/icons/img/menu-help.png")));
     helpAction->setShortcut(QKeySequence(tr("Ctrl+F1")));
 
-    pdfHelpAction = new QAction(this);
-    pdfHelpAction->setText(tr("Instruction Manual (PDF)"));
-    pdfHelpAction->setIcon(QIcon(QStringLiteral(":/icons/img/menu-help.png")));
-    pdfHelpAction->setShortcut(tr("Ctrl+M"));
-
     starterPdfHelpAction = new QAction(this);
     starterPdfHelpAction->setText(tr("Getting Started"));
     starterPdfHelpAction->setIcon(QIcon(QStringLiteral(":/icons/img/menu-help.png")));
@@ -1527,9 +1523,6 @@ void MainWindow::createActions()
 
     appWebpageAction = new QAction(this);
     appWebpageAction->setText(tr("EddyFlow Web Page"));
-
-    forumWebpageAction = new QAction(this);
-    forumWebpageAction->setText(tr("EddyFlow Forum"));
 
     checkUpdateAction = new QAction(this);
     checkUpdateAction->setText(tr("Check for Updates..."));
@@ -1614,16 +1607,12 @@ void MainWindow::connectActions()
     // Help actions
     connect(helpAction, &QAction::triggered,
             this, &MainWindow::showHelp);
-    connect(pdfHelpAction, &QAction::triggered,
-            this, &MainWindow::showPdfHelp);
     connect(starterPdfHelpAction, &QAction::triggered,
             this, &MainWindow::showStarterPdfHelp);
     connect(toggleOfflineHelpAct, &QAction::triggered,
             this, &MainWindow::setOfflineHelp);
     connect(appWebpageAction, &QAction::triggered,
             this, &WidgetUtils::openAppWebsite);
-    connect(forumWebpageAction, &QAction::triggered,
-            this, &WidgetUtils::openForumWebsite);
     connect(checkUpdateAction, &QAction::triggered,
             this, &MainWindow::showUpdateDialog);
     connect(aboutAction, &QAction::triggered,
@@ -1681,12 +1670,10 @@ void MainWindow::createMenus()
 
     helpMenu = menuBar()->addMenu(tr("&Help"));
     helpMenu->addAction(helpAction);
-    helpMenu->addAction(pdfHelpAction);
     helpMenu->addAction(starterPdfHelpAction);
     helpMenu->addAction(toggleOfflineHelpAct);
     helpMenu->addSeparator();
     helpMenu->addAction(appWebpageAction);
-    helpMenu->addAction(forumWebpageAction);
     helpMenu->addAction(checkUpdateAction);
     helpMenu->addSeparator();
     helpMenu->addAction(aboutAction);
@@ -1891,8 +1878,6 @@ void MainWindow::readSettings()
     settings.beginGroup(Defs::CONFGROUP_GENERAL);
         configState_.general.showsplash =
             settings.value(Defs::CONF_GEN_SHOW_SPLASH, configState_.general.showsplash).toBool();
-        configState_.general.recentnum =
-            settings.value(Defs::CONF_GEN_RECENTNUM, configState_.general.recentnum).toInt();
         configState_.general.loadlastproject =
             settings.value(Defs::CONF_GEN_LOADLAST, configState_.general.loadlastproject).toBool();
         configState_.general.parallelPrepass =
@@ -1940,7 +1925,6 @@ void MainWindow::writeSettings()
     // write general state
     settings.beginGroup(Defs::CONFGROUP_GENERAL);
         settings.setValue(Defs::CONF_GEN_RECENTFILES, configState_.general.recentfiles);
-        settings.setValue(Defs::CONF_GEN_RECENTNUM, configState_.general.recentnum);
         settings.setValue(Defs::CONF_GEN_LOADLAST, configState_.general.loadlastproject);
         settings.setValue(Defs::CONF_GEN_PARALLEL_PREPASS, configState_.general.parallelPrepass);
     settings.endGroup();
@@ -2044,17 +2028,12 @@ void MainWindow::viewInfoOutput(bool on)
 
 void MainWindow::showHelp()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://github.com/kebasaa/eddyflow-documentation"), QUrl::StrictMode));
-}
-
-void MainWindow::showPdfHelp()
-{
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://boxenterprise.net/s/1ium2zmwm6hl36yz9bu4"), QUrl::StrictMode));
+    WidgetUtils::showHelp(QUrl(Defs::EP_DOCUMENTATION, QUrl::StrictMode));
 }
 
 void MainWindow::showStarterPdfHelp()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://github.com/kebasaa/eddyflow-documentation"), QUrl::StrictMode));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/tutorials/"), QUrl::StrictMode));
 }
 
 void MainWindow::setOfflineHelp(bool yes)
@@ -2341,8 +2320,13 @@ void MainWindow::unlockEasterEgg()
     if (viewEasterEggAction->isVisible())
         return;
 
-    auto variant = static_cast<EasterEggPage::Variant>(
-        QRandomGenerator::global()->bounded(static_cast<int>(EasterEggPage::Variant::Count)));
+    // never the same variant twice in a row
+    const int count = static_cast<int>(EasterEggPage::Variant::Count);
+    int v = QRandomGenerator::global()->bounded(lastEasterEggVariant_ < 0 ? count : count - 1);
+    if (lastEasterEggVariant_ >= 0 && v >= lastEasterEggVariant_)
+        ++v;
+    lastEasterEggVariant_ = v;
+    auto variant = static_cast<EasterEggPage::Variant>(v);
     mainWidget_->easterEggPage()->setVariant(variant);
     viewEasterEggAction->setText(EasterEggPage::tabText(variant));
     viewEasterEggAction->setIcon(EasterEggPage::tabIcon(variant));
@@ -4289,19 +4273,9 @@ void MainWindow::stopEngineProcess()
 
 void MainWindow::cleanEnvTmpDir()
 {
-    // As EddyPro does after a Stop: the whole env tmp folder, wiped and made
-    // again. Process::processStop has waited for every process of the run to
-    // exit, but Windows can still hold a file it was writing for a moment
-    // longer - a virus scanner too - so the wipe is tried again for up to three
-    // seconds while anything is left.
-    const QString tmpDir = appEnvPath_ + QLatin1Char('/') + Defs::TMP_FILE_DIR;
-    QElapsedTimer clock;
-    clock.start();
-    for (;;) {
-        FileUtils::cleanDirRecursively(tmpDir);
-        if (QDir(tmpDir).isEmpty() || clock.elapsed() > 3000) break;
-        QThread::msleep(100);
-    }
+    // After a Stop, as EddyPro does - but only what no running engine owns;
+    // see FileUtils::cleanTmpDirOfFinishedRuns.
+    FileUtils::cleanTmpDirOfFinishedRuns(appEnvPath_ + QLatin1Char('/') + Defs::TMP_FILE_DIR);
 }
 
 void MainWindow::resetRunIcons()
@@ -4376,6 +4350,8 @@ void MainWindow::displayExitDialog()
     updateConsoleReceived();
     setCurrentStatus(Defs::CurrStatus::Ready);
     setCurrentRunStatus(Defs::CurrRunStatus::Express);
+    mainWidget_->runPage()->engineExited(
+        engineProcess_->processExit() == Process::ExitStatus::Success);
     mainWidget_->runPage()->stopRun();
 
     if (!neededEngineStep2_)
@@ -4639,7 +4615,7 @@ void MainWindow::displayExitMsg2(Process::ExitStatus exitReason)
 
 void MainWindow::onlineHelpTrigger_1()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Error_Codes.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/error-codes/")));
 }
 
 // qt5
@@ -4756,8 +4732,6 @@ void MainWindow::minimizeGui()
 
     mainWidget_->welcomePage()->updateWelcomePage(true);
     mainWidget_->runPage()->updateRunPage(true);
-
-    configState_.general.recentnum = 2;
 }
 
 void MainWindow::maximizeGui()
@@ -4770,8 +4744,6 @@ void MainWindow::maximizeGui()
     mainWidget_->runPage()->updateRunPage(false);
 
     updateMenuActionStatus(currentPage());
-
-    configState_.general.recentnum = 4;
 }
 
 void MainWindow::updateSpectraPaths()

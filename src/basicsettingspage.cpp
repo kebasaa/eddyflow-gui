@@ -5150,13 +5150,11 @@ void BasicSettingsPage::onClickTsRefLabel()
 
 void BasicSettingsPage::createQuestionMark()
 {
-    questionMark_1 = new QPushButton;
     questionMark_2 = new QPushButton;
     questionMark_3 = new QPushButton;
     questionMark_4 = new QPushButton;
 
-    auto btn_list = QWidgetList() << questionMark_1
-                                  << questionMark_2
+    auto btn_list = QWidgetList() << questionMark_2
                                   << questionMark_3
                                   << questionMark_4;
     for (auto btn : btn_list)
@@ -5167,8 +5165,6 @@ void BasicSettingsPage::createQuestionMark()
         static_cast<QPushButton*>(btn)->setIconSize(QSize(12, 12));
     }
 
-    connect(questionMark_1, &QPushButton::clicked,
-            this, &BasicSettingsPage::onlineHelpTrigger_2);
     connect(questionMark_2, &QPushButton::clicked,
             this, &BasicSettingsPage::onlineHelpTrigger_3);
     connect(questionMark_3, &QPushButton::clicked,
@@ -5177,24 +5173,19 @@ void BasicSettingsPage::createQuestionMark()
             this, &BasicSettingsPage::onlineHelpTrigger_5);
 }
 
-void BasicSettingsPage::onlineHelpTrigger_2()
-{
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/support/EddyFlow/topics/using-prev-results.html")));
-}
-
 void BasicSettingsPage::onlineHelpTrigger_3()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/support/EddyFlow/topics/flags.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/flags/")));
 }
 
 void BasicSettingsPage::onlineHelpTrigger_4()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/support/EddyFlow/topics/raw-file-name-format.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/raw-file-name-format/")));
 }
 
 void BasicSettingsPage::onlineHelpTrigger_5()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/support/EddyFlow/topics/declination.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/declination/")));
 }
 
 void BasicSettingsPage::updateCrossWind(bool b)

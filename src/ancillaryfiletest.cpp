@@ -45,7 +45,7 @@
 #include "container_helpers.h"
 #include "widget_utils.h"
 
-const auto helpPage = QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Assessment_Tests.html");
+const auto helpPage = QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/assessment-tests/");
 
 namespace {
 

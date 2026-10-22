@@ -39,6 +39,8 @@
 #include <QTreeWidget>
 #include <QVBoxLayout>
 
+#include "widget_utils.h"
+
 // ---------------------------------------------------------------------------
 // RemoteLinkDialog
 // ---------------------------------------------------------------------------
@@ -63,6 +65,9 @@ RemoteLinkDialog::RemoteLinkDialog(const QString& initial, QWidget* parent) :
 
     auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     buttons->button(QDialogButtonBox::Ok)->setText(tr("Open"));
+    buttons->addButton(WidgetUtils::createQuestionMarkButton(this,
+        QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/remote-folders/")),
+        QDialogButtonBox::HelpRole);
     connect(buttons, &QDialogButtonBox::accepted, this, &RemoteLinkDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &RemoteLinkDialog::reject);
 
@@ -152,6 +157,9 @@ RemoteBrowseDialog::RemoteBrowseDialog(Mode mode, const QString& title,
 
     auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     okButton_ = buttons->button(QDialogButtonBox::Ok);
+    buttons->addButton(WidgetUtils::createQuestionMarkButton(this,
+        QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/remote-folders/")),
+        QDialogButtonBox::HelpRole);
     okButton_->setText(mode_ == Mode::Directory ? tr("Select Folder") : tr("Open"));
 
     auto bottom = new QHBoxLayout;

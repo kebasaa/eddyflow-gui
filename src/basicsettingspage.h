@@ -222,7 +222,6 @@ private:
     //> second exit from SmartFlux mode handed back the first entry's values.
     QHash<QWidget*, bool> oldEnabled {};
 
-    QPushButton* questionMark_1;
     QPushButton* questionMark_2;
     QPushButton* questionMark_3;
     QPushButton* questionMark_4;
@@ -603,7 +602,6 @@ private slots:
     void updateFlag9Policy(int n);
     void updateFlag10Policy(int n);
 
-    void onlineHelpTrigger_2();
     void onlineHelpTrigger_3();
     void onlineHelpTrigger_4();
     void onlineHelpTrigger_5();

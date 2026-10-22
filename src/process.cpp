@@ -36,6 +36,7 @@
 #include <windows.h>
 #include <tlhelp32.h>
 #elif defined(Q_OS_UNIX)
+#include <cerrno>
 #include <signal.h>
 #include <unistd.h>
 #endif
@@ -276,6 +277,31 @@ bool Process::zipContainsFiletype(const QString& fileName, const QString& filePa
 
     QByteArray dataList = process_->readAllStandardOutput();
     return dataList.contains(filePattern.mid(1).toLatin1());
+}
+
+bool Process::isEngineProcessRunning(qint64 pid)
+{
+    if (pid <= 0) return false;
+#if defined(Q_OS_WIN)
+    HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE,
+                           static_cast<DWORD>(pid));
+    if (!h) return false;
+    DWORD code = 0;
+    bool running = GetExitCodeProcess(h, &code) && code == STILL_ACTIVE;
+    if (running) {
+        wchar_t image[MAX_PATH];
+        DWORD size = MAX_PATH;
+        if (QueryFullProcessImageNameW(h, 0, image, &size)) {
+            const QString name = QFileInfo(QString::fromWCharArray(image, static_cast<int>(size)))
+                                     .fileName();
+            running = name.contains(QStringLiteral("eddyflow"), Qt::CaseInsensitive);
+        }
+    }
+    CloseHandle(h);
+    return running;
+#else
+    return ::kill(static_cast<pid_t>(pid), 0) == 0 || errno == EPERM;
+#endif
 }
 
 #if defined(Q_OS_WIN)

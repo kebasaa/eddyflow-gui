@@ -55,7 +55,6 @@ private slots:
     void modelModified();
     void showRawSettingsDialog();
     void clearInstrModels();
-    void onlineHelpTrigger_1();
 
 private:
     VariableModel* variableModel_;

@@ -66,6 +66,7 @@ class PlanarFitSettingsDialog;
 class PwbTimelagSettingsDialog;
 class RichTextCheckBox;
 class TimeLagSettingsDialog;
+class TimelagPreassessDialog;
 
 /// \class AdvlProcessingOptions
 /// \brief Class representing the 'Settings' tab in the 'RawProcess' page
@@ -155,6 +156,7 @@ private slots:
 
     void showPfSettingsDialog();
     void showTlSettingsDialog();
+    void showTlPreassessDialog();
     void showCecSettingsDialog();
 
     void updateTooltip(int i);
@@ -206,6 +208,7 @@ private:
     ClickLabel* timeLagMethodLabel;
     QComboBox* timeLagMethodCombo;
     QPushButton* tlSettingsButton;
+    QPushButton* tlPreassessButton;
     RichTextCheckBox* qcCheckBox;
     ClickLabel* qcLabel;
     QComboBox* qcMethodCombo;
@@ -334,6 +337,7 @@ private:
     PlanarFitSettingsDialog* pfDialog_{};
     TimeLagSettingsDialog* tlDialog_{};
     PwbTimelagSettingsDialog* pwbTlDialog_{};
+    TimelagPreassessDialog* tlPreassessDialog_{};
     CecSettingsDialog* cecDialog_{};
 
     DetrendMethod previousDetrendMethod_{DetrendMethod::BlockAverage};

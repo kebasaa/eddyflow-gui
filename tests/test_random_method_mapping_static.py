@@ -32,6 +32,7 @@ ROWS = {
     0: (1, "Finkelstein"),
     1: (2, "Mann"),
     2: (4, "Billesbach"),
+    4: (6, "Langford"),
 }
 
 
@@ -106,6 +107,7 @@ class TheValuesMatchTheEngine(unittest.TestCase):
             1: "finkelstein_sims_01",
             2: "mann_lenschow_94",
             4: "billesbach_11",
+            6: "langford_15",
         }
         for value, meth in expected.items():
             self.assertRegex(

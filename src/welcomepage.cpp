@@ -153,7 +153,7 @@ WelcomePage::WelcomePage(QWidget *parent, EcProject *ecProject, ConfigState* con
     auto item_1 = new QListWidgetItem(tr("%1 Help").arg(Defs::APP_NAME));
     item_1->setData(Qt::UserRole, Defs::EP_DOCUMENTATION);
     auto item_2 = new QListWidgetItem(tr("Getting started"));
-    item_2->setData(Qt::UserRole, QStringLiteral("https://github.com/kebasaa/eddyflow-documentation"));
+    item_2->setData(Qt::UserRole, QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/tutorials/"));
     auto item_3 = new QListWidgetItem(tr("Download sample data files"));
     item_3->setData(Qt::UserRole, Defs::EP_SAMPLE_DATA_FILES);
 
@@ -382,6 +382,6 @@ void WelcomePage::createQuestionMark()
 
 void WelcomePage::onlineHelpTrigger_1()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/smartfluxSettings.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/smartflux-settings/")));
 }
 

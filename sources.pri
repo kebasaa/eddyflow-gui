@@ -18,6 +18,7 @@ HEADERS += \
     src/cecsettingsdialog.h \
     src/clicklabel.h \
     src/detlimsettingsdialog.h \
+    src/langfordsettingsdialog.h \
     src/configstate.h \
     src/customcombomodel.h \
     src/customheader.h \
@@ -61,11 +62,17 @@ HEADERS += \
     src/nonzerodoublespinbox.h \
     src/planarfitsettingsdialog.h \
     src/pwbtimelagsettingsdialog.h \
+    src/engineprogress.h \
+    src/lagstats.h \
+    src/laghistogramwidget.h \
+    src/logpercentslider.h \
+    src/timelagpreassessdialog.h \
     src/process.h \
     src/proxystyle.h \
     src/QProgressIndicator.h \
     src/rawfilenamedialog.h \
     src/rawfilesettingsdialog.h \
+    src/runeta.h \
     src/runpage.h \
     src/splitter.h \
     src/splitterhandle.h \
@@ -142,6 +149,7 @@ SOURCES +=  \
     src/cecsettingsdialog.cpp \
     src/clicklabel.cpp \
     src/detlimsettingsdialog.cpp \
+    src/langfordsettingsdialog.cpp \
     src/customcombomodel.cpp \
     src/customheader.cpp \
     src/customsplashscreen.cpp \
@@ -176,12 +184,17 @@ SOURCES +=  \
     src/nonzerodoublespinbox.cpp \
     src/planarfitsettingsdialog.cpp \
     src/pwbtimelagsettingsdialog.cpp \
+    src/lagstats.cpp \
+    src/laghistogramwidget.cpp \
+    src/logpercentslider.cpp \
+    src/timelagpreassessdialog.cpp \
     src/basicsettingspage.cpp \
     src/process.cpp \
     src/proxystyle.cpp \
     src/QProgressIndicator.cpp \
     src/rawfilenamedialog.cpp \
     src/rawfilesettingsdialog.cpp \
+    src/runeta.cpp \
     src/runpage.cpp \
     src/splitter.cpp \
     src/splitterhandle.cpp \

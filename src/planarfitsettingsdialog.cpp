@@ -28,6 +28,7 @@
 #include <QDoubleSpinBox>
 #include <QFileDialog>
 #include <QGridLayout>
+#include <QHBoxLayout>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDateEdit>
@@ -267,7 +268,14 @@ PlanarFitSettingsDialog::PlanarFitSettingsDialog(QWidget* parent, EcProject *ecP
     propScrollArea->setMaximumHeight(propertiesFrame->sizeHint().height());
 
     auto mainLayout = new QGridLayout(this);
-    mainLayout->addWidget(groupTitle, 0, 0);
+    auto titleLayout = new QHBoxLayout;
+    titleLayout->addWidget(groupTitle);
+    titleLayout->addWidget(WidgetUtils::createQuestionMarkButton(this,
+        QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/planar-fit/")),
+        0, Qt::AlignVCenter);
+    titleLayout->addStretch();
+
+    mainLayout->addLayout(titleLayout, 0, 0);
     mainLayout->addWidget(hrLabel_1, 1, 0);
     mainLayout->addWidget(propScrollArea, 3, 0);
     mainLayout->addWidget(hrLabel_2, 4, 0);

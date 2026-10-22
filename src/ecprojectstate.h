@@ -376,6 +376,13 @@ struct ScreenSettingState
     int detlim_meth = 0;
     qreal detlim_offset_s = 100.0;
     qreal detlim_window_s = 50.0;
+    //> Limit of detection after Langford et al. (2015), shared by ru_meth 6
+    //> and detlim_meth 2: +/-150-180 s, RMSE, and a multiple of ten for the
+    //> automatic window. The engine's defaults - see
+    //> tests/test_langford_lod_static.py.
+    int lod_window = 0;
+    int lod_stat = 0;
+    qreal lod_its_mult = 10.0;
     //> Closed-path spectroscopic correction, Peltola et al. (2014). Off, and
     //> the water channel off within that: correcting a hygrometer against its
     //> own reading is not part of the published result.
@@ -581,6 +588,11 @@ struct RandomErrorState
     int its_method = 1;
     qreal its_tlag_max = 10.0;
     qreal its_sec_factor = 20.0;
+    //> LoD = alpha * RE, Langford et al. (2015); 1.96 is the 95 % level.
+    qreal lod_alpha = 1.96;
+    //> Spectrally correct the reported random errors (and the Langford LoD).
+    //> Off by default, as in the engine and in EddyPro.
+    int spec_corr = 0;
 };
 
 struct BiometState

@@ -36,6 +36,7 @@
 #include <QDesktopServices>
 #include <QFileInfo>
 #include <QFontMetrics>
+#include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMouseEvent>
@@ -262,11 +263,6 @@ void WidgetUtils::appendHrToTextEdit(QTextEdit* te)
 void WidgetUtils::openAppWebsite()
 {
     QDesktopServices::openUrl(QUrl(Defs::APP_URL));
-}
-
-void WidgetUtils::openForumWebsite()
-{
-    QDesktopServices::openUrl(QUrl(Defs::APP_FORUM_URL));
 }
 
 bool WidgetUtils::okToOverwrite(QWidget* parent, const QString& filename)
@@ -497,6 +493,63 @@ bool WidgetUtils::yesNoQuestion(QWidget* parent,
     return (messageBox->clickedButton() == yesButton);
 }
 
+QUrl WidgetUtils::localHelpUrl(const QUrl& url)
+{
+    const auto site = QUrl(Defs::EP_DOCUMENTATION);
+
+    if (url.host() != site.host())
+    {
+        return {};
+    }
+
+    auto root = site.path();
+    while (root.endsWith(QLatin1Char('/')))
+    {
+        root.chop(1);
+    }
+
+    auto page = url.path();
+    if (!page.startsWith(root))
+    {
+        return {};
+    }
+    page = page.mid(root.size());
+
+    while (page.startsWith(QLatin1Char('/')))
+    {
+        page.remove(0, 1);
+    }
+    while (page.endsWith(QLatin1Char('/')))
+    {
+        page.chop(1);
+    }
+
+    // the bundle is built with --no-directory-urls, so topics/<name>/ is the
+    // file topics/<name>.html and the site root is index.html
+    if (page.isEmpty())
+    {
+        page = QStringLiteral("index");
+    }
+
+    const auto filePath = qApp->applicationDirPath()
+            + QLatin1Char('/') + Defs::DOC_DIR
+            + QStringLiteral("/help/") + page + QStringLiteral(".html");
+
+    if (!QFileInfo::exists(filePath))
+    {
+        return {};
+    }
+
+    auto localUrl = QUrl::fromLocalFile(filePath);
+
+    if (url.hasFragment())
+    {
+        localUrl.setFragment(url.fragment());
+    }
+
+    return localUrl;
+}
+
 void WidgetUtils::showHelp(const QUrl& url)
 {
     // read state
@@ -507,63 +560,29 @@ void WidgetUtils::showHelp(const QUrl& url)
                 Defs::CONFGROUP_WINDOW,
                 Defs::CONF_WIN_OFFLINEHELP, false).toBool();
 
-    if (autoChooseHelp)
-    {
-        if (!offlineHelp)
-        {
-            // browse online help version
-            qDebug() << "online" << url << QDesktopServices::openUrl(url);
-        }
-        else
-        {
-            // open local help
-            auto htmlHelpPath = qApp->applicationDirPath();
-            auto localUrlString = QString();
-
-            if (url.toString().contains(QStringLiteral("EddyFlow_Home")))
-            {
-                 htmlHelpPath = htmlHelpPath + QStringLiteral("/docs/help/topics_EddyFlow/EddyFlow_Home.html");
-            }
-            else if (url.toString().contains(QStringLiteral("qmhucid6g0hdvd3d13tk")))
-            {
-                 htmlHelpPath = htmlHelpPath + QStringLiteral("/docs/EddyFlow_QuickStart_12756.pdf");
-            }
-            else if (url.toString().contains(QStringLiteral("1ium2zmwm6hl36yz9bu4")))
-            {
-                 htmlHelpPath = htmlHelpPath + QStringLiteral("/docs/EddyFlow_Manual_12025.pdf");
-            }
-            else if (url.toString().contains(QStringLiteral("Video_Library")))
-            {
-                 htmlHelpPath = htmlHelpPath + QStringLiteral("/docs/help/topics_EddyFlow/Video_Library.html");
-            }
-            else
-            {
-                localUrlString = url.toString(QUrl::RemoveAuthority
-                    | QUrl::RemoveScheme).remove(QStringLiteral("/env")).remove(QStringLiteral("/EddyFlow"));
-                htmlHelpPath = htmlHelpPath + QStringLiteral("/docs") + localUrlString;
-            }
-
-            auto localUrl = QUrl();
-
-            if (htmlHelpPath.contains(QStringLiteral("#")))
-            {
-                auto localUrlHost = htmlHelpPath.section(QLatin1Char('#'), 0, 0);
-                auto localUrlFragment = htmlHelpPath.section(QLatin1Char('#'), 1, 1);
-                localUrl = QUrl::fromLocalFile(localUrlHost);
-                localUrl.setFragment(localUrlFragment);
-            }
-            else
-            {
-                localUrl = QUrl::fromLocalFile(htmlHelpPath);
-            }
-            QDesktopServices::openUrl(localUrl);
-        }
-    }
-    else
+    if (!autoChooseHelp)
     {
         DocChooserDialog docChooser(url);
         docChooser.exec();
+        return;
     }
+
+    if (offlineHelp)
+    {
+        // a page the bundle does not carry - an older bundle, a topic added
+        // since it was generated - is still worth reading, so fall back online
+        const auto localUrl = localHelpUrl(url);
+
+        if (localUrl.isValid())
+        {
+            const auto opened = QDesktopServices::openUrl(localUrl);
+            qDebug() << "local" << localUrl << opened;
+            return;
+        }
+    }
+
+    const auto opened = QDesktopServices::openUrl(url);
+    qDebug() << "online" << url << opened;
 }
 
 void WidgetUtils::setProgressValue(QProgressBar* bar, int value)
@@ -668,6 +687,21 @@ QPushButton *WidgetUtils::createCommonButton(QWidget* parent, const QString& tex
     button->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
     button->setDefault(true);
     button->setProperty("commonButton", true);
+    return button;
+}
+QPushButton* WidgetUtils::createQuestionMarkButton(QWidget* parent,
+                                                   const QString& url)
+{
+    auto button = new QPushButton(parent);
+    button->setObjectName(QStringLiteral("questionMarkImg"));
+    button->setFlat(true);
+    button->setIcon(QIcon(QStringLiteral(":/icons/qm-enabled")));
+    button->setIconSize(QSize(12, 12));
+
+    const auto target = QUrl(url);
+    QObject::connect(button, &QPushButton::clicked,
+                     button, [target]() { showHelp(target); });
+
     return button;
 }
 

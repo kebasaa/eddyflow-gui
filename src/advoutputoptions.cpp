@@ -2342,42 +2342,32 @@ void AdvOutputOptions::createQuestionMark()
 
 void AdvOutputOptions::onlineHelpTrigger_1()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Output_Files_Overview.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/output-files-overview/")));
 }
 
 void AdvOutputOptions::onlineHelpTrigger_2()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Output_Files.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/output-files/")));
 }
 
 void AdvOutputOptions::onlineHelpTrigger_4()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Output_Files_Full_Output.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/output-files-full-output/")));
 }
 
 void AdvOutputOptions::onlineHelpTrigger_5()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Calculating_Spectra_Cospectra_and_Ogives.html")));
-}
-
-void AdvOutputOptions::onlineHelpTrigger_6()
-{
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://")));
-}
-
-void AdvOutputOptions::onlineHelpTrigger_7()
-{
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/calculate-spectra-cospectra-and-ogives/")));
 }
 
 void AdvOutputOptions::onlineHelpTrigger_8()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Output_Files_The_Stats_Folder.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/output-files-stats-folder/")));
 }
 
 void AdvOutputOptions::onlineHelpTrigger_9()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Output_Files.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/output-files/")));
 }
 
 void AdvOutputOptions::onClickerrorFormatLabel()

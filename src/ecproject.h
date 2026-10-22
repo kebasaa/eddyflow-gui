@@ -69,6 +69,9 @@ public:
 
     // save the current project
     bool saveEcProject(const QString &filename);
+    //> A copy of the project as it stands, for a run that must not touch the
+    //> user's file. Leaves the modified flag as it was and signals nothing.
+    bool saveEcProjectCopy(const QString &filename);
 
     // load a project
     bool loadEcProject(const QString &filename, bool checkVersion = true, bool *modified = nullptr);
@@ -262,6 +265,9 @@ public:
     void setScreenHeadCorrDir(const QString& s);
     void setScreenDetlimOffset(double d);
     void setScreenDetlimWindow(double d);
+    void setScreenLodWindow(int n);
+    void setScreenLodStat(int n);
+    void setScreenLodItsMult(double d);
     void setScreenFlowDistortion(int n);
     void setScreenCrossWind(int n);
     void setScreenRotMethod(int n);
@@ -550,6 +556,8 @@ public:
     void setRandomErrorItsMethod(int n);
     void setRandomErrorItsTlagMax(double d);
     void setRandomErrorItsSecFactor(double d);
+    void setRandomErrorLodAlpha(double d);
+    void setRandomErrorSpecCorr(int n);
 
     void setBiomParamColAirT(int n);
     void setBiomParamColAirP(int n);
@@ -749,6 +757,9 @@ public:
     const QString& screenHeadCorrDir() const { return ec_project_state_.screenSetting.head_corr_dir; }
     double screenDetlimOffset() const { return ec_project_state_.screenSetting.detlim_offset_s; }
     double screenDetlimWindow() const { return ec_project_state_.screenSetting.detlim_window_s; }
+    int screenLodWindow() const { return ec_project_state_.screenSetting.lod_window; }
+    int screenLodStat() const { return ec_project_state_.screenSetting.lod_stat; }
+    double screenLodItsMult() const { return ec_project_state_.screenSetting.lod_its_mult; }
     int screenFlowDistortion() const { return ec_project_state_.screenSetting.flow_distortion; }
     int screenCrossWind() const { return ec_project_state_.screenSetting.cross_wind; }
     int screenRotMethod() const { return ec_project_state_.screenSetting.rot_meth; }
@@ -1036,6 +1047,8 @@ public:
     int randErrorItsMehod() const { return ec_project_state_.randomError.its_method; }
     double randErrorTlagMax() const { return ec_project_state_.randomError.its_tlag_max; }
     double randErrorSecFactor() const { return ec_project_state_.randomError.its_sec_factor; }
+    double randErrorLodAlpha() const { return ec_project_state_.randomError.lod_alpha; }
+    int randErrorSpecCorr() const { return ec_project_state_.randomError.spec_corr; }
 
     int biomParamColAirT() const { return ec_project_state_.biomParam.col_ta; }
     int biomParamColAirP() const { return ec_project_state_.biomParam.col_pa; }

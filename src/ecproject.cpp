@@ -332,6 +332,14 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.detlim_meth == previousProject.ec_project_state_.screenSetting.detlim_meth);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.detlim_offset_s, previousProject.ec_project_state_.screenSetting.detlim_offset_s);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.detlim_window_s, previousProject.ec_project_state_.screenSetting.detlim_window_s);
+    //> The Langford settings change results whenever either use of them is on.
+    if (ec_project_state_.randomError.ru_method == 6 || ec_project_state_.screenSetting.detlim_meth == 2)
+    {
+        dataSetTest = dataSetTest && (ec_project_state_.screenSetting.lod_window == previousProject.ec_project_state_.screenSetting.lod_window);
+        dataSetTest = dataSetTest && (ec_project_state_.screenSetting.lod_stat == previousProject.ec_project_state_.screenSetting.lod_stat);
+        dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.lod_its_mult, previousProject.ec_project_state_.screenSetting.lod_its_mult);
+        dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.randomError.lod_alpha, previousProject.ec_project_state_.randomError.lod_alpha);
+    }
     //> The spectroscopic correction changes the raw series, so it invalidates
     //> a computed dataset more thoroughly than most settings on this page.
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.spectro_meth == previousProject.ec_project_state_.screenSetting.spectro_meth);
@@ -859,8 +867,16 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
 
     subTest = ec_project_state_.randomError.ru_method == previousProject.ec_project_state_.randomError.ru_method;
     advSettingsTest = advSettingsTest && subTest;
+    if (subTest && ec_project_state_.randomError.ru_method != 0)
+    {
+        advSettingsTest = advSettingsTest
+            && ec_project_state_.randomError.spec_corr == previousProject.ec_project_state_.randomError.spec_corr;
+    }
 
-    if (subTest && (ec_project_state_.randomError.ru_method == 1 || ec_project_state_.randomError.ru_method == 2))
+    //> Langford's automatic window measures the integral turbulence scale too.
+    if (subTest && (ec_project_state_.randomError.ru_method == 1 || ec_project_state_.randomError.ru_method == 2
+                    || ((ec_project_state_.randomError.ru_method == 6 || ec_project_state_.screenSetting.detlim_meth == 2)
+                        && ec_project_state_.screenSetting.lod_window == 2)))
     {
         advSettingsTest = advSettingsTest
             && ec_project_state_.randomError.its_method == previousProject.ec_project_state_.randomError.its_method
@@ -1030,6 +1046,9 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenSetting.detlim_meth = defaultEcProjectState.screenSetting.detlim_meth;
     ec_project_state_.screenSetting.detlim_offset_s = defaultEcProjectState.screenSetting.detlim_offset_s;
     ec_project_state_.screenSetting.detlim_window_s = defaultEcProjectState.screenSetting.detlim_window_s;
+    ec_project_state_.screenSetting.lod_window = defaultEcProjectState.screenSetting.lod_window;
+    ec_project_state_.screenSetting.lod_stat = defaultEcProjectState.screenSetting.lod_stat;
+    ec_project_state_.screenSetting.lod_its_mult = defaultEcProjectState.screenSetting.lod_its_mult;
     ec_project_state_.screenSetting.spectro_meth = defaultEcProjectState.screenSetting.spectro_meth;
     ec_project_state_.screenSetting.spectro_water = defaultEcProjectState.screenSetting.spectro_water;
     ec_project_state_.screenSetting.covmax_debaseline = defaultEcProjectState.screenSetting.covmax_debaseline;
@@ -1308,6 +1327,8 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.randomError.its_method = defaultEcProjectState.randomError.its_method;
     ec_project_state_.randomError.its_tlag_max = defaultEcProjectState.randomError.its_tlag_max;
     ec_project_state_.randomError.its_sec_factor = defaultEcProjectState.randomError.its_sec_factor;
+    ec_project_state_.randomError.lod_alpha = defaultEcProjectState.randomError.lod_alpha;
+    ec_project_state_.randomError.spec_corr = defaultEcProjectState.randomError.spec_corr;
 
     ec_project_state_.biomParam.native_header = defaultEcProjectState.biomParam.native_header;
     ec_project_state_.biomParam.hlines = defaultEcProjectState.biomParam.hlines;
@@ -1589,6 +1610,14 @@ bool EcProject::readMeasurementRecords(IniFile& project_ini)
 
     MeasurementRecords::validateReferences(g.gasColumns, g.cellColumns);
     return true;
+}
+
+bool EcProject::saveEcProjectCopy(const QString &filename)
+{
+    const bool wasModified = modified_;
+    const bool ok = saveEcProject(filename);
+    modified_ = wasModified;
+    return ok;
 }
 
 bool EcProject::saveEcProject(const QString &filename)
@@ -1890,6 +1919,9 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_102, ec_project_state_.screenSetting.detlim_meth);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_103, ec_project_state_.screenSetting.detlim_offset_s);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_104, ec_project_state_.screenSetting.detlim_window_s);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_121, ec_project_state_.screenSetting.lod_window);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_122, ec_project_state_.screenSetting.lod_stat);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_123, ec_project_state_.screenSetting.lod_its_mult);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_105, ec_project_state_.screenSetting.spectro_meth);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_106, ec_project_state_.screenSetting.spectro_water);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_107, ec_project_state_.screenSetting.covmax_debaseline);
@@ -2300,6 +2332,10 @@ bool EcProject::saveEcProject(const QString &filename)
                              ec_project_state_.randomError.its_method);
         project_ini.setValue(EcIni::INI_RAND_ERROR_2,
                              QString::number(ec_project_state_.randomError.its_tlag_max, 'f', 1));
+        project_ini.setValue(EcIni::INI_RAND_ERROR_4,
+                             QString::number(ec_project_state_.randomError.lod_alpha, 'f', 2));
+        project_ini.setValue(EcIni::INI_RAND_ERROR_5,
+                             ec_project_state_.randomError.spec_corr);
 
         // NOTE: temporarly disabled
 //        project_ini.setValue(EcIni::INI_RAND_ERROR_3,
@@ -3301,6 +3337,28 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
                     ? detlimWindow
                     : defaultEcProjectState.screenSetting.detlim_window_s;
         }
+        //> Langford limit of detection. Sanitised to the engine's defaults the
+        //> way the engine reads them: a window or statistic it does not know,
+        //> or a non-positive multiple, is the default.
+        {
+            const int lodWindow
+                    = project_ini.value(EcIni::INI_SCREEN_SETTINGS_121,
+                                        defaultEcProjectState.screenSetting.lod_window).toInt();
+            ec_project_state_.screenSetting.lod_window = (lodWindow >= 0 && lodWindow <= 2)
+                    ? lodWindow
+                    : defaultEcProjectState.screenSetting.lod_window;
+            const int lodStat
+                    = project_ini.value(EcIni::INI_SCREEN_SETTINGS_122,
+                                        defaultEcProjectState.screenSetting.lod_stat).toInt();
+            ec_project_state_.screenSetting.lod_stat = (lodStat == 1) ? 1 : 0;
+            bool multOk = false;
+            const double lodMult
+                    = project_ini.value(EcIni::INI_SCREEN_SETTINGS_123,
+                                        defaultEcProjectState.screenSetting.lod_its_mult).toDouble(&multOk);
+            ec_project_state_.screenSetting.lod_its_mult = (multOk && lodMult > 0.0)
+                    ? lodMult
+                    : defaultEcProjectState.screenSetting.lod_its_mult;
+        }
         ec_project_state_.screenSetting.spectro_meth
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_105,
                                     defaultEcProjectState.screenSetting.spectro_meth).toInt();
@@ -4208,6 +4266,21 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.randomError.its_tlag_max
                 = project_ini.value(EcIni::INI_RAND_ERROR_2,
                                     ec_project_state_.randomError.its_tlag_max).toDouble();
+        //> Sanitised as the engine does: a non-positive or unreadable alpha
+        //> falls back to 1.96.
+        {
+            bool alphaOk = false;
+            const double alpha
+                    = project_ini.value(EcIni::INI_RAND_ERROR_4,
+                                        defaultEcProjectState.randomError.lod_alpha).toDouble(&alphaOk);
+            ec_project_state_.randomError.lod_alpha = (alphaOk && alpha > 0.0)
+                    ? alpha
+                    : defaultEcProjectState.randomError.lod_alpha;
+        }
+        //> Off unless the file says 1, as the engine reads it.
+        ec_project_state_.randomError.spec_corr
+                = project_ini.value(EcIni::INI_RAND_ERROR_5,
+                                    defaultEcProjectState.randomError.spec_corr).toInt() == 1 ? 1 : 0;
 
         // NOTE: temporarly disabled
 //        ec_project_state_.randomError.its_sec_factor
@@ -5945,6 +6018,24 @@ void EcProject::setScreenDetlimOffset(double d)
 void EcProject::setScreenDetlimWindow(double d)
 {
     ec_project_state_.screenSetting.detlim_window_s = d;
+    setModified(true);
+}
+
+void EcProject::setScreenLodWindow(int n)
+{
+    ec_project_state_.screenSetting.lod_window = n;
+    setModified(true);
+}
+
+void EcProject::setScreenLodStat(int n)
+{
+    ec_project_state_.screenSetting.lod_stat = n;
+    setModified(true);
+}
+
+void EcProject::setScreenLodItsMult(double d)
+{
+    ec_project_state_.screenSetting.lod_its_mult = d;
     setModified(true);
 }
 
@@ -7877,6 +7968,18 @@ void EcProject::setRandomErrorItsTlagMax(double d)
 void EcProject::setRandomErrorItsSecFactor(double d)
 {
     ec_project_state_.randomError.its_sec_factor = d;
+    setModified(true);
+}
+
+void EcProject::setRandomErrorLodAlpha(double d)
+{
+    ec_project_state_.randomError.lod_alpha = d;
+    setModified(true);
+}
+
+void EcProject::setRandomErrorSpecCorr(int n)
+{
+    ec_project_state_.randomError.spec_corr = n;
     setModified(true);
 }
 

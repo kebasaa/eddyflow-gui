@@ -28,6 +28,7 @@
 #include <QColor>
 #include <QMessageBox>
 #include <QPair>
+#include <QUrl>
 
 class QCalendarWidget;
 class QAbstractSpinBox;
@@ -59,6 +60,8 @@ namespace WidgetUtils
 
     // buttons
     QPushButton* createCommonButton(QWidget *parent, const QString &text);
+    QPushButton* createQuestionMarkButton(QWidget* parent,
+                                          const QString& url);
 
     // dialog
     void removeFlagFromWidget(Qt::WindowFlags flag, QWidget* w);
@@ -88,8 +91,14 @@ namespace WidgetUtils
 
     // browser launcher
     void openAppWebsite();
-    void openForumWebsite();
     void showHelp(const QUrl& url);
+
+    ///
+    /// \brief localHelpUrl
+    /// The file under docs/help that serves url, or an invalid QUrl
+    /// when the offline bundle does not carry that page.
+    ///
+    QUrl localHelpUrl(const QUrl& url);
 
     ///
     /// \brief QuietWarnings

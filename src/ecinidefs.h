@@ -387,6 +387,16 @@ namespace EcIni
     //> screening-test flag, so grouping it with test_sr/test_rf there
     //> would misdescribe what it does.
     const auto INI_SCREEN_SETTINGS_120  = QStringLiteral("test_stor_clean");
+    //> Limit of detection after Langford et al. (2015), shared by the random
+    //> uncertainty method of that name (ru_meth 6) and the detection limit
+    //> (detlim_meth 2). RawProcess_Settings: only RP measures it. The window
+    //> (0 +/-150-180 s, Langford; 1 +/-160-180 s, Maier et al. 2022;
+    //> 2 automatic, after Spirig et al. 2005), the statistic (0 RMSE, 1 SD)
+    //> and the multiple of the integral turbulence scale the automatic window
+    //> starts at.
+    const auto INI_SCREEN_SETTINGS_121  = QStringLiteral("lod_window");
+    const auto INI_SCREEN_SETTINGS_122  = QStringLiteral("lod_stat");
+    const auto INI_SCREEN_SETTINGS_123  = QStringLiteral("lod_its_mult");
 
     const auto INIGROUP_SCREEN_TESTS = QStringLiteral("RawProcess_Tests");
     const auto INI_SCREEN_TESTS_0    = QStringLiteral("test_sr");
@@ -574,6 +584,13 @@ namespace EcIni
     const auto INI_RAND_ERROR_1    = QStringLiteral("ru_its_meth");
     const auto INI_RAND_ERROR_2    = QStringLiteral("ru_tlag_max");
     const auto INI_RAND_ERROR_3    = QStringLiteral("ru_its_sec_factor");
+    //> Coverage factor of the Langford et al. (2015) limit of detection,
+    //> LoD = alpha * RE. [Project], because FCC writes the LoD columns too.
+    const auto INI_RAND_ERROR_4    = QStringLiteral("lod_alpha");
+    //> Report each random error multiplied by its flux's spectral correction
+    //> factor, as Langford et al. (2015) recommend. Off unless 1, also for a
+    //> file without the key, in the engine as here: EddyPro does not do it.
+    const auto INI_RAND_ERROR_5    = QStringLiteral("ru_spec_corr");
 
     const auto INIGROUP_BIOMET = QStringLiteral("RawProcess_BiometMeasurements");
     const auto INI_BIOMET_0    = QStringLiteral("biom_use_native_header");

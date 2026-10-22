@@ -972,32 +972,32 @@ void ProjectPage::setSmartfluxUI()
 
 void ProjectPage::onlineHelpTrigger_2()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/support/EddyFlow/topics/ghg-file-format.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/ghg-file-format/")));
 }
 
 void ProjectPage::onlineHelpTrigger_3()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/support/EddyFlow/topics/dynamic-metadata.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/dynamic-metadata/")));
 }
 
 void ProjectPage::onlineHelpTrigger_4()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/support/EddyFlow/topics/metadata-file-use-alternative.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/metadata-file-use-alternative/")));
 }
 
 void ProjectPage::onlineHelpTrigger_5()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/support/EddyFlow/topics/tob1-files.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/tob1-files/")));
 }
 
 void ProjectPage::onlineHelpTrigger_6()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/support/EddyFlow/topics/generic-binary-files.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/generic-binary-files/")));
 }
 
 void ProjectPage::onlineHelpTrigger_7()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("http://www.licor.com/env/support/EddyFlow/topics/biomet-data-format.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/biomet-data-format/")));
 }
 
 void ProjectPage::binSettingsDialog()

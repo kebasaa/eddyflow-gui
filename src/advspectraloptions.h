@@ -117,7 +117,6 @@ private slots:
     void onlineHelpTrigger_2();
     void onlineHelpTrigger_3();
     void onlineHelpTrigger_4();
-    void onlineHelpTrigger_5();
 
     void updateTooltip(int i);
 
@@ -284,7 +283,6 @@ private:
     QPushButton* questionMark_22;
     QPushButton* questionMark_33;
     QPushButton* questionMark_44;
-    QPushButton* questionMark_55;
 
     DlProject* dlProject_;
     EcProject* ecProject_;

@@ -42,6 +42,7 @@
 
 #include "clicklabel.h"
 #include "ecproject.h"
+#include "engineprogress.h"
 #include "mainwidget.h"
 #include "smartfluxbar.h"
 #include "widget_utils.h"
@@ -81,7 +82,7 @@ RunPage::RunPage(QWidget *parent, EcProject *ecProject, ConfigState* config)
 
     timeEstimateLabels_ = new QLabel;
     timeEstimateLabels_->setText(QStringLiteral("Total elapsed time: 00:00:00 - Estimated time "
-                                                "to completion: --:--:--.---"));
+                                                "to completion: --:--:--"));
     timeEstimateLabels_->setObjectName(QStringLiteral("fileLabel"));
 
     pauseResumeLabel_ = new QLabel;
@@ -105,6 +106,7 @@ RunPage::RunPage(QWidget *parent, EcProject *ecProject, ConfigState* config)
     total_elapsed_update_timer_ = new QTimer(this);
     total_elapsed_update_timer_->setInterval(1000);
     total_elapsed_update_timer_->setTimerType(Qt::PreciseTimer);
+    eta_clock_.start();
 
     errorEdit_ = new QTextEdit;
     errorEdit_->setObjectName(QStringLiteral("ErrorEdit"));
@@ -216,6 +218,25 @@ void RunPage::startRun(Defs::CurrRunStatus mode)
     auto progressText = QString();
 
     runMode_ = mode;
+
+    // The estimate is of the whole run. FCC run straight after the RP run it
+    // follows carries on with RP's; any other start is a new run.
+    const bool continuing = mode == Defs::CurrRunStatus::Advanced_FCC
+                            && fccFollows_ && rpSucceeded_ && eta_.running();
+    if (!continuing)
+    {
+        eta_.start(ecProject_->generalFileName(),
+                   configState_->general.parallelPrepass,
+                   eta_clock_.elapsed());
+        overall_progress_timer_.restart();
+    }
+    fccFollows_ = mode == Defs::CurrRunStatus::Advanced_RP
+                  && ecProject_->isEngineStep2Needed();
+    rpSucceeded_ = false;
+    if (fccFollows_)
+        eta_.planFcc();
+    total_elapsed_update_timer_->start();
+    updateTimeEstimateLabels();
 
     switch (runMode_)
     {
@@ -364,7 +385,7 @@ bool RunPage::pauseRun(Defs::CurrRunStatus mode)
         progressWidget_->setDisplayedWhenStopped(true);
         progressWidget_->stopAnimation();
         total_elapsed_update_timer_->stop();
-        main_progress_timer_.invalidate();
+        eta_.pause(eta_clock_.elapsed());
         QTimer::singleShot(1000, this, &RunPage::pauseLabel);
         return true;
     }
@@ -424,7 +445,7 @@ bool RunPage::resumeRun(Defs::CurrRunStatus mode)
         progressWidget_->setDisplayedWhenStopped(true);
         progressWidget_->startAnimation();
         total_elapsed_update_timer_->start();
-        main_progress_timer_.restart();
+        eta_.resume(eta_clock_.elapsed());
         QTimer::singleShot(1000, this, &RunPage::resumeLabel);
         return true;
     }
@@ -441,7 +462,19 @@ void RunPage::stopRun()
     resetBuffer();
     resetProgressHard();
     total_elapsed_update_timer_->stop();
-    main_progress_timer_.invalidate();
+}
+
+// An engine process has ended. RP does not say "executed gracefully" when FCC
+// follows it, so its end - and whether the FCC run that follows belongs to the
+// same estimate - is known only from the process.
+void RunPage::engineExited(bool success)
+{
+    if (success)
+        eta_.engineFinished(eta_clock_.elapsed());
+    rpSucceeded_ = success && fccFollows_;
+    if (!success)
+        fccFollows_ = false;
+    updateTimeEstimateLabels();
 }
 
 void RunPage::pauseLabel()
@@ -512,6 +545,13 @@ void RunPage::resetLabels()
 
 bool RunPage::filterData(const QByteArray& data)
 {
+    // The engine's lines for the estimate of the time left, every few
+    // seconds: not for reading.
+    if (data.startsWith(QByteArrayLiteral("  Progress ["))
+        || data.startsWith(QByteArrayLiteral("  Run plan:")))
+    {
+        return true;
+    }
     if (inPlanarFit_ or inTimeLag_)
     {
         return data.contains(QByteArrayLiteral("another small step"));
@@ -606,12 +646,6 @@ void RunPage::parseEngineOutput(const QByteArray &data)
 
     static int averagingPeriodIndex = 0;
     static int totalAveragingPeriods = 0;
-    static int processingTimeMSec = 0;
-    static int meanProcessingTimeMSec = 0;
-    static int estimatedTimeToCompletionMSec = 0;
-
-    static qint64 previous_elapsed_time = 0;
-    qint64 current_step_elapsed_time = 0;
 
     static QString fromStr;
     static QString toStr;
@@ -635,21 +669,16 @@ void RunPage::parseEngineOutput(const QByteArray &data)
     if (cleanLine.contains(QByteArrayLiteral("Executing EddyFlow")))
     {
         total_elapsed_update_timer_->start();
-
-        timeEstimateLabels_->setText(timeEstimateLabels_->text()
-                                     .replace(20, 8, QStringLiteral("00:00:00")));
-        timeEstimateLabels_->setText(timeEstimateLabels_->text()
-                                     .replace(61, 12, QStringLiteral("--:--:--.---")));
-
-        overall_progress_timer_.restart();
-        main_progress_timer_.restart();
+        updateTimeEstimateLabels();
 
         // re-init numerical values
         averagingPeriodIndex = 0;
         totalAveragingPeriods = 0;
-        processingTimeMSec = 0;
-        meanProcessingTimeMSec = 0;
-        estimatedTimeToCompletionMSec = 0;
+        // A split in the previous run is not one in this
+        prodSplit_ = false;
+        prodPwb_ = false;
+        prodPhase_ = 0;
+        fccFluxDays_ = false;
 
         resetProgressSoft();
         main_progress_bar->setValue(++progressValue_);
@@ -672,8 +701,8 @@ void RunPage::parseEngineOutput(const QByteArray &data)
         elapsedTimeMSecStr = QTime(0, 0).addMSecs(static_cast<int>(overall_progress_timer_.elapsed()))
                                     .toString(QStringLiteral("hh:mm:ss.zzz"));
         out << averagingPeriodIndex << " "
-            << processingTimeMSec << " "
-            << meanProcessingTimeMSec << " "
+            << "x "
+            << "x "
             << overall_progress_timer_.elapsed() << " "
             << elapsedTimeMSecStr << " "
             << "x "
@@ -739,6 +768,46 @@ void RunPage::parseEngineOutput(const QByteArray &data)
     }
     // end preamble
 
+    // The passes the engine will walk, for the estimate of the time left:
+    // "  Run plan: to pf rp (17520 periods)", or FCC's "  Run plan: sa fx".
+    if (cleanLine.startsWith(QByteArrayLiteral("  Run plan:")))
+    {
+        QByteArray rest = cleanLine.mid(cleanLine.indexOf(':') + 1);
+        qint64 periods = 0;
+        const auto paren = rest.indexOf('(');
+        if (paren >= 0)
+        {
+            periods = rest.mid(paren + 1).trimmed().split(' ').value(0).toLongLong();
+            rest = rest.left(paren);
+        }
+        QStringList stages;
+        const auto words = rest.simplified().split(' ');
+        for (const auto& word : words)
+        {
+            if (!word.isEmpty())
+                stages << QString::fromLatin1(word);
+        }
+        eta_.plan(stages, periods);
+        updateTimeEstimateLabels();
+        return;
+    }
+    // How far the pass under way has got, over every process of a split one:
+    // "  Progress [rp]: 1234 of 17520 periods done."
+    if (EngineProgress::isProgressLine(cleanLine))
+    {
+        QString tag;
+        qint64 done = 0;
+        qint64 total = 0;
+        if (EngineProgress::parse(cleanLine, &tag, &done, &total))
+        {
+            eta_.progress(tag, done, total, eta_clock_.elapsed());
+            if (prodSplit_ || tag == QLatin1String("sa"))
+                setSplitProgress(tag, done, total);
+            updateTimeEstimateLabels();
+        }
+        return;
+    }
+
     // start planar fit
     if (cleanLine.contains(QByteArrayLiteral("Performing planar-fit assessment")))
     {
@@ -748,15 +817,11 @@ void RunPage::parseEngineOutput(const QByteArray &data)
         // re-init
         averagingPeriodIndex = 0;
         totalAveragingPeriods = 0;
-        processingTimeMSec = 0;
-        meanProcessingTimeMSec = 0;
-        estimatedTimeToCompletionMSec = 0;
         resetProgressSoft();
         main_progress_bar->setValue(++progressValue_);
         fromStr.clear();
         toStr.clear();
-
-        main_progress_timer_.restart(); // restart to measure planar fit run time
+        prodSplit_ = false;
 
         errorEdit_->append(QStringLiteral("Performing planar-fit assessment"));
 
@@ -799,35 +864,8 @@ void RunPage::parseEngineOutput(const QByteArray &data)
 
         mini_progress_bar_->setValue(0);
         mini_progress_bar_->reset();
-        main_progress_bar->setValue(++progressValue_);
-
-        // ETC computation
-        current_step_elapsed_time = main_progress_timer_.elapsed();
-        processingTimeMSec = static_cast<int>(current_step_elapsed_time - previous_elapsed_time);
-
-        estimatedTimeToCompletionMSec = updateETC(&meanProcessingTimeMSec, processingTimeMSec,
-                                                  averagingPeriodIndex, totalAveragingPeriods);
-
-        auto estimatedTimeToCompletionMSecStr = QTime(0, 0)
-                                .addMSecs(estimatedTimeToCompletionMSec)
-                                .toString(QStringLiteral("hh:mm:ss.zzz"));
-#ifdef QT_DEBUG
-        out << "Planar-fit ETC computation";
-        Qt::endl(out);
-        out << "averagingPeriodIndex " << averagingPeriodIndex << " totalRuns " << totalAveragingPeriods;
-        Qt::endl(out);
-        out << "current_step_elapsed_time " << current_step_elapsed_time;
-        out << " processingTimeMSec " << processingTimeMSec;
-        out << " previous_elapsed_time " << previous_elapsed_time;
-        Qt::endl(out);
-        out << "estimatedTimeToCompletionMSec " << estimatedTimeToCompletionMSec;
-        out << " estimatedTimeToCompletionMSecStr " << estimatedTimeToCompletionMSecStr;
-        Qt::endl(out);
-#endif
-        previous_elapsed_time = current_step_elapsed_time;
-
-        timeEstimateLabels_->setText(timeEstimateLabels_->text()
-                                    .replace(61, 12, estimatedTimeToCompletionMSecStr));
+        if (!prodSplit_)
+            main_progress_bar->setValue(++progressValue_);
         return;
     }
     if (cleanLine.contains(QByteArrayLiteral("Sorting wind data by sector")))
@@ -844,7 +882,6 @@ void RunPage::parseEngineOutput(const QByteArray &data)
     {
         inPlanarFit_ = false;
         main_progress_bar->setValue(main_progress_bar->maximum());
-        previous_elapsed_time = 0;
         return;
     }
     // end planar fit
@@ -858,15 +895,11 @@ void RunPage::parseEngineOutput(const QByteArray &data)
         // re-init
         averagingPeriodIndex = 0;
         totalAveragingPeriods = 0;
-        processingTimeMSec = 0;
-        meanProcessingTimeMSec = 0;
-        estimatedTimeToCompletionMSec = 0;
         resetProgressSoft();
         main_progress_bar->setValue(++progressValue_);
         fromStr.clear();
         toStr.clear();
-
-        main_progress_timer_.restart(); // restart to measure time lag run time
+        prodSplit_ = false;
 
         errorEdit_->append(QStringLiteral("Performing time-lag optimization"));
 
@@ -903,42 +936,14 @@ void RunPage::parseEngineOutput(const QByteArray &data)
 
         mini_progress_bar_->setValue(0);
         mini_progress_bar_->reset();
-        main_progress_bar->setValue(++progressValue_);
-
-        // ETC computation
-        current_step_elapsed_time = main_progress_timer_.elapsed();
-        processingTimeMSec = static_cast<int>(current_step_elapsed_time - previous_elapsed_time);
-
-        estimatedTimeToCompletionMSec = updateETC(&meanProcessingTimeMSec, processingTimeMSec,
-                                                  averagingPeriodIndex, totalAveragingPeriods);
-
-        auto estimatedTimeToCompletionMSecStr = QTime(0, 0)
-                            .addMSecs(estimatedTimeToCompletionMSec)
-                            .toString(QStringLiteral("hh:mm:ss.zzz"));
-#ifdef QT_DEBUG
-        out << "Time-lag ETC computation";
-        Qt::endl(out);
-        out << "averagingPeriodIndex " << averagingPeriodIndex << " totalRuns " << totalAveragingPeriods;
-        Qt::endl(out);
-        out << "current_step_elapsed_time " << current_step_elapsed_time;
-        out << " processingTimeMSec " << processingTimeMSec;
-        out << " previous_elapsed_time " << previous_elapsed_time;
-        Qt::endl(out);
-        out << "estimatedTimeToCompletionMSec " << estimatedTimeToCompletionMSec;
-        out << " estimatedTimeToCompletionMSecStr " << estimatedTimeToCompletionMSecStr;
-        Qt::endl(out);
-#endif
-        previous_elapsed_time = current_step_elapsed_time;
-
-        timeEstimateLabels_->setText(timeEstimateLabels_->text()
-                                    .replace(61, 12, estimatedTimeToCompletionMSecStr));
+        if (!prodSplit_)
+            main_progress_bar->setValue(++progressValue_);
         return;
     }
-    if (cleanLine.contains(QByteArrayLiteral("Time lag optimization session terminated")))
+    if (cleanLine.contains(QByteArrayLiteral("optimization session terminated")))
     {
         inTimeLag_ = false;
         main_progress_bar->setValue(main_progress_bar->maximum());
-        previous_elapsed_time = 0;
         return;
     }
     // end time lag
@@ -948,16 +953,11 @@ void RunPage::parseEngineOutput(const QByteArray &data)
     {
         progressLabel_->setText(tr("Processing raw data..."));
 
-        main_progress_timer_.restart(); // restart to measure main cycle run time
-
         errorEdit_->append(QStringLiteral("Start raw data processing"));
 
         // re-init
         averagingPeriodIndex = 0;
         totalAveragingPeriods = 0;
-        processingTimeMSec = 0;
-        meanProcessingTimeMSec = 0;
-        estimatedTimeToCompletionMSec = 0;
         resetProgressSoft();
         main_progress_bar->setValue(++progressValue_);
         fromStr.clear();
@@ -983,14 +983,21 @@ void RunPage::parseEngineOutput(const QByteArray &data)
         return;
     }
 
-    // A split production pass. After its first period the engine hands the
-    // rest of the range to worker processes and reports only the pieces they
-    // finish, so the bar would otherwise stop at that period until the end.
-    // With PWB time lags every piece is read twice - first for its evidence,
-    // then for its fluxes - and each phase reports its own pieces.
-    if (cleanLine.contains(QByteArrayLiteral("Splitting the production pass across"))
-        || cleanLine.contains(QByteArrayLiteral("Splitting the flux computation across")))
+    // A split pass - a pre-pass, the production pass, FCC's binned import
+    // or its flux computation. The engine hands most of the range to worker
+    // processes; this process prints its own first piece only, so the bar
+    // follows the engine's progress lines from here on, which count every
+    // process's periods. With PWB time lags every piece of a production pass
+    // is read twice - first for its evidence, then for its fluxes - and each
+    // round reports its own pieces.
+    if (cleanLine.contains(QByteArrayLiteral("Splitting the "))
+        && cleanLine.contains(QByteArrayLiteral(" worker processes")))
     {
+        // "  Splitting the production pass across 4 worker processes."
+        const auto words = cleanLine.trimmed().split(' ');
+        const auto across = words.indexOf(QByteArrayLiteral("across"));
+        if (across >= 0)
+            eta_.setProcesses(words.value(across + 1).toInt());
         prodSplit_ = true;
         prodPwb_ = false;
         prodPhase_ = 0;
@@ -1015,18 +1022,12 @@ void RunPage::parseEngineOutput(const QByteArray &data)
         const int total = words.value(2).toInt();
         if (done > 0 && total > 0)
         {
-            double fraction = static_cast<double>(done) / total;
-            if (prodPwb_)
-                fraction = (prodPhase_ <= 1) ? 0.4 * fraction : 0.4 + 0.6 * fraction;
-            const int span = main_progress_bar->maximum() - 1 - prodBaseValue_;
-            const int value = prodBaseValue_ + static_cast<int>(fraction * span);
-            if (value > progressValue_)
-            {
-                progressValue_ = value;
-                main_progress_bar->setValue(progressValue_);
-            }
-            progressLabel_->setText(tr("Processing raw data in parallel: %1 of %2 pieces done")
-                                    .arg(done).arg(total));
+            QString stage = eta_.currentStageName();
+            if (stage.isEmpty())
+                stage = tr("Processing");
+            stage[0] = stage.at(0).toUpper();
+            progressLabel_->setText(tr("%1 in parallel: %2 of %3 pieces done")
+                                    .arg(stage).arg(done).arg(total));
         }
         return;
     }
@@ -1058,7 +1059,9 @@ void RunPage::parseEngineOutput(const QByteArray &data)
     if (cleanLine.contains(QByteArrayLiteral("processing new flux averaging period")))
     {
         ++averagingPeriodIndex;
-        main_progress_bar->setValue(++progressValue_);
+        eta_.ownPeriod(eta_clock_.elapsed());
+        if (!prodSplit_)
+            main_progress_bar->setValue(++progressValue_);
 
 #ifdef QT_DEBUG
         out << ">> Processing new flux averaging period";
@@ -1270,44 +1273,8 @@ void RunPage::parseEngineOutput(const QByteArray &data)
     // end processing cycle
     if (cleanLine.contains(QByteArrayLiteral("Flux averaging period processing time")))
     {
-        // ETC computation
-        auto procTimeString = QLatin1String(cleanLine.trimmed().split(' ')
-                                            .last().trimmed().constData());
-        auto procTime = QTime::fromString(procTimeString, QStringLiteral("h:mm:ss.zzz"));
-        processingTimeMSec = QTime(0, 0).msecsTo(procTime);
-
-        // prevent division by zero
-        if (averagingPeriodIndex == 0) ++averagingPeriodIndex;
-
-        estimatedTimeToCompletionMSec = updateETC(&meanProcessingTimeMSec,
-                                                  processingTimeMSec,
-                                                  averagingPeriodIndex,
-                                                  totalAveragingPeriods);
-
-        auto estimatedTimeToCompletionMSecStr = QTime(0, 0)
-                            .addMSecs(estimatedTimeToCompletionMSec)
-                            .toString(QStringLiteral("hh:mm:ss.zzz"));
-
-        timeEstimateLabels_->setText(timeEstimateLabels_->text()
-                                    .replace(61, 12, estimatedTimeToCompletionMSecStr));
-
-#ifdef QT_DEBUG
-        out << "Flux averaging period processing time";
-        Qt::endl(out);
-        int elapsedTimeMSec = averagingPeriodIndex * meanProcessingTimeMSec;
-        elapsedTimeMSecStr = QTime(0, 0).addMSecs(elapsedTimeMSec)
-                                .toString(QStringLiteral("hh:mm:ss.zzz"));
-        out << averagingPeriodIndex << " "
-            << processingTimeMSec << " "
-            << meanProcessingTimeMSec << " "
-            << elapsedTimeMSec << " "
-            << elapsedTimeMSecStr << " "
-            << estimatedTimeToCompletionMSec << " "
-            << estimatedTimeToCompletionMSecStr;
-        Qt::endl(out);
-#endif
-
-        main_progress_bar->setValue(++progressValue_);
+        if (!prodSplit_)
+            main_progress_bar->setValue(++progressValue_);
 
         mini_progress_bar_->reset();
         mini_progress_bar_->setValue(0);
@@ -1368,21 +1335,20 @@ void RunPage::parseEngineOutput(const QByteArray &data)
     // end flux computation
 
     // start spectral corrections
-    if (cleanLine.contains(QByteArrayLiteral("Starting Spectral Assessment")))
+    if (cleanLine.contains(QByteArrayLiteral("binned (co)spectra from files")))
     {
-//        resetTimeEstimateLabels();
+        // "  Importing, sorting and ensemble-averaging up to 24 binned
+        //  (co)spectra from files.. "
         progressLabel_->setText(tr("Performing spectral assessment..."));
-
-        QDate dStart(QDate::fromString(ecProject_->spectraStartDate(), Qt::ISODate));
-        QDate dEnd(QDate::fromString(ecProject_->spectraEndDate(), Qt::ISODate));
+        const auto words = cleanLine.trimmed().split(' ');
+        const auto upTo = words.indexOf(QByteArrayLiteral("to"));
         resetProgressSoft();
-        main_progress_bar->setValue(++progressValue_);
-        main_progress_bar->setMaximum(static_cast<int>(dStart.daysTo(dEnd)) + 1);
+        main_progress_bar->setMaximum(qMax(1, words.value(upTo + 1).toInt()));
+        prodBaseValue_ = 0;
         return;
     }
     if (cleanLine.contains(QByteArrayLiteral("Importing binned (co)spectra for")))
     {
-        main_progress_bar->setValue(++progressValue_);
         avgPeriodLabel_->setText(QLatin1String(cleanLine.trimmed().constData()));
         return;
     }
@@ -1542,8 +1508,9 @@ void RunPage::parseEngineOutput(const QByteArray &data)
         main_progress_bar->setValue(main_progress_bar->maximum());
         progressWidget_->stopAnimation();
         averagingPeriodIndex = 0;
+        eta_.engineFinished(eta_clock_.elapsed());
+        updateTimeEstimateLabels();
         total_elapsed_update_timer_->stop();
-        main_progress_timer_.invalidate();
         return;
     }
 
@@ -1637,9 +1604,51 @@ void RunPage::updateSmartfluxBar()
 
 void RunPage::updateElapsedTime()
 {
-    QString elapsedTimeStr = QTime(0, 0).addMSecs(static_cast<int>(overall_progress_timer_.elapsed()))
-                                        .toString(QStringLiteral("hh:mm:ss"));
-    timeEstimateLabels_->setText(timeEstimateLabels_->text().replace(20, 8, elapsedTimeStr));
+    updateTimeEstimateLabels();
+}
+
+// Elapsed time, and the time left until the whole run is done - counting
+// down between the engine's progress lines - with the pass under way.
+void RunPage::updateTimeEstimateLabels()
+{
+    const qint64 elapsed = overall_progress_timer_.isValid()
+                           ? overall_progress_timer_.elapsed() : 0;
+    const qint64 left = eta_.remainingMs(eta_clock_.elapsed());
+    QString text = tr("Total elapsed time: %1 - Estimated time to completion: %2")
+                       .arg(RunEta::formatDuration(elapsed), RunEta::formatDuration(left));
+    const QString stage = eta_.currentStageName();
+    if (!stage.isEmpty())
+        text += QStringLiteral(" (%1)").arg(stage);
+    timeEstimateLabels_->setText(text);
+}
+
+// The bar of a split pass, from the share of the pass done across every
+// process; never back. With PWB time lags a split production pass reads its
+// pieces twice - for evidence (pd), then for fluxes - and the first round,
+// the cheaper, takes the first 40 % of the bar.
+void RunPage::setSplitProgress(const QString& tag, qint64 done, qint64 total)
+{
+    if (total <= 0)
+        return;
+    // FCC's flux bar is busy when the run has no date range to size it by.
+    if (main_progress_bar->maximum() <= 0)
+    {
+        main_progress_bar->setMaximum(static_cast<int>(qMin<qint64>(total, 1000000)));
+        prodBaseValue_ = 0;
+    }
+    double fraction = static_cast<double>(done) / total;
+    if (tag == QLatin1String("pd"))
+        fraction *= 0.4;
+    else if (prodPwb_ && tag == QLatin1String("rp"))
+        fraction = 0.4 + 0.6 * fraction;
+    const int span = main_progress_bar->maximum() - prodBaseValue_;
+    const int value = qMin(main_progress_bar->maximum(),
+                           prodBaseValue_ + static_cast<int>(fraction * span));
+    if (value > progressValue_)
+    {
+        progressValue_ = value;
+        main_progress_bar->setValue(progressValue_);
+    }
 }
 
 // Update mini progress bar every second, scaling the speed of progress in respect of the
@@ -1658,27 +1667,6 @@ void RunPage::updateMiniProgress()
         WidgetUtils::setProgressValue(mini_progress_bar_,
                                       mini_progress_bar_->value() + progressFactor);
     }
-}
-
-// Return ETC (Estimated Time to Completion) in msec and update the running average
-// of the processing time using a Simple Moving Average
-int RunPage::updateETC(int* mean_processing_time,
-                       const int current_processing_time,
-                       const int index,
-                       const int num_steps)
-{
-    Q_ASSERT(index != 0);
-
-    if (index == 1)
-    {
-        *mean_processing_time = current_processing_time;
-    }
-    else
-    {
-        *mean_processing_time = (*mean_processing_time * (index - 1) + current_processing_time)
-                                / index;
-    }
-    return (num_steps - index + 1) * (*mean_processing_time);
 }
 
 void RunPage::openOutputDir()

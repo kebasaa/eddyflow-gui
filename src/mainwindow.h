@@ -105,7 +105,6 @@ private slots:
 
     // displays help contents
     void showHelp();
-    void showPdfHelp();
     void showStarterPdfHelp();
     void setOfflineHelp(bool yes);
     void setSmartfluxMode(bool on);
@@ -288,12 +287,10 @@ private:
     QAction *toggleConsoleOutputAct;
     QActionGroup *changeStyleAction;
     QAction *helpAction;
-    QAction *pdfHelpAction;
     QAction *starterPdfHelpAction;
     QAction *toggleOfflineHelpAct;
     QAction *whatsHelpAction;
     QAction* appWebpageAction;
-    QAction* forumWebpageAction;
     QAction* checkUpdateAction;
     QAction *aboutAction;
     QAction *aboutQtAction;
@@ -339,6 +336,7 @@ private:
     bool newClicked_;
 
     Defs::CurrPage previousPage_;
+    int lastEasterEggVariant_;
 
     Defs::CurrPage currentPage_;
     Defs::CurrPage currentPage() const;

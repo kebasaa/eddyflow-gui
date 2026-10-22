@@ -60,6 +60,7 @@
 #include "pwbtimelagsettingsdialog.h"
 #include "richtextcheckbox.h"
 #include "timelagsettingsdialog.h"
+#include "timelagpreassessdialog.h"
 #include "stringutils.h"
 #include "widget_utils.h"
 
@@ -143,12 +144,12 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     wBoostCheckBox = new RichTextCheckBox;
     wBoostCheckBox->setText(tr("Fix 'w boost' bug (Gill WindMaster and WindMaster Pro only)"));
     wBoostCheckBox->setToolTip(tr("<b>Fix 'w boost' bug:</b> Gill WindMaster and WindMaster Pro produced between 2006 and 2015 and identified by a firmware version of the form 2329.x.y with x &lt; 700, are affected by a bug such that the vertical wind speed is underestimated. Check this option to have EddyFlow fix the bug. For more details, please visit <a href=\"http://gillinstruments.com/data/manuals/KN1509_WindMaster_WBug_info.pdf\">Gill's Technical Key Note</a>"));
-    wBoostCheckBox->setQuestionMark(QStringLiteral("https://www.licor.com/env/help/EddyFlow/topics_EddyFlow/w-boost_bug_correction.html"));
+    wBoostCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/w-boost-correction/"));
 
     aoaCheckBox = new RichTextCheckBox;
     aoaCheckBox->setToolTip(tr("<b>Angle-of-attack correction:</b> Applies only to vertical mount Gill sonic anemometers with the same geometry of the R3 (e.g., R2, WindMaster, WindMaster Pro). This correction is meant to compensate the effects of flow distortion induced by the anemometer frame on the turbulent flow field. We recommend applying this correction whenever an R3-shaped anemometer was used."));
     aoaCheckBox->setText(tr("Angle-of-attack correction for wind components (Gill's only)"));
-    aoaCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Angle_of_Attack_Correction.html"));
+    aoaCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/angle-of-attack-correction/"));
 
     aoaMethLabel = new ClickLabel(tr("Method :"));
     aoaMethLabel->setEnabled(false);
@@ -336,7 +337,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     rotCheckBox = new RichTextCheckBox;
     rotCheckBox->setToolTip(tr("<b>Axis rotation for tilt correction:</b> Select the appropriate method for compensating anemometer tilt with respect to local streamlines. Uncheck the box to <i>not perform</i> any rotation (not recommnended). If your site has a complex or sloping topography, a planar-fit method is advisable. Click on the <b><i>Planar Fit Settings...</i></b> to configure the procedure."));
     rotCheckBox->setText(tr("Axis rotations for tilt correction"));
-    rotCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Anemometer_Tilt_Correction.html"));
+    rotCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/anemometer-tilt-correction/"));
 
     rotMethLabel = new ClickLabel(tr("Rotation method :"));
     rotMethCombo = new QComboBox;
@@ -386,7 +387,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     timeLagCheckBox = new RichTextCheckBox;
     timeLagCheckBox->setToolTip(tr("<b>Time lags compensation:</b> Select the method to compensate time lags between anemometric measurements and any other high frequency measurements included in the raw files. Time lags arise due mainly to sensors physical distances and to the passage of air into sampling lines. Uncheck this box to instruct EddyFlow not to compensate time lags (not recommended)."));
     timeLagCheckBox->setText(tr("Time lags compensation"));
-    timeLagCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Time_Lag_Detect_Correct.html"));
+    timeLagCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/time-lag-detect-correct/"));
 
     timeLagMethodLabel = new ClickLabel(tr("Time lag detection method :"));
     timeLagMethodCombo = new QComboBox;
@@ -410,10 +411,15 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     tlSettingsButton->setProperty("mdButton", true);
     tlSettingsButton->setMaximumWidth(tlSettingsButton->sizeHint().width());
 
+    tlPreassessButton = new QPushButton(tr("Timelag preliminary assessment..."));
+    tlPreassessButton->setProperty("mdButton", true);
+    tlPreassessButton->setMaximumWidth(tlPreassessButton->sizeHint().width());
+    tlPreassessButton->setToolTip(tr("<b>Timelag preliminary assessment:</b> Detects the time lags of a random sample of the half-hours over a wide search window, ignoring the nominal, minimum and maximum time lags set in the metadata, and shows where they fall for each gas. Suggests a nominal, minimum and maximum time lag per gas, which you can edit and then write to the metadata. Needs a raw data folder (Basic Settings)."));
+
     qcCheckBox = new RichTextCheckBox;
     qcCheckBox->setToolTip(tr("<b>Quality check:</b> Select the quality flagging policy. Flux quality flags are obtained from the combination of two partial flags that result from the application of the steady-state and the developed turbulence tests. Select the flag combination policy."));
     qcCheckBox->setText(tr("Quality check"));
-    qcCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Flux_Quality_Flags.html"));
+    qcCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/flux-quality-flags/"));
 
     qcLabel = new ClickLabel(tr("Flagging policy :"));
     qcMethodCombo = new QComboBox;
@@ -430,7 +436,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     fpCheckBox = new RichTextCheckBox;
     fpCheckBox->setToolTip(tr("<b>Footprint estimation:</b> Select whether to calculate flux footprint estimations and which method should be used. Flux crosswind-integrated footprints are provided as distances from the tower contributing for 10%, 30%, 50%, 70% and 90% to measured fluxes. Also, the location of the peak contribution is given."));
     fpCheckBox->setText(tr("Footprint estimation"));
-    fpCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Estimating_Flux_Footprint.html"));
+    fpCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/estimating-flux-footprint/"));
 
     fpLabel = new ClickLabel(tr("Footprint method :"));
     fpMethodCombo = new QComboBox;
@@ -447,7 +453,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
                               "<p>Ticking this also switches on <b>compensation of density fluctuations (WPL)</b>, because the method sorts each air parcel by the SIGN of its water and carbon dioxide fluctuation. In an uncorrected molar density from an open-path analyser, part of that fluctuation is the air expanding rather than the gas arriving, and it is large enough to reverse the sign \xe2\x80\x93 which puts the parcel in the wrong octant.</p>");
     cecCheckBox->setToolTip(cecAvailableTooltip_);
     cecCheckBox->setText(tr("Conditional Eddy Covariance"));
-    cecCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Conditional_Eddy_Covariance.html"));
+    cecCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/conditional-eddy-covariance/"));
 
     cecSettingsButton = new QPushButton(tr("CEC Settings"));
     cecSettingsButton->setProperty("mdButton", true);
@@ -456,9 +462,13 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     cecSettingsButton->setToolTip(tr("<b>CEC Settings:</b> Configure Conditional Eddy Covariance partitioning constraints and QC/preprocessing limits."));
 
     wplCheckBox = new RichTextCheckBox;
-    wplCheckBox->setToolTip(tr("<b>Compensate density fluctuations:</b> This is the so-called WPL correction (Webb et al., 1980). Choose whether to apply the compensation of density fluctuations to raw gas concentrations available as molar densities or mole fractions (moles gas per mole of wet air). The correction does not apply if raw concentrations are available as mixing ratios (mole gas per mole dry air)."));
+    wplCheckBox->setToolTip(tr("<b>Compensate density fluctuations:</b> This is the so-called WPL correction (Webb et al., 1980). It is decided gas by gas, from the measure type each gas has in the Raw File Description, so instruments that report differently can share one project."
+                               "<p><b>Mixing ratios</b> (moles of gas per mole of dry air) are never corrected, ticked or not: the instrument has already removed the density effects. An analyser that reports dry mixing ratios \xe2\x80\x93 the MIRO's CO\xe2\x82\x82, N\xe2\x82\x82O and COS, for instance \xe2\x80\x93 is therefore not corrected twice. Its water, if it is reported as a mole fraction of wet air, is still corrected, as it must be.</p>"
+                               "<p><b>Mole fractions</b> (per mole of wet air) and <b>molar densities</b> are corrected. On a closed-path analyser they are converted to mixing ratios sample by sample where the data allow, otherwise corrected after Ibrom et al. (2007); on an open path, after Webb et al. (1980). Every hygrometer's evapotranspiration is corrected after its own path type, and each gas takes its water from the hygrometer its record names.</p>"
+                               "<p><b>Unticked</b>, no gas is density-corrected and every flux keeps its uncorrected value, as in EddyPro.</p>"
+                               "<p>To leave one instrument uncorrected, give its gases the measure type it really reports rather than unticking this box.</p>"));
     wplCheckBox->setText(tr("Compensate density fluctuations (WPL terms)"));
-    wplCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Converting_to_Mixing_Ratio.html"));
+    wplCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/converting-to-mixing-ratio/"));
 
     covmaxDebaselineCheckBox = new RichTextCheckBox;
     covmaxDebaselineCheckBox->setText(tr("Subtract the cross-covariance baseline"));
@@ -571,6 +581,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
         "<i>a</i> = <i>b</i> = 0. To carry a published value across, add one to <i>a</i>: an "
         "EddyUH <i>a</i> of &minus;1.39 becomes &minus;0.39 here. Typing the EddyUH value "
         "unchanged would count the dilution twice."));
+    spectroCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/raw-processing-options/#compensation-for-density-fluctuations-wpl-terms"));
 
     spectroWaterCheckBox = new RichTextCheckBox;
     spectroWaterCheckBox->setText(tr("Also correct the water channel (EddyUH form, unpublished)"));
@@ -583,6 +594,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
         "used for every other column. Select it deliberately, and report that you did. "
         "Off by default, and it does nothing unless the correction above is on and the "
         "hygrometer's own coefficients are non-zero."));
+    spectroWaterCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/raw-processing-options/#compensation-for-density-fluctuations-wpl-terms"));
 
     //> Lit only in the inconsistent state - the partition on, the correction it
     //> depends on off. A warning icon that is usually on is one nobody reads.
@@ -604,7 +616,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     burbaAvailableTooltip_ = tr("<b>Add instrument sensible heat components, only for LI-7500:</b> Only applies to the LI-7500. It takes into account air density fluctuations due to temperature fluctuations induced by heat exchange processes at the instrument surfaces, as from Burba et al. (2008).");
     burbaCorrCheckBox->setToolTip(burbaAvailableTooltip_);
     burbaCorrCheckBox->setText(tr("Add instrument sensible heat components, only for LI-7500 "));
-    burbaCorrCheckBox->setQuestionMark(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Calculating_Off-season_Uptake_Correction.html"));
+    burbaCorrCheckBox->setQuestionMark(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/calculate-offseason-uptake-correction/"));
 
     burbaTypeLabel = new ClickLabel;
     burbaTypeLabel->setText(tr("Surface temperature estimation :"));
@@ -736,6 +748,9 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     settingsLayout->addWidget(timeLagMethodLabel, 13, 1, Qt::AlignRight);
     settingsLayout->addWidget(timeLagMethodCombo, 13, 2);
     settingsLayout->addWidget(tlSettingsButton, 13, 3);
+    //> Beside the settings button, in a column of its own, so no row below
+    //> moves.
+    settingsLayout->addWidget(tlPreassessButton, 13, 4);
     //> Indented under the method it modifies, in the combo's own column.
     settingsLayout->addWidget(covmaxDebaselineCheckBox, 14, 2, 1, 2);
     settingsLayout->addWidget(tlagBorrowCheckBox, 15, 2, 1, 2);
@@ -867,6 +882,8 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             this, &AdvProcessingOptions::showPfSettingsDialog);
     connect(tlSettingsButton, &QPushButton::clicked,
             this, &AdvProcessingOptions::showTlSettingsDialog);
+    connect(tlPreassessButton, &QPushButton::clicked,
+            this, &AdvProcessingOptions::showTlPreassessDialog);
     connect(detrendMethLabel, &ClickLabel::clicked,
             this, &AdvProcessingOptions::onClickDetrendLabel);
     connect(timeConstantLabel, &ClickLabel::clicked,
@@ -883,6 +900,8 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             timeLagMethodLabel, &ClickLabel::setEnabled);
     connect(timeLagCheckBox, &RichTextCheckBox::toggled,
             this, &AdvProcessingOptions::updateTlSettingsButton);
+    connect(timeLagCheckBox, &RichTextCheckBox::toggled,
+            tlPreassessButton, &QPushButton::setEnabled);
     connect(timeLagCheckBox, &RichTextCheckBox::toggled,
             timeLagMethodCombo, &QComboBox::setEnabled);
     connect(timeLagMethodLabel, &ClickLabel::clicked,
@@ -1115,6 +1134,9 @@ AdvProcessingOptions::~AdvProcessingOptions()
 
     if (pwbTlDialog_)
         delete pwbTlDialog_;
+
+    if (tlPreassessDialog_)
+        delete tlPreassessDialog_;
 
     if (cecDialog_)
         delete cecDialog_;
@@ -1474,6 +1496,7 @@ void AdvProcessingOptions::reset()
     timeLagCheckBox->setChecked(true);
     timeLagMethodCombo->setCurrentIndex(1);
     tlSettingsButton->setEnabled(false);
+    tlPreassessButton->setEnabled(true);
 
     pfDialog_->reset();
     tlDialog_->reset();
@@ -1612,6 +1635,7 @@ void AdvProcessingOptions::refresh()
         timeLagMethodCombo->setCurrentIndex(0);
     }
     tlSettingsButton->setEnabled(ecProject_->screenTlagMeth() == 4 || ecProject_->screenTlagMeth() == 5);
+    tlPreassessButton->setEnabled(ecProject_->screenTlagMeth() != 0);
     covmaxDebaselineCheckBox->setChecked(ecProject_->screenCovmaxDebaseline());
     parallelPrepassCheckBox->setChecked(configState_->general.parallelPrepass);
     tlagBorrowCheckBox->setChecked(ecProject_->screenTlagBorrowMethod());
@@ -1783,6 +1807,32 @@ void AdvProcessingOptions::showTlSettingsDialog()
         tlDialog_->raise();
         tlDialog_->activateWindow();
     }
+}
+
+/// Only with raw data to assess. The button stays clickable without a raw
+/// data folder so that it can say what is missing, rather than sit greyed
+/// with no reason given.
+void AdvProcessingOptions::showTlPreassessDialog()
+{
+    const QString problem = TimelagPreassessDialog::rawDataProblem(ecProject_);
+    if (!problem.isEmpty())
+    {
+        WidgetUtils::warning(this,
+            tr("Raw Data Folder Not Set"),
+            tr("<b>The time lag preliminary assessment needs raw data.</b>"),
+            problem + QLatin1Char(' ')
+                + tr("Set the raw data folder on the Basic Settings page first."));
+        return;
+    }
+
+    if (!tlPreassessDialog_)
+    {
+        tlPreassessDialog_ = new TimelagPreassessDialog(this, dlProject_, ecProject_);
+    }
+    tlPreassessDialog_->refresh();
+    tlPreassessDialog_->show();
+    tlPreassessDialog_->raise();
+    tlPreassessDialog_->activateWindow();
 }
 
 void AdvProcessingOptions::showCecSettingsDialog()
@@ -2500,17 +2550,17 @@ void AdvProcessingOptions::createQuestionMark()
 
 void AdvProcessingOptions::onlineHelpTrigger_1()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Wind_Speed_Offsets.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/windspeed-offsets/")));
 }
 
 void AdvProcessingOptions::onlineHelpTrigger_4()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Calculate_Turbulent_Flux.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/calculate-turbulent-flux/")));
 }
 
 void AdvProcessingOptions::onlineHelpTrigger_11()
 {
-    WidgetUtils::showHelp(QUrl(QStringLiteral("https://keba_saa.github.io/eddyflow-documentation/topics_EddyFlow/Raw_Processing_Options.html")));
+    WidgetUtils::showHelp(QUrl(QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/topics/raw-processing-options/")));
 }
 
 void AdvProcessingOptions::updateTooltip(int i)

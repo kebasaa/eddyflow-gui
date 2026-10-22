@@ -114,8 +114,6 @@ private slots:
     void onlineHelpTrigger_2();
     void onlineHelpTrigger_4();
     void onlineHelpTrigger_5();
-    void onlineHelpTrigger_6();
-    void onlineHelpTrigger_7();
     void onlineHelpTrigger_8();
     void onlineHelpTrigger_9();
 
@@ -272,11 +270,8 @@ private:
 
     QPushButton* questionMark_1;
     QPushButton* questionMark_2;
-    QPushButton* questionMark_3;
     QPushButton* questionMark_4;
     QPushButton* questionMark_5;
-    QPushButton* questionMark_6;
-    QPushButton* questionMark_7;
     QPushButton* questionMark_8;
     QPushButton* questionMark_9;
 

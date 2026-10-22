@@ -1,3 +1,187 @@
+8.1.3 (2026-10-07)
+
+    GUI:
+	- Version bump to match EddyFlow engine 8.1.3.
+	- New: "Limit of detection (Langford et al. 2015)" in the random
+	       uncertainty method menu (ru_meth 6), and "Langford et al.
+	       (2015)" as a third method in the Flux Detection Limit dialog
+	       (detlim_meth 2). Both open the same "Limit of detection (Langford
+	       et al. 2015)" settings dialog - "Settings..." beside the method
+	       menu, "Langford Settings..." in the detection limit dialog - so
+	       the two cannot disagree: the lag window, "+/-150-180 s (Langford
+	       et al. 2015)", "+/-160-180 s (Maier et al. 2022)" or automatic
+	       (a multiple of the integral turbulence scale, after Spirig et al.
+	       2005; the multiple, default 10, is EddyFlow's own choice and the
+	       tooltip says so), the statistic (RMSE, recommended, or standard
+	       deviation) and the coverage factor alpha of LoD = alpha * RE
+	       (default 1.96). New keys lod_window, lod_stat, lod_its_mult
+	       (RawProcess_Settings) and lod_alpha ([Project]), sanitised on load
+	       to the engine's defaults.
+	- New: "Spectrally correct the random uncertainty", a checkbox below the
+	       random uncertainty settings (ru_spec_corr, [Project]), off by
+	       default as in EddyPro, also for projects saved before it existed.
+	       It multiplies
+	       each flux's random uncertainty, and the Langford limit of
+	       detection, by that flux's spectral correction factor, as Langford
+	       et al. (2015) recommend; the tooltip says what it does and what it
+	       leaves out (WPL and sonic-temperature terms, the flux detection
+	       limit).
+	- Change: "Timelag preliminary assessment...", beside the time lag
+	          settings on the Advanced Settings page. It detects the time lags
+	          of a random sample of the half-hours - by default 20 % of a
+	          dataset of up to about 11 days, 10 % of a month, falling slowly
+	          to 1 % from two years on, and at least 10 - over a wide
+	          search window per gas, ignoring the nominal, minimum and maximum
+	          lags of the metadata, with the method selected (covariance
+	          maximization for any method but pre-whitening block-bootstrap).
+	          It charts the lags found for each gas, lags at a window edge
+	          stacked apart, and suggests a nominal lag and a window the way
+	          the automatic time lag optimization does (median, and to_pg_range
+	          robust deviations either side). The suggestions can be edited
+	          and then set in the metadata; under automatic optimization or
+	          pre-whitening block-bootstrap they also become that method's
+	          search window. The engine runs on a throw-away copy of the
+	          project with a folder and a home of its own, so the project's
+	          files are not touched, an unsaved project stays unsaved, and a
+	          run of the main window is not disturbed. Its outputs are removed
+	          on closing unless "Keep pre-assessment outputs" is ticked, which
+	          copies them to tlag_preassessment_<date-time> in the output
+	          folder. Without a raw data folder holding raw files the button
+	          says so instead of opening. Needs engine 8.1.3 with the
+	          preliminary assessment keys.
+	          The share is set on a log-scaled slider from 0.1 % to 100 %,
+	          the default marked under it (double-click returns to it).
+	          "Run entire dataset" assesses every half-hour - the slider shows
+	          100 % until it is unticked, then goes back where it was - and
+	          leaves the time lag optimization file a normal pre-pass leaves
+	          (_timelag_opt_, or PWB's _pwb_timelag_ table and summary) in the
+	          output folder whether or not the outputs are kept; "Use time lag
+	          file in project" then points the project at it, setting the PWB
+	          windows to the ones the table was detected with. Kept outputs
+	          include each gas's chart as a PNG and suggested_timelags.csv.
+	          The search windows and the suggestions are two tables, one
+	          column per gas; a gas's remark (no clear peak, too few lags, the
+	          water vapour compromise) is an icon in its heading and a tooltip
+	          over its column. The assessment always runs split across the
+	          cores, whatever the parallel pre-pass setting says.
+	          The suggestions are taken from the peak of the detected lags -
+	          the mode of their density, then the median and robust spread of
+	          the lags around it - not from all of them: a weak gas found its
+	          lag in a minority of half-hours and noise elsewhere, and the
+	          median of everything landed mid-window (N2O on a MIRO at 13 s
+	          against a visible peak at 8 s). A minority peak is named with
+	          its share, and a gas with no clear peak can borrow the suggestion
+	          of a gas on the same analyser, never water vapour ("Borrow from
+	          CO2"), and undo it. A "View" dropdown beside the bin width
+	          switches the chart between the histogram (the default) and a
+	          time series of each half-hour's lag, which shows a drift, a jump
+	          or a daily cycle; kept outputs include both as PNGs. Both views
+	          zoom: drag across the chart, or use the mouse wheel (Shift for
+	          the time series' lag axis); a double-click shows everything.
+	- Fix: Stopping a run, or closing the window or opening a project while
+	       one runs, no longer harms a run in another EddyFlow window. The
+	       cleanup after a Stop wiped the temporary folder every run of the
+	       version shares, as EddyPro does, and took another window's run with
+	       it: its workers' scripts were deleted, and it waited a day for
+	       workers that could never report. It now removes only the folders of
+	       runs that have ended - each run's folder names its owner process -
+	       so for a run on its own it is still everything.
+	- Fix: The tooltip of "Compensate density fluctuations (WPL terms)" says
+	       how the engine decides: gas by gas, from the measure type. A dry
+	       mixing ratio is never corrected, so an analyser that reports one -
+	       the MIRO's trace gases - is not corrected twice, while its water,
+	       a mole fraction of wet air, still is; every hygrometer is corrected
+	       after its own path type; and unticked, no gas is corrected (engine
+	       8.1.3). It advises setting the measure type rather than unticking
+	       the box to leave one analyser alone. Its help link pointed at a
+	       host and page name the documentation site no longer has.
+	- Fix: The help question marks and buttons open the EddyFlow
+	       documentation. They pointed at keba_saa.github.io, a host that
+	       does not exist, with page names from the old LI-COR help; a few
+	       pointed at licor.com, which never had these pages. Each now opens
+	       its page on kebasaa.github.io/eddyflow-documentation, and each
+	       raw-data screening test opens its own section of the despiking
+	       page. The hidden question mark of "Label of data records" opens
+	       nothing: no page covers it.
+	- Fix: "Remove the spectroscopic effect of water vapour" and "Also
+	       correct the water channel" have a help button, which opens their
+	       description under the WPL section of the processing options.
+	- Fix: The estimated time to completion is right in a parallel run, and is
+	       of the whole run: every pass still to come, RP's and FCC's, with
+	       the one under way named beside it. It was this process's own
+	       periods times the periods left - the serial time, while a split
+	       pass's workers did most of the work out of sight - and stood still
+	       while the run waited for them; it covered only the pass under way
+	       and stayed on screen into the next. It is now timed from the
+	       engine's progress over every process, over the last ten minutes,
+	       and passes still to come from what they took the last time this
+	       project ran, or else from how they compare with the pass being
+	       timed. On three days of CH-LAE data, from a tenth of the way in, it
+	       was off by 15 % (median) on a first run, serial or in four
+	       processes, against 41 % serial and 130 % in four processes before;
+	       on a second run of the project 8 % and 1 %. It counts down between
+	       the engine's lines, leaves a pause out, goes past 24 hours and is
+	       never negative.
+	- Fix: The progress bar of a split pass follows the periods done over
+	       every process, a split pre-pass included, rather than stopping at
+	       this process's first piece; with PWB time lags the detection round
+	       takes the first 40 % of it.
+	- Fix: The spectral assessment's bar never moved: it waited for "Starting
+	       Spectral Assessment", which the engine does not print. And the end
+	       of the time-lag optimization was never seen ("Time lag" for the
+	       engine's "Time-lag"), so the run read as in it to its end.
+	- Fix: A split in one run no longer carries over to how the next run's
+	       progress is read.
+	- Change: "Run in parallel on all processor cores" is ticked by default on
+	          a computer where EddyFlow has not stored the setting yet. It was
+	          off until splitting a run had been shown to change nothing;
+	          every regression fixture now comes out byte-identical split and
+	          serial. A computer where the setting is stored keeps it, ticked
+	          or not.
+	- Fix: The list of recent projects keeps 20, not 4, whatever the size
+	       of the window. A window of 1200x900 or smaller cut it to 2 and
+	       saved the cut, so opening a project on a laptop lost all but the
+	       two latest. The cap is no longer stored, so the old 4 or 2 an
+	       earlier version saved does not carry over.
+	- Change: Help opens the documentation at
+	          https://kebasaa.github.io/eddyflow-documentation/. "EddyFlow
+	          Help" and the welcome page's "Getting started" opened the
+	          documentation's git repository rather than the site it
+	          publishes; "Getting started" now lands on "Processing Eddy
+	          Covariance Datasets". "Instruction Manual (PDF)" is gone - it
+	          opened a LI-COR Box share that no longer resolves, and there
+	          is no PDF manual to put in its place.
+	- New: Offline help is a build of that same documentation, under
+	       docs/help, so "Use Offline Help" works again. It had looked under
+	       docs/help/topics_EddyFlow/, a layout from the LI-COR help that
+	       the program has not shipped for several versions, so with offline
+	       help on every question mark opened nothing. The pages that did
+	       ship, the MadCap bundle under docs/support, are gone; no part of
+	       the program ever read them. A page the bundle does not carry - an
+	       older bundle, a topic added since - opens online rather than
+	       failing. Offline search is not available, because a browser will
+	       not fetch the search index over file://. Regenerate the bundle
+	       with scripts/update-offline-help.ps1 whenever the documentation
+	       changes.
+	- New: A question mark on the dialogs that offered no help at all: CEC
+	       Settings, "Limit of detection (Langford et al. 2015)", Flux
+	       Detection Limit, Planar Fit Settings, PWB Time Lag Optimization
+	       Settings, Timelag Preliminary Assessment, the time lag and binary
+	       file settings, the raw file name format and remote browsing
+	       dialogs, the raw file settings, and the metadata editor's Raw
+	       File Description tab, whose help handler had its one line
+	       commented out.
+	- Fix: Choosing "Use local help" in the "Set Remote/Local Help" dialog
+	       opens the page. It worked out where the page was and then threw
+	       the answer away, so the first question mark of a new installation
+	       did nothing at all.
+	- Fix: The question marks that were built but never placed on a page are
+	       gone, along with two that would have opened the bare URL
+	       "http://".
+	- Change: "EddyFlow Forum" is gone from the Help menu. There is no
+	          forum, and the entry opened the documentation, the same page as
+	          "EddyFlow Web Page" beside it.
+
 8.1.2 (2026-10-07)
 
     GUI:
