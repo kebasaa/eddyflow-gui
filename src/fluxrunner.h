@@ -36,10 +36,12 @@ class QProgressBar;
 class QPushButton;
 class QTimer;
 
-/// "Super Flux Run": a side-scroller across a week of half-hourly fluxes.
-/// The bars of the flux time series are the ground, missing data are pits
-/// and spikes are walls; the boundary layer above it gusts, swirls and
-/// rains on the same diurnal clock. The flux tower at the end is the goal.
+/// "Super Flux Run": a side-scroller across a week of raw eddy covariance
+/// data. The 10 Hz CO2 trace is the ground - high under the stable night,
+/// drawn down by the day's uptake, ragged with turbulence - missing data
+/// drop to -9999 and leave a pit, and spikes stand up as needles; the
+/// boundary layer above it gusts, swirls and rains on the same diurnal
+/// clock. The flux tower at the end is the goal.
 class FluxRunner : public QWidget
 {
     Q_OBJECT
@@ -88,14 +90,26 @@ private:
     enum class Item { Coin, Hat, Filter, Coffee };
     enum class FoeKind { Reviewer, Bubble, Puff };
 
+    // a half-hour of the level: what it holds, and its mean level
     struct Bar
     {
-        qreal top;      // world y of the surface, FLOOR - height
-        qreal flux;     // what the bar stands for, umol m-2 s-1
+        qreal top;      // world y of the half-hour's mean, FLOOR - height
+        qreal flux;     // the flux behind it, umol m-2 s-1
         bool gap;       // missing data: no ground at all
         bool spike;
-        bool tube;      // one of the two columns of a sampling tube
+        bool tube;      // one of the two half-hours of a sampling tube
         int moving;     // index into moving_, or -1
+    };
+
+    // one point of the raw trace: the ground the game is played on
+    struct Sample
+    {
+        qreal top;      // what is stood on, a needle included
+        qreal base;     // the trace without its needle
+        int moving;
+        bool gap;
+        bool spike;
+        bool tube;
     };
 
     struct Body
@@ -213,11 +227,14 @@ private:
     // the level
     bool generateLevel(bool hazards);
     bool verifyLevel() const;
+    void buildSamples();
     void placeThings();
     int columnCount() const { return static_cast<int>(bars_.size()); }
-    int columnOf(qreal x) const;
-    qreal topAt(int column) const;
+    int columnOf(qreal x) const;        // the half-hour under x
+    int sampleOf(qreal x) const;        // the trace sample under x
+    qreal surfaceAt(int sample) const;
     qreal groundTop(qreal x) const;
+    qreal standTop(qreal x, qreal halfW) const;
     qreal supportTop(qreal left, qreal right, qreal feet) const;
     bool nearGap(int column, int reach) const;
     qreal hourAt(qreal x) const;
@@ -257,8 +274,9 @@ private:
     // drawing
     void paintSky(QPainter& p) const;
     void paintParallax(QPainter& p) const;
+    void paintAxes(QPainter& p) const;
     void paintAtmosphereBack(QPainter& p) const;
-    void paintBars(QPainter& p) const;
+    void paintGround(QPainter& p) const;
     void paintThings(QPainter& p) const;
     void paintFoes(QPainter& p) const;
     void paintEddies(QPainter& p) const;
@@ -292,6 +310,7 @@ private:
     int stompChain_;
 
     QList<Bar> bars_;
+    QList<Sample> samples_;
     QList<Foe> foes_;
     QList<Block> blocks_;
     QList<Coin> coins_;

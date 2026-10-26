@@ -60,7 +60,9 @@ namespace {
 const int PLAY_HEIGHT = 388;
 const int HUD_HEIGHT = 32;
 const qreal FLOOR = 388.0;
-const qreal BAR_W = 24.0;
+const qreal BAR_W = 24.0;           // one half-hour of the level
+const qreal SAMPLE_W = 4.0;         // one point of the raw trace, and of the ground
+const int SAMPLES_PER_SLOT = 6;
 const int TICK_MS = 16;
 const qreal STEP_S = 1.0 / 120.0;   // fixed physics step: jumps come out the same at any frame rate
 const qreal INF = std::numeric_limits<qreal>::infinity();
@@ -108,6 +110,19 @@ const int MAX_ZONE_PIT = 3;
 const qreal MAX_LANDING_RISE = 48.0;
 const int RUN_UP = 3;
 const qreal SLOPE = 8.0;
+
+// the raw trace: turbulence on top of the half-hourly level, never more
+// of a step between two points than can be walked
+// (small: the figure stands on the highest point under its feet, and the
+// drawn trace adds a finer wiggle of its own)
+const qreal TURBULENCE_DAY = 2.0;
+const qreal TURBULENCE_NIGHT = 0.8;
+const qreal TURBULENCE_BURST = 2.4;  // intermittent turbulence on a stable night
+const qreal TURBULENCE_MAX = 5.0;
+const qreal SAMPLE_STEP = 5.0;
+// the y-axis: CO2 mole fraction at a height above the floor
+const qreal CO2_AT_FLOOR = 360.0;
+const qreal CO2_PER_PX = 0.4;
 
 // the boundary layer
 const qreal GUST_MAX = 36.0;        // px/s of drift: a headwind costs at most 15 % of the reach
@@ -302,7 +317,7 @@ const QStringList& loadingSteps()
 {
     static const QStringList list {
         QStringLiteral("Unpacking a week of half-hourly fluxes..."),
-        QStringLiteral("Levelling the bar chart so it can be stood on..."),
+        QStringLiteral("Recording a week of CO2 at ten hertz..."),
         QStringLiteral("Digging pits where the data went missing..."),
         QStringLiteral("Raising the spikes into proper walls..."),
         QStringLiteral("Teaching Reviewer 2 to walk..."),
@@ -339,11 +354,11 @@ const QStringList& loadingSteps()
 const QStringList& introLines()
 {
     static const QStringList list {
-        QStringLiteral("A week of fluxes stands between you and the flux tower. Run across the bars, jump the gaps, and get the data submitted."),
+        QStringLiteral("A week of raw data stands between you and the flux tower. Run along the trace, jump the gaps, and get the data submitted."),
         QStringLiteral("The data are the ground. The missing data are the holes in it. Mind the holes."),
         QStringLiteral("Somewhere at the end of this week sits a flux tower with a flag on it. Go and get it."),
         QStringLiteral("Seven days of half-hourly NEE, one technician, and a deadline. What could go wrong?"),
-        QStringLiteral("Every bar is a half-hour. Every gap is a power cut. Every spike is somebody else's problem, until now."),
+        QStringLiteral("Every wiggle is a tenth of a second. Every gap is a power cut. Every spike is somebody else's problem, until now."),
         QStringLiteral("Reviewer 2 is loose in the time series. Jump on them. It is the only language they understand."),
         QStringLiteral("Collect the good half-hours, dodge the advected CO2, and stay out of the methane."),
         QStringLiteral("The daytime fluxes go down, the night-time fluxes come up, and you go across."),
@@ -353,10 +368,10 @@ const QStringList& introLines()
         QStringLiteral("Hard hat on. Coffee optional. Coverage mandatory."),
         QStringLiteral("You are the last line of defence between a perfectly good dataset and the -9999s."),
         QStringLiteral("Navigate the fluxes. Literally."),
-        QStringLiteral("Uptake is green, release is brown, and the gaps are bottomless."),
+        QStringLiteral("The CO2 piles up at night and is drawn down by day, and the gaps go all the way down to -9999."),
         QStringLiteral("The eddies will throw you around. Learn which side lifts and which side drops."),
         QStringLiteral("A thermal will carry you if you hold jump. A gap will not."),
-        QStringLiteral("The rain makes the bars slippery. The night makes them dark. The deadline makes it all worse."),
+        QStringLiteral("The rain makes the trace slippery. The night makes it dark. The deadline makes it all worse."),
         QStringLiteral("Find the backup station halfway along, or start the whole week again."),
         QStringLiteral("Somewhere in this week is the half-hour that will make your annual sum. Probably."),
         QStringLiteral("Stomp, jump, collect, submit. The scientific method, roughly."),
@@ -366,7 +381,7 @@ const QStringList& introLines()
         QStringLiteral("A hard hat gives you one more mistake. A despiking filter gives you something to throw."),
         QStringLiteral("The coffee makes you invincible for eight seconds. Science has confirmed this."),
         QStringLiteral("The pits are u*-filtered nights. Nobody comes back from a u*-filtered night."),
-        QStringLiteral("Seven days, one tower, three lives, and a lot of bars."),
+        QStringLiteral("Seven days, one tower, three lives, and six million samples."),
         QStringLiteral("The field season starts now. Try not to fall into it."),
         QStringLiteral("Your mission: maximise data coverage. Your obstacles: everything else.")
     };
@@ -1032,7 +1047,7 @@ const QStringList& resultTags()
         QStringLiteral("Every gap you jumped is one less for the gap-filler."),
         QStringLiteral("Reviewer 2 will be back for the revised version."),
         QStringLiteral("The boundary layer is calm again, until tomorrow afternoon."),
-        QStringLiteral("Remember: uptake is down, release is up, and the gaps are everywhere."),
+        QStringLiteral("Remember: the CO2 is high at night, low by day, and the gaps are everywhere."),
         QStringLiteral("The flag is down, the hut is warm, and the coffee is cold."),
         QStringLiteral("Another week of fluxes, another week of field boots."),
         QStringLiteral("The time lag of the sampling tubes was within specification."),
@@ -1251,7 +1266,7 @@ const QStringList& tubePops()
 const QStringList& rainPops()
 {
     static const QStringList list {
-        QStringLiteral("RAIN! MIND THE SLIPPERY BARS!"),
+        QStringLiteral("RAIN! MIND THE SLIPPERY TRACE!"),
         QStringLiteral("WET SONIC!"),
         QStringLiteral("PRECIPITATION FLAG!"),
         QStringLiteral("THE OPEN PATH IS WET!"),
@@ -1512,7 +1527,7 @@ const QList<RankTier>& rankTiers()
             QStringLiteral("You submitted the data with a respectable {coverage}. The gap-filler has less to invent."),
             QStringLiteral("You stomped {stomps} on the way. Reviewer 2 is regrouping."),
             QStringLiteral("Not bad. {tool} would like a word about your jumping technique."),
-            QStringLiteral("{time} from the first bar to the hut. The tower crew clocked you."),
+            QStringLiteral("{time} from the first sample to the hut. The tower crew clocked you."),
             QStringLiteral("You lost {lives}, but the week is in. That is what counts."),
             QStringLiteral("The flux tower accepts your data and suggests a refresher course."),
             QStringLiteral("Coverage {coverage}: enough for a conference talk."),
@@ -1566,7 +1581,7 @@ const QList<RankTier>& rankTiers()
             QStringLiteral("Field Campaign Lead"),
             QStringLiteral("Friend of the Tower"),
             QStringLiteral("Covariance Practitioner"),
-            QStringLiteral("Master of the Bars"),
+            QStringLiteral("Master of the Raw Data"),
             QStringLiteral("Keeper of the Half-Hours"),
             QStringLiteral("Trusted With the Car Keys"),
             QStringLiteral("Rain-Proof Runner")
@@ -1872,6 +1887,7 @@ void FluxRunner::start()
         built = generateLevel(true) && verifyLevel();
     if (!built)
         generateLevel(false);
+    buildSamples();
     placeThings();
 
     stars_.clear();
@@ -1895,7 +1911,7 @@ void FluxRunner::start()
     clearStage_ = 0;
     nightAnnounced_ = false;
     tubeIndex_ = -1;
-    flagY_ = topAt(towerColumn_) - 250.0;
+    flagY_ = bars_.at(towerColumn_).top - 250.0;
     nextEddy_ = 0.0;
     banner_.clear();
     bannerAge_ = BANNER_S;
@@ -1936,21 +1952,26 @@ int FluxRunner::columnOf(qreal x) const
     return static_cast<int>(std::floor(x / BAR_W));
 }
 
-qreal FluxRunner::topAt(int column) const
+int FluxRunner::sampleOf(qreal x) const
 {
-    // the start of the level is a wall; past its end the last bar carries on
-    if (column < 0)
+    return static_cast<int>(std::floor(x / SAMPLE_W));
+}
+
+qreal FluxRunner::surfaceAt(int sample) const
+{
+    // the start of the level is a wall; past its end the last point carries on
+    if (sample < 0)
         return -INF;
-    if (bars_.isEmpty())
+    if (samples_.isEmpty())
         return FLOOR;
-    column = std::min(column, columnCount() - 1);
-    const Bar& bar = bars_.at(column);
-    if (bar.gap)
+    sample = std::min(sample, static_cast<int>(samples_.size()) - 1);
+    const Sample& s = samples_.at(sample);
+    if (s.gap)
         return INF;
-    qreal top = bar.top;
-    if (bar.moving >= 0)
+    qreal top = s.top;
+    if (s.moving >= 0)
     {
-        const auto& run = moving_.at(bar.moving);
+        const auto& run = moving_.at(s.moving);
         top -= run.amplitude * std::sin(2.0 * PI * clockTime_ / run.period + run.phase);
     }
     return top;
@@ -1958,18 +1979,25 @@ qreal FluxRunner::topAt(int column) const
 
 qreal FluxRunner::groundTop(qreal x) const
 {
-    return topAt(columnOf(x));
+    return surfaceAt(sampleOf(x));
+}
+
+qreal FluxRunner::standTop(qreal x, qreal halfW) const
+{
+    // the highest point of the trace under a body standing at x
+    qreal best = INF;
+    for (int i = sampleOf(x - halfW + EPS); i <= sampleOf(x + halfW - EPS); ++i)
+        best = std::min(best, surfaceAt(i));
+    return best;
 }
 
 qreal FluxRunner::supportTop(qreal left, qreal right, qreal feet) const
 {
     // the highest surface under the body that is not above its knees
     qreal best = INF;
-    const int first = columnOf(left + EPS);
-    const int last = columnOf(right - EPS);
-    for (int c = first; c <= last; ++c)
+    for (int i = sampleOf(left + EPS); i <= sampleOf(right - EPS); ++i)
     {
-        const qreal top = topAt(c);
+        const qreal top = surfaceAt(i);
         if (top >= feet - STEP_UP - EPS && top < best)
             best = top;
     }
@@ -2378,6 +2406,114 @@ bool FluxRunner::verifyLevel() const
     return true;
 }
 
+void FluxRunner::buildSamples()
+{
+    // The raw trace through the half-hourly levels: joined smoothly from
+    // one half-hour's centre to the next, with turbulence on top - ragged by
+    // day, quiet at night apart from the odd burst. Spikes are what they are
+    // in raw data, single-sample outliers standing out of the trace; tubes
+    // stay flat for their pipe; the tower and the hut stand on level ground.
+    samples_.clear();
+    const int n = columnCount();
+    auto gauss = []()
+    {
+        const qreal u1 = std::max(uniform(0.0, 1.0), 1e-9);
+        return std::sqrt(-2.0 * std::log(u1)) * std::cos(2.0 * PI * uniform(0.0, 1.0));
+    };
+    auto smooth = [&](int c)
+    {
+        const Bar& bar = bars_.at(c);
+        return !bar.gap && !bar.spike && !bar.tube;
+    };
+
+    qreal turbulence = 0.0;
+    int burst = 0;
+    for (int c = 0; c < n; ++c)
+    {
+        const Bar& bar = bars_.at(c);
+
+        if (bar.spike)
+        {
+            if (c > 0 && bars_.at(c - 1).spike)
+                continue;
+            int end = c;
+            while (end < n && bars_.at(end).spike)
+                ++end;
+            // the trace carries on from the ground before to the ground after;
+            // the outliers stand out of it, a lone needle for one half-hour and
+            // a jagged cluster for two, the tallest at the half-hour's level
+            const qreal before = bars_.at(std::max(c - 1, 0)).top;
+            const qreal after = bars_.at(std::min(end, n - 1)).top;
+            const QList<QPair<int, qreal>> needles = (end - c == 1)
+                ? QList<QPair<int, qreal>> { { 2, 1.0 } }
+                : QList<QPair<int, qreal>> { { 3, 0.8 }, { 5, 1.0 }, { 8, 0.65 } };
+            const int count = (end - c) * SAMPLES_PER_SLOT;
+            for (int i = 0; i < count; ++i)
+            {
+                turbulence = std::clamp(0.55 * turbulence + TURBULENCE_DAY * gauss(),
+                                        -TURBULENCE_MAX, TURBULENCE_MAX);
+                qreal ground = before + (after - before) * (i + 0.5) / count + turbulence;
+                if (!samples_.isEmpty() && !samples_.last().gap && !samples_.last().tube)
+                    ground = std::clamp(ground, samples_.last().base - SAMPLE_STEP,
+                                        samples_.last().base + SAMPLE_STEP);
+                Sample sample { ground, ground, -1, false, false, false };
+                for (const auto& needle : needles)
+                {
+                    if (needle.first == i)
+                    {
+                        sample.top = ground - needle.second * (ground - bar.top);
+                        sample.spike = true;
+                    }
+                }
+                samples_.append(sample);
+            }
+            continue;
+        }
+
+        const qreal hour = ((std::max(c - LEAD, 0) + START_SLOT) % 48) * 0.5;
+        const bool night = hour < 6.0 || hour > 20.0;
+        const bool level = bar.tube || c >= towerColumn_ - 3;
+        for (int k = 0; k < SAMPLES_PER_SLOT; ++k)
+        {
+            Sample sample { bar.top, bar.top, bar.moving, bar.gap, false, bar.tube };
+            if (bar.gap)
+            {
+                samples_.append(sample);
+                continue;
+            }
+
+            // towards the neighbouring half-hour's centre, if it is ordinary ground
+            const qreal f = (k + 0.5) / SAMPLES_PER_SLOT - 0.5;
+            const int neighbour = f < 0.0 ? c - 1 : c + 1;
+            if (!level && smooth(c) && neighbour >= 0 && neighbour < n && smooth(neighbour)
+                && bars_.at(neighbour).moving == bar.moving)
+                sample.top += (bars_.at(neighbour).top - bar.top) * std::abs(f);
+
+            if (!level)
+            {
+                if (night && burst == 0 && chance(0.004))
+                    burst = between(10, 20);
+                const qreal sigma = burst > 0 ? TURBULENCE_BURST
+                                              : (night ? TURBULENCE_NIGHT : TURBULENCE_DAY);
+                burst = std::max(burst - 1, 0);
+                turbulence = std::clamp(0.55 * turbulence + sigma * gauss(),
+                                        -TURBULENCE_MAX, TURBULENCE_MAX);
+                sample.top += turbulence;
+                // never a step between two points that cannot be walked
+                if (!samples_.isEmpty())
+                {
+                    const Sample& previous = samples_.last();
+                    if (!previous.gap && !previous.tube && previous.moving == sample.moving)
+                        sample.top = std::clamp(sample.top, previous.base - SAMPLE_STEP,
+                                                previous.base + SAMPLE_STEP);
+                }
+            }
+            sample.base = sample.top;
+            samples_.append(sample);
+        }
+    }
+}
+
 void FluxRunner::placeThings()
 {
     foes_.clear();
@@ -2658,11 +2794,11 @@ void FluxRunner::tick()
                     clearStage_ = 1;
                     stateTime_ = 0.0;
                     player_.feet = QPointF(tube.exitColumn * BAR_W + BAR_W,
-                                           topAt(tube.exitColumn) + PLAYER_HEIGHT);
+                                           bars_.at(tube.exitColumn).top + PLAYER_HEIGHT);
                     const qreal view = width();
                     cameraX_ = std::clamp(std::max(cameraX_, player_.feet.x() - 0.45 * view), 0.0,
                                           std::max(columnCount() * BAR_W - view, 0.0));
-                    addPop(QPointF(player_.feet.x(), topAt(tube.exitColumn) - 20.0),
+                    addPop(QPointF(player_.feet.x(), bars_.at(tube.exitColumn).top - 20.0),
                            pickFresh(tubePops()).arg(tube.lag, 0, 'f', 1), ICE);
                 }
             }
@@ -2678,7 +2814,7 @@ void FluxRunner::tick()
             else
             {
                 player_.feet.ry() -= 140.0 * dt;
-                const qreal top = topAt(tube.exitColumn);
+                const qreal top = bars_.at(tube.exitColumn).top;
                 if (player_.feet.y() <= top)
                 {
                     player_.feet.setY(top);
@@ -2699,7 +2835,7 @@ void FluxRunner::tick()
         case State::Cleared:
         {
             stateTime_ += dt;
-            const qreal ground = topAt(towerColumn_);
+            const qreal ground = bars_.at(towerColumn_).top;
             if (clearStage_ == 0)
             {
                 // down the mast, with the flag
@@ -2799,7 +2935,8 @@ void FluxRunner::step(qreal dt)
     {
         checkpointTaken_ = true;
         respawnColumn_ = checkpointColumn_;
-        addPop(QPointF(checkpointColumn_ * BAR_W + BAR_W / 2, topAt(checkpointColumn_) - 70.0),
+        addPop(QPointF(checkpointColumn_ * BAR_W + BAR_W / 2,
+                       groundTop(checkpointColumn_ * BAR_W + BAR_W / 2) - 70.0),
                pickFresh(checkpointPops()), COIN_GREEN);
     }
 
@@ -2857,17 +2994,19 @@ FluxRunner::Move FluxRunner::moveBody(Body &body, qreal dt, qreal stepUp)
         const int dir = vx > 0.0 ? 1 : -1;
         const qreal x = body.feet.x();
         const qreal nx = x + vx * dt;
-        const int from = columnOf(x + dir * body.halfW - dir * EPS);
-        const int to = columnOf(nx + dir * body.halfW - dir * EPS);
+        const int from = sampleOf(x + dir * body.halfW - dir * EPS);
+        const int to = sampleOf(nx + dir * body.halfW - dir * EPS);
         qreal resolved = nx;
         qreal feet = body.feet.y();
         for (int c = from + dir; dir > 0 ? c <= to : c >= to; c += dir)
         {
-            // bars are solid down to the floor; blocks only where they are
-            qreal obstacle = topAt(c);
+            // the trace is solid down to the floor; blocks only where they are
+            qreal obstacle = surfaceAt(c);
+            const qreal sampleLeft = c * SAMPLE_W;
             for (const auto& block : blocks_)
             {
-                if (block.column != c)
+                const qreal x0 = block.column * BAR_W;
+                if (sampleLeft + SAMPLE_W <= x0 + EPS || sampleLeft >= x0 + BLOCK - EPS)
                     continue;
                 const qreal top = block.bottom - BLOCK;
                 if (top < feet - EPS && block.bottom > feet - body.height + EPS)
@@ -2875,8 +3014,8 @@ FluxRunner::Move FluxRunner::moveBody(Body &body, qreal dt, qreal stepUp)
             }
             if (obstacle < feet - stepUp - EPS)
             {
-                resolved = dir > 0 ? c * BAR_W - body.halfW - EPS
-                                   : (c + 1) * BAR_W + body.halfW + EPS;
+                resolved = dir > 0 ? c * SAMPLE_W - body.halfW - EPS
+                                   : (c + 1) * SAMPLE_W + body.halfW + EPS;
                 move.hitWall = true;
                 break;
             }
@@ -2897,9 +3036,9 @@ FluxRunner::Move FluxRunner::moveBody(Body &body, qreal dt, qreal stepUp)
     {
         // a sweep from where the feet were, so nothing falls through a top
         qreal land = INF;
-        for (int c = columnOf(left + EPS); c <= columnOf(right - EPS); ++c)
+        for (int c = sampleOf(left + EPS); c <= sampleOf(right - EPS); ++c)
         {
-            const qreal top = topAt(c);
+            const qreal top = surfaceAt(c);
             if (feet <= top + 0.5 && next >= top)
                 land = std::min(land, top);
         }
@@ -3166,7 +3305,7 @@ void FluxRunner::updateFoes(qreal dt)
                 {
                     // it keeps to its own stretch: back at a pit or a drop
                     const qreal ahead = b.feet.x() + foe.facing * (b.halfW + 2.0);
-                    if (topAt(columnOf(ahead)) > b.feet.y() + STEP_UP)
+                    if (groundTop(ahead) > b.feet.y() + STEP_UP)
                         foe.facing = -foe.facing;
                 }
                 if (b.feet.y() > FLOOR + DEATH_DEPTH)
@@ -3187,7 +3326,7 @@ void FluxRunner::updateFoes(qreal dt)
                         int rim = columnOf(b.feet.x());
                         while (rim > 0 && bars_.at(rim).gap)
                             --rim;
-                        const qreal apex = topAt(rim) - uniform(60.0, 120.0);
+                        const qreal apex = bars_.at(rim).top - uniform(60.0, 120.0);
                         b.vel.setY(-std::sqrt(2.0 * BUBBLE_G * std::max(rest - apex, 10.0)));
                         foe.timer = uniform(2.2, 3.2);
                     }
@@ -3442,7 +3581,7 @@ void FluxRunner::fire()
     const int dir = facingLeft_ ? -1 : 1;
     const QPointF start(player_.feet.x() + dir * 14.0, player_.feet.y() - 28.0);
     // not out of the far side of a wall
-    if (topAt(columnOf(start.x())) < start.y())
+    if (groundTop(start.x()) < start.y())
         return;
     shots_.append({ { start, QPointF(dir * SHOT_SPEED + 0.5 * player_.vel.x(), 0.0),
                       4.0, 8.0, false }, 0.0 });
@@ -3475,7 +3614,8 @@ void FluxRunner::die(bool pit)
 void FluxRunner::respawn()
 {
     const int c = respawnColumn_;
-    player_ = { QPointF(c * BAR_W + BAR_W / 2, topAt(c)), QPointF(), PLAYER_HALF_W,
+    const qreal x = c * BAR_W + BAR_W / 2;
+    player_ = { QPointF(x, standTop(x, PLAYER_HALF_W)), QPointF(), PLAYER_HALF_W,
                 PLAYER_HEIGHT, true };
     power_ = Power::Small;
     invulnerable_ = 0.0;
@@ -3531,7 +3671,7 @@ void FluxRunner::enterTube(int index)
 void FluxRunner::reachTower()
 {
     // the higher up the mast, the more it is worth
-    const qreal ground = topAt(towerColumn_);
+    const qreal ground = bars_.at(towerColumn_).top;
     const qreal above = ground - player_.feet.y();
     const int bonus = above > 200.0 ? 5000 : above > 150.0 ? 2000 : above > 100.0 ? 800
                     : above > 50.0 ? 400 : 100;
@@ -3671,7 +3811,7 @@ void FluxRunner::keyPressEvent(QKeyEvent *event)
                 {
                     const qreal x0 = tubes_.at(i).column * BAR_W;
                     if (player_.feet.x() >= x0 + 4.0 && player_.feet.x() <= x0 + 2 * BAR_W - 4.0
-                        && std::abs(player_.feet.y() - topAt(tubes_.at(i).column)) < 1.0)
+                        && std::abs(player_.feet.y() - bars_.at(tubes_.at(i).column).top) < 1.0)
                     {
                         enterTube(i);
                         break;
@@ -3781,12 +3921,13 @@ void FluxRunner::paintEvent(QPaintEvent *event)
     p.setClipRect(play);
     paintSky(p);
     paintParallax(p);
+    paintAxes(p);
 
     // the world, at a whole-pixel offset so nothing shimmers
     p.save();
     p.translate(-std::round(cameraX_), 0.0);
     paintAtmosphereBack(p);
-    paintBars(p);
+    paintGround(p);
     paintThings(p);
     paintFoes(p);
     paintEddies(p);
@@ -3911,6 +4052,25 @@ void FluxRunner::paintParallax(QPainter &p) const
     }
 }
 
+void FluxRunner::paintAxes(QPainter &p) const
+{
+    // the plot the level is drawn in: CO2 on the left, faint grid lines
+    auto small = font();
+    small.setPointSizeF(std::max(small.pointSizeF() - 2.0, 7.0));
+    p.setFont(small);
+    for (int co2 = 380; co2 <= 440; co2 += 20)
+    {
+        const qreal y = FLOOR - (co2 - CO2_AT_FLOOR) / CO2_PER_PX;
+        p.setPen(QPen(QColor(255, 255, 255, 30), 1, Qt::DashLine));
+        p.drawLine(QPointF(0, y), QPointF(width(), y));
+        p.setPen(QColor(255, 255, 255, 130));
+        p.drawText(QRectF(4, y - 15, 40, 14), Qt::AlignLeft | Qt::AlignVCenter, QString::number(co2));
+    }
+    p.setPen(QColor(255, 255, 255, 160));
+    p.drawText(QRectF(8, 6, 220, 16), Qt::AlignLeft | Qt::AlignVCenter,
+               QStringLiteral("CO₂ (µmol mol⁻¹), 10 Hz"));
+}
+
 void FluxRunner::paintAtmosphereBack(QPainter &p) const
 {
     const qreal viewLeft = cameraX_;
@@ -3944,7 +4104,7 @@ void FluxRunner::paintAtmosphereBack(QPainter &p) const
         if (zone.thermal >= 0)
         {
             const qreal tx = zone.thermal * BAR_W;
-            qreal ground = topAt(zone.thermal);
+            qreal ground = groundTop(tx + 1.5 * BAR_W);
             if (!std::isfinite(ground))
                 ground = FLOOR;
             p.setPen(QPen(QColor(255, 240, 200, 70), 1.4));
@@ -3962,7 +4122,7 @@ void FluxRunner::paintAtmosphereBack(QPainter &p) const
 
         // a windsock at the edge of the zone
         const qreal wx = zone.start * BAR_W + BAR_W / 2;
-        qreal ground = topAt(zone.start);
+        qreal ground = groundTop(wx);
         if (!std::isfinite(ground))
             continue;
         const qreal poleTop = ground - 46.0;
@@ -3984,78 +4144,179 @@ void FluxRunner::paintAtmosphereBack(QPainter &p) const
     }
 }
 
-void FluxRunner::paintBars(QPainter &p) const
+void FluxRunner::paintGround(QPainter &p) const
 {
-    const int first = std::max(columnOf(cameraX_) - 1, 0);
-    const int last = std::min(columnOf(cameraX_ + width()) + 1, columnCount() - 1);
+    const int count = static_cast<int>(samples_.size());
+    const int first = std::max(sampleOf(cameraX_) - 2, 0);
+    const int last = std::min(sampleOf(cameraX_ + width()) + 2, count - 1);
+    const int firstSlot = std::max(columnOf(cameraX_) - 1, 0);
+    const int lastSlot = std::min(columnOf(cameraX_ + width()) + 1, columnCount() - 1);
 
     auto small = font();
     small.setPointSizeF(std::max(small.pointSizeF() - 2.0, 7.0));
     p.setFont(small);
 
-    for (int c = first; c <= last; ++c)
+    // the time axis: a faint line every three hours, the day at midnight
+    for (int c = std::max(firstSlot, LEAD); c <= lastSlot; ++c)
     {
-        const Bar& bar = bars_.at(c);
+        const int slot = c - LEAD + START_SLOT;
+        if (slot % 6 != 0)
+            continue;
         const qreal x = c * BAR_W;
-        if (bar.gap)
+        p.setPen(QPen(QColor(255, 255, 255, 28), 1));
+        p.drawLine(QPointF(x, 0), QPointF(x, FLOOR));
+        p.setPen(QColor(255, 255, 255, 150));
+        const QString label = slot % 48 == 0
+            ? QStringLiteral("DOY %1").arg(firstDoy_ + slot / 48)
+            : QStringLiteral("%1:00").arg((slot % 48) / 2, 2, 10, QLatin1Char('0'));
+        p.drawText(QRectF(x + 3, FLOOR - 16, 80, 14), Qt::AlignLeft | Qt::AlignVCenter, label);
+    }
+
+    // a fixed scatter per pixel: the drawing of the data only, so that the
+    // trace looks like the thousands of 10 Hz points it stands for while the
+    // ground under the feet stays the smooth line through the samples
+    auto hash = [](qreal k)
+    {
+        const qreal v = std::sin(k * 12.9898 + 78.233) * 43758.5453;
+        return v - std::floor(v);
+    };
+    // the trace without its needles, where it is right now
+    auto baseAt = [this](int i)
+    {
+        const Sample& s = samples_.at(i);
+        return surfaceAt(i) - (s.top - s.base);
+    };
+
+    QLinearGradient earth(0, FLOOR - 220, 0, FLOOR);
+    earth.setColorAt(0.0, QColor(46, 70, 52, 240));
+    earth.setColorAt(1.0, QColor(16, 22, 20, 250));
+
+    // one stretch of valid data at a time
+    int i = first;
+    while (i <= last)
+    {
+        if (samples_.at(i).gap)
         {
-            // a ghost of what is missing
-            const qreal ghost = FLOOR - std::clamp(150.0 + 4.0 * bar.flux, 32.0, 200.0);
-            p.setPen(QPen(QColor(230, 50, 40, 90), 1, Qt::DashLine));
-            p.setBrush(Qt::NoBrush);
-            p.drawRect(QRectF(x + 2, ghost, BAR_W - 4, FLOOR - ghost));
-            if (c > 0 && !bars_.at(c - 1).gap)
-            {
-                p.setPen(QColor(230, 50, 40, 160));
-                p.drawText(QRectF(x, FLOOR - 18, BAR_W * 3, 16), Qt::AlignLeft | Qt::AlignVCenter,
-                           QStringLiteral("-9999"));
-            }
+            ++i;
             continue;
         }
-
-        const qreal top = topAt(c);
-        QColor fill = bar.spike ? SPIKE_RED : (bar.flux < 0 ? UPTAKE : RELEASE);
-        if (bar.moving >= 0)
-            fill = fill.lighter(112);
-        QLinearGradient gradient(0, top, 0, FLOOR);
-        gradient.setColorAt(0.0, fill);
-        gradient.setColorAt(1.0, fill.darker(140));
-        p.setPen(QPen(fill.darker(160), 1));
-        p.setBrush(gradient);
-        p.drawRect(QRectF(x + 0.5, top, BAR_W - 1, FLOOR - top + 1));
-        p.fillRect(QRectF(x + 1, top, BAR_W - 2, 3), fill.lighter(135));
-
-        if (bar.spike)
+        const int start = i;
+        QPolygonF line;
+        while (i <= last && !samples_.at(i).gap)
         {
-            p.setPen(QPen(QColor(120, 20, 15, 120), 1));
-            for (qreal y = top + 8; y < FLOOR; y += 10)
-                p.drawLine(QPointF(x + 2, y + 6), QPointF(x + BAR_W - 2, y));
-            // an outlier gets a flag
-            if (c == 0 || !bars_.at(c - 1).spike)
-            {
-                p.setPen(QPen(QColor(60, 60, 60), 1.2));
-                p.drawLine(QPointF(x + 4, top), QPointF(x + 4, top - 14));
-                p.setPen(Qt::NoPen);
-                p.setBrush(DANGER);
-                p.drawPolygon(QPolygonF { { x + 4, top - 14 }, { x + 14, top - 10.5 }, { x + 4, top - 7 } });
-            }
+            line << QPointF(i * SAMPLE_W + SAMPLE_W / 2, baseAt(i));
+            ++i;
         }
 
-        if (bar.moving >= 0 && (c == 0 || bars_.at(c - 1).moving != bar.moving))
+        QPainterPath ground;
+        ground.moveTo(line.first().x(), FLOOR + 2);
+        for (const auto& point : line)
+            ground.lineTo(point);
+        ground.lineTo(line.last().x(), FLOOR + 2);
+        ground.closeSubpath();
+        p.fillPath(ground, earth);
+
+        // the scatter: wide by day, narrow on a stable night, with the odd
+        // burst of intermittent turbulence; flat where a tube sits
+        QVector<QLineF> scatter;
+        scatter.reserve(static_cast<int>(line.last().x() - line.first().x()) + 2);
+        for (int s = 0; s + 1 < line.size(); ++s)
         {
-            p.setPen(QColor(255, 255, 255, 110));
-            p.drawText(QRectF(x - 20, top - 20, BAR_W * 6, 14), Qt::AlignLeft | Qt::AlignVCenter,
-                       QStringLiteral("non-stationary"));
+            const QPointF a = line.at(s);
+            const QPointF b = line.at(s + 1);
+            const int sample = start + s;
+            const bool flat = samples_.at(sample).tube || samples_.at(sample + 1).tube;
+            const qreal night = nightAt(a.x());
+            const bool burst = night > 0.5 && hash(std::floor(a.x() / 40.0) + 7777.0) > 0.93;
+            const qreal width = flat ? 0.0 : (8.5 - 6.9 * night) + (burst ? 5.0 : 0.0);
+            for (qreal x = std::floor(a.x()); x < b.x(); x += 1.0)
+            {
+                const qreal y = a.y() + (b.y() - a.y()) * (x - a.x()) / (b.x() - a.x());
+                const qreal spread = width * (0.45 + 0.55 * hash(x));
+                scatter << QLineF(x + 0.5, y - 0.7 * spread * hash(x * 3.0 + 1.0),
+                                  x + 0.5, y + spread * hash(x * 3.0 + 2.0) + 0.6);
+            }
+        }
+        p.setBrush(Qt::NoBrush);
+        p.setPen(QPen(QColor(90, 225, 90, 45), 5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        p.drawPolyline(line);
+        p.setPen(QPen(QColor(120, 240, 110, 190), 1.0));
+        p.drawLines(scatter);
+        p.setPen(QPen(QColor(170, 255, 160, 110), 1.0));
+        p.drawPolyline(line);
+
+        // where the data stop, the plot drops to the -9999 they were filled with
+        p.setPen(QPen(QColor(230, 50, 40, 170), 1.3));
+        if (start > 0 && samples_.at(start - 1).gap)
+            p.drawLine(QPointF(line.first().x() - 3, FLOOR + 8), line.first());
+        if (i < count && samples_.at(i).gap)
+            p.drawLine(line.last(), QPointF(line.last().x() + 3, FLOOR + 8));
+    }
+
+    // the outliers: needles standing out of the trace
+    for (int g = first; g <= last; ++g)
+    {
+        if (!samples_.at(g).spike)
+            continue;
+        const qreal x = g * SAMPLE_W + SAMPLE_W / 2;
+        const QPointF tip(x, surfaceAt(g));
+        p.setPen(QPen(QColor(120, 240, 110), 1.6, Qt::SolidLine, Qt::FlatCap));
+        p.drawLine(QPointF(x, baseAt(g)), tip);
+        p.setPen(Qt::NoPen);
+        p.setBrush(DANGER);
+        p.drawEllipse(tip, 2.2, 2.2);
+    }
+
+    for (int g = first; g <= last; ++g)
+    {
+        const Sample& sample = samples_.at(g);
+
+        // the pit itself: -9999 at the bottom of the axis
+        if (sample.gap && (g == 0 || !samples_.at(g - 1).gap))
+        {
+            int end = g;
+            while (end < count && samples_.at(end).gap)
+                ++end;
+            p.setPen(QPen(QColor(230, 50, 40, 120), 1, Qt::DotLine));
+            p.drawLine(QPointF(g * SAMPLE_W, FLOOR - 1), QPointF(end * SAMPLE_W, FLOOR - 1));
+            p.setPen(QColor(230, 50, 40, 170));
+            p.drawText(QRectF(g * SAMPLE_W, FLOOR - 18, BAR_W * 3, 16), Qt::AlignLeft | Qt::AlignVCenter,
+                       QStringLiteral("-9999"));
+        }
+
+        // the tallest outlier of each outburst gets a flag at its tip
+        bool tallest = sample.spike;
+        for (int s = std::max(g - 12, 0); tallest && s <= std::min(g + 12, count - 1); ++s)
+        {
+            if (s != g && samples_.at(s).spike && surfaceAt(s) < surfaceAt(g))
+                tallest = false;
+        }
+        if (tallest)
+        {
+            const QPointF tip(g * SAMPLE_W + SAMPLE_W / 2, surfaceAt(g));
+            p.setBrush(DANGER);
+            p.setPen(QPen(QColor(60, 60, 60), 1.2));
+            p.drawLine(tip, tip + QPointF(0, -14));
+            p.setPen(Qt::NoPen);
+            p.drawPolygon(QPolygonF { tip + QPointF(0, -14), tip + QPointF(10, -10.5), tip + QPointF(0, -7) });
+        }
+
+        // a stretch that bobs is labelled for what it is
+        if (sample.moving >= 0 && (g == 0 || samples_.at(g - 1).moving != sample.moving))
+        {
+            p.setPen(QColor(255, 255, 255, 120));
+            p.drawText(QRectF(g * SAMPLE_W - 10, surfaceAt(g) - 22, BAR_W * 6, 14),
+                       Qt::AlignLeft | Qt::AlignVCenter, QStringLiteral("non-stationary"));
         }
     }
 
-    // sampling tubes over their raised pair of columns, with a rain cap
-    for (int c = first; c <= last; ++c)
+    // sampling tubes over their raised pair of half-hours, with a rain cap
+    for (int c = firstSlot; c <= lastSlot; ++c)
     {
         if (!bars_.at(c).tube || (c > 0 && bars_.at(c - 1).tube))
             continue;
         const qreal x = c * BAR_W;
-        const qreal top = topAt(c);
+        const qreal top = bars_.at(c).top;
         QLinearGradient steel(x, 0, x + 2 * BAR_W, 0);
         steel.setColorAt(0.0, QColor(120, 125, 130));
         steel.setColorAt(0.45, QColor(215, 220, 225));
@@ -4070,21 +4331,6 @@ void FluxRunner::paintBars(QPainter &p) const
         p.drawLine(QPointF(x + 2 * BAR_W - 18, top - 6), QPointF(x + 2 * BAR_W - 18, top));
     }
 
-    // the zero line and the days
-    const qreal zero = FLOOR - 150.0;
-    p.setPen(QPen(QColor(255, 255, 255, 70), 1, Qt::DashLine));
-    p.drawLine(QPointF(cameraX_, zero), QPointF(cameraX_ + width(), zero));
-    p.setPen(QColor(255, 255, 255, 150));
-    p.drawText(QRectF(cameraX_ + 4, zero - 15, 30, 14), Qt::AlignLeft | Qt::AlignVCenter,
-               QStringLiteral("0"));
-    for (int c = first; c <= last; ++c)
-    {
-        if (c >= LEAD && (c - LEAD + START_SLOT) % 48 == 0)
-        {
-            p.drawText(QRectF(c * BAR_W + 3, FLOOR - 34, 90, 14), Qt::AlignLeft | Qt::AlignVCenter,
-                       QStringLiteral("DOY %1").arg(firstDoy_ + (c - LEAD + START_SLOT) / 48));
-        }
-    }
 }
 
 void FluxRunner::paintThings(QPainter &p) const
@@ -4200,7 +4446,7 @@ void FluxRunner::paintThings(QPainter &p) const
     // the backup station: a laptop on a tripod
     {
         const qreal x = checkpointColumn_ * BAR_W + BAR_W / 2;
-        const qreal ground = topAt(checkpointColumn_);
+        const qreal ground = groundTop(x);
         if (x > viewLeft && x < viewRight && std::isfinite(ground))
         {
             p.setPen(QPen(QColor(50, 50, 50), 1.5));
@@ -4217,7 +4463,7 @@ void FluxRunner::paintThings(QPainter &p) const
 
     // the flux tower and its flag
     const qreal tx = towerColumn_ * BAR_W + BAR_W / 2;
-    const qreal ground = topAt(towerColumn_);
+    const qreal ground = bars_.at(towerColumn_).top;
     if (tx > viewLeft - 60 && tx < viewRight + 60 && std::isfinite(ground))
     {
         const qreal top = ground - 250.0;
@@ -4251,7 +4497,7 @@ void FluxRunner::paintThings(QPainter &p) const
 
     // the logger hut
     const qreal hx = hutColumn_ * BAR_W;
-    const qreal hutGround = topAt(hutColumn_);
+    const qreal hutGround = bars_.at(hutColumn_).top;
     if (hx > viewLeft - 80 && hx < viewRight + 80 && std::isfinite(hutGround))
     {
         p.setPen(QPen(QColor(70, 45, 25), 1.2));
@@ -4423,7 +4669,7 @@ void FluxRunner::paintPlayer(QPainter &p) const
         // only what is above the mouth of the tube shows
         const Tube& tube = tubes_.at(tubeIndex_);
         const int column = clearStage_ == 0 ? tube.column : tube.exitColumn;
-        p.setClipRect(QRectF(cameraX_ - 100, -1000, width() + 200, topAt(column) + 1000),
+        p.setClipRect(QRectF(cameraX_ - 100, -1000, width() + 200, bars_.at(column).top + 1000),
                       Qt::IntersectClip);
     }
 
@@ -4556,10 +4802,10 @@ void FluxRunner::paintWeather(QPainter &p) const
         p.setBrush(QColor(170, 200, 255, 110));
         for (int c = shower.start; c <= shower.end; ++c)
         {
-            const qreal top = topAt(c);
+            const qreal top = groundTop(c * BAR_W + BAR_W / 2);
             const qreal x = c * BAR_W - cameraX_;
             if (std::isfinite(top) && x > -BAR_W && x < width())
-                p.drawEllipse(QRectF(x + 4, top - 1.5, BAR_W - 8, 3));
+                p.drawEllipse(QRectF(x + 6, top - 1.5, BAR_W - 12, 3));
         }
     }
 
