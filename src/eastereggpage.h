@@ -33,10 +33,10 @@ class QLabel;
 class QProgressBar;
 class QPushButton;
 
-class DeepThoughtPanel;
 class DespikeArena;
 class DndPanel;
 class FakeLoading;
+class FluxRunnerPanel;
 
 /// The hidden page unlocked by typing "eddy". Each unlock shows one of
 /// several variants; when the joke is over the page emits finished() and
@@ -45,7 +45,7 @@ class EasterEggPage : public QWidget
 {
     Q_OBJECT
 public:
-    enum class Variant { Doom, Hitchhiker, DnD, Count };
+    enum class Variant { Doom, Mario, DnD, Count };
 
     explicit EasterEggPage(QWidget* parent = nullptr);
 
@@ -74,7 +74,7 @@ private:
     FakeLoading* loading_;
 
     QWidget* doomPanel_;
-    DeepThoughtPanel* deepThought_;
+    FluxRunnerPanel* fluxRunner_;
     DndPanel* dnd_;
 
     QPushButton* launchButton_;

@@ -1,0 +1,374 @@
+/***************************************************************************
+  fluxrunner.h
+  -------------------
+  Copyright © 2026,      ETH Zurich, Jonathan Muller
+
+  This file is part of EddyFlow®.
+
+  EddyFlow (TM) is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version. You should have received a copy
+  of the GNU General Public License along with EddyFlow (R). If not,
+  see <http://www.gnu.org/licenses/>.
+
+  EddyFlow® contains additional Open Source Components. The licenses
+  and/or notices these Components can be found in the file LIBRARIES.txt.
+
+  EddyFlow® is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+  GNU General Public License for more details.
+****************************************************************************/
+
+#ifndef FLUXRUNNER_H
+#define FLUXRUNNER_H
+
+#include <QColor>
+#include <QElapsedTimer>
+#include <QList>
+#include <QPointF>
+#include <QWidget>
+
+class FakeLoading;
+class QLabel;
+class QProgressBar;
+class QPushButton;
+class QTimer;
+
+/// "Super Flux Run": a side-scroller across a week of half-hourly fluxes.
+/// The bars of the flux time series are the ground, missing data are pits
+/// and spikes are walls; the boundary layer above it gusts, swirls and
+/// rains on the same diurnal clock. The flux tower at the end is the goal.
+class FluxRunner : public QWidget
+{
+    Q_OBJECT
+public:
+    struct Result
+    {
+        int score;
+        int rating;         // 0..100, independent of the level drawn
+        int coins;
+        int totalCoins;
+        int defeated;
+        int totalFoes;
+        int gapsBridged;
+        qreal seconds;
+        int livesLost;
+        bool cleared;
+        bool timedOut;
+        int firstDoy;
+    };
+
+    explicit FluxRunner(QWidget* parent = nullptr);
+
+    /// a new level, the level card, and the keyboard
+    void start();
+    void stop();
+
+    QSize sizeHint() const override;
+
+signals:
+    void runOver(const FluxRunner::Result& result);
+
+protected:
+    bool event(QEvent* event) override;
+    void keyPressEvent(QKeyEvent* event) override;
+    void keyReleaseEvent(QKeyEvent* event) override;
+    void focusOutEvent(QFocusEvent* event) override;
+    void hideEvent(QHideEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+    bool focusNextPrevChild(bool next) override;
+    void paintEvent(QPaintEvent* event) override;
+
+private:
+    enum class State { Idle, Card, Running, Paused, Dying, Piping, Cleared, Over };
+    enum KeyBit : unsigned { KeyLeft = 1, KeyRight = 2, KeyJump = 4, KeyDown = 8 };
+    enum class Power { Small, Hat, Filter };
+    enum class Item { Coin, Hat, Filter, Coffee };
+    enum class FoeKind { Reviewer, Bubble, Puff };
+
+    struct Bar
+    {
+        qreal top;      // world y of the surface, FLOOR - height
+        qreal flux;     // what the bar stands for, umol m-2 s-1
+        bool gap;       // missing data: no ground at all
+        bool spike;
+        bool tube;      // one of the two columns of a sampling tube
+        int moving;     // index into moving_, or -1
+    };
+
+    struct Body
+    {
+        QPointF feet;   // bottom centre
+        QPointF vel;
+        qreal halfW;
+        qreal height;
+        bool grounded;
+    };
+
+    struct Foe
+    {
+        FoeKind kind;
+        Body body;
+        Body spawn;
+        qreal timer;    // bubbles: until the next leap
+        qreal squash;   // seconds of the flattened sheet left
+        int facing;
+        bool alive;
+        bool active;
+        bool defeated;
+    };
+
+    struct Block
+    {
+        int column;
+        qreal bottom;
+        Item item;
+        int coinsLeft;
+        qreal bump;
+        bool used;
+    };
+
+    struct Coin
+    {
+        QPointF pos;
+        bool taken;
+    };
+
+    struct Pickup
+    {
+        Item kind;
+        Body body;
+        qreal rise;     // px risen out of the block so far
+        int facing;
+    };
+
+    struct Shot
+    {
+        Body body;
+        qreal age;
+    };
+
+    struct Pop
+    {
+        QPointF pos;    // world coordinates
+        qreal age;
+        QString text;
+        QColor color;
+    };
+
+    struct Zone
+    {
+        int start;
+        int end;
+        qreal strength; // 0.5..1
+        qreal phase;
+        qreal noise;    // smoothed random walk, -1..1
+        int direction;  // the mean wind, +1 with the run
+        int thermal;    // first column of the updraft, or -1
+        bool announced;
+    };
+
+    struct Eddy
+    {
+        QPointF pos;
+        qreal radius;
+        int spin;       // +1 anticlockwise on screen
+        qreal age;
+        qreal cooldown;
+        int zone;
+    };
+
+    struct Tube
+    {
+        int column;
+        int exitColumn;
+        qreal lag;      // seconds
+    };
+
+    struct MovingRun
+    {
+        int start;
+        int end;
+        qreal amplitude;
+        qreal period;
+        qreal phase;
+    };
+
+    struct Shower
+    {
+        int start;
+        int end;
+        bool announced;
+    };
+
+    struct Move
+    {
+        bool hitWall;
+        bool landed;
+        int bumpedBlock;
+    };
+
+    // the level
+    bool generateLevel(bool hazards);
+    bool verifyLevel() const;
+    void placeThings();
+    int columnCount() const { return static_cast<int>(bars_.size()); }
+    int columnOf(qreal x) const;
+    qreal topAt(int column) const;
+    qreal groundTop(qreal x) const;
+    qreal supportTop(qreal left, qreal right, qreal feet) const;
+    bool nearGap(int column, int reach) const;
+    qreal hourAt(qreal x) const;
+    qreal nightAt(qreal x) const;
+    int doyAt(qreal x) const;
+    int zoneAt(qreal x) const;
+    bool inThermal(qreal x) const;
+    bool raining(qreal x) const;
+    qreal gust(int zone) const;
+
+    // the run
+    void tick();
+    void step(qreal dt);
+    Move moveBody(Body& body, qreal dt, qreal stepUp);
+    void updatePlayer(qreal dt);
+    void updateAtmosphere(qreal dt);
+    void updateFoes(qreal dt);
+    void updatePickups(qreal dt);
+    void updateShots(qreal dt);
+    void collectCoins();
+    void touchFoes(qreal previousFeet);
+    void bumpBlock(int index);
+    void defeat(Foe& foe, int points, const QString& text);
+    void gainCoin(const QPointF& where);
+    void fire();
+    void hurt();
+    void die(bool pit);
+    void respawn();
+    void enterTube(int index);
+    void reachTower();
+    void finishRun(bool cleared, bool timedOut);
+    void togglePause();
+    void addPop(const QPointF& world, const QString& text, const QColor& color);
+    void announce(const QString& text, const QColor& color);
+    Result result() const;
+
+    // drawing
+    void paintSky(QPainter& p) const;
+    void paintParallax(QPainter& p) const;
+    void paintAtmosphereBack(QPainter& p) const;
+    void paintBars(QPainter& p) const;
+    void paintThings(QPainter& p) const;
+    void paintFoes(QPainter& p) const;
+    void paintEddies(QPainter& p) const;
+    void paintPlayer(QPainter& p) const;
+    void paintFigure(QPainter& p, const QPointF& feet, int frame, bool left,
+                     qreal opacity) const;
+    void paintWeather(QPainter& p) const;
+    void paintHud(QPainter& p) const;
+    void paintOverlay(QPainter& p) const;
+    int playerFrame() const;
+
+    State state_;
+    QTimer* timer_;
+    QElapsedTimer clock_;
+    qreal accumulator_;
+    qreal stateTime_;
+    qreal clockTime_;   // seconds of play, for animations
+
+    unsigned held_;
+    qreal jumpBuffer_;
+    qreal coyote_;
+    qreal invulnerable_;
+    qreal coffee_;
+    qreal fireCooldown_;
+    qreal runDistance_;
+    bool facingLeft_;
+    bool crouching_;
+    Power power_;
+    Body player_;
+    qreal cameraX_;
+    int stompChain_;
+
+    QList<Bar> bars_;
+    QList<Foe> foes_;
+    QList<Block> blocks_;
+    QList<Coin> coins_;
+    QList<Pickup> pickups_;
+    QList<Shot> shots_;
+    QList<Pop> pops_;
+    QList<Zone> zones_;
+    QList<Eddy> eddies_;
+    QList<Tube> tubes_;
+    QList<MovingRun> moving_;
+    QList<Shower> showers_;
+    QList<QPointF> stars_;      // the night sky, in screen fractions
+    QList<int> gapEnds_;        // first column after each pit, in order
+    int blockCoins_;            // the half-hours waiting inside blocks
+
+    int checkpointColumn_;
+    int towerColumn_;
+    int hutColumn_;
+    int respawnColumn_;
+    bool checkpointTaken_;
+    int nextGap_;
+    int firstDoy_;
+    int tubeIndex_;
+    int clearStage_;
+    qreal flagY_;
+    qreal nextEddy_;
+    bool diedInPit_;
+    bool nightAnnounced_;
+    QColor sky_;
+    QString banner_;
+    QColor bannerColor_;
+    qreal bannerAge_;
+    QString cardLine_;
+    QString pauseLine_;
+
+    int lives_;
+    int livesLost_;
+    int score_;
+    int coinCount_;
+    int defeated_;
+    int gapsBridged_;
+    qreal deadline_;
+    qreal runTime_;
+    bool timedOut_;
+    bool cleared_;
+};
+
+/// The panel around the game: the intro and its Start button, a short
+/// loading sequence, the game, and the rank at the end.
+class FluxRunnerPanel : public QWidget
+{
+    Q_OBJECT
+public:
+    explicit FluxRunnerPanel(QWidget* parent = nullptr);
+
+    /// back to the intro; stops anything that is running
+    void reset();
+
+signals:
+    void finished();
+
+private:
+    void launch();
+    void play();
+    void showResult(const FluxRunner::Result& result);
+
+    FakeLoading* loading_;
+    QLabel* intro_;
+    QLabel* controls_;
+    QPushButton* startButton_;
+    QProgressBar* bar_;
+    QLabel* status_;
+    FluxRunner* game_;
+    QWidget* result_;
+    QLabel* rank_;
+    QLabel* stats_;
+    QLabel* tag_;
+};
+
+#endif // FLUXRUNNER_H

@@ -2323,10 +2323,10 @@ void MainWindow::unlockEasterEgg()
     if (viewEasterEggAction->isVisible())
         return;
 
-    // weighted, in enum order: the first is drawn twice as often as each of
-    // the others, so it may come round twice running but never a third time;
-    // the others never repeat back to back
-    static constexpr int WEIGHTS[] = { 2, 1, 1 };
+    // weighted, in enum order: the first two are drawn twice as often as the
+    // third, so either may come round twice running but never a third time;
+    // the third never repeats back to back
+    static constexpr int WEIGHTS[] = { 2, 2, 1 };
     const int count = static_cast<int>(EasterEggPage::Variant::Count);
     static_assert(std::size(WEIGHTS) == static_cast<size_t>(EasterEggPage::Variant::Count),
                   "one weight per variant");

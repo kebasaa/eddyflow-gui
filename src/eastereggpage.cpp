@@ -36,12 +36,14 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
+#include <utility>
 
-#include "deepthoughtpanel.h"
 #include "despikearena.h"
 #include "dndpanel.h"
+#include "fluxrunner.h"
 
 using namespace EggUi;
 
@@ -784,23 +786,42 @@ void paintD20Icon(QPainter& p, int scale)
     }
 }
 
-// a hitchhiker's raised thumb
-void paintThumbIcon(QPainter& p, int)
+// a runner jumping a gap in a bar chart of fluxes
+void paintRunnerIcon(QPainter& p, int scale)
 {
-    p.setPen(QPen(ICON_GREEN, 1.2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-    p.setBrush(Qt::white);
+    const qreal bottom = ICON_FRAME.bottom();
+    p.setPen(Qt::NoPen);
+    p.setBrush(ICON_GREEN);
+    const std::array<std::pair<qreal, qreal>, 6> bars { {
+        { 7.0, 6.0 }, { 11.0, 8.0 }, { 15.0, 7.0 }, { 23.0, 9.0 }, { 27.0, 12.0 }, { 31.0, 8.0 }
+    } };
+    for (const auto& bar : bars)
+        p.drawRect(QRectF(bar.first, bottom - bar.second, 3.5, bar.second));
 
-    QPainterPath thumb;
-    thumb.moveTo(16.6, 20.5);
-    thumb.lineTo(17.2, 13.2);
-    thumb.cubicTo(17.4, 10.2, 21.4, 10.2, 21.3, 13.2);
-    thumb.lineTo(21.0, 20.0);
-    p.drawPath(thumb);
+    // at 2x there is room for the jump's arc and the tower it ends at
+    if (scale > 1)
+    {
+        p.setPen(QPen(ICON_GREY, 0.5, Qt::DashLine));
+        p.setBrush(Qt::NoBrush);
+        QPainterPath arc;
+        arc.moveTo(16.5, bottom - 8.0);
+        arc.quadTo(21.0, 8.5, 25.0, bottom - 10.0);
+        p.drawPath(arc);
+        p.setPen(QPen(ICON_GREY, 0.6));
+        p.drawLine(QPointF(35.0, bottom - 8.0), QPointF(35.0, 13.0));
+        p.setPen(Qt::NoPen);
+        p.setBrush(ICON_GREEN);
+        p.drawPolygon(QPolygonF { { 35.0, 13.0 }, { 32.2, 14.2 }, { 35.0, 15.4 } });
+    }
 
-    // the fist in front of it, with three curled fingers
-    p.drawRoundedRect(QRectF(15.0, 19.0, 13.0, 11.0), 3.0, 3.0);
-    for (qreal y : { 22.3, 25.0, 27.6 })
-        p.drawLine(QPointF(21.6, y), QPointF(27.4, y));
+    p.setPen(QPen(ICON_GREY, 1.1, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    p.setBrush(ICON_GREY);
+    p.drawEllipse(QPointF(21.0, 14.5), 1.8, 1.8);
+    p.drawLine(QPointF(21.0, 16.5), QPointF(21.0, 21.0));
+    p.drawLine(QPointF(21.0, 21.0), QPointF(19.0, 23.5));
+    p.drawLine(QPointF(21.0, 21.0), QPointF(23.5, 22.5));
+    p.drawLine(QPointF(21.0, 17.5), QPointF(18.5, 16.5));
+    p.drawLine(QPointF(21.0, 17.5), QPointF(23.5, 16.0));
 }
 
 const int COLUMN_MAX_WIDTH = 720;
@@ -816,8 +837,8 @@ EasterEggPage::EasterEggPage(QWidget *parent) :
 
     doomPanel_ = createDoomPanel();
 
-    deepThought_ = new DeepThoughtPanel;
-    connect(deepThought_, &DeepThoughtPanel::finished, this, &EasterEggPage::finished);
+    fluxRunner_ = new FluxRunnerPanel;
+    connect(fluxRunner_, &FluxRunnerPanel::finished, this, &EasterEggPage::finished);
 
     dnd_ = new DndPanel;
     connect(dnd_, &DndPanel::finished, this, &EasterEggPage::finished);
@@ -844,7 +865,7 @@ EasterEggPage::EasterEggPage(QWidget *parent) :
     columnLayout->setContentsMargins(0, 0, 0, 0);
     columnLayout->addLayout(leaveRow);
     columnLayout->addWidget(doomPanel_);
-    columnLayout->addWidget(deepThought_);
+    columnLayout->addWidget(fluxRunner_);
     columnLayout->addWidget(dnd_);
 
     // centre with stretches, not alignment, so the column gets a real width
@@ -881,8 +902,8 @@ QString EasterEggPage::tabText(Variant variant)
     {
         case Variant::Doom:
             return QStringLiteral("Doom");
-        case Variant::Hitchhiker:
-            return QStringLiteral("Deep Thought");
+        case Variant::Mario:
+            return QStringLiteral("Flux Run");
         case Variant::DnD:
         case Variant::Count:
             break;
@@ -898,8 +919,8 @@ QIcon EasterEggPage::tabIcon(Variant variant)
         case Variant::Doom:
             painter = paintDoomIcon;
             break;
-        case Variant::Hitchhiker:
-            painter = paintThumbIcon;
+        case Variant::Mario:
+            painter = paintRunnerIcon;
             break;
         case Variant::DnD:
         case Variant::Count:
@@ -920,7 +941,7 @@ void EasterEggPage::setVariant(Variant variant)
     resetAll();
 
     doomPanel_->setVisible(variant == Variant::Doom);
-    deepThought_->setVisible(variant == Variant::Hitchhiker);
+    fluxRunner_->setVisible(variant == Variant::Mario);
     dnd_->setVisible(variant == Variant::DnD);
 }
 
@@ -937,7 +958,7 @@ void EasterEggPage::resetAll()
 {
     loading_->stop();
     resetDoomPanel();
-    deepThought_->reset();
+    fluxRunner_->reset();
     dnd_->reset();
 }
 
