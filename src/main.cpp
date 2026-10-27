@@ -151,6 +151,15 @@ int main(int argc, char *argv[])
     app.setApplicationDisplayName(Defs::APP_NAME);
     app.setOrganizationName(Defs::ORG_NAME);
     app.setOrganizationDomain(Defs::ORG_DOMAIN);
+#if defined(Q_OS_LINUX)
+    // Wayland compositors take the window's icon from the desktop entry this
+    // names, not from setWindowIcon(). A snap installs that entry as
+    // <snap>_<app>.desktop; the .deb and .rpm install eddyflow.desktop.
+    const auto snapName = qEnvironmentVariable("SNAP_INSTANCE_NAME");
+    app.setDesktopFileName(snapName.isEmpty()
+                               ? QStringLiteral("eddyflow")
+                               : snapName + QStringLiteral("_eddyflow"));
+#endif
 
     qInstallMessageHandler(Logging::messageHandler);
 

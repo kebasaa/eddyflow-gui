@@ -36,12 +36,14 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
+#include <utility>
 
-#include "deepthoughtpanel.h"
 #include "despikearena.h"
 #include "dndpanel.h"
+#include "fluxrunner.h"
 
 using namespace EggUi;
 
@@ -128,8 +130,9 @@ const QStringList& doomSentences()
 }
 
 // A rank tier holds titles and sentence templates. The templates take
-// placeholders: {n} despiked count, {n_spikes} / {e_spikes} / {v_points}
-// counted nouns, and {tool}, {place}, {who}, which are filled in at random.
+// placeholders: {n} despiked count, {n_spikes} / {e_spikes} / {v_points} /
+// {n_gaps} / {g_gaps} counted nouns, and {tool}, {place}, {who}, which are
+// filled in at random.
 struct RankTier
 {
     int maxScore;
@@ -211,7 +214,7 @@ const RankTier& diedTier()
 const QList<RankTier>& rankTiers()
 {
     static const QList<RankTier> tiers {
-        { 5,
+        { 12,
           {
             QStringLiteral("Summer Intern"),
             QStringLiteral("Lab Tourist"),
@@ -276,7 +279,7 @@ const QList<RankTier>& rankTiers()
             QStringLiteral("You despiked {n}, which is {n} more than the default settings manage."),
             QStringLiteral("{who} awards you a participation certificate, printed on the back of an old calibration sheet.")
           } },
-        { 12,
+        { 28,
           {
             QStringLiteral("PhD Student"),
             QStringLiteral("Survivor of Thesis Chapter 2"),
@@ -341,7 +344,7 @@ const QList<RankTier>& rankTiers()
             QStringLiteral("{e_spikes} escaped. {who} has kindly offered to look into it."),
             QStringLiteral("{n_spikes} down, one thesis to go.")
           } },
-        { 20,
+        { 46,
           {
             QStringLiteral("Postdoc of Doom"),
             QStringLiteral("Flux Tower Veteran"),
@@ -406,7 +409,7 @@ const QList<RankTier>& rankTiers()
             QStringLiteral("{who} has framed your score and hung it in the hut."),
             QStringLiteral("The demons are drafting a formal complaint to {who}.")
           } },
-        { 30,
+        { 70,
           {
             QStringLiteral("Senior Scientist"),
             QStringLiteral("Principal Investigator"),
@@ -590,11 +593,57 @@ QString dataPoints(int count)
                       : QStringLiteral("%1 points").arg(count);
 }
 
+QString gaps(int count)
+{
+    return count == 1 ? QStringLiteral("1 gap")
+                      : QStringLiteral("%1 gaps").arg(count);
+}
+
+// added to the rank sentence when a drop-out got away
+const QStringList& gapTemplates()
+{
+    static const QStringList list {
+        QStringLiteral("{g_gaps} slipped through as well. The gap-filler is working overtime."),
+        QStringLiteral("You also let {g_gaps} into the record. {who} found them in the annual sum."),
+        QStringLiteral("{g_gaps} of missing data made it past you. -9999 sends its regards."),
+        QStringLiteral("Somewhere in {place}, {g_gaps} are now permanent features of the time series."),
+        QStringLiteral("{g_gaps} got away. {tool} could have filled those."),
+        QStringLiteral("The record now has {g_gaps} in it. Reviewer 2 has already circled them."),
+        QStringLiteral("{who} would like to discuss the {g_gaps} you let through."),
+        QStringLiteral("Your coverage took {g_gaps} of damage. The data-availability plot is not pretty."),
+        QStringLiteral("{g_gaps} escaped, so the cumulative sum now has a staircase in it."),
+        QStringLiteral("{g_gaps} left unfilled. Marginal distribution sampling will have to cope."),
+        QStringLiteral("Also lost: {g_gaps}. The logger insists it never saw them."),
+        QStringLiteral("{g_gaps} went into the archive as -9999. {place} will notice in July."),
+        QStringLiteral("You let {g_gaps} through. The neural network gap-filler sighed audibly."),
+        QStringLiteral("{g_gaps} are now officially missing. {who} has put up posters."),
+        QStringLiteral("{g_gaps} slipped by. The energy balance did not close either, but that is not your fault."),
+        QStringLiteral("The {g_gaps} you missed will be blamed on a power cut. {who} knows better."),
+        QStringLiteral("{g_gaps} got away. The data coverage table now needs a footnote."),
+        QStringLiteral("Your record has {g_gaps} in it. {tool} would have patched them before lunch."),
+        QStringLiteral("{g_gaps} of missing data won. The look-up table is filling them with guesses."),
+        QStringLiteral("{g_gaps} escaped and are now hiding in the night-time data of {place}."),
+        QStringLiteral("You missed {g_gaps}. The annual budget gained an error bar."),
+        QStringLiteral("{g_gaps} are still open. The modem is blamed, as usual."),
+        QStringLiteral("{g_gaps} were never filled in. The SD card is being questioned."),
+        QStringLiteral("{who} found {g_gaps} in your record and asked whether the mice are back."),
+        QStringLiteral("{g_gaps} made it into the final dataset. The methods section grows a paragraph."),
+        QStringLiteral("You let {g_gaps} through. The flux tower in {place} feels let down."),
+        QStringLiteral("{g_gaps} lost to the void. The gap-filled product will pretend otherwise."),
+        QStringLiteral("{g_gaps} slipped past. Next time, click them until they are green."),
+        QStringLiteral("There are {g_gaps} in the record now, roughly where the battery died."),
+        QStringLiteral("{g_gaps} escaped. The coverage statistics will say \"mostly complete\".")
+    };
+    return list;
+}
+
 struct GameStats
 {
     int despiked;
     int escaped;
     int validRemoved;
+    int gapsSealed;
+    int gapsLost;
 };
 
 QString fillTemplate(const QString& sentence, const GameStats& stats)
@@ -602,6 +651,8 @@ QString fillTemplate(const QString& sentence, const GameStats& stats)
     return fillFlavour(sentence, { { QStringLiteral("n_spikes"), spikes(stats.despiked) },
                                    { QStringLiteral("e_spikes"), spikes(stats.escaped) },
                                    { QStringLiteral("v_points"), dataPoints(stats.validRemoved) },
+                                   { QStringLiteral("n_gaps"), gaps(stats.gapsSealed) },
+                                   { QStringLiteral("g_gaps"), gaps(stats.gapsLost) },
                                    { QStringLiteral("n"), QString::number(stats.despiked) } });
 }
 
@@ -630,6 +681,8 @@ Rank doomRank(int score, const GameStats& stats, bool died)
     QString sentence = fillTemplate(pickFresh(tier->templates), stats);
     if (stats.validRemoved > 0)
         sentence += QLatin1Char(' ') + fillTemplate(pickFresh(validDataTemplates()), stats);
+    if (stats.gapsLost > 0)
+        sentence += QLatin1Char(' ') + fillTemplate(pickFresh(gapTemplates()), stats);
 
     return { pickFresh(tier->titles), sentence };
 }
@@ -733,23 +786,42 @@ void paintD20Icon(QPainter& p, int scale)
     }
 }
 
-// a hitchhiker's raised thumb
-void paintThumbIcon(QPainter& p, int)
+// a runner jumping a gap in a bar chart of fluxes
+void paintRunnerIcon(QPainter& p, int scale)
 {
-    p.setPen(QPen(ICON_GREEN, 1.2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-    p.setBrush(Qt::white);
+    const qreal bottom = ICON_FRAME.bottom();
+    p.setPen(Qt::NoPen);
+    p.setBrush(ICON_GREEN);
+    const std::array<std::pair<qreal, qreal>, 6> bars { {
+        { 7.0, 6.0 }, { 11.0, 8.0 }, { 15.0, 7.0 }, { 23.0, 9.0 }, { 27.0, 12.0 }, { 31.0, 8.0 }
+    } };
+    for (const auto& bar : bars)
+        p.drawRect(QRectF(bar.first, bottom - bar.second, 3.5, bar.second));
 
-    QPainterPath thumb;
-    thumb.moveTo(16.6, 20.5);
-    thumb.lineTo(17.2, 13.2);
-    thumb.cubicTo(17.4, 10.2, 21.4, 10.2, 21.3, 13.2);
-    thumb.lineTo(21.0, 20.0);
-    p.drawPath(thumb);
+    // at 2x there is room for the jump's arc and the tower it ends at
+    if (scale > 1)
+    {
+        p.setPen(QPen(ICON_GREY, 0.5, Qt::DashLine));
+        p.setBrush(Qt::NoBrush);
+        QPainterPath arc;
+        arc.moveTo(16.5, bottom - 8.0);
+        arc.quadTo(21.0, 8.5, 25.0, bottom - 10.0);
+        p.drawPath(arc);
+        p.setPen(QPen(ICON_GREY, 0.6));
+        p.drawLine(QPointF(35.0, bottom - 8.0), QPointF(35.0, 13.0));
+        p.setPen(Qt::NoPen);
+        p.setBrush(ICON_GREEN);
+        p.drawPolygon(QPolygonF { { 35.0, 13.0 }, { 32.2, 14.2 }, { 35.0, 15.4 } });
+    }
 
-    // the fist in front of it, with three curled fingers
-    p.drawRoundedRect(QRectF(15.0, 19.0, 13.0, 11.0), 3.0, 3.0);
-    for (qreal y : { 22.3, 25.0, 27.6 })
-        p.drawLine(QPointF(21.6, y), QPointF(27.4, y));
+    p.setPen(QPen(ICON_GREY, 1.1, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    p.setBrush(ICON_GREY);
+    p.drawEllipse(QPointF(21.0, 14.5), 1.8, 1.8);
+    p.drawLine(QPointF(21.0, 16.5), QPointF(21.0, 21.0));
+    p.drawLine(QPointF(21.0, 21.0), QPointF(19.0, 23.5));
+    p.drawLine(QPointF(21.0, 21.0), QPointF(23.5, 22.5));
+    p.drawLine(QPointF(21.0, 17.5), QPointF(18.5, 16.5));
+    p.drawLine(QPointF(21.0, 17.5), QPointF(23.5, 16.0));
 }
 
 const int COLUMN_MAX_WIDTH = 720;
@@ -765,8 +837,8 @@ EasterEggPage::EasterEggPage(QWidget *parent) :
 
     doomPanel_ = createDoomPanel();
 
-    deepThought_ = new DeepThoughtPanel;
-    connect(deepThought_, &DeepThoughtPanel::finished, this, &EasterEggPage::finished);
+    fluxRunner_ = new FluxRunnerPanel;
+    connect(fluxRunner_, &FluxRunnerPanel::finished, this, &EasterEggPage::finished);
 
     dnd_ = new DndPanel;
     connect(dnd_, &DndPanel::finished, this, &EasterEggPage::finished);
@@ -793,7 +865,7 @@ EasterEggPage::EasterEggPage(QWidget *parent) :
     columnLayout->setContentsMargins(0, 0, 0, 0);
     columnLayout->addLayout(leaveRow);
     columnLayout->addWidget(doomPanel_);
-    columnLayout->addWidget(deepThought_);
+    columnLayout->addWidget(fluxRunner_);
     columnLayout->addWidget(dnd_);
 
     // centre with stretches, not alignment, so the column gets a real width
@@ -830,8 +902,8 @@ QString EasterEggPage::tabText(Variant variant)
     {
         case Variant::Doom:
             return QStringLiteral("Doom");
-        case Variant::Hitchhiker:
-            return QStringLiteral("Deep Thought");
+        case Variant::Mario:
+            return QStringLiteral("Flux Run");
         case Variant::DnD:
         case Variant::Count:
             break;
@@ -847,8 +919,8 @@ QIcon EasterEggPage::tabIcon(Variant variant)
         case Variant::Doom:
             painter = paintDoomIcon;
             break;
-        case Variant::Hitchhiker:
-            painter = paintThumbIcon;
+        case Variant::Mario:
+            painter = paintRunnerIcon;
             break;
         case Variant::DnD:
         case Variant::Count:
@@ -869,7 +941,7 @@ void EasterEggPage::setVariant(Variant variant)
     resetAll();
 
     doomPanel_->setVisible(variant == Variant::Doom);
-    deepThought_->setVisible(variant == Variant::Hitchhiker);
+    fluxRunner_->setVisible(variant == Variant::Mario);
     dnd_->setVisible(variant == Variant::DnD);
 }
 
@@ -886,7 +958,7 @@ void EasterEggPage::resetAll()
 {
     loading_->stop();
     resetDoomPanel();
-    deepThought_->reset();
+    fluxRunner_->reset();
     dnd_->reset();
 }
 
@@ -937,7 +1009,9 @@ QWidget* EasterEggPage::createDoomPanel()
     layout->addWidget(makeTitle(QStringLiteral("Doom")));
     layout->addWidget(makeText(tr("Despike or die. Shoot the demons before they escape into your data, "
                                   "spare the stars (they're valid data), and grab the downward spikes "
-                                  "to reload.")));
+                                  "to reload. Fill in the -9999 drop-outs before they get away, grab "
+                                  "the supplies drifting below the series, and when the BFG 42 has "
+                                  "charged, right-click.")));
     layout->addLayout(centredRow({ launchButton_ }));
     layout->addWidget(doomBar_);
     layout->addWidget(doomStatus_);
@@ -966,17 +1040,19 @@ void EasterEggPage::startGame()
 }
 
 void EasterEggPage::showGameResult(int score, int despiked, int escaped, int validRemoved,
-                                   int shots, bool died)
+                                   int shots, int gapsSealed, int gapsLost, bool died)
 {
-    const int accuracy = qRound(100.0 * despiked / std::max(shots, 1));
+    const int accuracy = std::min(qRound(100.0 * despiked / std::max(shots, 1)), 100);
 
-    const Rank rank = doomRank(score, { despiked, escaped, validRemoved }, died);
+    const Rank rank = doomRank(score, { despiked, escaped, validRemoved, gapsSealed, gapsLost },
+                               died);
     doomRank_->setText(tr("Rank: %1").arg(rank.title.toHtmlEscaped()));
     doomStats_->setText(QStringLiteral("%1<br>%2")
                             .arg(rank.sentence.toHtmlEscaped(),
-                                 tr("Score %1: despiked %2, escaped %3, valid data removed %4 "
-                                    "(−%5 each), accuracy %6%.")
-                                     .arg(score).arg(despiked).arg(escaped).arg(validRemoved)
+                                 tr("Score %1: despiked %2, escaped %3, gaps filled %4, gaps lost %5, "
+                                    "valid data removed %6 (−%7 each), accuracy %8%.")
+                                     .arg(score).arg(despiked).arg(escaped)
+                                     .arg(gapsSealed).arg(gapsLost).arg(validRemoved)
                                      .arg(DespikeArena::VALID_DATA_PENALTY).arg(accuracy)));
     doomTag_->setText(QStringLiteral("<i>%1</i>").arg(
         pickFresh(doomSentences()).toHtmlEscaped()));

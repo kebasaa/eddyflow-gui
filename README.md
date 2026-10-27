@@ -39,7 +39,7 @@ You can download EddyFlow from the releases .7z file, the contained folder is fu
 
 ## Building EddyFlow from source
 
-To build EddyFlow, use the Powershell script on [eddyflow-build-script](https://github.com/kebasaa/eddyflow-build-script). This builds the software binaries (currently Windows only).
+To build EddyFlow, use the scripts on [eddyflow-build-script](https://github.com/kebasaa/eddyflow-build-script): a PowerShell script for a portable Windows folder, and a bash script for Linux packages (`.deb` and `.snap`, optionally `.rpm`).
 
 ### Engine
 

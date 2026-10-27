@@ -48,7 +48,8 @@ CONFIG(debug, debug|release) {
 
     # to suppress qt and 3rdparty library warnings
     QMAKE_CXXFLAGS += -isystem "$$QT_PATH/include"
-    QMAKE_CXXFLAGS += -isystem "$$_PRO_FILE_PWD_/libs/quazip-1.x/quazip"
+    !isEmpty(QUAZIP_INCLUDE_DIR): QMAKE_CXXFLAGS += -isystem "$$QUAZIP_INCLUDE_DIR"
+    else: QMAKE_CXXFLAGS += -isystem "$$_PRO_FILE_PWD_/libs/quazip-1.x/quazip"
 
     win32 {
         # mingw warnings

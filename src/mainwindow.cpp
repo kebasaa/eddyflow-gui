@@ -25,6 +25,8 @@
 
 #include "mainwindow.h"
 
+#include <iterator>
+
 #include <QApplication>
 #include <QtConcurrent>
 #include <QDebug>
@@ -113,6 +115,7 @@ MainWindow::MainWindow(const QString& filename,
     newClicked_(false),
     previousPage_(Defs::CurrPage::Welcome),
     lastEasterEggVariant_(-1),
+    easterEggRepeats_(0),
     currentPage_(Defs::CurrPage::Welcome),
     currentStatus_(Defs::CurrStatus::Ready),
     currentRunStatus_(Defs::CurrRunStatus::Express),
@@ -2320,11 +2323,34 @@ void MainWindow::unlockEasterEgg()
     if (viewEasterEggAction->isVisible())
         return;
 
-    // never the same variant twice in a row
+    // weighted, in enum order: the first two are drawn twice as often as the
+    // third, so either may come round twice running but never a third time;
+    // the third never repeats back to back
+    static constexpr int WEIGHTS[] = { 2, 2, 1 };
     const int count = static_cast<int>(EasterEggPage::Variant::Count);
-    int v = QRandomGenerator::global()->bounded(lastEasterEggVariant_ < 0 ? count : count - 1);
-    if (lastEasterEggVariant_ >= 0 && v >= lastEasterEggVariant_)
-        ++v;
+    static_assert(std::size(WEIGHTS) == static_cast<size_t>(EasterEggPage::Variant::Count),
+                  "one weight per variant");
+
+    const auto allowed = [this](int v) {
+        if (v != lastEasterEggVariant_)
+            return true;
+        return WEIGHTS[v] > 1 && easterEggRepeats_ < 2;
+    };
+    int total = 0;
+    for (int v = 0; v < count; ++v)
+        if (allowed(v))
+            total += WEIGHTS[v];
+    int draw = QRandomGenerator::global()->bounded(total);
+    int v = 0;
+    for (; v < count; ++v)
+    {
+        if (!allowed(v))
+            continue;
+        if (draw < WEIGHTS[v])
+            break;
+        draw -= WEIGHTS[v];
+    }
+    easterEggRepeats_ = (v == lastEasterEggVariant_) ? easterEggRepeats_ + 1 : 1;
     lastEasterEggVariant_ = v;
     auto variant = static_cast<EasterEggPage::Variant>(v);
     mainWidget_->easterEggPage()->setVariant(variant);

@@ -33,7 +33,6 @@ HEADERS += \
     src/eddyuhimport.h \
     src/dlrawfiledesctab.h \
     src/dlsitetab.h \
-    src/deepthoughtpanel.h \
     src/despikearena.h \
     src/dndpanel.h \
     src/docchooser.h \
@@ -47,6 +46,7 @@ HEADERS += \
     src/faderwidget.h \
     src/fileutils.h \
     src/flux_units.h \
+    src/fluxrunner.h \
     src/ini_file.h \
     src/gas_metadata.h \
     src/infomessage.h \
@@ -160,7 +160,6 @@ SOURCES +=  \
     src/eddyuhimport.cpp \
     src/dlrawfiledesctab.cpp \
     src/dlsitetab.cpp \
-    src/deepthoughtpanel.cpp \
     src/despikearena.cpp \
     src/dndpanel.cpp \
     src/docchooser.cpp \
@@ -171,6 +170,7 @@ SOURCES +=  \
     src/faderwidget.cpp \
     src/fileutils.cpp \
     src/flux_units.cpp \
+    src/fluxrunner.cpp \
     src/ini_file.cpp \
     src/gas_metadata.cpp \
     src/infomessage.cpp \
