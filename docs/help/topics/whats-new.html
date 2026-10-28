@@ -4259,6 +4259,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#813-2026-10-07" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1.3 (2026-10-07)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#812-2026-10-02" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4790,6 +4801,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#813-2026-10-07" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1.3 (2026-10-07)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#812-2026-10-02" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5270,6 +5292,45 @@
 
 <h1 id="whats-new-in-this-version">What's new in this version<a class="headerlink" href="#whats-new-in-this-version" title="Permanent link">&para;</a></h1>
 <p>EddyFlow is an open-source fork of EddyPro, maintained by ETH Zurich starting with version 7.0.4. This is why the version numbering below jumps from the EddyPro-era <code>.9</code> (i.e. 7.0.9) directly to <code>7.0.4</code>, and why entries from 7.0.4 onward use full <code>x.y.z</code> version numbers instead of the decimal-suffix shorthand used in older EddyPro-era entries below.</p>
+<h2 id="813-2026-10-07">8.1.3 (2026-10-07)<a class="headerlink" href="#813-2026-10-07" title="Permanent link">&para;</a></h2>
+<p>Engine:</p>
+<ul>
+<li>New feature: Limit of detection after Langford et al. (2015), as a random uncertainty method and as a flux detection limit. The random error is the scatter of the cross-covariance far from the time lag (RMSE or standard deviation), in a window of ±150-180 s, ±160-180 s or one placed automatically from the integral turbulence scale; the limit of detection is α times that error. New <code>lod_*</code> columns in the full output and a <code>_LOD</code> family in the FLUXNET output; see <a href="random-uncertainty-estimation.html#far-lag-cross-covariance-and-limit-of-detection-langford-et-al-2015">Random uncertainty estimation</a>.</li>
+<li>New feature: Random uncertainties can be reported spectrally corrected, as Langford et al. (2015) recommend, for every random uncertainty method. Off by default, as in EddyPro; see <a href="random-uncertainty-estimation.html#spectral-correction-of-the-random-uncertainty">Spectral correction of the random uncertainty</a>.</li>
+<li>New feature: High-frequency spectral correction after Eugster and Senn (1995), for every gas, with a damping time constant per gas. A gas flux of which less than 40 % was measurable is discarded. Opt-in; see <a href="low-pass-filtering.html#spectral-corrections-after-eugster-and-senn-1995">Spectral corrections after Eugster and Senn (1995)</a>.</li>
+<li>New feature: A preliminary time-lag assessment on a random sample of the half-hours, for the interface's new dialog; see <a href="timelag-preliminary-assessment.html">Timelag preliminary assessment</a>.</li>
+<li>Change: Every hygrometer's evapotranspiration is WPL-corrected after its own path type, with its own air and cell, and each gas's WPL takes its water flux from the hygrometer its record names. Numbered <code>LE_&lt;n&gt;</code>, <code>ET_&lt;n&gt;</code> and water fluxes of a second hygrometer move where that made a difference; the bare LE and ET do not.</li>
+<li>Change: The essentials file names, for each gas, which H2O its moisture terms belong to. FCC refuses an essentials file written by an earlier version (Error 107); re-run RP to regenerate it.</li>
+<li>Change: The time-lag optimization and PWB summaries list every gas of the run, not only those present in its last half-hour.</li>
+<li>Change: RP and FCC link the Fortran runtime statically on Windows; <code>libgfortran-5.dll</code> is no longer needed.</li>
+<li>Fix: With WPL switched off, the gases were still density-corrected; each gas now keeps its level 1 flux.</li>
+<li>Fix: FCC ignored express mode, so a command-line run of an express project finished its fluxes with the project's own settings rather than the express ones.</li>
+<li>Fix: A gas that takes its water from the biomet RH lost its LI-7700 multipliers and its dilution in half-hours without a usable RH; they now follow the hygrometer the site's humidity falls back to.</li>
+<li>Fix: The metadata output had different columns and units depending on whether FCC ran, and RP scaled the error code with the value it stands for (a missing tube length came out as -999900).</li>
+<li>Fix: The numbered <code>H_&lt;n&gt;</code> of a second hygrometer lacked the sensible heat spectral correction, and a few fluxes were multiplied by the error code instead of being reported as missing (methane at about -8e8 when the LI-7700 multipliers were missing).</li>
+<li>Fix: A period with no gas data reported Error 69, which read as the in situ spectral correction having failed.</li>
+<li>Fix: A raw file or embedded biomet table shorter than its stated header stopped the run with "End of file"; it is now skipped for its period. When no embedded biomet table gives a value, the end of the run says so and names <code>biomet_header_rows</code> as the likely cause.</li>
+<li>Fix: Split runs: what the end of the run reads from the last period came from the parent's own piece, download failures and PWB peaks outside the window were undercounted, and a run whose workers had lost their files waited a day before giving up. It now stops within about a minute.</li>
+<li>Fix: An occasional crash inside <code>ucrtbase.dll</code> on formatted reads and writes on Windows; formatted output is also faster.</li>
+<li>Fix: A home directory passed as <code>-e "C:\dir\"</code> created stray folders; a path with a double quote in it now stops the run before anything is created. See <a href="command-line.html">Command line</a>.</li>
+<li>Fix: <code>SPECTRAL_CORRECTION_METHOD</code> wrote no field for a method without a code, shifting every later column of the FLUXNET output.</li>
+<li>New feature: For the interface, the engine reports which passes lie ahead and the progress of the pass under way over all processes.</li>
+</ul>
+<p>GUI:</p>
+<ul>
+<li>New feature: "Limit of detection (Langford et al. 2015)" in the random uncertainty menu and in the Flux Detection Limit dialog, with one settings dialog for both; see <a href="limit-of-detection-settings.html">Limit of detection settings</a>.</li>
+<li>New feature: "Spectrally correct the random uncertainty", a checkbox below the random uncertainty settings.</li>
+<li>New feature: "Eugster and Senn (1995) - Fully analytic", first in the high-frequency spectral correction menu, which is now in order of publication. Selecting it shows the damping time constant <em>L</em> of each gas; see <a href="spectral-corrections.html#correction-of-low-pass-filtering-effects">Spectral corrections</a>.</li>
+<li>New feature: "Timelag preliminary assessment..." detects the time lags of a sample of the half-hours, charts them per gas and suggests nominal lags and windows that can be set in the metadata; see <a href="timelag-preliminary-assessment.html">Timelag preliminary assessment</a>.</li>
+<li>New feature: Offline help is a build of this documentation, so "Use Offline Help" works again, and dialogs that had no help now have a question mark.</li>
+<li>Fix: The help question marks and buttons open this documentation; they pointed at a host that does not exist.</li>
+<li>Fix: The estimated time to completion and the progress bar are right in a parallel run and cover the whole run.</li>
+<li>Fix: Stopping a run, or closing the window, no longer harms a run in another EddyFlow window.</li>
+<li>Fix: The tooltips of the high-frequency method menu sat one row off.</li>
+<li>Fix: The list of recent projects keeps 20 projects, whatever the size of the window.</li>
+<li>Change: "Run in parallel on all processor cores" is ticked by default where the setting has not been stored yet.</li>
+<li>Change: "EddyFlow Forum" and "Instruction Manual (PDF)" are gone from the Help menu: there is no forum and no PDF manual.</li>
+</ul>
 <h2 id="812-2026-10-02">8.1.2 (2026-10-02)<a class="headerlink" href="#812-2026-10-02" title="Permanent link">&para;</a></h2>
 <p>Engine:</p>
 <ul>
