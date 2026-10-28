@@ -37,6 +37,7 @@
 #include <QSvgRenderer>
 #include <QtGlobal>
 #include <QTextStream>
+#include <QTimer>
 #include <QTranslator>
 
 #include "customsplashscreen.h"
@@ -50,6 +51,7 @@
 #include "openfilefilter.h"
 #include "qt_helpers.h"
 #include "stringutils.h"
+#include "updateinstaller.h"
 #include "widget_utils.h"
 
 // in debug mode
@@ -226,6 +228,11 @@ int main(int argc, char *argv[])
     }
     qDebug() << "currentWorkingDir" << QDir::currentPath();
     qDebug() << "currentWorkingDir" << QCoreApplication::applicationDirPath();
+
+    // what an update left behind: the old files it set aside; once more a
+    // little later, for any the previous EddyFlow still held while closing
+    UpdateInstaller::cleanUp();
+    QTimer::singleShot(15000, &app, &UpdateInstaller::cleanUp);
 
     // styles
     qDebug() << "------------------------------------------------------------";

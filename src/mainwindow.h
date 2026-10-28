@@ -163,8 +163,8 @@ private slots:
     void setMetadataRead(bool b);
 
     void showAutoUpdateDialog();
-    void showAutoUpdateResults();
     void showUpdateDialog();
+    void installUpdate();
 
 
     void checkInternetConnection();
@@ -233,6 +233,7 @@ private:
     void changeViewToolbarSeparators(Defs::CurrPage page);
 
     void checkUpdate();
+    void createUpdateDialog();
 
     void cleanOverdueMessageBox(const QString &messageBoxName);
 
@@ -358,6 +359,7 @@ private:
     int engineExit_;
 
     UpdateDialog* updateDialog;
+    bool updateInstalled_;
     void updateInfoDock(bool yes);
 
     bool argFilename_;

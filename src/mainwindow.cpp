@@ -124,6 +124,7 @@ MainWindow::MainWindow(const QString& filename,
     retrieverClicked_(false),
     engineProcess_(nullptr),
     updateDialog(nullptr),
+    updateInstalled_(false),
     argFilename_(false),
     scheduledSilentMdCleanup_(false)
 {
@@ -335,8 +336,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
 {
     writeSettings();
 
-    // cancel the operation
-    if (!continueBeforeClose())
+    // cancel the operation; after an update, that question was already asked
+    if (!updateInstalled_ && !continueBeforeClose())
     {
         event->ignore();
         return;
@@ -4827,38 +4828,68 @@ void MainWindow::showUpdateDialog()
 {
     if (!updateDialog)
     {
-        updateDialog = new UpdateDialog(this);
+        createUpdateDialog();
     }
-    updateDialog->initialize();
+    // a download under way is shown as it is, not checked again
+    if (!updateDialog->isBusy())
+    {
+        updateDialog->initialize();
+        updateDialog->checkUpdate();
+    }
     updateDialog->show();
     updateDialog->raise();
     updateDialog->activateWindow();
-    updateDialog->checkUpdate();
 }
 
 void MainWindow::showAutoUpdateDialog()
 {
     if (!updateDialog)
     {
-        updateDialog = new UpdateDialog(this);
+        createUpdateDialog();
     }
     updateDialog->initialize();
     updateDialog->checkUpdate();
-
-    QTimer::singleShot(60000, this, &MainWindow::showAutoUpdateResults);
 }
 
-void MainWindow::showAutoUpdateResults()
+void MainWindow::createUpdateDialog()
 {
-    if (updateDialog->hasNewVersion())
+    updateDialog = new UpdateDialog(this);
+
+    // shown as soon as the answer is in, and only if there is something new;
+    // at startup a failed check says nothing
+    connect(updateDialog, &UpdateDialog::checkFinished, this, [this](bool newer)
     {
-        updateDialog->show();
-        updateDialog->raise();
-        updateDialog->activateWindow();
+        if (newer && !updateDialog->isVisible())
+        {
+            updateDialog->show();
+            updateDialog->raise();
+            updateDialog->activateWindow();
+        }
+    });
+    connect(updateDialog, &UpdateDialog::installRequested,
+            this, &MainWindow::installUpdate);
+}
+
+void MainWindow::installUpdate()
+{
+    // as when closing: stop a computation, save a modified project
+    if (!continueBeforeClose())
+    {
+        return;
     }
-    else
+
+    // the project open now opens again in the new version
+    QStringList arguments;
+    const auto project = currentProjectFile();
+    if (!project.isEmpty() && QFileInfo::exists(project))
     {
-        qDebug() << "no NEW VERSION";
+        arguments << project;
+    }
+
+    if (updateDialog->installAndRestart(arguments))
+    {
+        updateInstalled_ = true;
+        close();
     }
 }
 

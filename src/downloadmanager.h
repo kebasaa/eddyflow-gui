@@ -31,6 +31,15 @@
 #include <QPointer>
 #include <QUrl>
 
+class QSaveFile;
+
+/// Asks GitHub for the latest release, and downloads its portable archive.
+///
+/// The release comes from the GitHub API rather than the release page, as
+/// only the API lists the files a release carries: the version is its tag,
+/// and the archive the first asset named *portable* that is a .zip or a .7z,
+/// a zip preferred. GitHub publishes a SHA-256 for every asset, which the
+/// download is checked against.
 class DownloadManager : public QObject
 {
     Q_OBJECT
@@ -41,27 +50,51 @@ public:
 
     void abort();
 
-    QByteArray getVersionNr() const;
-    QUrl getResolvedUrl() const;
+    /// The latest release, once downloadComplete() has been emitted; the
+    /// version is empty if the request failed.
+    QString releaseVersion() const;
+    QString releaseName() const;
+    /// Its portable archive; the URL is empty if it has none.
+    QUrl assetUrl() const;
+    QString assetName() const;
+    qint64 assetSize() const;
+    /// The raw digest, empty if GitHub gave none.
+    QByteArray assetSha256() const;
+
+    /// Downloads url into path, emitting progress() and then fileFinished().
+    void downloadFile(const QUrl& url, const QString& path);
+    /// Stops a download; nothing is left at its path.
+    void abortFile();
 
 signals:
     void downloadComplete();
+    void progress(qint64 received, qint64 total);
+    void fileFinished(bool ok, const QString& error);
 
 public slots:
     void execute();
 
 private slots:
-    void downloadProgress(qint64 bytesReceived, qint64 bytesTotal);
     void downloadError(QNetworkReply::NetworkError error);
     void downloadFinished();
+    void fileDataReady();
+    void fileDownloadFinished();
 
 private:
-    void get(const QUrl &url);
+    QNetworkRequest request(const QUrl& url) const;
+    void parseRelease(const QByteArray& data);
 
     QNetworkAccessManager manager;
     QPointer<QNetworkReply> reply;
-    QByteArray versionNr;
-    QUrl resolvedUrl;
+    QPointer<QNetworkReply> fileReply_;
+    QSaveFile* file_;
+
+    QString version_;
+    QString name_;
+    QUrl assetUrl_;
+    QString assetName_;
+    qint64 assetSize_;
+    QByteArray assetSha256_;
 };
 
 #endif  // DOWNLOADMANAGER_H

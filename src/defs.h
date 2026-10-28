@@ -237,6 +237,8 @@ namespace Defs
     const auto LOG_FILE_DIR         = QStringLiteral("log");
     const auto INI_FILE_DIR         = QStringLiteral("ini");
     const auto TMP_FILE_DIR         = QStringLiteral("tmp");
+    // beside the program: where an update is downloaded and extracted
+    const auto UPDATE_STAGING_DIR   = QStringLiteral(".update");
     const auto SMF_FILE_DIR         = QStringLiteral("smf");
     const auto CAL_FILE_DIR         = QStringLiteral("cal");
     const auto TRANSLATION_FILE_DIR = QStringLiteral("tra");
@@ -343,6 +345,8 @@ namespace Defs
 
     const auto EP_DOCUMENTATION = QStringLiteral("https://kebasaa.github.io/eddyflow-documentation/");
     const auto EP_LATEST_RELEASE = QStringLiteral("https://github.com/kebasaa/eddyflow-gui/releases/latest");
+    // the same release as data: its version and the files it carries
+    const auto EP_LATEST_RELEASE_API = QStringLiteral("https://api.github.com/repos/kebasaa/eddyflow-gui/releases/latest");
     const auto EP_SAMPLE_DATA_FILES  = QStringLiteral("https://github.com/kebasaa/eddyflow-build-script/tree/main/example-data");
     const QString EP_USER_AGENT = QStringLiteral("EddyFlow ") + APP_VERSION_STR;
 

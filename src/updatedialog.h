@@ -27,6 +27,7 @@
 #define UPDATEDIALOG_H
 
 #include <QDialog>
+#include <QStringList>
 
 ////////////////////////////////////////////////////////////////////////////////
 /// \file src/updatedialog.h
@@ -43,10 +44,23 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 class QLabel;
+class QProgressBar;
+class QPushButton;
 class QTimer;
 
 class DownloadManager;
+class UpdateInstaller;
 
+/// Tells of a newer release and, on Windows, puts it in place.
+///
+/// The check reads the latest release from GitHub. On Windows, with a
+/// portable archive in the release and a program folder EddyFlow may write
+/// to, the user can download and install it: nothing is downloaded until
+/// they ask, and nothing is installed until they agree a second time, once
+/// the download is ready. Installing is the main window's call, as it first
+/// has to be allowed to close (a computation stopped, a project saved): it
+/// answers installRequested() with installAndRestart(). Everywhere else the
+/// dialog only offers the download page.
 class UpdateDialog : public QDialog
 {
     Q_OBJECT
@@ -55,31 +69,60 @@ public:
     ~UpdateDialog();
 
     void checkUpdate();
-    bool hasNewVersion();
+    /// Whether a download, an extraction or a release waiting to be
+    /// installed is under way, which a new check must not throw away.
+    bool isBusy() const;
+    /// Puts the downloaded release in place and starts it; false, with the
+    /// reason shown and the current version untouched, if it fails.
+    bool installAndRestart(const QStringList& arguments);
+
+signals:
+    void checkFinished(bool newer);
+    void installRequested();
 
 public slots:
     void close();
     void initialize();
+    void reject() override;
 
 private slots:
     void showDownloadPage();
     void downloadTimeout();
 
     void useDownloadResults();
+    void startDownload();
+    void showDownloadProgress(qint64 received, qint64 total);
+    void downloadFinished(bool ok, const QString& error);
+    void extractionFinished(bool ok, const QString& error);
+
 private:
+    enum class Stage { Idle, Downloading, Extracting, Ready };
+
     QPushButton *okButton;
-    QPushButton *yesButton;
-    QPushButton *noButton;
+    QPushButton *downloadButton_;
+    QPushButton *pageButton_;
+    QPushButton *laterButton_;
+    QPushButton *cancelButton_;
+    QPushButton *installButton_;
     QLabel *msgLabel;
+    QProgressBar *progressBar_;
 
     DownloadManager* updateManager;
+    UpdateInstaller* installer_;
 
+    void showButtons(const QList<QPushButton*>& shown);
+    bool canInstall() const;
     void getNewVersion(const QString& version);
     void noNewVersion();
     void noConnection();
     void downloadError();
+    void updateError(const QString& error);
+    void cancelUpdate();
 
     bool isNewVersionAvailable_;
+    QString newVersion_;
+    QString archivePath_;
+    Stage stage_;
 
     QTimer* downloadTimer_;
 };
