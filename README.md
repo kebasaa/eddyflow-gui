@@ -165,6 +165,7 @@ You can run EddyFlow using sample data files available at the [eddyflow-build-sc
     - Ibrom et al. (2007b)
     - Horst and Lenschow (2009)
     - Fratini et. al. (2012)
+    - Eugster and Senn (1995)
 
 + Quality control tests for fluxes according to Foken et al. (2004)
   - Flagging according to Carbo Europe standard (Mauder and Foken, 2004)

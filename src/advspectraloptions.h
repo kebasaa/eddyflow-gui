@@ -38,6 +38,7 @@ class QComboBox;
 class QDate;
 class QDateEdit;
 class QDoubleSpinBox;
+class QGridLayout;
 class QLabel;
 class QLineEdit;
 class QPushButton;
@@ -151,6 +152,7 @@ private:
     bool isHorstIbromFratini();
     bool isIbrom();
     bool isFratini();
+    bool isEugsterSenn();
     bool hasLi7500FamilyIrga() const;
     void maybeWarnMassmanFallback();
     void forceEndDatePolicy();
@@ -175,6 +177,11 @@ private:
     double defaultGasSpectral(const QString& slug, SpectralParam param) const;
     void onGasSpectralChanged(int gasIndex, SpectralParam param, double value);
     void resetGasSpectralToDefault();
+    /// One time-constant spin per gas, for Eugster and Senn (1995).
+    void rebuildEsTauSpins();
+    /// Shown only while that method is the one selected.
+    void refreshEsTauBox();
+    void onEsTauChanged(int gasIndex, double value);
     /// Every row of the QA/QC table, fixed and per-gas alike.
     void resetSpectralTableToDefault();
     bool requestSpectralTableReset();
@@ -211,6 +218,13 @@ private:
     QCheckBox* hfMethodCheck;
     ClickLabel* hfMethLabel;
     QComboBox* hfMethCombo;
+    //> Eugster and Senn (1995): the damping time constant L of each gas,
+    //> one spin per record, under the method combo. Its own small list
+    //> rather than a column of the QA/QC table, which belongs to the in-situ
+    //> assessment and is greyed for every analytic method.
+    QWidget* esTauBox = nullptr;
+    QGridLayout* esTauGrid = nullptr;
+    QVector<QDoubleSpinBox*> esTauSpins_;
     QCheckBox* horstCheck;
     ClickLabel* horstMethodLabel;
     QComboBox* horstCombo;

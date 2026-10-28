@@ -57,10 +57,18 @@ def _gui_record_keys():
     return keys
 
 
+#: Record keys the engine reads that writeMeasurementRecords does not write.
+#: gas_<i>_fluxnet_default is engine-only so far: absent, the engine designates
+#: the lowest record of each species, and the interface offers no choice.
+WRITTEN_ELSEWHERE = {"gas_1_fluxnet_default"}
+
+
 def _engine_record_keys():
     text = _read(ENGINE_TAGS)
-    pat = r"\b((?:gas|cell|diag)_(?:num|1_[a-z]+))\b"
-    return set(re.findall(pat, text))
+    #> A suffix may itself contain underscores (es_tau), so the whole label is
+    #> matched rather than its first word.
+    pat = r"'((?:gas|cell|diag)_(?:num|1_[a-z]+(?:_[a-z]+)*))'"
+    return set(re.findall(pat, text)) - WRITTEN_ELSEWHERE
 
 
 class MeasurementRecordContract(unittest.TestCase):

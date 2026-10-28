@@ -26,6 +26,26 @@
 	       et al. (2015) recommend; the tooltip says what it does and what it
 	       leaves out (WPL and sonic-temperature terms, the flux detection
 	       limit).
+	- New: "Eugster and Senn (1995) - Fully analytic" in the high-frequency
+	       spectral correction menu (hf_meth 7, [Project]). Opt-in: new
+	       projects still start on Moncrieff et al. (1997). It is the first
+	       row, the list being in order of publication; the rows no longer
+	       equal the ini values, and every translation goes through one
+	       table, kHfMethodForRow. Selecting it shows "Damping time constant
+	       L of each gas" under the menu, one value per gas record
+	       (gas_<i>_es_tau in [Project], seconds, 0-10); "Analyser response
+	       time", the default, leaves the key empty and the engine then uses
+	       the analyser's tau from the metadata. The tooltip gives the
+	       method's range (-2 <= z/L <= 2) and that a gas flux is discarded
+	       when less than 40% of it is measurable. Unavailable on a SmartFlux
+	       module: the row is closed in SmartFlux mode and a package with it
+	       set is refused.
+	- Fix: The tooltips of the high-frequency method menu sat one row off:
+	       Horst (1997) had none, Ibrom et al. (2007) showed Horst's and
+	       Fratini et al. (2012) showed Ibrom's. They are now keyed by method.
+	- Change: An hf_meth the interface does not offer (6, or a code from a
+	          later version) is replaced by the default on load, rather than
+	          shown as Moncrieff while the file says otherwise.
 	- Change: "Timelag preliminary assessment...", beside the time lag
 	          settings on the Advanced Settings page. It detects the time lags
 	          of a random sample of the half-hours - by default 20 % of a

@@ -117,6 +117,11 @@ struct GasRecord : MeasurementRecord
     /// GasMetadata default for this slug", and nothing is written out.
     qreal mw = -1.0;
     qreal diff = -1.0;
+    /// Eugster and Senn (1995) damping time constant L [s]. -1 means "use
+    /// the analyser's response time", and nothing is written out. On the
+    /// record rather than in proc because it is a [Project] key: RP applies
+    /// that correction itself.
+    qreal esTau = -1.0;
 
     GasProcessingSettings proc;
 };
