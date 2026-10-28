@@ -69,24 +69,22 @@ const qreal INF = std::numeric_limits<qreal>::infinity();
 const qreal EPS = 0.001;
 const qreal PI = 3.14159265358979323846;
 
-// level layout, in columns: a flat lead-in, a week of half-hours, the tower
+// level layout, in columns: a flat lead-in, the level's half-hours, the tower
 const int LEAD = 12;
-const int DATA = 336;
 const int TAIL = 24;
 const int TOWER_OFFSET = 4;
 const int HUT_OFFSET = 12;
-const int START_SLOT = 12;          // the first half-hour is 06:00, so a run starts at sunrise
 
 // feel
-const qreal MAX_RUN = 240.0;
+constexpr qreal MAX_RUN = 240.0;
 const qreal GROUND_ACCEL = 1400.0;
 const qreal GROUND_FRICTION = 1800.0;
 const qreal TURN_DECEL = 2600.0;
 const qreal AIR_ACCEL = 900.0;
 const qreal AIR_DRAG = 300.0;
-const qreal JUMP_V = 760.0;
-const qreal G_RISE = 1900.0;        // while rising with jump held
-const qreal G_FALL = 2600.0;
+constexpr qreal JUMP_V = 760.0;
+constexpr qreal G_RISE = 1900.0;    // while rising with jump held
+constexpr qreal G_FALL = 2600.0;
 const qreal JUMP_CUT_V = 380.0;     // releasing early cuts the jump
 const qreal FALL_MAX = 900.0;
 const qreal COYOTE_S = 0.10;
@@ -101,13 +99,9 @@ const qreal PLAYER_HEIGHT = 56.0;
 const qreal CROUCH_HEIGHT = 36.0;
 const qreal DEATH_DEPTH = 70.0;
 
-// The generator's limits. The jump peaks at 152 px and carries 178 px at a
-// full run; everything here stays well inside that, so every level drawn
-// can be finished.
-const qreal MAX_RISE = 96.0;
-const int MAX_PIT = 4;
-const int MAX_ZONE_PIT = 3;
-const qreal MAX_LANDING_RISE = 48.0;
+// what the generator keeps to whatever the level: a run-up before every
+// jump, and ground no steeper than can be walked (the caps are with the
+// levels, further down)
 const int RUN_UP = 3;
 const qreal SLOPE = 8.0;
 
@@ -125,18 +119,13 @@ const qreal CO2_AT_FLOOR = 360.0;
 const qreal CO2_PER_PX = 0.4;
 
 // the boundary layer
-const qreal GUST_MAX = 36.0;        // px/s of drift: a headwind costs at most 15 % of the reach
-const qreal EDDY_KICK = 480.0;
 const qreal THERMAL_LIFT = 600.0;
 const qreal THERMAL_MAX_RISE = 420.0;
 const int THERMAL_WIDTH = 3;
 const qreal RAIN_GRIP = 0.35;
 const qreal TUBE_HEIGHT = 40.0;
-const int MAX_EDDIES = 4;
 
 // things
-const qreal REVIEWER_SPEED = 45.0;
-const qreal PUFF_SPEED = 130.0;
 const qreal BUBBLE_G = 1400.0;
 const qreal SHOT_SPEED = 400.0;
 const qreal SHOT_G = 2200.0;
@@ -147,8 +136,8 @@ const qreal HURT_INVULNERABLE_S = 1.5;
 const qreal BLOCK = 24.0;
 const qreal BLOCK_HEIGHT = 104.0;   // a block's bottom above the ground
 const int START_LIVES = 3;
-const qreal DEADLINE_S = 300.0;
 const qreal CARD_S = 1.6;
+const qreal NEW_LEVEL_CARD_S = 2.4;
 const qreal OVER_S = 1.2;
 const qreal POP_S = 0.9;
 const qreal BANNER_S = 2.4;
@@ -197,6 +186,160 @@ QColor mix(const QColor& a, const QColor& b, qreal t)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// the levels
+
+// Caps on every knob of a level. The jump peaks at 152 px and carries 178 px
+// at a full run (less when it lands higher or runs into a headwind); no
+// hazard ever asks for more than three quarters of that, at any level.
+constexpr int CAP_PIT = 5;                      // 120 px: 75 % of the reach landing 56 px higher
+constexpr int CAP_ZONE_PIT = 4;                 // 96 px: 74 % of it in a 48 px/s headwind
+constexpr qreal CAP_LANDING_RISE = 56.0;
+constexpr qreal CAP_RISE = 112.0;               // 74 % of the apex
+constexpr qreal CAP_GUST = 48.0;                // a fifth of the run speed
+constexpr qreal CAP_KICK = 560.0;               // below the jump itself
+constexpr qreal CAP_MOVING_AMPLITUDE = 48.0;
+constexpr qreal CAP_MOVING_PERIOD = 2.4;        // the shortest
+constexpr int CAP_PAD = 4;                      // a run-up and somewhere to land
+constexpr qreal CAP_REVIEWER_SPEED = 70.0;      // never as fast as a running player
+constexpr qreal CAP_PUFF_SPEED = 170.0;         // still 0.75 s to react on the narrowest view
+constexpr qreal CAP_BUBBLE_PAUSE = 1.6;         // the shortest: twice the time in the air
+constexpr qreal CAP_DEADLINE_PER_SLOT = 0.625;  // the shortest: over six times a flat-out run
+constexpr int CAP_SLOTS = 432;                  // nine days
+constexpr qreal REACH_SHARE = 0.75;
+static_assert(CAP_RISE <= REACH_SHARE * JUMP_V * JUMP_V / (2.0 * G_RISE),
+              "a wall the jump cannot clear with room to spare");
+static_assert(CAP_GUST <= 0.2 * MAX_RUN, "a headwind stronger than the caps allow for");
+static_assert(CAP_KICK < JUMP_V, "an eddy that outdoes the jump");
+
+// how far a full-speed jump carries, landing rise px higher, into a headwind
+qreal reach(qreal rise, qreal headwind)
+{
+    const qreal apex = JUMP_V * JUMP_V / (2.0 * G_RISE);
+    const qreal fall = std::sqrt(std::max(2.0 * (apex - rise) / G_FALL, 0.0));
+    return (MAX_RUN - headwind) * (JUMP_V / G_RISE + fall);
+}
+
+int wrapDoy(int doy)
+{
+    return ((doy - 1) % 365 + 365) % 365 + 1;
+}
+
+enum SiteKind { Forest, Grassland, Wetland, Cropland, Tundra, Savanna, Mountain, Desert };
+enum Season { Spring, Summer, Autumn, Winter, WetSeason, DrySeason, SeasonCount };
+const std::array<const char*, SeasonCount> SEASON_NAMES {
+    "spring", "summer", "autumn", "winter", "wet season", "dry season"
+};
+const std::array<const char*, 3> WEATHER_NAMES { "clear", "mixed", "overcast" };
+enum Rhythm { Ramp, Waves, Clusters, HardFirst };
+
+// what kind of place a level is: its fluxes, its seasons, its hazards and its colours
+struct Site
+{
+    const char* kind;
+    qreal uptake;           // the strongest daily uptake, umol m-2 s-1
+    qreal respiration;
+    qreal dayAmplitude;     // hours the day lengthens from the equinox to midsummer
+    int seasonPeak;         // day of the year
+    int seasonWidth;        // days either side
+    qreal seasonFloor;      // uptake out of season, as a share
+    bool wetAndDry;         // a wet and a dry season rather than four
+    bool snowy;             // its showers fall as snow when it is cold
+    qreal pits;             // how many of each, against an ordinary site;
+    qreal walls;            // counts only, never widths or heights, so the
+    qreal zones;            // site cannot make a level impossible
+    qreal reviewers;
+    qreal puffs;
+    qreal bubbles;          // added to the share of pits with a bubble
+    qreal moving;
+    qreal showers;
+    QColor fillTop;
+    QColor fillBottom;
+    QColor hills;
+    QStringList suffixes;
+    QStringList countries;
+};
+
+const QList<Site>& sites()
+{
+    static const QList<Site> list {
+        { "forest", 30.0, 5.0, 3.5, 190, 70, 0.15, false, false,
+          1.0, 1.25, 0.8, 1.0, 0.8, 0.0, 1.0, 1.0,
+          QColor(34, 70, 40, 240), QColor(12, 24, 16, 250), QColor(40, 85, 55),
+          { QStringLiteral("Mixed Forest"), QStringLiteral("Beech Forest"), QStringLiteral("Spruce Stand"),
+            QStringLiteral("Pine Forest"), QStringLiteral("Oak Woodland"), QStringLiteral("Larch Forest") },
+          { QStringLiteral("CH"), QStringLiteral("DE"), QStringLiteral("FI"), QStringLiteral("US"),
+            QStringLiteral("CA"), QStringLiteral("FR") } },
+        { "grassland", 20.0, 4.0, 3.5, 160, 80, 0.2, false, false,
+          1.0, 0.8, 1.2, 1.3, 1.0, 0.0, 1.0, 1.0,
+          QColor(70, 100, 45, 240), QColor(25, 35, 18, 250), QColor(110, 150, 80),
+          { QStringLiteral("Grassland"), QStringLiteral("Meadow"), QStringLiteral("Pasture"),
+            QStringLiteral("Steppe"), QStringLiteral("Prairie"), QStringLiteral("Hay Meadow") },
+          { QStringLiteral("CH"), QStringLiteral("DE"), QStringLiteral("US"), QStringLiteral("CN"),
+            QStringLiteral("IE"), QStringLiteral("NL") } },
+        { "wetland", 14.0, 3.5, 3.5, 200, 60, 0.1, false, false,
+          1.25, 1.0, 1.0, 1.0, 1.0, 0.3, 1.3, 1.0,
+          QColor(30, 75, 75, 240), QColor(10, 28, 30, 250), QColor(60, 110, 100),
+          { QStringLiteral("Fen"), QStringLiteral("Bog"), QStringLiteral("Marsh"),
+            QStringLiteral("Mire"), QStringLiteral("Peatland"), QStringLiteral("Reed Bed") },
+          { QStringLiteral("FI"), QStringLiteral("SE"), QStringLiteral("CA"), QStringLiteral("DE"),
+            QStringLiteral("US"), QStringLiteral("IE") } },
+        { "cropland", 40.0, 4.0, 3.5, 195, 30, 0.03, false, false,
+          1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0,
+          QColor(110, 95, 40, 240), QColor(40, 32, 14, 250), QColor(150, 130, 70),
+          { QStringLiteral("Winter Wheat"), QStringLiteral("Maize Field"), QStringLiteral("Barley Field"),
+            QStringLiteral("Sugar Beet"), QStringLiteral("Rapeseed"), QStringLiteral("Potato Field") },
+          { QStringLiteral("DE"), QStringLiteral("FR"), QStringLiteral("US"), QStringLiteral("BE"),
+            QStringLiteral("DK"), QStringLiteral("IT") } },
+        { "tundra", 8.0, 2.0, 7.0, 200, 45, 0.02, false, true,
+          1.0, 1.0, 1.4, 0.7, 0.7, 0.15, 1.0, 1.0,
+          QColor(90, 95, 90, 240), QColor(30, 34, 34, 250), QColor(170, 175, 180),
+          { QStringLiteral("Tundra"), QStringLiteral("Polygon Mire"), QStringLiteral("Heath"),
+            QStringLiteral("Permafrost Plateau"), QStringLiteral("Lichen Heath"), QStringLiteral("Palsa") },
+          { QStringLiteral("CA"), QStringLiteral("RU"), QStringLiteral("NO"), QStringLiteral("SE"),
+            QStringLiteral("FI"), QStringLiteral("US") } },
+        { "savanna", 25.0, 4.5, 1.5, 30, 60, 0.05, true, false,
+          1.0, 1.0, 1.3, 1.0, 0.8, 0.0, 1.0, 1.0,
+          QColor(120, 95, 50, 240), QColor(45, 34, 18, 250), QColor(170, 140, 80),
+          { QStringLiteral("Woodland Savanna"), QStringLiteral("Tree Savanna"), QStringLiteral("Bushveld"),
+            QStringLiteral("Miombo"), QStringLiteral("Acacia Savanna"), QStringLiteral("Grass Savanna") },
+          { QStringLiteral("ZA"), QStringLiteral("AU"), QStringLiteral("KE"), QStringLiteral("BR"),
+            QStringLiteral("SN"), QStringLiteral("BW") } },
+        { "mountain", 18.0, 3.5, 3.5, 200, 45, 0.05, false, true,
+          1.0, 1.3, 1.2, 1.0, 1.6, 0.0, 1.0, 1.0,
+          QColor(70, 78, 85, 240), QColor(25, 28, 32, 250), QColor(200, 205, 215),
+          { QStringLiteral("Alpine Meadow"), QStringLiteral("Subalpine Forest"), QStringLiteral("Mountain Pasture"),
+            QStringLiteral("Scree Slope"), QStringLiteral("High Valley"), QStringLiteral("Larch Treeline") },
+          { QStringLiteral("CH"), QStringLiteral("AT"), QStringLiteral("IT"), QStringLiteral("FR"),
+            QStringLiteral("US"), QStringLiteral("NP") } },
+        { "desert", 3.0, 1.5, 3.0, 80, 30, 0.05, false, false,
+          1.2, 1.0, 1.5, 1.0, 1.0, 0.0, 1.0, 0.25,
+          QColor(150, 120, 75, 240), QColor(60, 45, 28, 250), QColor(210, 175, 120),
+          { QStringLiteral("Shrub Desert"), QStringLiteral("Dune Field"), QStringLiteral("Salt Flat"),
+            QStringLiteral("Stony Desert"), QStringLiteral("Creosote Bush"), QStringLiteral("Sand Sea") },
+          { QStringLiteral("US"), QStringLiteral("AU"), QStringLiteral("IL"), QStringLiteral("NA"),
+            QStringLiteral("MX"), QStringLiteral("CN") } }
+    };
+    return list;
+}
+
+// what a level from the seventh on may add, within the caps
+enum Modifier : unsigned
+{
+    StormWeek = 1, MethaneWeek = 2, ReviewerConference = 4, NightShift = 8,
+    PowerCut = 16, PolarNight = 32, DataRich = 64, DeadlineCrunch = 128
+};
+const std::array<std::pair<unsigned, const char*>, 8> MODIFIERS { {
+    { StormWeek, "storm week" },
+    { MethaneWeek, "methane week" },
+    { ReviewerConference, "Reviewer 2 conference" },
+    { NightShift, "night shift" },
+    { PowerCut, "power cut" },
+    { PolarNight, "polar night" },
+    { DataRich, "data-rich week" },
+    { DeadlineCrunch, "deadline crunch" }
+} };
+
+////////////////////////////////////////////////////////////////////////////////
 // the figure
 
 enum Frame { Stand, Run1, Run2, Run3, Jump, Crouch, Hurt, Cheer, FrameCount };
@@ -215,7 +358,7 @@ const std::array<HatSpot, FrameCount> HAT_SPOTS { {
     { -4, -53 }, { 0, -46 }, { 0, 0 }, { 0, -57 }
 } };
 
-// The figure strip: square cells side by side, 2x of the game's 64 x 64
+// A figure strip: square cells side by side, 2x of the game's 64 x 64
 // cell, feet on the bottom row. It is rescaled once per device pixel ratio,
 // smoothly - it is a drawing, not pixel art at its own size - and then drawn
 // 1:1. A strip that is missing or malformed leaves the game to draw its own
@@ -223,10 +366,14 @@ const std::array<HatSpot, FrameCount> HAT_SPOTS { {
 class SpriteSheet
 {
 public:
-    static SpriteSheet& instance()
+    // the strip of one of the two figures, or the other if that one is broken
+    static SpriteSheet& sheet(int figure)
     {
-        static SpriteSheet sheet;
-        return sheet;
+        static SpriteSheet first(QStringLiteral(":/icons/figure"));
+        static SpriteSheet second(QStringLiteral(":/icons/figure2"));
+        SpriteSheet& wanted = figure == 1 ? second : first;
+        SpriteSheet& other = figure == 1 ? first : second;
+        return (wanted.valid() || !other.valid()) ? wanted : other;
     }
 
     bool valid() const { return valid_; }
@@ -246,9 +393,9 @@ public:
     }
 
 private:
-    SpriteSheet()
+    explicit SpriteSheet(const QString& path)
     {
-        const QImage strip(QStringLiteral(":/icons/figure"));
+        const QImage strip(path);
         if (strip.isNull() || !strip.hasAlphaChannel() || strip.height() < 32
             || strip.width() % strip.height() != 0)
             return;
@@ -1338,6 +1485,371 @@ const QStringList& nightLines()
     return list;
 }
 
+// under a cleared level; {level}, {site}, {coverage} and {lives} are filled in
+const QStringList& levelClearedLines()
+{
+    static const QStringList list {
+        QStringLiteral("Level {level} is in the archive. {site} will be in the next synthesis paper."),
+        QStringLiteral("{site} submitted with {coverage} coverage. The next tower is already waiting."),
+        QStringLiteral("The data from {site} are in. The data from the next site are not. Yet."),
+        QStringLiteral("Level {level} done. Somewhere, a postdoc is plotting your cumulative sum."),
+        QStringLiteral("{site}: processed, quality-controlled, submitted. Next."),
+        QStringLiteral("The tower at {site} lowers its flag. Another one raises its own."),
+        QStringLiteral("Level {level} cleared with {lives} lost. The field season goes on."),
+        QStringLiteral("One site down. FLUXNET has many more."),
+        QStringLiteral("The {site} week is safe on the server. Pack the van."),
+        QStringLiteral("{coverage} coverage at {site}. The next site has heard about you."),
+        QStringLiteral("Level {level} is archived with a DOI. The next one has a deadline."),
+        QStringLiteral("You leave {site} with muddy boots and a complete week."),
+        QStringLiteral("The data logger at {site} waves goodbye."),
+        QStringLiteral("Level {level}: done. The funding agency asks what is next. This is next."),
+        QStringLiteral("{site} is filed. The next tower is taller, the gaps are wider."),
+        QStringLiteral("Another week, another tower, another flag down."),
+        QStringLiteral("The reviewers at {site} have been dealt with. New ones await."),
+        QStringLiteral("You conquered level {level}. Level {level} would like to apologise."),
+        QStringLiteral("{site} is in the bag, with {coverage} of its half-hours."),
+        QStringLiteral("The PI is pleased with {site}. The PI has another site in mind."),
+        QStringLiteral("Level {level} cleared. The van is fuelled for the next site."),
+        QStringLiteral("{site}: done. The eddies there will tell stories about you."),
+        QStringLiteral("The cumulative sum of {site} looks respectable. On to the next."),
+        QStringLiteral("You handed in {site} on time. That never happens."),
+        QStringLiteral("Level {level} is behind you, and so is its weather."),
+        QStringLiteral("The data from {site} survived. So did you, mostly."),
+        QStringLiteral("The {site} tower crew is buying the first round. You have no time to drink it."),
+        QStringLiteral("Level {level} cleared. Your inbox has a new field campaign in it."),
+        QStringLiteral("{site} is complete. The network map just got one dot greener."),
+        QStringLiteral("Onwards: {site} was only the beginning.")
+    };
+    return list;
+}
+
+// while the next level loads: a taste of what is coming
+const QStringList& nextLevelLines()
+{
+    static const QStringList list {
+        QStringLiteral("Loading the next site's raw data..."),
+        QStringLiteral("Reviewer 2 has been promoted to editor..."),
+        QStringLiteral("Widening the gaps a little..."),
+        QStringLiteral("Raising the spikes a little more..."),
+        QStringLiteral("Stirring up the boundary layer..."),
+        QStringLiteral("Booking flights to a new field site..."),
+        QStringLiteral("Packing the van with spare sonics..."),
+        QStringLiteral("Asking the methane to bubble faster..."),
+        QStringLiteral("Shortening the deadline, as is tradition..."),
+        QStringLiteral("Calibrating a fresh gas analyser..."),
+        QStringLiteral("Unrolling a longer week of data..."),
+        QStringLiteral("Teaching the puffs of CO2 to fly faster..."),
+        QStringLiteral("Making the platforms less stationary..."),
+        QStringLiteral("Finding a site with worse weather..."),
+        QStringLiteral("Sharpening the outliers..."),
+        QStringLiteral("Hiding the coffee more carefully..."),
+        QStringLiteral("Briefing the next tower crew..."),
+        QStringLiteral("Increasing the friction velocity..."),
+        QStringLiteral("Scheduling more power cuts..."),
+        QStringLiteral("Recruiting Reviewer 3..."),
+        QStringLiteral("Tilting the sonic slightly..."),
+        QStringLiteral("Lengthening the sampling tubes..."),
+        QStringLiteral("Warning the logger about you..."),
+        QStringLiteral("Rolling a new season..."),
+        QStringLiteral("Choosing a new time zone..."),
+        QStringLiteral("Downloading another week, slowly..."),
+        QStringLiteral("Re-zeroing the analyser for the next site..."),
+        QStringLiteral("Drawing up the next risk assessment..."),
+        QStringLiteral("Feeding the eddies..."),
+        QStringLiteral("Mixing a fresh boundary layer...")
+    };
+    return list;
+}
+
+// added to the rank for a run that cleared levels; {levels}, {level},
+// {site} and {firstsite} are filled in
+const QStringList& levelsTemplates()
+{
+    static const QStringList list {
+        QStringLiteral("{levels} cleared, from {firstsite} to {site}."),
+        QStringLiteral("The run took in {levels}, starting at {firstsite}."),
+        QStringLiteral("{levels} behind you; {site} was the last to see you."),
+        QStringLiteral("From {firstsite} to {site}: {levels} in one field season."),
+        QStringLiteral("You made it through {levels} before {site} had the last word."),
+        QStringLiteral("{levels} cleared. {firstsite} seems a long time ago."),
+        QStringLiteral("A tour of {levels}, from {firstsite} onwards."),
+        QStringLiteral("{levels} cleared. The network map remembers your route."),
+        QStringLiteral("You reached level {level}, by way of {levels}."),
+        QStringLiteral("{levels} archived, {firstsite} first and {site} last."),
+        QStringLiteral("{levels} in the bag. The van is now mostly mud."),
+        QStringLiteral("The {levels} you cleared are going into a synthesis paper."),
+        QStringLiteral("{firstsite}, then onwards: {levels} in all."),
+        QStringLiteral("The run stopped at level {level}, after {levels}."),
+        QStringLiteral("{levels} cleared, and {site} still talks about you."),
+        QStringLiteral("{levels} done: a field season to remember."),
+        QStringLiteral("Your road ran from {firstsite} to {site}, {levels} long."),
+        QStringLiteral("{levels} cleared. The funding agency would like a progress report."),
+        QStringLiteral("You saw {levels} through, then {site} saw you off."),
+        QStringLiteral("{levels} in the archive, all with your name on them."),
+        QStringLiteral("{levels} cleared. Each tower has a story about you."),
+        QStringLiteral("From {firstsite} to level {level}: {levels}."),
+        QStringLiteral("{levels} completed. The network coordinator is impressed."),
+        QStringLiteral("The run covered {levels}, and quite a few time zones."),
+        QStringLiteral("{levels} cleared: more sites than most PhD theses."),
+        QStringLiteral("{levels} behind you, from {firstsite} to wherever {site} is."),
+        QStringLiteral("The field season ran for {levels}. {site} was its last stop."),
+        QStringLiteral("{levels} cleared, which is {levels} more than Reviewer 2 has visited."),
+        QStringLiteral("A run of {levels}, starting where the sun rose over {firstsite}."),
+        QStringLiteral("{levels} cleared. The towers will miss you.")
+    };
+    return list;
+}
+
+// the first half of a site's name
+const QStringList& placeStems()
+{
+    static const QStringList list {
+        QStringLiteral("Ashgrove"), QStringLiteral("Bramblecombe"), QStringLiteral("Cedar Hollow"),
+        QStringLiteral("Dunmore"), QStringLiteral("Elderwick"), QStringLiteral("Fernhill"),
+        QStringLiteral("Glenrock"), QStringLiteral("Harrowmere"), QStringLiteral("Ironwood"),
+        QStringLiteral("Juniper Flats"), QStringLiteral("Kestrel Ridge"), QStringLiteral("Larkspur"),
+        QStringLiteral("Millbrook"), QStringLiteral("Northfell"), QStringLiteral("Oakhaven"),
+        QStringLiteral("Pinecrest"), QStringLiteral("Quarry Bend"), QStringLiteral("Ravensmoor"),
+        QStringLiteral("Stonebridge"), QStringLiteral("Thornfield"), QStringLiteral("Upper Wold"),
+        QStringLiteral("Valebrook"), QStringLiteral("Willowmere"), QStringLiteral("Yarrow Downs"),
+        QStringLiteral("Alderwood"), QStringLiteral("Brackenridge"), QStringLiteral("Coldwater"),
+        QStringLiteral("Driftwood"), QStringLiteral("Emberly"), QStringLiteral("Foxglove")
+    };
+    return list;
+}
+
+// a line on the level card for each kind of site, eight each
+const QStringList& siteLines(int kind)
+{
+    static const QList<QStringList> lines {
+        {   // forest
+            QStringLiteral("Tall trees, deep valleys of daytime uptake, and a canopy full of storage."),
+            QStringLiteral("The forest breathes in by day and out by night. Mind the walls."),
+            QStringLiteral("Somewhere above the canopy, a sonic is counting eddies."),
+            QStringLiteral("Roughness length: considerable. Spikes: plentiful."),
+            QStringLiteral("The tower rises above the trees. So should you."),
+            QStringLiteral("Woodpeckers have been at the cables again."),
+            QStringLiteral("The canopy decouples at night. The puffs of CO2 do not."),
+            QStringLiteral("A forest week: big swings, tall needles, few gusts.")
+        },
+        {   // grassland
+            QStringLiteral("Open grass, wide skies, and a lot of Reviewer 2s grazing."),
+            QStringLiteral("Short canopy, long fetch, lively turbulence."),
+            QStringLiteral("The cows have been told to stay away from the tower. They have not listened."),
+            QStringLiteral("Mowing day changed everything. Watch the gaps."),
+            QStringLiteral("The footprint stretches for miles. So does the level."),
+            QStringLiteral("A grassland week: gusty afternoons and walking reviewers."),
+            QStringLiteral("The hay is cut, the fluxes are not."),
+            QStringLiteral("Flat terrain, honest fluxes, and wind from every side.")
+        },
+        {   // wetland
+            QStringLiteral("Wet feet guaranteed. The methane bubbles are everywhere."),
+            QStringLiteral("The peat is deep, the gaps are deeper."),
+            QStringLiteral("Every pit seems to burp. That is ebullition."),
+            QStringLiteral("The boardwalk wobbles. So do the platforms."),
+            QStringLiteral("A wetland week: small uptake, many bubbles, mosquitoes."),
+            QStringLiteral("The water table is high, and so is the methane."),
+            QStringLiteral("Sphagnum underfoot, CH4 overhead."),
+            QStringLiteral("The mire keeps its carbon, mostly. Watch out for what it lets go.")
+        },
+        {   // cropland
+            QStringLiteral("Rows of crops to the horizon, and a farmer who wants the tower moved."),
+            QStringLiteral("Huge uptake in the growing season, bare soil after harvest."),
+            QStringLiteral("The tractor drove through the footprint again."),
+            QStringLiteral("Fertiliser week. The fluxes are excited."),
+            QStringLiteral("A cropland week: management events and very deep valleys."),
+            QStringLiteral("The harvest is in. The data are not."),
+            QStringLiteral("Irrigation started on Tuesday. So did the gaps."),
+            QStringLiteral("The field was ploughed the day after the tower went up.")
+        },
+        {   // tundra
+            QStringLiteral("Permafrost below, endless light or endless dark above."),
+            QStringLiteral("The sun never quite sets here. Or never quite rises."),
+            QStringLiteral("Small fluxes, big wind, and a polar bear warning on the hut door."),
+            QStringLiteral("The active layer is thin. The battery is thinner."),
+            QStringLiteral("A tundra week: weak uptake, strong turbulence, snow in the air."),
+            QStringLiteral("The heater on the sonic is working overtime."),
+            QStringLiteral("Thaw slumps opened new gaps in the data."),
+            QStringLiteral("The nearest technician is a helicopter flight away.")
+        },
+        {   // savanna
+            QStringLiteral("Scattered trees, tall grass, and a wet season that changes everything."),
+            QStringLiteral("When the rains come, the uptake comes. Otherwise, dust."),
+            QStringLiteral("Hot afternoons, thermals everywhere. Hold jump."),
+            QStringLiteral("An elephant leaned on the tower. It is still mostly vertical."),
+            QStringLiteral("A savanna week: wet and green, or dry and still."),
+            QStringLiteral("Fire season left some gaps in the record."),
+            QStringLiteral("The termite mounds are taller than the sonic."),
+            QStringLiteral("The first rain of the season arrived with a flux pulse.")
+        },
+        {   // mountain
+            QStringLiteral("Steep slopes, thin air, and drainage flows every night."),
+            QStringLiteral("The cold air pours down the valley at night. So does the CO2."),
+            QStringLiteral("Complex terrain: the planar fit gave up."),
+            QStringLiteral("Gusts off the ridge, snow on the peaks, puffs in the valley."),
+            QStringLiteral("A mountain week: strong winds, tall walls, advection everywhere."),
+            QStringLiteral("The tower is anchored to the rock. Hold on to something too."),
+            QStringLiteral("The cable car stopped running. The data did not."),
+            QStringLiteral("Katabatic winds tonight, anabatic tomorrow.")
+        },
+        {   // desert
+            QStringLiteral("Tiny fluxes, a nearly flat trace, and heat you can see."),
+            QStringLiteral("Sand on the sensors, sand in the logger, sand in the gaps."),
+            QStringLiteral("The strongest convection on the network. Thermals for days."),
+            QStringLiteral("It rains here once a year. This might be the week."),
+            QStringLiteral("A desert week: flat ground, fierce afternoons, sandy pits."),
+            QStringLiteral("The signal is small and the noise is not."),
+            QStringLiteral("Dust devils have been sighted near the tower."),
+            QStringLiteral("The energy balance does not close here either.")
+        }
+    };
+    return lines.at(std::clamp(kind, 0, static_cast<int>(lines.size()) - 1));
+}
+
+// the first banner of a level, eight for each season
+const QStringList& seasonLines(int season)
+{
+    static const QList<QStringList> lines {
+        {   // spring
+            QStringLiteral("SPRING: GREEN-UP IN PROGRESS"),
+            QStringLiteral("SPRING: THE UPTAKE IS WAKING UP"),
+            QStringLiteral("SPRING: BUDBURST AND BIG GUSTS"),
+            QStringLiteral("SPRING: LONGER DAYS, DEEPER VALLEYS"),
+            QStringLiteral("SPRING: THE SNOW IS MELTING INTO THE GAPS"),
+            QStringLiteral("SPRING: THE CARBON SINK IS OPEN"),
+            QStringLiteral("SPRING: FRESH LEAVES, FRESH SPIKES"),
+            QStringLiteral("SPRING: THE GROWING SEASON BEGINS")
+        },
+        {   // summer
+            QStringLiteral("SUMMER: PEAK UPTAKE"),
+            QStringLiteral("SUMMER: SHORT NIGHTS, DEEP VALLEYS"),
+            QStringLiteral("SUMMER: THUNDERSTORMS IN THE AFTERNOON"),
+            QStringLiteral("SUMMER: THE CONVECTIVE BOUNDARY LAYER IS HUGE"),
+            QStringLiteral("SUMMER: THE ECOSYSTEM IS HUNGRY"),
+            QStringLiteral("SUMMER: HEATWAVE WARNING"),
+            QStringLiteral("SUMMER: THE LONGEST DAYS OF THE YEAR"),
+            QStringLiteral("SUMMER: FULL CANOPY, FULL FLUXES")
+        },
+        {   // autumn
+            QStringLiteral("AUTUMN: SENESCENCE IN PROGRESS"),
+            QStringLiteral("AUTUMN: THE UPTAKE IS FADING"),
+            QStringLiteral("AUTUMN: FALLING LEAVES, FALLING FLUXES"),
+            QStringLiteral("AUTUMN: LONGER NIGHTS, MORE ADVECTION"),
+            QStringLiteral("AUTUMN: THE FOG SETTLES IN"),
+            QStringLiteral("AUTUMN: HARVEST TIME"),
+            QStringLiteral("AUTUMN: THE SOURCE IS WINNING"),
+            QStringLiteral("AUTUMN: THE GROWING SEASON ENDS")
+        },
+        {   // winter
+            QStringLiteral("WINTER: LONG NIGHTS, SHALLOW VALLEYS"),
+            QStringLiteral("WINTER: THE SONIC HEATERS ARE ON"),
+            QStringLiteral("WINTER: RESPIRATION ONLY"),
+            QStringLiteral("WINTER: THE BATTERIES DO NOT LIKE THIS"),
+            QStringLiteral("WINTER: SNOW ON THE TRANSDUCERS"),
+            QStringLiteral("WINTER: THE STABLE LAYER NEVER LEAVES"),
+            QStringLiteral("WINTER: THE SHORTEST DAYS OF THE YEAR"),
+            QStringLiteral("WINTER: DORMANT, BUT STILL GAPPY")
+        },
+        {   // wet season
+            QStringLiteral("WET SEASON: THE RAINS HAVE COME"),
+            QStringLiteral("WET SEASON: GREEN AND GROWING"),
+            QStringLiteral("WET SEASON: MIND THE SLIPPERY TRACE"),
+            QStringLiteral("WET SEASON: THE UPTAKE IS BACK"),
+            QStringLiteral("WET SEASON: STORMS EVERY AFTERNOON"),
+            QStringLiteral("WET SEASON: THE RIVERS ARE UP"),
+            QStringLiteral("WET SEASON: THE GRASS IS TALLER THAN YOU"),
+            QStringLiteral("WET SEASON: THE FLUX PULSE IS OVER, THE FLUX IS NOT")
+        },
+        {   // dry season
+            QStringLiteral("DRY SEASON: DUST AND STILLNESS"),
+            QStringLiteral("DRY SEASON: ALMOST NO UPTAKE"),
+            QStringLiteral("DRY SEASON: THE GRASS HAS GONE BROWN"),
+            QStringLiteral("DRY SEASON: FIRE RISK HIGH"),
+            QStringLiteral("DRY SEASON: HOT DAYS, COLD NIGHTS"),
+            QStringLiteral("DRY SEASON: THE TREES ARE WAITING"),
+            QStringLiteral("DRY SEASON: NOT A CLOUD IN SIGHT"),
+            QStringLiteral("DRY SEASON: THE SOIL IS CRACKED")
+        }
+    };
+    return lines.at(std::clamp(season, 0, static_cast<int>(lines.size()) - 1));
+}
+
+// above the player on walking into a shower that falls as snow
+const QStringList& snowPops()
+{
+    static const QStringList list {
+        QStringLiteral("SNOW! MIND THE ICY TRACE!"),
+        QStringLiteral("SNOW ON THE SONIC!"),
+        QStringLiteral("ICE ON THE TRANSDUCERS!"),
+        QStringLiteral("HEATERS ON!"),
+        QStringLiteral("WHITE-OUT!"),
+        QStringLiteral("THE IRGA IS FREEZING!"),
+        QStringLiteral("SLIPPERY AND COLD!"),
+        QStringLiteral("SNOWFALL FLAG!"),
+        QStringLiteral("THE SOLAR PANEL IS BURIED!"),
+        QStringLiteral("FROST ON THE MIRRORS!"),
+        QStringLiteral("SNOWFLAKES IN THE PATH!"),
+        QStringLiteral("BLIZZARD HALF-HOURS!"),
+        QStringLiteral("THE TOWER IS ICING UP!"),
+        QStringLiteral("COLD HANDS, WARM DATA!"),
+        QStringLiteral("SKI SEASON!"),
+        QStringLiteral("THE BATTERY HATES THIS!"),
+        QStringLiteral("SUBLIMATION IN PROGRESS!"),
+        QStringLiteral("SNOW DEPTH: RISING!"),
+        QStringLiteral("STOP EARLY: IT'S ICY!"),
+        QStringLiteral("THE PATH LENGTH IS FROZEN!"),
+        QStringLiteral("DRIFTING SNOW!"),
+        QStringLiteral("HOAR FROST EVERYWHERE!"),
+        QStringLiteral("THE LOGGER HUT IS AN IGLOO!"),
+        QStringLiteral("ALBEDO: MAXIMUM!"),
+        QStringLiteral("SNOW AT TEN HERTZ!"),
+        QStringLiteral("BRRR!"),
+        QStringLiteral("WINTER WONDERLAND, POOR DATA!"),
+        QStringLiteral("NO GRIP ON THE SNOW!"),
+        QStringLiteral("FLAKES ON THE CAMERA!"),
+        QStringLiteral("THE SKY IS FALLING, IN FLAKES!")
+    };
+    return list;
+}
+
+// the card after the deadline took a life
+const QStringList& deadlineDeathLines()
+{
+    static const QStringList list {
+        QStringLiteral("The deadline passed. You have been given an extension, and one life fewer."),
+        QStringLiteral("Out of time. The editor grants two more weeks, of game time."),
+        QStringLiteral("The clock ran out. The PI sighed and reset it."),
+        QStringLiteral("Deadline missed. Your extension request was approved, at a cost."),
+        QStringLiteral("Too slow. The funding agency took a life as a late fee."),
+        QStringLiteral("The submission portal closed. It reopened, but it remembers."),
+        QStringLiteral("You missed the deadline. Everyone does. Some pay with a life."),
+        QStringLiteral("Time is up. The tower waits, a little impatiently."),
+        QStringLiteral("The deadline was yesterday. You are now running on the extension."),
+        QStringLiteral("The clock beat you. The clock always beats you."),
+        QStringLiteral("Late again. The report is due, now with less time."),
+        QStringLiteral("Deadline exceeded. A new, shorter one has been set."),
+        QStringLiteral("The data were due at noon. It is not noon any more."),
+        QStringLiteral("You ran out of time admiring the eddies."),
+        QStringLiteral("The deadline won this round. There is a next round."),
+        QStringLiteral("Extension granted. Do not ask for another."),
+        QStringLiteral("The editor has noted the delay in your file."),
+        QStringLiteral("The clock struck zero. So did one of your lives."),
+        QStringLiteral("Overdue. The tower crew has started a betting pool."),
+        QStringLiteral("You took the scenic route. The deadline did not."),
+        QStringLiteral("Time over. The second deadline is shorter than the first."),
+        QStringLiteral("The deadline came and went, like a cold front."),
+        QStringLiteral("The report is late. The fluxes are patient. The PI is not."),
+        QStringLiteral("You missed it by a week of half-hours."),
+        QStringLiteral("The submission window shut. A smaller one has opened."),
+        QStringLiteral("Late submission accepted, with penalties."),
+        QStringLiteral("Out of time, but still in the game."),
+        QStringLiteral("The calendar won. Try running faster."),
+        QStringLiteral("The deadline was a suggestion. A firm one."),
+        QStringLiteral("The clock is reset. Your lives are not.")
+    };
+    return list;
+}
+
 // A rank tier holds titles and sentence templates. The templates take
 // {coverage}, {coins}, {time}, {stomps}, {gaps}, {lives} and {doy} from the
 // run, and {tool}, {place} and {who}, which are filled in at random.
@@ -1770,24 +2282,33 @@ QString minutes(qreal seconds)
     return QStringLiteral("%1:%2").arg(total / 60).arg(total % 60, 2, 10, QLatin1Char('0'));
 }
 
-QString fillRunTemplate(const QString& sentence, const FluxRunner::Result& r)
+// the run's totals in the rank sentences; levelOnly for a level's summary
+QString fillRunTemplate(const QString& sentence, const FluxRunner::Result& r, bool levelOnly = false)
 {
-    const int coverage = qRound(100.0 * r.coins / std::max(r.totalCoins, 1));
+    const int coins = levelOnly ? r.coins : r.runCoins;
+    const int total = levelOnly ? r.totalCoins : r.runTotalCoins;
+    const int coverage = qRound(100.0 * coins / std::max(total, 1));
     return fillFlavour(sentence, {
         { QStringLiteral("coverage"), QStringLiteral("%1%").arg(coverage) },
-        { QStringLiteral("coins"), counted(r.coins, "good half-hour", "good half-hours") },
-        { QStringLiteral("time"), minutes(r.seconds) },
-        { QStringLiteral("stomps"), counted(r.defeated, "foe", "foes") },
-        { QStringLiteral("gaps"), counted(r.gapsBridged, "gap", "gaps") },
-        { QStringLiteral("lives"), counted(r.livesLost, "life", "lives") },
-        { QStringLiteral("doy"), QStringLiteral("DOY %1").arg(r.firstDoy) }
+        { QStringLiteral("coins"), counted(coins, "good half-hour", "good half-hours") },
+        { QStringLiteral("time"), minutes(levelOnly ? r.seconds : r.runSeconds) },
+        { QStringLiteral("stomps"), counted(levelOnly ? r.defeated : r.runDefeated, "foe", "foes") },
+        { QStringLiteral("gaps"), counted(levelOnly ? r.gapsBridged : r.runGaps, "gap", "gaps") },
+        { QStringLiteral("lives"), counted(levelOnly ? r.livesLost : r.runLivesLost, "life", "lives") },
+        { QStringLiteral("doy"), QStringLiteral("DOY %1").arg(r.firstDoy) },
+        { QStringLiteral("levels"), counted(r.levelsCleared, "level", "levels") },
+        { QStringLiteral("level"), QString::number(r.level) },
+        { QStringLiteral("site"), r.site },
+        { QStringLiteral("firstsite"), r.firstSite.isEmpty() ? r.site : r.firstSite }
     });
 }
 
+// the rank of the whole run: nothing cleared is a game over, otherwise
+// the tiers follow the run's rating
 Rank runRank(const FluxRunner::Result& r)
 {
     const RankTier* tier = &gameOverTier();
-    if (r.cleared)
+    if (r.levelsCleared > 0)
     {
         for (const auto& candidate : rankTiers())
         {
@@ -1800,10 +2321,10 @@ Rank runRank(const FluxRunner::Result& r)
     }
 
     QString sentence = fillRunTemplate(pickFresh(tier->templates), r);
+    if (r.levelsCleared > 0)
+        sentence += QLatin1Char(' ') + fillRunTemplate(pickFresh(levelsTemplates()), r);
     if (r.timedOut)
         sentence += QLatin1Char(' ') + fillRunTemplate(pickFresh(deadlineTemplates()), r);
-    else if (r.cleared && (r.livesLost == 0 || r.coins == r.totalCoins))
-        sentence += QLatin1Char(' ') + fillRunTemplate(pickFresh(flawlessTemplates()), r);
 
     return { pickFresh(tier->titles), sentence };
 }
@@ -1833,7 +2354,26 @@ FluxRunner::FluxRunner(QWidget* parent) :
     player_({ QPointF(), QPointF(), PLAYER_HALF_W, PLAYER_HEIGHT, false }),
     cameraX_(0.0),
     stompChain_(0),
+    figure_(0),
     blockCoins_(0),
+    spec_(specFor(1)),
+    level_(1),
+    site_(Forest),
+    seasonIndex_(Summer),
+    modifiers_(0),
+    seasonFactor_(1.0),
+    sunrise_(6.0),
+    sunset_(18.0),
+    startSlot_(12),
+    dataSlots_(264),
+    weather_(1),
+    frontDay_(-1),
+    rhythm_(Ramp),
+    rhythmPhase_(0.0),
+    rhythmPeriod_(120.0),
+    cloudCount_(6),
+    snowy_(false),
+    cardDuration_(CARD_S),
     checkpointColumn_(0),
     towerColumn_(0),
     hutColumn_(0),
@@ -1846,20 +2386,31 @@ FluxRunner::FluxRunner(QWidget* parent) :
     flagY_(0.0),
     nextEddy_(0.0),
     diedInPit_(false),
+    diedOfDeadline_(false),
     nightAnnounced_(false),
     sky_(DAY_SKY),
     bannerColor_(AMBER),
     bannerAge_(BANNER_S),
     lives_(START_LIVES),
     livesLost_(0),
-    score_(0),
     coinCount_(0),
     defeated_(0),
     gapsBridged_(0),
-    deadline_(DEADLINE_S),
+    deadline_(0.0),
+    levelDeadline_(0.0),
     runTime_(0.0),
+    cleared_(false),
     timedOut_(false),
-    cleared_(false)
+    score_(0),
+    levelsCleared_(0),
+    runCoins_(0),
+    runTotalCoins_(0),
+    runDefeated_(0),
+    runGaps_(0),
+    runLivesLost_(0),
+    runSeconds_(0.0),
+    qualitySum_(0.0),
+    qualityWeight_(0.0)
 {
     // the arrows and Space belong to the game while it runs
     setFocusPolicy(Qt::StrongFocus);
@@ -1878,33 +2429,72 @@ QSize FluxRunner::sizeHint() const
     return QSize(720, PLAY_HEIGHT + HUD_HEIGHT);
 }
 
-void FluxRunner::start()
+void FluxRunner::startRun(int figure)
 {
-    // every level is checked before it is played; a level that will not
-    // pass after twenty tries gives way to one without pits
+    figure_ = std::clamp(figure, 0, 1);
+    lives_ = START_LIVES;
+    score_ = 0;
+    levelsCleared_ = 0;
+    runCoins_ = 0;
+    runTotalCoins_ = 0;
+    runDefeated_ = 0;
+    runGaps_ = 0;
+    runLivesLost_ = 0;
+    runSeconds_ = 0.0;
+    qualitySum_ = 0.0;
+    qualityWeight_ = 0.0;
+    firstSite_.clear();
+    power_ = Power::Small;
+    timedOut_ = false;
+    startLevel(1);
+}
+
+void FluxRunner::nextLevel()
+{
+    startLevel(level_ + 1);
+}
+
+void FluxRunner::startLevel(int level)
+{
+    level_ = std::max(level, 1);
+    spec_ = specFor(level_);
+    drawSetting();
+
+    // every level is checked before it is played; one that will not pass
+    // after twenty tries takes the previous level's hazards, then none
     bool built = false;
     for (int attempt = 0; attempt < 20 && !built; ++attempt)
         built = generateLevel(true) && verifyLevel();
+    if (!built && level_ > 1)
+    {
+        const LevelSpec own = spec_;
+        spec_ = specFor(level_ - 1);
+        spec_.pointsFactor = own.pointsFactor;
+        for (int attempt = 0; attempt < 20 && !built; ++attempt)
+            built = generateLevel(true) && verifyLevel();
+    }
     if (!built)
         generateLevel(false);
     buildSamples();
     placeThings();
+    if (firstSite_.isEmpty())
+        firstSite_ = siteName_;
 
     stars_.clear();
     for (int i = 0; i < 70; ++i)
         stars_.append(QPointF(uniform(0.0, 1.0), uniform(0.0, 0.55)));
 
-    lives_ = START_LIVES;
     livesLost_ = 0;
-    score_ = 0;
     coinCount_ = 0;
     defeated_ = 0;
     gapsBridged_ = 0;
-    deadline_ = DEADLINE_S;
+    levelDeadline_ = spec_.deadlinePerSlot * dataSlots_;
+    deadline_ = levelDeadline_;
     runTime_ = 0.0;
     clockTime_ = 0.0;
-    timedOut_ = false;
     cleared_ = false;
+    timedOut_ = false;
+    diedOfDeadline_ = false;
     checkpointTaken_ = false;
     respawnColumn_ = 3;
     nextGap_ = 0;
@@ -1913,8 +2503,6 @@ void FluxRunner::start()
     tubeIndex_ = -1;
     flagY_ = bars_.at(towerColumn_).top - 250.0;
     nextEddy_ = 0.0;
-    banner_.clear();
-    bannerAge_ = BANNER_S;
     pops_.clear();
     eddies_.clear();
     held_ = 0;
@@ -1922,8 +2510,15 @@ void FluxRunner::start()
 
     cameraX_ = 0.0;
     sky_ = mix(DAY_SKY, NIGHT_SKY, nightAt(LEAD * BAR_W));
-    cardLine_ = fillFlavour(pickFresh(cardLines()));
+    cardLine_ = fillFlavour(pickFresh(siteLines(site_)), { { QStringLiteral("place"), siteName_ } });
+
+    // the power-up carries over from the level before, as in the original
+    const Power carried = power_;
     respawn();
+    power_ = carried;
+    cardDuration_ = NEW_LEVEL_CARD_S;
+    announce(pickFresh(seasonLines(seasonIndex_)), ICE);
+    bannerAge_ = -cardDuration_;    // shown once the card has gone
 
     setFocus(Qt::OtherFocusReason);
     clock_.start();
@@ -1942,6 +2537,167 @@ void FluxRunner::stop()
     pops_.clear();
     eddies_.clear();
     update();
+}
+
+FluxRunner::LevelSpec FluxRunner::specFor(int level)
+{
+    // level 1 is gentle, level 6 is everything at its cap, and the points
+    // keep climbing after that
+    const qreal t = std::clamp((level - 1) / 5.0, 0.0, 1.0);
+    auto at = [t](qreal a, qreal b) { return a + (b - a) * t; };
+    auto atInt = [t](int a, int b) { return static_cast<int>(std::round(a + (b - a) * t)); };
+
+    LevelSpec s;
+    s.level = level;
+    s.minSlots = std::min(atInt(240, 336), CAP_SLOTS);
+    s.maxSlots = std::min(atInt(288, 432), CAP_SLOTS);
+    s.pitsPer100 = at(3.5, 4.5);
+    s.wallsPer100 = at(2.75, 3.75);
+    s.earlyPitMin = 2;
+    s.earlyPitMax = std::min(atInt(2, 4), CAP_PIT);
+    s.latePitMin = std::min(atInt(2, 4), CAP_PIT);
+    s.latePitMax = std::min(atInt(3, 5), CAP_PIT);
+    s.maxPit = std::min(atInt(3, 5), CAP_PIT);
+    s.maxZonePit = std::min(atInt(2, 4), CAP_ZONE_PIT);
+    s.maxLandingRise = std::min(at(40.0, 56.0), CAP_LANDING_RISE);
+    s.earlyRiseMin = at(32.0, 64.0);
+    s.earlyRiseMax = at(48.0, 88.0);
+    s.lateRiseMin = at(48.0, 88.0);
+    s.lateRiseMax = std::min(at(64.0, 112.0), CAP_RISE);
+    s.doubleWallChance = at(0.25, 0.45);
+    s.pad = std::max(atInt(5, 4), CAP_PAD);
+    s.movingMin = atInt(2, 3);
+    s.movingMax = atInt(3, 5);
+    s.movingAmplitude = std::min(at(28.0, 48.0), CAP_MOVING_AMPLITUDE);
+    s.movingPeriod = std::max(at(3.4, 2.4), CAP_MOVING_PERIOD);
+    s.tubesMin = 2;
+    s.tubesMax = 3;
+    s.showersMin = atInt(1, 3);
+    s.showersMax = atInt(2, 4);
+    s.zoneShare = at(0.5, 1.0);
+    s.zoneStrengthMin = at(0.4, 0.7);
+    s.zoneStrengthMax = at(0.7, 1.0);
+    s.gustMax = std::min(at(30.0, 48.0), CAP_GUST);
+    s.eddyKick = std::min(at(420.0, 560.0), CAP_KICK);
+    s.eddyIntervalMin = at(1.6, 1.0);
+    s.eddyIntervalMax = at(2.8, 2.0);
+    s.maxEddies = atInt(4, 5);
+    s.reviewerGapMin = atInt(12, 7);
+    s.reviewerGapMax = atInt(18, 11);
+    s.reviewerSpeed = std::min(at(40.0, 70.0), CAP_REVIEWER_SPEED);
+    s.puffsPer100 = at(2.0, 5.0);
+    s.puffSpeed = std::min(at(115.0, 170.0), CAP_PUFF_SPEED);
+    s.bubbleChance = at(0.35, 0.8);
+    s.bubblePauseMin = std::max(at(2.4, 1.6), CAP_BUBBLE_PAUSE);
+    s.bubblePauseMax = std::max(at(3.4, 2.4), s.bubblePauseMin + 0.4);
+    s.hats = std::max(atInt(4, 2), 2);
+    s.filters = std::max(atInt(2, 1), 1);
+    s.coffees = std::max(atInt(2, 1), 1);
+    s.maxBlocks = atInt(18, 12);
+    s.coinRowChance = at(0.6, 0.45);
+    s.deadlinePerSlot = std::max(at(0.95, 0.65), CAP_DEADLINE_PER_SLOT);
+    s.pointsFactor = 1.0 + 0.25 * (level - 1);
+    return s;
+}
+
+void FluxRunner::drawSetting()
+{
+    // modifiers first, from the seventh level on: some choose the site or the hour
+    modifiers_ = 0;
+    modifierNames_.clear();
+    const int wanted = level_ >= 10 ? 2 : (level_ >= 7 ? 1 : 0);
+    while (static_cast<int>(modifierNames_.size()) < wanted)
+    {
+        const auto& modifier = MODIFIERS.at(QRandomGenerator::global()->bounded(
+            static_cast<int>(MODIFIERS.size())));
+        if (modifiers_ & modifier.first)
+            continue;
+        modifiers_ |= modifier.first;
+        modifierNames_ << QString::fromLatin1(modifier.second);
+    }
+
+    // the site, the date, and what the date means there
+    site_ = (modifiers_ & PolarNight) ? Tundra
+                                      : QRandomGenerator::global()->bounded(static_cast<int>(sites().size()));
+    const Site& site = sites().at(site_);
+    firstDoy_ = (modifiers_ & PolarNight) ? wrapDoy(between(345, 375)) : between(1, 365);
+    const int fromPeak = std::abs(firstDoy_ - site.seasonPeak);
+    const int distance = std::min(fromPeak, 365 - fromPeak);
+    seasonFactor_ = site.seasonFloor + (1.0 - site.seasonFloor)
+                    * std::exp(-std::pow(distance / static_cast<qreal>(site.seasonWidth), 2));
+    if (site.wetAndDry)
+        seasonIndex_ = seasonFactor_ > 0.4 ? WetSeason : DrySeason;
+    else if (firstDoy_ >= 60 && firstDoy_ < 152)
+        seasonIndex_ = Spring;
+    else if (firstDoy_ >= 152 && firstDoy_ < 244)
+        seasonIndex_ = Summer;
+    else if (firstDoy_ >= 244 && firstDoy_ < 335)
+        seasonIndex_ = Autumn;
+    else
+        seasonIndex_ = Winter;
+    season_ = QString::fromLatin1(SEASON_NAMES.at(seasonIndex_));
+    const qreal dayLength = std::clamp(
+        12.0 + site.dayAmplitude * std::cos(2.0 * PI * (firstDoy_ - 172) / 365.0), 5.0, 20.0);
+    sunrise_ = 12.0 - dayLength / 2.0;
+    sunset_ = 12.0 + dayLength / 2.0;
+    snowy_ = site.snowy && (seasonIndex_ == Winter || (site_ == Tundra && seasonFactor_ < 0.5));
+
+    // a name and a code, as on the network's map
+    const QString stem = pickFresh(placeStems());
+    siteName_ = stem + QLatin1Char(' ') + pickAny(site.suffixes);
+    siteCode_ = pickAny(site.countries) + QLatin1Char('-') + QString(stem).remove(QLatin1Char(' ')).left(3);
+
+    // how long, and from what time of day: the first level in daylight
+    dataSlots_ = between(spec_.minSlots, spec_.maxSlots);
+    const int sunriseSlot = qRound(sunrise_ * 2.0);
+    const int sunsetSlot = qRound(sunset_ * 2.0);
+    if (modifiers_ & NightShift)
+        startSlot_ = (sunsetSlot - 2 + 48) % 48;
+    else if (level_ == 1)
+        startSlot_ = between(sunriseSlot, sunriseSlot + 12) % 48;
+    else if (chance(0.6))
+        startSlot_ = between(0, 47);
+    else
+        startSlot_ = ((chance(0.5) ? sunriseSlot : sunsetSlot) + between(-4, 4) + 48) % 48;
+
+    // the weather of the week
+    const qreal draw = uniform(0.0, 1.0);
+    weather_ = draw < 0.3 ? 0 : (draw < 0.75 ? 1 : 2);
+    weatherName_ = QString::fromLatin1(WEATHER_NAMES.at(weather_));
+    const int days = (dataSlots_ + startSlot_ + 47) / 48;
+    frontDay_ = chance(0.3) ? between(0, days - 1) : -1;
+    cloudCount_ = weather_ == 0 ? between(1, 3) : (weather_ == 1 ? between(4, 7) : between(8, 11));
+
+    // the rhythm of its hazards
+    rhythm_ = between(Ramp, HardFirst);
+    rhythmPhase_ = uniform(0.0, 2.0 * PI);
+    rhythmPeriod_ = uniform(96.0, 144.0);
+    clusters_.clear();
+    const int centres = between(3, 5);
+    for (int i = 0; i < centres; ++i)
+        clusters_.append(between(16, std::max(dataSlots_ - 12, 17)));
+
+    // and what the modifiers change, within the caps
+    if (modifiers_ & StormWeek)
+        spec_.zoneStrengthMin = spec_.zoneStrengthMax = 1.0;
+    if (modifiers_ & MethaneWeek)
+        spec_.bubbleChance = 1.0;
+    if (modifiers_ & ReviewerConference)
+    {
+        spec_.reviewerGapMin = std::max(spec_.reviewerGapMin * 2 / 3, 5);
+        spec_.reviewerGapMax = std::max(spec_.reviewerGapMax * 2 / 3, spec_.reviewerGapMin + 1);
+    }
+    if (modifiers_ & NightShift)
+        spec_.puffsPer100 *= 2.0;
+    if (modifiers_ & PowerCut)
+    {
+        spec_.tubesMin = spec_.tubesMax = 0;
+        spec_.coffees += 1;
+    }
+    if (modifiers_ & DataRich)
+        spec_.coinRowChance = std::min(spec_.coinRowChance * 1.5, 0.9);
+    if (modifiers_ & DeadlineCrunch)
+        spec_.deadlinePerSlot = CAP_DEADLINE_PER_SLOT;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2024,21 +2780,35 @@ bool FluxRunner::nearGap(int column, int reach) const
     return false;
 }
 
+qreal FluxRunner::hourOfSlot(int t) const
+{
+    return ((std::max(t, 0) + startSlot_) % 48) * 0.5;
+}
+
+qreal FluxRunner::sunElevation(qreal hour) const
+{
+    // up from sunrise to sunset, and a night branch of its own, so that a
+    // winter midnight is as dark as it should be rather than reading as dawn
+    const qreal day = sunset_ - sunrise_;
+    if (hour >= sunrise_ && hour <= sunset_)
+        return std::sin(PI * (hour - sunrise_) / day);
+    const qreal sinceSunset = std::fmod(hour - sunset_ + 24.0, 24.0);
+    return -std::sin(PI * sinceSunset / (24.0 - day));
+}
+
 qreal FluxRunner::hourAt(qreal x) const
 {
-    const int t = std::max(columnOf(x) - LEAD, 0);
-    return ((t + START_SLOT) % 48) * 0.5;
+    return hourOfSlot(columnOf(x) - LEAD);
 }
 
 qreal FluxRunner::nightAt(qreal x) const
 {
-    const qreal elevation = std::sin(PI * (hourAt(x) - 5.5) / 15.0);
-    return std::clamp(0.4 - 3.0 * elevation, 0.0, 1.0);
+    return std::clamp(0.4 - 3.0 * sunElevation(hourAt(x)), 0.0, 1.0);
 }
 
 int FluxRunner::doyAt(qreal x) const
 {
-    return firstDoy_ + (std::max(columnOf(x) - LEAD, 0) + START_SLOT) / 48;
+    return wrapDoy(firstDoy_ + (std::max(columnOf(x) - LEAD, 0) + startSlot_) / 48);
 }
 
 int FluxRunner::zoneAt(qreal x) const
@@ -2082,7 +2852,48 @@ qreal FluxRunner::gust(int zone) const
     const qreal swing = 0.55 * std::sin(0.9 * t + z.phase)
                         + 0.30 * std::sin(2.3 * t + 1.7 * z.phase)
                         + 0.15 * z.noise;
-    return GUST_MAX * z.strength * std::clamp(0.35 * z.direction + 0.65 * swing, -1.0, 1.0);
+    return spec_.gustMax * z.strength * std::clamp(0.35 * z.direction + 0.65 * swing, -1.0, 1.0);
+}
+
+qreal FluxRunner::rhythmDensity(int t) const
+{
+    // how likely a hazard is kept at half-hour t
+    switch (rhythm_)
+    {
+        case Waves:
+            return 0.6 + 0.4 * std::sin(2.0 * PI * t / rhythmPeriod_ + rhythmPhase_);
+        case Clusters:
+            for (int centre : clusters_)
+            {
+                if (std::abs(t - centre) <= 12)
+                    return 1.0;
+            }
+            return 0.3;
+        default:
+            return 1.0;
+    }
+}
+
+qreal FluxRunner::rhythmLateness(int t) const
+{
+    // how likely a hazard at half-hour t takes the harder of its ranges
+    const qreal p = t / static_cast<qreal>(std::max(dataSlots_, 1));
+    switch (rhythm_)
+    {
+        case Waves:
+            return rhythmDensity(t);
+        case Clusters:
+            return rhythmDensity(t) > 0.5 ? 0.8 : 0.2;
+        case HardFirst:
+            return 1.0 - p;
+        default:
+            return p;
+    }
+}
+
+int FluxRunner::points(int base) const
+{
+    return qRound(base * spec_.pointsFactor);
 }
 
 bool FluxRunner::generateLevel(bool hazards)
@@ -2094,49 +2905,58 @@ bool FluxRunner::generateLevel(bool hazards)
     showers_.clear();
     gapEnds_.clear();
 
-    firstDoy_ = between(150, 200);
+    const Site& site = sites().at(site_);
+    const int data = dataSlots_;
 
-    // a week of half-hourly NEE: daytime uptake under a wandering cloud
-    // cover, night-time respiration, and more noise at night
+    // half-hourly NEE through the site's season: daytime uptake under the
+    // week's cloud, respiration that follows the time of year, noisier nights
+    const qreal warmth = 0.5 + 0.5 * std::cos(2.0 * PI * (firstDoy_ - 200) / 365.0);
+    const qreal respirationBase = site.respiration * (0.4 + 0.6 * (site.wetAndDry ? seasonFactor_ : warmth));
+    const qreal cloudLow = weather_ == 0 ? 0.85 : (weather_ == 1 ? 0.4 : 0.3);
+    const qreal cloudHigh = weather_ == 2 ? 0.6 : 1.0;
+    const qreal cloudStep = weather_ == 0 ? 0.03 : (weather_ == 1 ? 0.06 : 0.08);
+    const qreal offset = uniform(-15.0, 15.0);
     QList<qreal> flux;
-    qreal cloud = uniform(0.6, 1.0);
-    qreal uptake = uniform(15.0, 30.0);
-    for (int t = 0; t < DATA; ++t)
+    qreal cloud = uniform(cloudLow, cloudHigh);
+    qreal uptake = uniform(0.6, 1.0) * site.uptake * seasonFactor_;
+    for (int t = 0; t < data; ++t)
     {
-        if ((t + START_SLOT) % 48 == 0)
-            uptake = uniform(15.0, 30.0);
-        const qreal hour = ((t + START_SLOT) % 48) * 0.5;
-        cloud = std::clamp(cloud + uniform(-0.06, 0.06), 0.4, 1.0);
-        const qreal daylight = std::max(0.0, std::sin(PI * (hour - 5.5) / 15.0));
-        const qreal respiration = 4.0 + 1.5 * std::sin(2.0 * PI * (hour - 9.0) / 24.0);
+        if ((t + startSlot_) % 48 == 0)
+            uptake = uniform(0.6, 1.0) * site.uptake * seasonFactor_;
+        const qreal hour = hourOfSlot(t);
+        const int day = (t + startSlot_) / 48;
+        cloud = std::clamp(cloud + uniform(-cloudStep, cloudStep), cloudLow, cloudHigh);
+        const qreal shade = (day == frontDay_) ? 0.2 : cloud;
+        const qreal daylight = std::max(0.0, sunElevation(hour));
+        const qreal respiration = respirationBase + 1.5 * std::sin(2.0 * PI * (hour - 9.0) / 24.0);
         // Box-Muller
         const qreal u1 = std::max(uniform(0.0, 1.0), 1e-9);
         const qreal gauss = std::sqrt(-2.0 * std::log(u1)) * std::cos(2.0 * PI * uniform(0.0, 1.0));
         const qreal noise = (daylight > 0.0 ? 1.5 : 2.5) * gauss;
-        flux.append(respiration - uptake * daylight * cloud + noise);
+        flux.append(respiration - uptake * daylight * shade + noise);
     }
 
-    // heights: zero flux at 150 px, 4 px per unit, never steeper than one
-    // step-up per bar so that ordinary ground can always be walked
+    // heights: zero flux near 150 px, 4 px per unit, never steeper than one
+    // step-up per half-hour so that ordinary ground can always be walked
     QList<qreal> height;
-    for (int t = 0; t < DATA; ++t)
+    for (int t = 0; t < data; ++t)
     {
-        qreal h = std::clamp(150.0 + 4.0 * flux.at(t), 32.0, 200.0);
+        qreal h = std::clamp(150.0 + offset + 4.0 * flux.at(t), 32.0, 200.0);
         h = std::round(h / 4.0) * 4.0;
         if (t > 0)
             h = std::clamp(h, height.last() - SLOPE, height.last() + SLOPE);
         height.append(h);
     }
 
-    const int n = LEAD + DATA + TAIL;
+    const int n = LEAD + data + TAIL;
     for (int c = 0; c < n; ++c)
     {
-        const int t = std::clamp(c - LEAD, 0, DATA - 1);
+        const int t = std::clamp(c - LEAD, 0, data - 1);
         bars_.append({ FLOOR - height.at(t), flux.at(t), false, false, false, -1 });
     }
 
-    checkpointColumn_ = LEAD + DATA / 2;
-    towerColumn_ = LEAD + DATA + TOWER_OFFSET;
+    checkpointColumn_ = LEAD + data / 2;
+    towerColumn_ = LEAD + data + TOWER_OFFSET;
     hutColumn_ = towerColumn_ + HUT_OFFSET;
 
     // nothing in the first sixteen half-hours, around the backup station or
@@ -2146,7 +2966,7 @@ bool FluxRunner::generateLevel(bool hazards)
         reserved[c] = true;
     for (int c = checkpointColumn_ - 10; c <= checkpointColumn_ + 10; ++c)
         reserved[c] = true;
-    for (int c = LEAD + DATA - 10; c < n; ++c)
+    for (int c = LEAD + data - 10; c < n; ++c)
         reserved[c] = true;
 
     auto isFree = [&](int from, int to)
@@ -2167,22 +2987,37 @@ bool FluxRunner::generateLevel(bool hazards)
     };
     auto heightOf = [&](int c) { return FLOOR - bars_.at(c).top; };
     auto setHeight = [&](int c, qreal h) { bars_[c].top = FLOOR - h; };
-
-    // turbulence: daytime, one zone on each of four to six days (not the
-    // day of the backup station), stronger as the week goes on
-    QList<int> days { 0, 1, 2, 4, 5, 6 };
-    const int zoneCount = between(4, 6);
-    while (days.size() > zoneCount)
-        days.removeAt(QRandomGenerator::global()->bounded(static_cast<int>(days.size())));
-    for (int day : days)
+    auto count = [&](qreal per100, qreal multiplier)
     {
-        // from 08:00 or 09:00 into the evening, day by day
-        const int start = LEAD + std::max(day * 48 + between(4, 6), 16);
-        const int end = std::min(start + between(18, 24), LEAD + DATA - 12);
-        if (end - start < 12)
+        return std::max(qRound(per100 * data / 100.0 * multiplier), 0);
+    };
+    auto isNight = [&](int t) { return sunElevation(hourOfSlot(t)) < 0.0; };
+
+    // turbulence: by day, from the morning on, on a share of the days (never
+    // around the backup station), each with a strength of its own
+    const int days = (data + startSlot_ + 47) / 48;
+    const qreal morning = std::max(8.0, sunrise_ + 1.0);
+    const qreal share = std::clamp(spec_.zoneShare * site.zones, 0.0, 1.0);
+    QList<QPair<int, int>> candidates;
+    for (int day = 0; day < days; ++day)
+    {
+        const int start = day * 48 - startSlot_ + qRound(morning * 2.0) + between(0, 2);
+        const int length = std::min(between(18, 24), static_cast<int>(2.0 * (sunset_ - morning)));
+        const int end = std::min(start + length, data - 12);
+        if (start < 16 || end - start < 10)
             continue;
-        zones_.append({ start, end, 0.5 + 0.5 * day / 6.0, uniform(0.0, 2.0 * PI), 0.0,
-                        chance(0.65) ? 1 : -1, -1, false });
+        if (LEAD + end >= checkpointColumn_ - 10 && LEAD + start <= checkpointColumn_ + 10)
+            continue;
+        candidates.append({ start, end });
+    }
+    for (int i = 0; i < candidates.size(); ++i)
+    {
+        const bool last = i + 1 == candidates.size() && zones_.isEmpty();
+        if (!chance(share) && !last)
+            continue;
+        zones_.append({ LEAD + candidates.at(i).first, LEAD + candidates.at(i).second,
+                        uniform(spec_.zoneStrengthMin, spec_.zoneStrengthMax),
+                        uniform(0.0, 2.0 * PI), 0.0, chance(0.65) ? 1 : -1, -1, false });
     }
     auto inZone = [&](int c)
     {
@@ -2194,84 +3029,12 @@ bool FluxRunner::generateLevel(bool hazards)
         return false;
     };
 
-    if (hazards)
-    {
-        // missing data: pits, mostly at night (u*-filtered), wider later on
-        const int pits = between(14, 20);
-        int placed = 0;
-        for (int attempt = 0; attempt < 600 && placed < pits; ++attempt)
-        {
-            const int t = between(16, DATA - 12);
-            const qreal hour = ((t + START_SLOT) % 48) * 0.5;
-            const bool night = hour < 6.0 || hour > 20.0;
-            if (!night && chance(0.6))
-                continue;
-            const qreal p = t / static_cast<qreal>(DATA);
-            int width = (p < 0.5) ? between(2, 3) : between(3, MAX_PIT);
-            const int c0 = LEAD + t;
-            if (inZone(c0) || inZone(c0 + width - 1))
-                width = std::min(width, MAX_ZONE_PIT);
-            if (!isFree(c0 - 5, c0 + width - 1 + 5))
-                continue;
-            // the landing may be at most a little higher than the take-off
-            if (bars_.at(c0 - 1).top - bars_.at(c0 + width).top > MAX_LANDING_RISE)
-                continue;
-            for (int c = c0; c < c0 + width; ++c)
-                bars_[c].gap = true;
-            reserve(c0, c0 + width - 1);
-            gapEnds_.append(c0 + width);
-            ++placed;
-        }
-
-        // spikes: walls of one or two bars, taller later on, always a
-        // jumpable rise above the bar you jump from
-        const int walls = between(14, 20);
-        placed = 0;
-        for (int attempt = 0; attempt < 600 && placed < walls; ++attempt)
-        {
-            const int t = between(16, DATA - 12);
-            const int c0 = LEAD + t;
-            const int width = chance(0.7) ? 1 : 2;
-            if (!isFree(c0 - 5, c0 + width - 1 + 5))
-                continue;
-            const qreal p = t / static_cast<qreal>(DATA);
-            qreal rise = (p < 0.5) ? uniform(40.0, 64.0) : uniform(64.0, MAX_RISE);
-            rise = std::floor(rise / 4.0) * 4.0;
-            const qreal h = std::min(heightOf(c0 - 1) + rise, 300.0);
-            for (int c = c0; c < c0 + width; ++c)
-            {
-                setHeight(c, h);
-                bars_[c].spike = true;
-            }
-            reserve(c0, c0 + width - 1);
-            ++placed;
-        }
-    }
-
-    // non-stationary stretches: they bob as one, level with the bar before
-    const int runs = between(3, 5);
-    for (int attempt = 0; attempt < 300 && moving_.size() < runs; ++attempt)
-    {
-        const int c0 = LEAD + between(20, DATA - 20);
-        const int length = between(3, 6);
-        if (!isFree(c0 - 4, c0 + length - 1 + 4))
-            continue;
-        const qreal h = heightOf(c0 - 1);
-        const int index = static_cast<int>(moving_.size());
-        for (int c = c0; c < c0 + length; ++c)
-        {
-            setHeight(c, h);
-            bars_[c].moving = index;
-        }
-        moving_.append({ c0, c0 + length - 1, 40.0, 3.0, uniform(0.0, 2.0 * PI) });
-        reserve(c0, c0 + length - 1);
-    }
-
-    // sampling tubes: a pair of raised columns in, another pair out further on
-    const int tubeCount = between(3, 4);
+    // sampling tubes first, or the hazards leave them no room: a pair of
+    // raised half-hours in, another pair out further on
+    const int tubeCount = between(spec_.tubesMin, spec_.tubesMax);
     for (int attempt = 0; attempt < 400 && tubes_.size() < tubeCount; ++attempt)
     {
-        const int entry = LEAD + between(24, DATA - 80);
+        const int entry = LEAD + between(24, std::max(data - 80, 25));
         const int exit = entry + between(30, 60);
         if (!isFree(entry - 4, entry + 1 + 4) || !isFree(exit - 4, exit + 1 + 4))
             continue;
@@ -2293,11 +3056,107 @@ bool FluxRunner::generateLevel(bool hazards)
         tubes_.append({ entry, exit, std::round(uniform(0.5, 1.5) * 10.0) / 10.0 });
     }
 
-    // rain showers, out of the turbulence zones
-    const int showerCount = between(2, 3);
+    if (hazards)
+    {
+        // missing data: pits, mostly at night (u*-filtered), in the level's rhythm
+        const int pits = count(spec_.pitsPer100, site.pits);
+        int placed = 0;
+        for (int attempt = 0; attempt < 1000 && placed < pits; ++attempt)
+        {
+            const int t = between(16, data - 12);
+            if (!isNight(t) && chance(0.6))
+                continue;
+            if (!chance(rhythmDensity(t)))
+                continue;
+            const bool late = chance(rhythmLateness(t));
+            int width = late ? between(spec_.latePitMin, spec_.latePitMax)
+                             : between(spec_.earlyPitMin, spec_.earlyPitMax);
+            width = std::min(width, spec_.maxPit);
+            const int c0 = LEAD + t;
+            if (inZone(c0) || inZone(c0 + width - 1))
+                width = std::min(width, spec_.maxZonePit);
+            if (!isFree(c0 - spec_.pad, c0 + width - 1 + spec_.pad))
+                continue;
+            // the landing may be at most a little higher than the take-off
+            if (bars_.at(c0 - 1).top - bars_.at(c0 + width).top > spec_.maxLandingRise)
+                continue;
+            for (int c = c0; c < c0 + width; ++c)
+                bars_[c].gap = true;
+            reserve(c0, c0 + width - 1);
+            gapEnds_.append(c0 + width);
+            ++placed;
+        }
+
+        // spikes: walls of one or two half-hours, always a jumpable rise
+        // above the half-hour you jump from
+        const int walls = count(spec_.wallsPer100, site.walls);
+        placed = 0;
+        for (int attempt = 0; attempt < 1000 && placed < walls; ++attempt)
+        {
+            const int t = between(16, data - 12);
+            if (!chance(rhythmDensity(t)))
+                continue;
+            const int c0 = LEAD + t;
+            const int width = chance(spec_.doubleWallChance) ? 2 : 1;
+            if (!isFree(c0 - spec_.pad, c0 + width - 1 + spec_.pad))
+                continue;
+            const bool late = chance(rhythmLateness(t));
+            qreal rise = late ? uniform(spec_.lateRiseMin, spec_.lateRiseMax)
+                              : uniform(spec_.earlyRiseMin, spec_.earlyRiseMax);
+            rise = std::floor(std::min(rise, CAP_RISE) / 4.0) * 4.0;
+            const qreal h = std::min(heightOf(c0 - 1) + rise, 300.0);
+            for (int c = c0; c < c0 + width; ++c)
+            {
+                setHeight(c, h);
+                bars_[c].spike = true;
+            }
+            reserve(c0, c0 + width - 1);
+            ++placed;
+        }
+    }
+
+    // non-stationary stretches last, in what room is left: they bob as one,
+    // level with the half-hour before
+    const int runs = std::max(qRound(between(spec_.movingMin, spec_.movingMax) * site.moving), 0);
+    for (int attempt = 0; attempt < 300 && moving_.size() < runs; ++attempt)
+    {
+        const int c0 = LEAD + between(20, data - 20);
+        const int length = between(3, 6);
+        if (!isFree(c0 - 4, c0 + length - 1 + 4))
+            continue;
+        const qreal h = heightOf(c0 - 1);
+        const int index = static_cast<int>(moving_.size());
+        for (int c = c0; c < c0 + length; ++c)
+        {
+            setHeight(c, h);
+            bars_[c].moving = index;
+        }
+        moving_.append({ c0, c0 + length - 1, spec_.movingAmplitude, spec_.movingPeriod,
+                         uniform(0.0, 2.0 * PI) });
+        reserve(c0, c0 + length - 1);
+    }
+
+    // showers, out of the turbulence zones: the site, the season and the
+    // week's weather decide how many; a desert has a flash storm at most
+    qreal showerScale = site.showers * (weather_ == 2 ? 1.3 : (weather_ == 0 ? 0.7 : 1.0));
+    if (site.wetAndDry)
+        showerScale *= 0.3 + 1.4 * seasonFactor_;
+    if (modifiers_ & StormWeek)
+        showerScale *= 2.0;
+    int showerCount = std::min(qRound(between(spec_.showersMin, spec_.showersMax) * showerScale), 6);
+    if (site_ == Desert)
+        showerCount = chance(0.4) ? 1 : 0;
+    if (frontDay_ >= 0 && site_ != Desert)
+    {
+        // the front's own shower, in its daytime
+        const int start = frontDay_ * 48 - startSlot_ + 22;
+        const int end = start + 16;
+        if (start >= 20 && end < data - 12)
+            showers_.append({ LEAD + start, LEAD + end, false });
+    }
     for (int attempt = 0; attempt < 200 && showers_.size() < showerCount; ++attempt)
     {
-        const int start = LEAD + between(20, DATA - 40);
+        const int start = LEAD + between(20, std::max(data - 40, 21));
         const int end = start + between(15, 25);
         bool clear = true;
         for (int c = start; c <= end && clear; ++c)
@@ -2340,7 +3199,7 @@ bool FluxRunner::verifyLevel() const
         const Bar& bar = bars_.at(c);
         return bar.moving >= 0 ? bar.top + moving_.at(bar.moving).amplitude : bar.top;
     };
-    // how far apart two surfaces can be; bars of one run move together
+    // how far apart two surfaces can be; half-hours of one run move together
     auto spread = [&](int a, int b)
     {
         const Bar& first = bars_.at(a);
@@ -2351,7 +3210,7 @@ bool FluxRunner::verifyLevel() const
     };
     auto runUp = [&](int before)
     {
-        // RUN_UP solid, level-enough bars ending at column before
+        // RUN_UP solid, level-enough half-hours ending at column before
         if (before - RUN_UP + 1 < 0)
             return false;
         for (int c = before - RUN_UP + 1; c <= before; ++c)
@@ -2373,13 +3232,19 @@ bool FluxRunner::verifyLevel() const
         return false;
     };
 
+    // the caps, whatever the level asked for, and the jump itself as the
+    // final judge: no pit may need more than three quarters of its reach
+    for (const auto& run : moving_)
+    {
+        if (run.amplitude > CAP_MOVING_AMPLITUDE || run.period < CAP_MOVING_PERIOD)
+            return false;
+    }
     for (int c = 1; c < n; ++c)
     {
         if (bars_.at(c).gap)
         {
             if (bars_.at(c - 1).gap)
                 continue;
-            // a pit starts here
             int end = c;
             while (end < n && bars_.at(end).gap)
                 ++end;
@@ -2387,9 +3252,12 @@ bool FluxRunner::verifyLevel() const
             bool inZone = false;
             for (int g = c; g < end; ++g)
                 inZone = inZone || zoned(g);
-            if (end >= n || width > (inZone ? MAX_ZONE_PIT : MAX_PIT))
+            if (end >= n || width > (inZone ? CAP_ZONE_PIT : CAP_PIT))
                 return false;
-            if (lowest(c - 1) - highest(end) > MAX_LANDING_RISE)
+            const qreal landing = lowest(c - 1) - highest(end);
+            if (landing > CAP_LANDING_RISE)
+                return false;
+            if (width * BAR_W > REACH_SHARE * reach(landing, inZone ? spec_.gustMax : 0.0))
                 return false;
             if (!runUp(c - 1))
                 return false;
@@ -2400,7 +3268,7 @@ bool FluxRunner::verifyLevel() const
         const qreal rise = lowest(c - 1) - highest(c);
         if (bars_.at(c - 1).moving >= 0 && bars_.at(c - 1).moving == bars_.at(c).moving)
             continue;
-        if (rise > STEP_UP && (rise > MAX_RISE || !runUp(c - 1)))
+        if (rise > STEP_UP && (rise > CAP_RISE || !runUp(c - 1)))
             return false;
     }
     return true;
@@ -2470,8 +3338,7 @@ void FluxRunner::buildSamples()
             continue;
         }
 
-        const qreal hour = ((std::max(c - LEAD, 0) + START_SLOT) % 48) * 0.5;
-        const bool night = hour < 6.0 || hour > 20.0;
+        const bool night = sunElevation(hourOfSlot(c - LEAD)) < 0.0;
         const bool level = bar.tube || c >= towerColumn_ - 3;
         for (int k = 0; k < SAMPLES_PER_SLOT; ++k)
         {
@@ -2575,16 +3442,19 @@ void FluxRunner::placeThings()
     }
 
     // rows on the ground, and logger blocks above it
+    const int data = dataSlots_;
+    const Site& site = sites().at(site_);
     QList<int> blockColumns;
-    for (int c = LEAD + 6; c < LEAD + DATA - 8; c += between(9, 15))
+    for (int c = LEAD + 6; c < LEAD + data - 8; c += between(9, 15))
     {
-        if (flat(c, 6) && clearAhead(c, 10) && chance(0.55))
+        if (flat(c, 6) && clearAhead(c, 10) && chance(spec_.coinRowChance))
         {
             const int count = between(3, 5);
             for (int i = 0; i < count; ++i)
                 coins_.append({ QPointF((c + i) * BAR_W + BAR_W / 2, bars_.at(c).top - 36.0), false });
         }
-        else if (flat(c - 1, 6) && clearAhead(c, 6) && blockColumns.size() < 18 && chance(0.6))
+        else if (flat(c - 1, 6) && clearAhead(c, 6) && blockColumns.size() < spec_.maxBlocks
+                 && chance(0.6))
         {
             const int group = between(1, 3);
             for (int i = 0; i < group; ++i)
@@ -2593,7 +3463,8 @@ void FluxRunner::placeThings()
     }
 
     // what is in the blocks: a hat early and one after the backup station,
-    // a filter around 40 % and 75 %, a coffee or two, the rest half-hours
+    // filters around 40 % and 75 %, coffee, as many as the level allows; the
+    // rest hold half-hours
     QList<Item> items(blockColumns.size(), Item::Coin);
     auto nearestTo = [&](int column, Item item)
     {
@@ -2608,15 +3479,15 @@ void FluxRunner::placeThings()
         if (best >= 0)
             items[best] = item;
     };
-    nearestTo(LEAD + DATA / 8, Item::Hat);
+    nearestTo(LEAD + data / 8, Item::Hat);
     nearestTo(checkpointColumn_ + 24, Item::Hat);
-    nearestTo(LEAD + DATA * 2 / 5, Item::Filter);
-    nearestTo(LEAD + DATA * 3 / 4, Item::Filter);
-    nearestTo(LEAD + between(DATA / 5, DATA - 40), Item::Coffee);
-    if (chance(0.5))
-        nearestTo(LEAD + between(DATA / 3, DATA - 30), Item::Coffee);
-    nearestTo(LEAD + between(DATA / 4, DATA * 3 / 4), Item::Hat);
-    nearestTo(LEAD + between(DATA / 2, DATA - 20), Item::Hat);
+    nearestTo(LEAD + data * 2 / 5, Item::Filter);
+    for (int i = 1; i < spec_.filters; ++i)
+        nearestTo(LEAD + data * 3 / 4, Item::Filter);
+    for (int i = 0; i < spec_.coffees; ++i)
+        nearestTo(LEAD + between(data / 5, data - 30), Item::Coffee);
+    for (int i = 2; i < spec_.hats; ++i)
+        nearestTo(LEAD + between(data / 4, data - 20), Item::Hat);
     blockCoins_ = 0;
     for (int i = 0; i < blockColumns.size(); ++i)
     {
@@ -2633,7 +3504,9 @@ void FluxRunner::placeThings()
     };
 
     // Reviewer 2: on flat ground, clear of take-offs and respawn points
-    for (int c = LEAD + 20; c < LEAD + DATA - 6; c += between(10, 16))
+    const int gapMin = std::max(qRound(spec_.reviewerGapMin / site.reviewers), 4);
+    const int gapMax = std::max(qRound(spec_.reviewerGapMax / site.reviewers), gapMin + 1);
+    for (int c = LEAD + 20; c < LEAD + data - 6; c += between(gapMin, gapMax))
     {
         if (!flat(c - 2, 6) || !clearAhead(c - 4, 8) || !farFromRespawn(c, 6))
             continue;
@@ -2644,10 +3517,11 @@ void FluxRunner::placeThings()
         foes_.append(foe);
     }
 
-    // ebullition bubbles in about half of the pits
+    // ebullition bubbles in a share of the pits
+    const qreal bubbles = std::min(spec_.bubbleChance + site.bubbles, 1.0);
     for (int c = 1; c < n; ++c)
     {
-        if (!bars_.at(c).gap || bars_.at(c - 1).gap || !chance(0.5))
+        if (!bars_.at(c).gap || bars_.at(c - 1).gap || !chance(bubbles))
             continue;
         int end = c;
         while (end < n && bars_.at(end).gap)
@@ -2661,12 +3535,12 @@ void FluxRunner::placeThings()
     }
 
     // advection puffs, mostly at night
+    const int puffCount = std::max(qRound(spec_.puffsPer100 * data / 100.0 * site.puffs), 0);
     int puffs = 0;
-    for (int attempt = 0; attempt < 200 && puffs < 10; ++attempt)
+    for (int attempt = 0; attempt < 400 && puffs < puffCount; ++attempt)
     {
-        const int c = LEAD + between(30, DATA - 10);
-        const qreal hour = ((c - LEAD + START_SLOT) % 48) * 0.5;
-        const bool night = hour < 6.0 || hour > 20.0;
+        const int c = LEAD + between(30, data - 10);
+        const bool night = sunElevation(hourOfSlot(c - LEAD)) < 0.0;
         if ((!night && chance(0.75)) || !farFromRespawn(c, 10))
             continue;
         Foe foe { FoeKind::Puff,
@@ -2732,7 +3606,7 @@ void FluxRunner::tick()
     {
         case State::Card:
             stateTime_ += dt;
-            if (stateTime_ >= CARD_S)
+            if (stateTime_ >= cardDuration_)
             {
                 state_ = State::Running;
                 accumulator_ = 0.0;
@@ -2770,11 +3644,17 @@ void FluxRunner::tick()
                 ++livesLost_;
                 if (lives_ <= 0)
                 {
-                    finishRun(false, false);
+                    timedOut_ = diedOfDeadline_;
+                    finishLevel(false);
                 }
                 else
                 {
-                    cardLine_ = pickFresh(diedInPit_ ? pitDeathLines() : foeDeathLines());
+                    cardLine_ = pickFresh(diedOfDeadline_ ? deadlineDeathLines()
+                                          : diedInPit_ ? pitDeathLines() : foeDeathLines());
+                    // a missed deadline is extended, shorter
+                    if (diedOfDeadline_)
+                        deadline_ = std::max(60.0, 0.4 * levelDeadline_);
+                    diedOfDeadline_ = false;
                     respawn();
                 }
             }
@@ -2867,7 +3747,7 @@ void FluxRunner::tick()
             }
             else if (stateTime_ >= 0.8)
             {
-                finishRun(true, false);
+                finishLevel(true);
             }
             break;
         }
@@ -2879,7 +3759,10 @@ void FluxRunner::tick()
                 timer_->stop();
                 state_ = State::Idle;
                 held_ = 0;
-                emit runOver(result());
+                if (cleared_)
+                    emit levelCleared(result());
+                else
+                    emit runOver(result());
                 return;
             }
             break;
@@ -2952,7 +3835,8 @@ void FluxRunner::step(qreal dt)
         if (!shower.announced && c >= shower.start && c <= shower.end)
         {
             shower.announced = true;
-            addPop(QPointF(x, player_.feet.y() - 80.0), pickFresh(rainPops()), ICE);
+            addPop(QPointF(x, player_.feet.y() - 80.0),
+                   pickFresh(snowy_ ? snowPops() : rainPops()), ICE);
         }
     }
     const qreal night = nightAt(x);
@@ -2978,8 +3862,10 @@ void FluxRunner::step(qreal dt)
     }
     if (deadline_ <= 0.0)
     {
+        // the deadline costs a life rather than the run, as in the original
         deadline_ = 0.0;
-        finishRun(false, true);
+        diedOfDeadline_ = true;
+        die(false);
     }
 }
 
@@ -3177,10 +4063,14 @@ void FluxRunner::updatePlayer(qreal dt)
         if (distance > eddy.radius + 10.0 || distance < 1.0)
             continue;
         QPointF kick(-d.y() / distance * eddy.spin, d.x() / distance * eddy.spin);
-        kick *= EDDY_KICK * (0.6 + 0.4 * zones_.at(eddy.zone).strength);
-        // never pushed down where there is missing data to fall into
+        kick *= spec_.eddyKick * (0.6 + 0.4 * zones_.at(eddy.zone).strength);
+        // over missing data an eddy only lifts: never down into it, and never
+        // sideways out of a jump across it
         if (nearGap(columnOf(b.feet.x()), 2))
+        {
+            kick.setX(0.0);
             kick.setY(std::min(kick.y(), 0.0));
+        }
         vx = std::clamp(vx + 0.5 * kick.x(), -1.4 * maxRun, 1.4 * maxRun);
         vy = std::max(vy + kick.y(), -JUMP_V);
         if (kick.y() < -150.0)
@@ -3244,9 +4134,9 @@ void FluxRunner::updateAtmosphere(qreal dt)
     }
 
     nextEddy_ -= dt;
-    if (nextEddy_ > 0.0 || eddies_.size() >= MAX_EDDIES)
+    if (nextEddy_ > 0.0 || eddies_.size() >= spec_.maxEddies)
         return;
-    nextEddy_ = uniform(1.4, 2.6);
+    nextEddy_ = uniform(spec_.eddyIntervalMin, spec_.eddyIntervalMax);
     const qreal viewLeft = cameraX_;
     const qreal viewRight = cameraX_ + width();
     for (int z = 0; z < zones_.size(); ++z)
@@ -3294,7 +4184,7 @@ void FluxRunner::updateFoes(qreal dt)
         {
             case FoeKind::Reviewer:
             {
-                b.vel.setX(foe.facing * REVIEWER_SPEED);
+                b.vel.setX(foe.facing * spec_.reviewerSpeed);
                 b.vel.setY(std::min(b.vel.y() + G_FALL * dt, FALL_MAX));
                 const Move move = moveBody(b, dt, STEP_UP);
                 if (move.hitWall)
@@ -3328,7 +4218,7 @@ void FluxRunner::updateFoes(qreal dt)
                             --rim;
                         const qreal apex = bars_.at(rim).top - uniform(60.0, 120.0);
                         b.vel.setY(-std::sqrt(2.0 * BUBBLE_G * std::max(rest - apex, 10.0)));
-                        foe.timer = uniform(2.2, 3.2);
+                        foe.timer = uniform(spec_.bubblePauseMin, spec_.bubblePauseMax);
                     }
                 }
                 else
@@ -3340,7 +4230,7 @@ void FluxRunner::updateFoes(qreal dt)
             }
             case FoeKind::Puff:
             {
-                b.feet.rx() -= PUFF_SPEED * dt;
+                b.feet.rx() -= spec_.puffSpeed * dt;
                 // at head height over the ground; over a pit it holds its height
                 const qreal ground = groundTop(b.feet.x());
                 if (std::isfinite(ground))
@@ -3413,7 +4303,7 @@ void FluxRunner::updatePickups(qreal dt)
             case Item::Coin:
                 break;
         }
-        score_ += POWER_POINTS;
+        score_ += points(POWER_POINTS);
         pickups_.removeAt(i);
     }
 }
@@ -3475,16 +4365,17 @@ void FluxRunner::collectCoins()
 void FluxRunner::gainCoin(const QPointF &where)
 {
     ++coinCount_;
-    score_ += COIN_POINTS;
-    // no line for every one: that would be noise
-    if (coinCount_ % 100 == 0)
+    score_ += points(COIN_POINTS);
+    // counted over the whole run; no line for every one, that would be noise
+    const int total = runCoins_ + coinCount_;
+    if (total % 100 == 0)
     {
         ++lives_;
         addPop(where, pickFresh(oneUpPops()), COIN_GREEN);
     }
-    else if (coinCount_ % 10 == 0)
+    else if (total % 10 == 0)
     {
-        addPop(where, pickFresh(streakPops()).arg(coinCount_), COIN_GREEN);
+        addPop(where, pickFresh(streakPops()).arg(total), COIN_GREEN);
     }
 }
 
@@ -3536,15 +4427,16 @@ void FluxRunner::touchFoes(qreal previousFeet)
     }
 }
 
-void FluxRunner::defeat(Foe &foe, int points, const QString &text)
+void FluxRunner::defeat(Foe &foe, int value, const QString &text)
 {
     foe.defeated = true;
     foe.squash = foe.kind == FoeKind::Reviewer ? 0.4 : 0.0;
     ++defeated_;
-    score_ += points;
+    const int scored = points(value);
+    score_ += scored;
     const Body& b = foe.body;
     addPop(QPointF(b.feet.x(), b.feet.y() - b.height - 6.0),
-           QStringLiteral("%1 +%2").arg(text).arg(points), AMBER);
+           QStringLiteral("%1 +%2").arg(text).arg(scored), AMBER);
 }
 
 void FluxRunner::bumpBlock(int index)
@@ -3626,6 +4518,7 @@ void FluxRunner::respawn()
     crouching_ = false;
     facingLeft_ = false;
     stompChain_ = 0;
+    cardDuration_ = CARD_S;
 
     const qreal view = width();
     cameraX_ = std::clamp(player_.feet.x() - 0.45 * view, 0.0,
@@ -3673,8 +4566,8 @@ void FluxRunner::reachTower()
     // the higher up the mast, the more it is worth
     const qreal ground = bars_.at(towerColumn_).top;
     const qreal above = ground - player_.feet.y();
-    const int bonus = above > 200.0 ? 5000 : above > 150.0 ? 2000 : above > 100.0 ? 800
-                    : above > 50.0 ? 400 : 100;
+    const int bonus = points(above > 200.0 ? 5000 : above > 150.0 ? 2000 : above > 100.0 ? 800
+                             : above > 50.0 ? 400 : 100);
     score_ += bonus;
     addPop(QPointF(towerColumn_ * BAR_W + BAR_W / 2, player_.feet.y() - 20.0),
            QStringLiteral("+%1").arg(bonus), AMBER);
@@ -3689,12 +4582,24 @@ void FluxRunner::reachTower()
     player_.height = PLAYER_HEIGHT;
 }
 
-void FluxRunner::finishRun(bool cleared, bool timedOut)
+void FluxRunner::finishLevel(bool cleared)
 {
     cleared_ = cleared;
-    timedOut_ = timedOut;
     if (cleared)
-        score_ += 10 * static_cast<int>(std::ceil(std::max(deadline_, 0.0)));
+    {
+        score_ += points(10 * static_cast<int>(std::ceil(std::max(deadline_, 0.0))));
+        ++levelsCleared_;
+        // the higher the level, the more its quality counts
+        qualitySum_ += level_ * levelQuality();
+        qualityWeight_ += level_;
+    }
+    // what this level adds to the run, cleared or not
+    runCoins_ += coinCount_;
+    runTotalCoins_ += static_cast<int>(coins_.size()) + blockCoins_;
+    runDefeated_ += defeated_;
+    runGaps_ += gapsBridged_;
+    runLivesLost_ += livesLost_;
+    runSeconds_ += runTime_;
     state_ = State::Over;
     stateTime_ = 0.0;
     held_ = 0;
@@ -3729,10 +4634,22 @@ void FluxRunner::announce(const QString &text, const QColor &color)
     bannerAge_ = 0.0;
 }
 
+qreal FluxRunner::levelQuality() const
+{
+    // as before, on this level alone: coverage, foes, pace for its length,
+    // and the lives kept on it
+    const int total = static_cast<int>(coins_.size()) + blockCoins_;
+    const qreal coverage = std::min(1.0, coinCount_ / static_cast<qreal>(std::max(total, 1)));
+    const qreal beaten = defeated_ / static_cast<qreal>(std::max(static_cast<int>(foes_.size()), 1));
+    const qreal par = 150.0 * dataSlots_ / 336.0;
+    const qreal pace = std::clamp((par - runTime_) / (2.0 / 3.0 * par), 0.0, 1.0);
+    const qreal kept = std::clamp((3.0 - livesLost_) / 3.0, 0.0, 1.0);
+    return 0.45 * coverage + 0.20 * beaten + 0.20 * pace + 0.15 * kept;
+}
+
 FluxRunner::Result FluxRunner::result() const
 {
     Result r;
-    r.score = score_;
     r.coins = coinCount_;
     r.totalCoins = static_cast<int>(coins_.size()) + blockCoins_;
     r.defeated = defeated_;
@@ -3740,16 +4657,37 @@ FluxRunner::Result FluxRunner::result() const
     r.gapsBridged = gapsBridged_;
     r.seconds = runTime_;
     r.livesLost = livesLost_;
-    r.cleared = cleared_;
-    r.timedOut = timedOut_;
     r.firstDoy = firstDoy_;
+    r.level = level_;
+    r.site = siteName_;
+    r.siteCode = siteCode_;
+    r.season = season_;
+    r.cleared = cleared_;
+    r.flawless = cleared_ && (livesLost_ == 0 || r.coins >= r.totalCoins);
+    r.score = score_;
+    r.levelsCleared = levelsCleared_;
+    r.lives = lives_;
+    r.runCoins = runCoins_;
+    r.runTotalCoins = runTotalCoins_;
+    r.runDefeated = runDefeated_;
+    r.runGaps = runGaps_;
+    r.runLivesLost = runLivesLost_;
+    r.runSeconds = runSeconds_;
+    r.firstSite = firstSite_;
+    r.timedOut = timedOut_;
 
-    // a rating rather than the score, since every level is different
-    const qreal coverage = std::min(1.0, r.coins / static_cast<qreal>(std::max(r.totalCoins, 1)));
-    const qreal beaten = r.defeated / static_cast<qreal>(std::max(r.totalFoes, 1));
-    const qreal pace = r.cleared ? std::clamp((150.0 - r.seconds) / 100.0, 0.0, 1.0) : 0.0;
-    const qreal kept = std::clamp((3.0 - r.livesLost) / 3.0, 0.0, 1.0);
-    r.rating = qRound(100.0 * (0.45 * coverage + 0.20 * beaten + 0.20 * pace + 0.15 * kept));
+    // the run's rating: how many levels, and how well, the higher ones
+    // counting more; a run that cleared nothing only has its coverage
+    const qreal cleared = levelsCleared_;
+    if (levelsCleared_ <= 0)
+    {
+        r.rating = qRound(25.0 * r.runCoins / static_cast<qreal>(std::max(r.runTotalCoins, 1)));
+    }
+    else
+    {
+        const qreal quality = qualitySum_ / std::max(qualityWeight_, 1e-9);
+        r.rating = qRound(100.0 * (0.5 * cleared / (cleared + 2.0) + 0.5 * quality));
+    }
     return r;
 }
 
@@ -3957,12 +4895,13 @@ void FluxRunner::paintSky(QPainter &p) const
 {
     const QRectF play(0, 0, width(), PLAY_HEIGHT);
     QLinearGradient gradient(0, 0, 0, PLAY_HEIGHT);
-    gradient.setColorAt(0.0, sky_.darker(115));
-    gradient.setColorAt(1.0, sky_.lighter(125));
-    p.fillRect(play, gradient);
-
     const qreal centre = cameraX_ + width() / 2.0;
     const qreal night = nightAt(centre);
+    // an overcast week greys the day
+    const QColor sky = weather_ == 2 ? mix(sky_, QColor(125, 130, 135), 0.45 * (1.0 - night)) : sky_;
+    gradient.setColorAt(0.0, sky.darker(115));
+    gradient.setColorAt(1.0, sky.lighter(125));
+    p.fillRect(play, gradient);
     if (night > 0.05)
     {
         p.setPen(Qt::NoPen);
@@ -4010,15 +4949,17 @@ void FluxRunner::paintParallax(QPainter &p) const
     }
     hills.lineTo(w, PLAY_HEIGHT);
     hills.closeSubpath();
-    p.fillPath(hills, mix(QColor(90, 130, 110), QColor(20, 28, 45), night));
+    p.fillPath(hills, mix(sites().at(site_).hills, QColor(20, 28, 45), night));
 
     // clouds, by day
     if (night < 0.95)
     {
         p.setPen(Qt::NoPen);
-        p.setBrush(QColor(255, 255, 255, static_cast<int>(170 * (1.0 - night))));
+        const QColor cloud = weather_ == 2 ? QColor(205, 205, 210) : QColor(255, 255, 255);
+        p.setBrush(QColor(cloud.red(), cloud.green(), cloud.blue(),
+                          static_cast<int>(170 * (1.0 - night))));
         const qreal span = w + 240;
-        for (int i = 0; i < 6; ++i)
+        for (int i = 0; i < cloudCount_; ++i)
         {
             qreal x = std::fmod(i * 260.0 - cameraX_ * 0.3, span);
             if (x < 0)
@@ -4075,6 +5016,22 @@ void FluxRunner::paintAtmosphereBack(QPainter &p) const
 {
     const qreal viewLeft = cameraX_;
     const qreal viewRight = cameraX_ + width();
+
+    // a desert by day shimmers above the ground
+    if (site_ == Desert && nightAt(viewLeft + width() / 2.0) < 0.3)
+    {
+        p.setPen(QPen(QColor(255, 240, 210, 45), 1.4));
+        p.setBrush(Qt::NoBrush);
+        for (int k = 0; k < 4; ++k)
+        {
+            QPainterPath haze;
+            const qreal base = FLOOR - 190.0 - 14.0 * k;
+            haze.moveTo(viewLeft, base);
+            for (qreal x = viewLeft; x <= viewRight; x += 6.0)
+                haze.lineTo(x, base + 2.5 * std::sin(x * 0.05 + clockTime_ * (3.0 + k)));
+            p.drawPath(haze);
+        }
+    }
     for (int z = 0; z < zones_.size(); ++z)
     {
         const Zone& zone = zones_.at(z);
@@ -4089,7 +5046,7 @@ void FluxRunner::paintAtmosphereBack(QPainter &p) const
         const qreal g = gust(z);
         const qreal speed = 4.0 * g;
         const qreal span = x1 - x0;
-        const qreal length = 10.0 + 16.0 * std::abs(g) / GUST_MAX;
+        const qreal length = 10.0 + 16.0 * std::abs(g) / spec_.gustMax;
         p.setPen(QPen(QColor(255, 255, 255, 70), 1.2));
         for (int i = 0; i < 18; ++i)
         {
@@ -4128,7 +5085,7 @@ void FluxRunner::paintAtmosphereBack(QPainter &p) const
         const qreal poleTop = ground - 46.0;
         p.setPen(QPen(QColor(90, 90, 90), 2));
         p.drawLine(QPointF(wx, ground), QPointF(wx, poleTop));
-        const qreal strength = std::abs(g) / GUST_MAX;
+        const qreal strength = std::abs(g) / spec_.gustMax;
         const qreal reach = 26.0 * (0.3 + 0.7 * strength) * (g >= 0 ? 1 : -1);
         const qreal droop = 14.0 * (1.0 - strength);
         const QPointF a(wx, poleTop);
@@ -4159,7 +5116,7 @@ void FluxRunner::paintGround(QPainter &p) const
     // the time axis: a faint line every three hours, the day at midnight
     for (int c = std::max(firstSlot, LEAD); c <= lastSlot; ++c)
     {
-        const int slot = c - LEAD + START_SLOT;
+        const int slot = c - LEAD + startSlot_;
         if (slot % 6 != 0)
             continue;
         const qreal x = c * BAR_W;
@@ -4167,7 +5124,7 @@ void FluxRunner::paintGround(QPainter &p) const
         p.drawLine(QPointF(x, 0), QPointF(x, FLOOR));
         p.setPen(QColor(255, 255, 255, 150));
         const QString label = slot % 48 == 0
-            ? QStringLiteral("DOY %1").arg(firstDoy_ + slot / 48)
+            ? QStringLiteral("DOY %1").arg(wrapDoy(firstDoy_ + slot / 48))
             : QStringLiteral("%1:00").arg((slot % 48) / 2, 2, 10, QLatin1Char('0'));
         p.drawText(QRectF(x + 3, FLOOR - 16, 80, 14), Qt::AlignLeft | Qt::AlignVCenter, label);
     }
@@ -4188,8 +5145,11 @@ void FluxRunner::paintGround(QPainter &p) const
     };
 
     QLinearGradient earth(0, FLOOR - 220, 0, FLOOR);
-    earth.setColorAt(0.0, QColor(46, 70, 52, 240));
-    earth.setColorAt(1.0, QColor(16, 22, 20, 250));
+    // the site's own ground; a cropland out of season is bare soil
+    const Site& site = sites().at(site_);
+    const bool bare = site_ == Cropland && seasonFactor_ < 0.3;
+    earth.setColorAt(0.0, bare ? QColor(85, 60, 40, 240) : site.fillTop);
+    earth.setColorAt(1.0, bare ? QColor(30, 22, 15, 250) : site.fillBottom);
 
     // one stretch of valid data at a time
     int i = first;
@@ -4634,7 +5594,8 @@ int FluxRunner::playerFrame() const
     // the run cycle follows the distance covered, so its cadence follows the speed
     auto running = [this]()
     {
-        const int frames = SpriteSheet::instance().valid() ? SpriteSheet::instance().runFrames() : 3;
+        const SpriteSheet& sheet = SpriteSheet::sheet(figure_);
+        const int frames = sheet.valid() ? sheet.runFrames() : 3;
         const int step = static_cast<int>(runDistance_ / 20.0);
         if (frames <= 1)
             return step % 2 == 0 ? static_cast<int>(Run1) : static_cast<int>(Stand);
@@ -4700,7 +5661,7 @@ void FluxRunner::paintPlayer(QPainter &p) const
 void FluxRunner::paintFigure(QPainter &p, const QPointF &feet, int frame, bool left,
                              qreal opacity) const
 {
-    auto& sheet = SpriteSheet::instance();
+    auto& sheet = SpriteSheet::sheet(figure_);
     if (sheet.valid())
     {
         const qreal dpr = devicePixelRatioF();
@@ -4788,18 +5749,36 @@ void FluxRunner::paintWeather(QPainter &p) const
         const qreal from = std::max(x0, 0.0);
         const qreal to = std::min(x1, static_cast<qreal>(width()));
         const qreal span = std::max(to - from, 1.0);
-        p.setPen(QPen(QColor(170, 200, 255, 130), 1));
         const int drops = static_cast<int>(span / 6.0);
-        for (int i = 0; i < drops; ++i)
+        if (snowy_)
         {
-            const qreal seed = (i * 37 % 97) / 97.0;
-            const qreal x = from + std::fmod(i * 13.7 + seed * 50.0, span);
-            const qreal y = std::fmod(seed * PLAY_HEIGHT + clockTime_ * 420.0 * (0.8 + 0.4 * seed),
-                                      static_cast<qreal>(PLAY_HEIGHT));
-            p.drawLine(QPointF(x, y), QPointF(x - 2, y + 9));
+            // snow: slow, drifting flakes
+            p.setPen(Qt::NoPen);
+            p.setBrush(QColor(250, 250, 255, 200));
+            for (int i = 0; i < drops; ++i)
+            {
+                const qreal seed = (i * 37 % 97) / 97.0;
+                const qreal x = from + std::fmod(i * 13.7 + seed * 50.0
+                                                 + 12.0 * std::sin(clockTime_ * 1.3 + i), span);
+                const qreal y = std::fmod(seed * PLAY_HEIGHT + clockTime_ * 60.0 * (0.7 + 0.6 * seed),
+                                          static_cast<qreal>(PLAY_HEIGHT));
+                p.drawEllipse(QPointF(x, y), 1.6, 1.6);
+            }
+        }
+        else
+        {
+            p.setPen(QPen(QColor(170, 200, 255, 130), 1));
+            for (int i = 0; i < drops; ++i)
+            {
+                const qreal seed = (i * 37 % 97) / 97.0;
+                const qreal x = from + std::fmod(i * 13.7 + seed * 50.0, span);
+                const qreal y = std::fmod(seed * PLAY_HEIGHT + clockTime_ * 420.0 * (0.8 + 0.4 * seed),
+                                          static_cast<qreal>(PLAY_HEIGHT));
+                p.drawLine(QPointF(x, y), QPointF(x - 2, y + 9));
+            }
         }
         p.setPen(Qt::NoPen);
-        p.setBrush(QColor(170, 200, 255, 110));
+        p.setBrush(snowy_ ? QColor(250, 250, 255, 170) : QColor(170, 200, 255, 110));
         for (int c = shower.start; c <= shower.end; ++c)
         {
             const qreal top = groundTop(c * BAR_W + BAR_W / 2);
@@ -4832,7 +5811,7 @@ void FluxRunner::paintWeather(QPainter &p) const
     if (zone >= 0)
     {
         const qreal value = 0.25 + 0.65 * zones_.at(zone).strength
-                                       * (0.5 + 0.5 * std::abs(gust(zone)) / GUST_MAX);
+                                       * (0.5 + 0.5 * std::abs(gust(zone)) / spec_.gustMax);
         ustar = QStringLiteral("u* %1 m/s").arg(value, 0, 'f', 2);
     }
     else if (nightAt(player_.feet.x()) > 0.7)
@@ -4863,7 +5842,8 @@ void FluxRunner::paintHud(QPainter &p) const
     const QRectF text = hud.adjusted(10, 0, -10, 0);
 
     p.setPen(lives_ <= 1 ? DANGER : AMBER);
-    p.drawText(text, Qt::AlignVCenter | Qt::AlignLeft, QStringLiteral("♥ ×%1").arg(lives_));
+    p.drawText(text, Qt::AlignVCenter | Qt::AlignLeft,
+               QStringLiteral("♥ ×%1 · L%2").arg(lives_).arg(level_));
 
     const int total = static_cast<int>(coins_.size()) + blockCoins_;
     const int coverage = qRound(100.0 * coinCount_ / std::max(total, 1));
@@ -4915,20 +5895,41 @@ void FluxRunner::paintOverlay(QPainter &p) const
     {
         case State::Card:
         {
+            // the level, where and when it is, and what it is like
             p.fillRect(play, QColor(10, 10, 16, 235));
             p.setFont(title);
             p.setPen(AMBER);
-            p.drawText(QRectF(0, PLAY_HEIGHT * 0.18, width(), 40), Qt::AlignCenter,
-                       QStringLiteral("DOY %1–%2").arg(firstDoy_)
-                           .arg(firstDoy_ + (DATA - 1 + START_SLOT) / 48));
+            p.drawText(QRectF(0, PLAY_HEIGHT * 0.08, width(), 40), Qt::AlignCenter,
+                       tr("LEVEL %1").arg(level_));
+            auto name = font();
+            name.setBold(true);
+            name.setPointSizeF(name.pointSizeF() + 4.0);
+            p.setFont(name);
+            p.setPen(QColor(240, 240, 240));
+            p.drawText(QRectF(0, PLAY_HEIGHT * 0.08 + 42, width(), 28), Qt::AlignCenter, siteName_);
             p.setFont(line);
+            p.setPen(QColor(200, 200, 200));
+            const int lastDoy = doyAt((LEAD + dataSlots_ - 1) * BAR_W);
+            const int hour = startSlot_ / 2;
+            QString facts = QStringLiteral("%1 · DOY %2–%3 · %4 · from %5:%6 · %7")
+                                .arg(siteCode_).arg(firstDoy_).arg(lastDoy).arg(season_)
+                                .arg(hour, 2, 10, QLatin1Char('0'))
+                                .arg(startSlot_ % 2 ? 30 : 0, 2, 10, QLatin1Char('0'))
+                                .arg(weatherName_);
+            p.drawText(QRectF(20, PLAY_HEIGHT * 0.08 + 74, width() - 40, 22), Qt::AlignCenter, facts);
             p.setPen(QColor(230, 230, 230));
-            p.drawText(QRectF(20, PLAY_HEIGHT * 0.18 + 46, width() - 40, 44),
+            p.drawText(QRectF(30, PLAY_HEIGHT * 0.08 + 102, width() - 60, 44),
                        Qt::AlignHCenter | Qt::AlignTop | Qt::TextWordWrap, cardLine_);
-            paintFigure(p, QPointF(width() / 2.0 - 34.0, PLAY_HEIGHT * 0.72), Stand, false, 1.0);
+            if (!modifierNames_.isEmpty())
+            {
+                p.setPen(AMBER);
+                p.drawText(QRectF(20, PLAY_HEIGHT * 0.08 + 150, width() - 40, 22), Qt::AlignCenter,
+                           tr("This week: %1").arg(modifierNames_.join(QStringLiteral(", "))));
+            }
+            paintFigure(p, QPointF(width() / 2.0 - 34.0, PLAY_HEIGHT * 0.86), Stand, false, 1.0);
             p.setFont(title);
             p.setPen(QColor(230, 230, 230));
-            p.drawText(QRectF(width() / 2.0 - 4.0, PLAY_HEIGHT * 0.72 - 44, 120, 40),
+            p.drawText(QRectF(width() / 2.0 - 4.0, PLAY_HEIGHT * 0.86 - 44, 120, 40),
                        Qt::AlignLeft | Qt::AlignVCenter, QStringLiteral("× %1").arg(lives_));
             break;
         }
@@ -4985,9 +5986,12 @@ FluxRunnerPanel::FluxRunnerPanel(QWidget *parent) :
     result_(new QWidget),
     rank_(makeText()),
     stats_(makeText()),
-    tag_(makeText())
+    tag_(makeText()),
+    again_(makeButton(tr("Play again"))),
+    next_(makeButton(tr("Next level")))
 {
     connect(startButton_, &QPushButton::clicked, this, &FluxRunnerPanel::launch);
+    connect(game_, &FluxRunner::levelCleared, this, &FluxRunnerPanel::showLevelSummary);
     connect(game_, &FluxRunner::runOver, this, &FluxRunnerPanel::showResult);
 
     auto rankFont = rank_->font();
@@ -4995,8 +5999,8 @@ FluxRunnerPanel::FluxRunnerPanel(QWidget *parent) :
     rankFont.setBold(true);
     rank_->setFont(rankFont);
 
-    auto again = makeButton(tr("Play again"));
-    connect(again, &QPushButton::clicked, this, &FluxRunnerPanel::play);
+    connect(again_, &QPushButton::clicked, this, &FluxRunnerPanel::play);
+    connect(next_, &QPushButton::clicked, this, &FluxRunnerPanel::continueRun);
     auto back = makeButton(tr("Back to the fluxes"));
     connect(back, &QPushButton::clicked, this, [this]()
     {
@@ -5010,7 +6014,7 @@ FluxRunnerPanel::FluxRunnerPanel(QWidget *parent) :
     resultLayout->addWidget(rank_);
     resultLayout->addWidget(stats_);
     resultLayout->addWidget(tag_);
-    resultLayout->addLayout(centredRow({ again, back }));
+    resultLayout->addLayout(centredRow({ next_, again_, back }));
 
     auto layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -5054,6 +6058,23 @@ void FluxRunnerPanel::launch()
     });
 }
 
+// the game in view, with the keyboard
+static void bringIntoView(QWidget* panel, FluxRunner* game)
+{
+    QTimer::singleShot(0, panel, [panel, game]()
+    {
+        for (QWidget* w = panel->parentWidget(); w; w = w->parentWidget())
+        {
+            if (auto area = qobject_cast<QScrollArea*>(w))
+            {
+                area->ensureWidgetVisible(game, 0, 0);
+                break;
+            }
+        }
+        game->setFocus(Qt::OtherFocusReason);
+    });
+}
+
 void FluxRunnerPanel::play()
 {
     // the Start button goes first, or Space would press it
@@ -5062,38 +6083,72 @@ void FluxRunnerPanel::play()
     status_->setVisible(false);
     result_->setVisible(false);
     game_->setVisible(true);
-    game_->start();
+    // a coin flip for who runs this time, kept for every level of the run
+    game_->startRun(between(0, 1));
+    bringIntoView(this, game_);
+}
 
-    // the whole game in view, and the keyboard with it
-    QTimer::singleShot(0, this, [this]()
+void FluxRunnerPanel::continueRun()
+{
+    result_->setVisible(false);
+    bar_->setVisible(true);
+    status_->setVisible(true);
+    loading_->run(bar_, status_, sample(nextLevelLines(), 2), 300, [this]()
     {
-        for (QWidget* w = parentWidget(); w; w = w->parentWidget())
-        {
-            if (auto area = qobject_cast<QScrollArea*>(w))
-            {
-                area->ensureWidgetVisible(game_, 0, 0);
-                break;
-            }
-        }
-        game_->setFocus(Qt::OtherFocusReason);
+        bar_->setVisible(false);
+        status_->setVisible(false);
+        game_->setVisible(true);
+        game_->nextLevel();
+        bringIntoView(this, game_);
     });
+}
+
+void FluxRunnerPanel::showLevelSummary(const FluxRunner::Result &result)
+{
+    const int coverage = qRound(100.0 * result.coins / std::max(result.totalCoins, 1));
+    rank_->setText(tr("Level %1 cleared: %2").arg(result.level).arg(result.site.toHtmlEscaped()));
+    stats_->setText(QStringLiteral("%1<br>%2")
+                        .arg(tr("%1 · coverage %2% (%3 of %4 good half-hours), %5 foes stomped, "
+                                "%6 gaps bridged, time %7, lives lost %8.")
+                                 .arg(result.siteCode.toHtmlEscaped()).arg(coverage)
+                                 .arg(result.coins).arg(result.totalCoins).arg(result.defeated)
+                                 .arg(result.gapsBridged).arg(minutes(result.seconds))
+                                 .arg(result.livesLost),
+                             tr("The run so far: score %1, %2 left, %3 cleared. Rank so far: %4.")
+                                 .arg(result.score)
+                                 .arg(counted(result.lives, "life", "lives"))
+                                 .arg(counted(result.levelsCleared, "level", "levels"))
+                                 .arg(runRank(result).title.toHtmlEscaped())));
+    QString tag = fillRunTemplate(pickFresh(levelClearedLines()), result, true);
+    if (result.flawless)
+        tag += QLatin1Char(' ') + fillRunTemplate(pickFresh(flawlessTemplates()), result, true);
+    tag_->setText(QStringLiteral("<i>%1</i>").arg(tag.toHtmlEscaped()));
+
+    next_->setVisible(true);
+    again_->setVisible(false);
+    game_->setVisible(false);
+    result_->setVisible(true);
+    // away from the buttons, so a Space still held cannot press Next level
+    result_->setFocus(Qt::OtherFocusReason);
 }
 
 void FluxRunnerPanel::showResult(const FluxRunner::Result &result)
 {
     const Rank rank = runRank(result);
-    const int coverage = qRound(100.0 * result.coins / std::max(result.totalCoins, 1));
+    const int coverage = qRound(100.0 * result.runCoins / std::max(result.runTotalCoins, 1));
     rank_->setText(tr("Rank: %1").arg(rank.title.toHtmlEscaped()));
     stats_->setText(QStringLiteral("%1<br>%2")
                         .arg(rank.sentence.toHtmlEscaped(),
-                             tr("Score %1: coverage %2% (%3 of %4 good half-hours), %5 foes "
-                                "stomped, %6 gaps bridged, time %7, lives lost %8.")
-                                 .arg(result.score).arg(coverage).arg(result.coins)
-                                 .arg(result.totalCoins).arg(result.defeated)
-                                 .arg(result.gapsBridged).arg(minutes(result.seconds))
-                                 .arg(result.livesLost)));
+                             tr("Score %1: reached level %2, cleared %3; coverage %4% (%5 of %6 "
+                                "good half-hours), %7 foes stomped, %8 gaps bridged, time %9.")
+                                 .arg(result.score).arg(result.level).arg(result.levelsCleared)
+                                 .arg(coverage).arg(result.runCoins).arg(result.runTotalCoins)
+                                 .arg(result.runDefeated).arg(result.runGaps)
+                                 .arg(minutes(result.runSeconds))));
     tag_->setText(QStringLiteral("<i>%1</i>").arg(pickFresh(resultTags()).toHtmlEscaped()));
 
+    next_->setVisible(false);
+    again_->setVisible(true);
     game_->setVisible(false);
     result_->setVisible(true);
     // away from the buttons, so a Space still held cannot press Play again

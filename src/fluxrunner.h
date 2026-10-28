@@ -41,15 +41,15 @@ class QTimer;
 /// drawn down by the day's uptake, ragged with turbulence - missing data
 /// drop to -9999 and leave a pit, and spikes stand up as needles; the
 /// boundary layer above it gusts, swirls and rains on the same diurnal
-/// clock. The flux tower at the end is the goal.
+/// clock. The flux tower at the end of each level is the goal, and every
+/// level is a new site, season and week, harder than the last.
 class FluxRunner : public QWidget
 {
     Q_OBJECT
 public:
     struct Result
     {
-        int score;
-        int rating;         // 0..100, independent of the level drawn
+        // this level
         int coins;
         int totalCoins;
         int defeated;
@@ -57,20 +57,40 @@ public:
         int gapsBridged;
         qreal seconds;
         int livesLost;
-        bool cleared;
-        bool timedOut;
         int firstDoy;
+        int level;
+        QString site;
+        QString siteCode;
+        QString season;
+        bool cleared;
+        bool flawless;      // the level cleared without a life lost, or every half-hour taken
+        // the run so far
+        int score;
+        int rating;         // 0..100 for the whole run, independent of the levels drawn
+        int levelsCleared;
+        int lives;
+        int runCoins;
+        int runTotalCoins;
+        int runDefeated;
+        int runGaps;
+        int runLivesLost;
+        qreal runSeconds;
+        QString firstSite;
+        bool timedOut;      // the last life went to the deadline
     };
 
     explicit FluxRunner(QWidget* parent = nullptr);
 
-    /// a new level, the level card, and the keyboard
-    void start();
+    /// a new run: three lives, no score, one of the two figures, level 1
+    void startRun(int figure);
+    /// the next, harder level of the same run
+    void nextLevel();
     void stop();
 
     QSize sizeHint() const override;
 
 signals:
+    void levelCleared(const FluxRunner::Result& result);
     void runOver(const FluxRunner::Result& result);
 
 protected:
@@ -89,6 +109,61 @@ private:
     enum class Power { Small, Hat, Filter };
     enum class Item { Coin, Hat, Filter, Coffee };
     enum class FoeKind { Reviewer, Bubble, Puff };
+
+    // everything that makes one level harder than another, from its number;
+    // each knob is clamped to a cap the jump can always manage
+    struct LevelSpec
+    {
+        int level;
+        int minSlots;
+        int maxSlots;
+        qreal pitsPer100;
+        qreal wallsPer100;
+        int earlyPitMin;
+        int earlyPitMax;
+        int latePitMin;
+        int latePitMax;
+        int maxPit;
+        int maxZonePit;
+        qreal maxLandingRise;
+        qreal earlyRiseMin;
+        qreal earlyRiseMax;
+        qreal lateRiseMin;
+        qreal lateRiseMax;
+        qreal doubleWallChance;
+        int pad;
+        int movingMin;
+        int movingMax;
+        qreal movingAmplitude;
+        qreal movingPeriod;
+        int tubesMin;
+        int tubesMax;
+        int showersMin;
+        int showersMax;
+        qreal zoneShare;
+        qreal zoneStrengthMin;
+        qreal zoneStrengthMax;
+        qreal gustMax;
+        qreal eddyKick;
+        qreal eddyIntervalMin;
+        qreal eddyIntervalMax;
+        int maxEddies;
+        int reviewerGapMin;
+        int reviewerGapMax;
+        qreal reviewerSpeed;
+        qreal puffsPer100;
+        qreal puffSpeed;
+        qreal bubbleChance;
+        qreal bubblePauseMin;
+        qreal bubblePauseMax;
+        int hats;
+        int filters;
+        int coffees;
+        int maxBlocks;
+        qreal coinRowChance;
+        qreal deadlinePerSlot;
+        qreal pointsFactor;
+    };
 
     // a half-hour of the level: what it holds, and its mean level
     struct Bar
@@ -176,7 +251,7 @@ private:
     {
         int start;
         int end;
-        qreal strength; // 0.5..1
+        qreal strength; // 0..1
         qreal phase;
         qreal noise;    // smoothed random walk, -1..1
         int direction;  // the mean wind, +1 with the run
@@ -225,6 +300,9 @@ private:
     };
 
     // the level
+    static LevelSpec specFor(int level);
+    void startLevel(int level);
+    void drawSetting();
     bool generateLevel(bool hazards);
     bool verifyLevel() const;
     void buildSamples();
@@ -237,6 +315,8 @@ private:
     qreal standTop(qreal x, qreal halfW) const;
     qreal supportTop(qreal left, qreal right, qreal feet) const;
     bool nearGap(int column, int reach) const;
+    qreal hourOfSlot(int t) const;      // t counts half-hours from the first of the data
+    qreal sunElevation(qreal hour) const;
     qreal hourAt(qreal x) const;
     qreal nightAt(qreal x) const;
     int doyAt(qreal x) const;
@@ -244,6 +324,9 @@ private:
     bool inThermal(qreal x) const;
     bool raining(qreal x) const;
     qreal gust(int zone) const;
+    qreal rhythmDensity(int t) const;
+    qreal rhythmLateness(int t) const;
+    int points(int base) const;
 
     // the run
     void tick();
@@ -257,7 +340,7 @@ private:
     void collectCoins();
     void touchFoes(qreal previousFeet);
     void bumpBlock(int index);
-    void defeat(Foe& foe, int points, const QString& text);
+    void defeat(Foe& foe, int value, const QString& text);
     void gainCoin(const QPointF& where);
     void fire();
     void hurt();
@@ -265,10 +348,11 @@ private:
     void respawn();
     void enterTube(int index);
     void reachTower();
-    void finishRun(bool cleared, bool timedOut);
+    void finishLevel(bool cleared);
     void togglePause();
     void addPop(const QPointF& world, const QString& text, const QColor& color);
     void announce(const QString& text, const QColor& color);
+    qreal levelQuality() const;
     Result result() const;
 
     // drawing
@@ -308,6 +392,7 @@ private:
     Body player_;
     qreal cameraX_;
     int stompChain_;
+    int figure_;        // which of the two figures this run is played with
 
     QList<Bar> bars_;
     QList<Sample> samples_;
@@ -324,7 +409,33 @@ private:
     QList<Shower> showers_;
     QList<QPointF> stars_;      // the night sky, in screen fractions
     QList<int> gapEnds_;        // first column after each pit, in order
+    QList<int> clusters_;       // where a clustered rhythm puts its hazards
     int blockCoins_;            // the half-hours waiting inside blocks
+
+    // the level's setting: a site, a date, a time of day, the weather
+    LevelSpec spec_;
+    int level_;
+    int site_;
+    QString siteName_;
+    QString siteCode_;
+    QString season_;
+    int seasonIndex_;
+    QString weatherName_;
+    QStringList modifierNames_;
+    unsigned modifiers_;
+    qreal seasonFactor_;    // the growing season's share of full uptake
+    qreal sunrise_;
+    qreal sunset_;
+    int startSlot_;         // the time of day of the first half-hour, in half-hours
+    int dataSlots_;
+    int weather_;           // 0 clear, 1 mixed, 2 overcast
+    int frontDay_;          // a grey day with a shower tied to it, or -1
+    int rhythm_;
+    qreal rhythmPhase_;
+    qreal rhythmPeriod_;
+    int cloudCount_;
+    bool snowy_;
+    qreal cardDuration_;
 
     int checkpointColumn_;
     int towerColumn_;
@@ -338,6 +449,7 @@ private:
     qreal flagY_;
     qreal nextEddy_;
     bool diedInPit_;
+    bool diedOfDeadline_;
     bool nightAnnounced_;
     QColor sky_;
     QString banner_;
@@ -346,20 +458,35 @@ private:
     QString cardLine_;
     QString pauseLine_;
 
+    // this level
     int lives_;
     int livesLost_;
-    int score_;
     int coinCount_;
     int defeated_;
     int gapsBridged_;
     qreal deadline_;
+    qreal levelDeadline_;
     qreal runTime_;
-    bool timedOut_;
     bool cleared_;
+    bool timedOut_;
+
+    // the run
+    int score_;
+    int levelsCleared_;
+    int runCoins_;
+    int runTotalCoins_;
+    int runDefeated_;
+    int runGaps_;
+    int runLivesLost_;
+    qreal runSeconds_;
+    qreal qualitySum_;
+    qreal qualityWeight_;
+    QString firstSite_;
 };
 
 /// The panel around the game: the intro and its Start button, a short
-/// loading sequence, the game, and the rank at the end.
+/// loading sequence, the game, a summary between levels, and the rank at
+/// the end of the run.
 class FluxRunnerPanel : public QWidget
 {
     Q_OBJECT
@@ -375,6 +502,8 @@ signals:
 private:
     void launch();
     void play();
+    void continueRun();
+    void showLevelSummary(const FluxRunner::Result& result);
     void showResult(const FluxRunner::Result& result);
 
     FakeLoading* loading_;
@@ -388,6 +517,8 @@ private:
     QLabel* rank_;
     QLabel* stats_;
     QLabel* tag_;
+    QPushButton* again_;
+    QPushButton* next_;
 };
 
 #endif // FLUXRUNNER_H

@@ -95,6 +95,7 @@ HEADERS += \
     src/advstatisticaloptions.h \
     src/advprocessingoptions.h \
     src/updatedialog.h \
+    src/updateinstaller.h \
     src/advspectraloptions.h \
     src/advoutputoptions.h \
     src/advsettingscontainer.h \
@@ -215,6 +216,7 @@ SOURCES +=  \
     src/advstatisticaloptions.cpp \
     src/advprocessingoptions.cpp \
     src/updatedialog.cpp \
+    src/updateinstaller.cpp \
     src/advspectraloptions.cpp \
     src/advoutputoptions.cpp \
     src/advsettingscontainer.cpp \

@@ -34,6 +34,7 @@
 #include <QDebug>
 #include <QDoubleSpinBox>
 #include <QFileDialog>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QPixmap>
@@ -72,6 +73,43 @@
 #include "remotesource.h"
 
 namespace {
+
+//> The hf_meth value behind each method-combo row. The rows are not the
+//> engine's codes - those follow the order the methods were added, while
+//> Eugster and Senn (1995) sits first because it is the oldest - so every
+//> translation between the two goes through this table and nothing else.
+constexpr int kHfMethodForRow[] = {
+    7,  // Eugster and Senn (1995)
+    1,  // Moncrieff et al. (1997)
+    5,  // Massman (2000, 2001)
+    2,  // Horst (1997)
+    3,  // Ibrom et al. (2007)
+    4,  // Fratini et al. (2012)
+};
+constexpr int kHfMethodRows = int(sizeof(kHfMethodForRow) / sizeof(int));
+
+/// hf_meth for a combo row; -1 for a row that does not exist.
+int hfMethodForRow(int row)
+{
+    return (row >= 0 && row < kHfMethodRows) ? kHfMethodForRow[row] : -1;
+}
+
+/// Combo row for an hf_meth value. "No correction" (0) and anything this
+/// version does not offer land on Moncrieff, the default row.
+int hfRowForMethod(int method)
+{
+    for (int row = 0; row < kHfMethodRows; ++row)
+    {
+        if (kHfMethodForRow[row] == method) { return row; }
+    }
+    return hfRowForMethod(1);
+}
+
+/// The methods that need an in-situ spectral assessment.
+bool isInSituHfMethod(int method)
+{
+    return method == 2 || method == 3 || method == 4;
+}
 
 class AdaptivePrecisionDoubleSpinBox final : public QDoubleSpinBox
 {
@@ -579,16 +617,19 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     hfMethLabel = new ClickLabel(tr("Method :"));
     hfMethCombo = new QComboBox;
     hfMethCombo->setModel(new CustomComboModel(hfMethCombo));
+    //> Rows in order of publication; kHfMethodForRow maps each to its hf_meth.
+    hfMethCombo->addItem(tr("Eugster and Senn (1995) - Fully analytic"));
     hfMethCombo->addItem(tr("Moncrieff et al. (1997) - Fully analytic"));
     hfMethCombo->addItem(tr("Massmann (2000, 2001) - Fully analytic"));
     hfMethCombo->addItem(tr("Horst (1997) - Analytic with in situ parameterization"));
     hfMethCombo->addItem(tr("Ibrom et al. (2007) - In situ/analytic"));
     hfMethCombo->addItem(tr("Fratini et al. (2012) - In situ/analytic"));
-    hfMethCombo->setItemData(0, tr("<b>Moncrieff et al. (1997):</b> This method models all major sources of flux attenuation by means of a mathematical formulation. The use of this method is suggested for open path EC systems or for closed path systems if the sampling line is short and heated. This method may seriously underestimate the attenuation (and hence the correction) - notably for water vapor - when the sampling line is long and/or not heated, because of the dependency of attenuation of H<sub>2</sub>O on relative humidity."), Qt::ToolTipRole);
-    hfMethCombo->setItemData(1, tr("<b>Massmann (2000, 2001):</b> This method provides a simple analytical expression for the spectral correction factors. The use of this method is suggested for open path EC systems or for closed path systems if the sampling line is short and heated. This method may seriously underestimate the attenuation (and hence the correction) for water vapor, when the sampling line is long and/or not heated, because of the dependency of attenuation of %2 on relative humidity. For closed path systems, this method is only applicable for %1, %2, %3, %4 and %5 fluxes.").arg(Defs::CO2_STRING, Defs::H2O_STRING, Defs::CH4_STRING, Defs::N2O_STRING, Defs::O3_STRING), Qt::ToolTipRole);
-    hfMethCombo->setItemData(3, tr("<b>Horst (1997):</b> Correction method based on an analytical formulation of the spectral correction factor that requires an in-situ assessment of the system's cut-off frequency. Provide the information below to specify how to perform such assessment."), Qt::ToolTipRole);
-    hfMethCombo->setItemData(4, tr("<b>Ibrom et al. (2007):</b> Correction method based on an analytical formulation of the spectra correction factors, that requires an in-situ assessment of the system's cut-off frequencies, separately for each instrument and gas, and as a function of relative humidity for water vapor. Provide the settings in the <i>Assessment of high-frequency attenuation</i> to specify how to perform the assessment. This method is recommended in most cases, notably for closed-path systems placed high over rough canopies."), Qt::ToolTipRole);
-    hfMethCombo->setItemData(5, tr("<b>Fratini et al. (2012):</b> Correction method based on the combination of a direct approach (similar to Hollinger et al., 2009) and the analytical formulation of Ibrom et al., 2007. It requires an in-situ assessment of the system's cut-off frequencies, separately for each instrument and gas, and as a function of relative humidity for water vapor. It also requires full length cospectra of measured sensible heat. This method is recommendable in most cases, notably for closed-path systems placed low over smooth surfaces."), Qt::ToolTipRole);
+    hfMethCombo->setItemData(hfRowForMethod(7), tr("<b>Eugster and Senn (1995):</b> Fully analytic correction for gas fluxes. The damping of the gas measurement (sampling tube, reaction chamber, analyser) is modelled as a first-order filter with a time constant <i>L</i>, and the measurable fraction of each gas flux follows in closed form from <i>z</i>/<i>u</i>, the stability <i>z</i>/<i>L</i><sub>MO</sub> and <i>L</i>. Developed for NO<sub>2</sub>, but applicable to any gas. Set <i>L</i> for each gas in the list that appears below the method when it is selected; a gas without a value uses its analyser's response time. Fitted for -2 &le; <i>z</i>/<i>L</i><sub>MO</sub> &le; 2. Following the paper, a gas flux is discarded (-9999) when less than 40% of it is measurable, i.e. when the correction factor exceeds 2.5. Momentum and sensible heat fluxes are corrected as with Moncrieff et al. (1997)."), Qt::ToolTipRole);
+    hfMethCombo->setItemData(hfRowForMethod(1), tr("<b>Moncrieff et al. (1997):</b> This method models all major sources of flux attenuation by means of a mathematical formulation. The use of this method is suggested for open path EC systems or for closed path systems if the sampling line is short and heated. This method may seriously underestimate the attenuation (and hence the correction) - notably for water vapor - when the sampling line is long and/or not heated, because of the dependency of attenuation of H<sub>2</sub>O on relative humidity."), Qt::ToolTipRole);
+    hfMethCombo->setItemData(hfRowForMethod(5), tr("<b>Massmann (2000, 2001):</b> This method provides a simple analytical expression for the spectral correction factors. The use of this method is suggested for open path EC systems or for closed path systems if the sampling line is short and heated. This method may seriously underestimate the attenuation (and hence the correction) for water vapor, when the sampling line is long and/or not heated, because of the dependency of attenuation of %2 on relative humidity. For closed path systems, this method is only applicable for %1, %2, %3, %4 and %5 fluxes.").arg(Defs::CO2_STRING, Defs::H2O_STRING, Defs::CH4_STRING, Defs::N2O_STRING, Defs::O3_STRING), Qt::ToolTipRole);
+    hfMethCombo->setItemData(hfRowForMethod(2), tr("<b>Horst (1997):</b> Correction method based on an analytical formulation of the spectral correction factor that requires an in-situ assessment of the system's cut-off frequency. Provide the information below to specify how to perform such assessment."), Qt::ToolTipRole);
+    hfMethCombo->setItemData(hfRowForMethod(3), tr("<b>Ibrom et al. (2007):</b> Correction method based on an analytical formulation of the spectra correction factors, that requires an in-situ assessment of the system's cut-off frequencies, separately for each instrument and gas, and as a function of relative humidity for water vapor. Provide the settings in the <i>Assessment of high-frequency attenuation</i> to specify how to perform the assessment. This method is recommended in most cases, notably for closed-path systems placed high over rough canopies."), Qt::ToolTipRole);
+    hfMethCombo->setItemData(hfRowForMethod(4), tr("<b>Fratini et al. (2012):</b> Correction method based on the combination of a direct approach (similar to Hollinger et al., 2009) and the analytical formulation of Ibrom et al., 2007. It requires an in-situ assessment of the system's cut-off frequencies, separately for each instrument and gas, and as a function of relative humidity for water vapor. It also requires full length cospectra of measured sensible heat. This method is recommendable in most cases, notably for closed-path systems placed low over smooth surfaces."), Qt::ToolTipRole);
 
     horstCheck = new QCheckBox(tr("Correction for instruments separation"));
     horstCheck->setToolTip(tr("<b>Correction for instrument separation:</b> Check this option and select the corresponding method to add an extra correction term to that calculated with the method by Ibrom et al. (2007). This accounts for any separation between the inlet of the sampling line (closed path instruments) or the center of the open path instrument and the center of the anemometer."));
@@ -599,6 +640,18 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     horstCombo->addItem(tr("Horst and Lenschow (2009), only crosswind and vertical"));
     horstCombo->setItemData(0, tr("<b>Horst and Lenschow (2009), along-wind, crosswind and vertical:</b> Select this option to account for sensor separations in any direction. Note that correcting for along-wind separations may result in overcorrection, if any time lag compensation method was also selected."), Qt::ToolTipRole);
     horstCombo->setItemData(1, tr("<b>Horst and Lenschow (2009), only crosswind and vertical:</b> Select this option to account for sensor separations only in the crosswind and vertical directions. Recommended when a time lag compensation method is selected."), Qt::ToolTipRole);
+
+    //> Filled per gas record by rebuildEsTauSpins().
+    esTauBox = new QWidget;
+    auto esTauLayout = new QVBoxLayout(esTauBox);
+    esTauLayout->setContentsMargins(0, 0, 0, 0);
+    auto esTauTitle = new QLabel(tr("Damping time constant <i>L</i> of each gas:"));
+    esTauTitle->setToolTip(tr("<b>Damping time constant <i>L</i>:</b> The time constant, in seconds, of the first-order filter that Eugster and Senn (1995) use to describe the damping of the gas measurement by the sampling tube, any reaction chamber and the analyser. Estimate it by fitting their damped cospectral model to the measured cospectrum of the gas flux. A gas set to <i>Analyser response time</i> uses the response time of its analyser from the metadata, which usually leaves out tube damping. 0 means no high-frequency damping."));
+    esTauLayout->addWidget(esTauTitle);
+    esTauGrid = new QGridLayout;
+    esTauGrid->setContentsMargins(0, 0, 0, 0);
+    esTauLayout->addLayout(esTauGrid);
+    esTauBox->setVisible(false);
 
     //> The analytic cospectral SHAPE, not a correction method. Every method
     //> above weights a transfer function by it, so it is a modifier on all of
@@ -968,33 +1021,34 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     settingsLayout->addWidget(hfMethodCheck, 21, 0, 1, 2);
     settingsLayout->addWidget(hfMethLabel, 21, 1, Qt::AlignRight);
     settingsLayout->addWidget(hfMethCombo, 21, 2, 1, 3);
-    settingsLayout->addWidget(horstCheck, 22, 0, 1, 2);
-    settingsLayout->addWidget(horstMethodLabel, 22, 1, Qt::AlignRight);
-    settingsLayout->addWidget(horstCombo, 22, 2, 1, 3);
+    settingsLayout->addWidget(esTauBox, 22, 1, 1, 4);
+    settingsLayout->addWidget(horstCheck, 23, 0, 1, 2);
+    settingsLayout->addWidget(horstMethodLabel, 23, 1, Qt::AlignRight);
+    settingsLayout->addWidget(horstCombo, 23, 2, 1, 3);
 
-    settingsLayout->addWidget(cospModelLabel, 23, 1, Qt::AlignRight);
-    settingsLayout->addWidget(cospModelCombo, 23, 2, 1, 3);
-    settingsLayout->addWidget(corrIterCheckBox, 24, 0, 1, 2);
-    settingsLayout->addWidget(corrIterMaxLabel, 24, 1, Qt::AlignRight);
-    settingsLayout->addWidget(corrIterMaxSpin, 24, 2);
-    settingsLayout->addWidget(corrIterTolLabel, 24, 3, Qt::AlignRight);
-    settingsLayout->addWidget(corrIterTolSpin, 24, 4);
+    settingsLayout->addWidget(cospModelLabel, 24, 1, Qt::AlignRight);
+    settingsLayout->addWidget(cospModelCombo, 24, 2, 1, 3);
+    settingsLayout->addWidget(corrIterCheckBox, 25, 0, 1, 2);
+    settingsLayout->addWidget(corrIterMaxLabel, 25, 1, Qt::AlignRight);
+    settingsLayout->addWidget(corrIterMaxSpin, 25, 2);
+    settingsLayout->addWidget(corrIterTolLabel, 25, 3, Qt::AlignRight);
+    settingsLayout->addWidget(corrIterTolSpin, 25, 4);
 
-    settingsLayout->addWidget(ghgSystemCorrectionTitle, 25, 0, 1, -1);
-    settingsLayout->addWidget(hfCorrectGhgBaCheck, 26, 0, 1, 2);
-    settingsLayout->addWidget(hfCorrectGhgZohCheck, 27, 0, 1, 2);
-    settingsLayout->addWidget(sonicFrequencyLabel, 27, 1, Qt::AlignRight);
-    settingsLayout->addWidget(sonicFrequency, 27, 2, 1, 1);
+    settingsLayout->addWidget(ghgSystemCorrectionTitle, 26, 0, 1, -1);
+    settingsLayout->addWidget(hfCorrectGhgBaCheck, 27, 0, 1, 2);
+    settingsLayout->addWidget(hfCorrectGhgZohCheck, 28, 0, 1, 2);
+    settingsLayout->addWidget(sonicFrequencyLabel, 28, 1, Qt::AlignRight);
+    settingsLayout->addWidget(sonicFrequency, 28, 2, 1, 1);
 
-    settingsLayout->addWidget(spectraExistingRadio, 28, 0, 1, 2);
-    settingsLayout->addWidget(spectraFileBrowse, 28, 1, 1, 4);
-    settingsLayout->addWidget(spectraNonExistingRadio, 29, 0, 1, 2);
+    settingsLayout->addWidget(spectraExistingRadio, 29, 0, 1, 2);
+    settingsLayout->addWidget(spectraFileBrowse, 29, 1, 1, 4);
+    settingsLayout->addWidget(spectraNonExistingRadio, 30, 0, 1, 2);
 
-    settingsLayout->addWidget(fratiniTitle, 30, 0, 1, -1);
-    settingsLayout->addWidget(fullSpectraNonExistingRadio, 31, 0, 1, 2);
-    settingsLayout->addWidget(fullSpectraExistingRadio, 32, 0, 1, 2);
-    settingsLayout->addWidget(fullSpectraDirBrowse, 32, 1, 1, 4);
-    settingsLayout->addWidget(addSonicCheck, 33, 0, 1, -1);
+    settingsLayout->addWidget(fratiniTitle, 31, 0, 1, -1);
+    settingsLayout->addWidget(fullSpectraNonExistingRadio, 32, 0, 1, 2);
+    settingsLayout->addWidget(fullSpectraExistingRadio, 33, 0, 1, 2);
+    settingsLayout->addWidget(fullSpectraDirBrowse, 33, 1, 1, 4);
+    settingsLayout->addWidget(addSonicCheck, 34, 0, 1, -1);
     settingsLayout->setColumnStretch(7, 1);
 
     auto settingsGroupLayout = new QHBoxLayout;
@@ -1196,12 +1250,14 @@ void AdvSpectralOptions::setSmartfluxUI()
     {
         spectraNonExistingRadioOldEnabled = spectraNonExistingRadio->isEnabled();
         spectraNonExistingRadio->setDisabled(on);
-        hfMethCombo->setItemData(4, QStringLiteral("disabled"), Qt::UserRole);
+        hfMethCombo->setItemData(hfRowForMethod(4), QStringLiteral("disabled"), Qt::UserRole);
+        hfMethCombo->setItemData(hfRowForMethod(7), QStringLiteral("disabled"), Qt::UserRole);
     }
     else
     {
         spectraNonExistingRadio->setEnabled(spectraNonExistingRadioOldEnabled);
-        hfMethCombo->setItemData(4, QStringLiteral("enabled"), Qt::UserRole);
+        hfMethCombo->setItemData(hfRowForMethod(4), QStringLiteral("enabled"), Qt::UserRole);
+        hfMethCombo->setItemData(hfRowForMethod(7), QStringLiteral("enabled"), Qt::UserRole);
     }
 
     // block project modified() signal
@@ -1264,7 +1320,7 @@ void AdvSpectralOptions::reset()
 
     lfMethodCheck->setChecked(ecProject_->defaultSettings.projectGeneral.lf_meth);
     hfMethodCheck->setChecked(ecProject_->defaultSettings.projectGeneral.hf_meth);
-    WidgetUtils::resetComboToItem(hfMethCombo, 0);
+    WidgetUtils::resetComboToItem(hfMethCombo, hfRowForMethod(1));
     WidgetUtils::resetComboToItem(cospModelCombo, ecProject_->defaultSettings.projectGeneral.cosp_model);
     corrIterCheckBox->setChecked(ecProject_->defaultSettings.projectGeneral.corr_iter_meth);
     corrIterMaxSpin->setValue(ecProject_->defaultSettings.projectGeneral.corr_iter_max);
@@ -1325,6 +1381,7 @@ void AdvSpectralOptions::reset()
 
     refreshSpectralAssessmentCreationMode();
     refreshSpectralQaQcTableState();
+    refreshEsTauBox();
     emit updateOutputsRequest(0);
 }
 
@@ -1393,25 +1450,7 @@ void AdvSpectralOptions::refresh()
         const QSignalBlocker methodBlocker(hfMethodCheck);
         const QSignalBlocker comboBlocker(hfMethCombo);
 
-        switch (ecProject_->generalHfMethod())
-        {
-        case 0:
-        case 1: // moncrieff
-            hfMethCombo->setCurrentIndex(0);
-            break;
-        case 2: // horst
-            hfMethCombo->setCurrentIndex(2);
-            break;
-        case 3: // ibrom
-            hfMethCombo->setCurrentIndex(3);
-            break;
-        case 4: // fratini
-            hfMethCombo->setCurrentIndex(4);
-            break;
-        case 5: // massmann
-            hfMethCombo->setCurrentIndex(1);
-            break;
-        }
+        hfMethCombo->setCurrentIndex(hfRowForMethod(ecProject_->generalHfMethod()));
 
         hfMethodCheck->setChecked(ecProject_->generalHfMethod());
     }
@@ -1519,7 +1558,8 @@ void AdvSpectralOptions::refresh()
 
     refreshSpectralAssessmentCreationMode();
     refreshSpectralQaQcTableState();
-    emit updateOutputsRequest(hfMethCombo->currentIndex());
+    refreshEsTauBox();
+    emit updateOutputsRequest(hfMethodForRow(hfMethCombo->currentIndex()));
 }
 
 void AdvSpectralOptions::showEvent(QShowEvent* event)
@@ -1555,19 +1595,17 @@ void AdvSpectralOptions::refreshSpectralAssessmentCreationMode()
         return;
     }
 
-    hfMethCombo->setItemData(0,
-                             createAssessment
-                             ? QStringLiteral("disabled")
-                             : QStringLiteral("enabled"),
-                             Qt::UserRole);
-    hfMethCombo->setItemData(1,
-                             createAssessment
-                             ? QStringLiteral("disabled")
-                             : QStringLiteral("enabled"),
-                             Qt::UserRole);
-    hfMethCombo->setItemData(2, QStringLiteral("enabled"), Qt::UserRole);
-    hfMethCombo->setItemData(3, QStringLiteral("enabled"), Qt::UserRole);
-    hfMethCombo->setItemData(4, QStringLiteral("enabled"), Qt::UserRole);
+    //> Creating an assessment needs an in-situ method, so the analytic rows
+    //> are closed while it runs.
+    for (int row = 0; row < hfMethCombo->count(); ++row)
+    {
+        const bool available = !createAssessment
+                               || isInSituHfMethod(hfMethodForRow(row));
+        hfMethCombo->setItemData(row,
+                                 available ? QStringLiteral("enabled")
+                                           : QStringLiteral("disabled"),
+                                 Qt::UserRole);
+    }
 
     if (createAssessment)
     {
@@ -1706,7 +1744,8 @@ void AdvSpectralOptions::refreshSpectralAssessmentCreationMode()
         const auto smartfluxOn = configState_->project.smartfluxMode;
         if (smartfluxOn)
         {
-            hfMethCombo->setItemData(4, QStringLiteral("disabled"), Qt::UserRole);
+            hfMethCombo->setItemData(hfRowForMethod(4), QStringLiteral("disabled"), Qt::UserRole);
+            hfMethCombo->setItemData(hfRowForMethod(7), QStringLiteral("disabled"), Qt::UserRole);
         }
 
         spectraExistingRadio->setEnabled(hfMethodCheck->isChecked()
@@ -1719,7 +1758,8 @@ void AdvSpectralOptions::refreshSpectralAssessmentCreationMode()
     }
 
     refreshSpectralQaQcTableState();
-    emit updateOutputsRequest(hfMethCombo->currentIndex());
+    refreshEsTauBox();
+    emit updateOutputsRequest(hfMethodForRow(hfMethCombo->currentIndex()));
 }
 
 void AdvSpectralOptions::updateSpectraFile(const QString &fp)
@@ -1801,7 +1841,7 @@ void AdvSpectralOptions::spectraRadioClicked(int radioButton)
         setSpectralAssessmentFrequencyCellsEnabled(toEnable);
     }
     refreshSpectralQaQcTableState();
-    emit updateOutputsRequest(hfMethCombo->currentIndex());
+    emit updateOutputsRequest(hfMethodForRow(hfMethCombo->currentIndex()));
 }
 
 void AdvSpectralOptions::binnedSpectraRadioClicked(int radioButton)
@@ -1820,7 +1860,7 @@ void AdvSpectralOptions::binnedSpectraRadioClicked(int radioButton)
         nBinsSpin->setEnabled(false);
         fftCheckBox->setEnabled(false);
     }
-    emit updateOutputsRequest(hfMethCombo->currentIndex());
+    emit updateOutputsRequest(hfMethodForRow(hfMethCombo->currentIndex()));
 }
 
 void AdvSpectralOptions::fullSpectraRadioClicked(int radioButton)
@@ -1835,7 +1875,7 @@ void AdvSpectralOptions::fullSpectraRadioClicked(int radioButton)
         ecProject_->setGeneralFullSpectraAvail(1);
         fullSpectraDirBrowse->setEnabled(true);
     }
-    emit updateOutputsRequest(hfMethCombo->currentIndex());
+    emit updateOutputsRequest(hfMethodForRow(hfMethCombo->currentIndex()));
 }
 
 void AdvSpectralOptions::onStartDateLabelClicked()
@@ -1882,43 +1922,16 @@ void AdvSpectralOptions::onClickHfMethLabel()
 
 void AdvSpectralOptions::setHfMethod(int hfMethComboIndex)
 {
-    switch (hfMethComboIndex)
+    const int method = hfMethodForRow(hfMethComboIndex);
+    if (method > 0)
     {
-    case 0: // moncrieff
-        ecProject_->setGeneralHfMethod(1);
-        break;
-    case 1: // massmann
-        ecProject_->setGeneralHfMethod(5);
-        break;
-    case 2: // horst
-        ecProject_->setGeneralHfMethod(2);
-        break;
-    case 3: // ibrom
-        ecProject_->setGeneralHfMethod(3);
-        break;
-    case 4: // fratini
-        ecProject_->setGeneralHfMethod(4);
-        break;
+        ecProject_->setGeneralHfMethod(method);
     }
 }
 
 int AdvSpectralOptions::hfComboIndexFromProjectMethod() const
 {
-    switch (ecProject_->generalHfMethod())
-    {
-    case 2:
-        return 2;
-    case 3:
-        return 3;
-    case 4:
-        return 4;
-    case 5:
-        return 1;
-    case 0:
-    case 1:
-    default:
-        return 0;
-    }
+    return hfRowForMethod(ecProject_->generalHfMethod());
 }
 
 void AdvSpectralOptions::updateHfMethod_1(bool b)
@@ -1961,7 +1974,7 @@ void AdvSpectralOptions::updateHfMethod_1(bool b)
                                          && fullSpectraExistingRadio->isChecked());
         addSonicCheck->setEnabled(toEnableFratini);
 
-        emit updateOutputsRequest(hfMethCombo->currentIndex());
+        emit updateOutputsRequest(hfMethodForRow(hfMethCombo->currentIndex()));
         maybeWarnMassmanFallback();
     }
     else
@@ -1989,12 +2002,14 @@ void AdvSpectralOptions::updateHfMethod_1(bool b)
 
         emit updateOutputsRequest(0);
     }
+    refreshEsTauBox();
 }
 
 // update project properties and fluxes rotation choices
 void AdvSpectralOptions::updateHfMethod_2(int n)
 {
-    if (ecProject_->spectraFluxRunMode() == 1 && n < 2)
+    if (ecProject_->spectraFluxRunMode() == 1
+        && !isInSituHfMethod(hfMethodForRow(n)))
     {
         refreshSpectralAssessmentCreationMode();
         return;
@@ -2004,9 +2019,10 @@ void AdvSpectralOptions::updateHfMethod_2(int n)
 
     setHfMethod(n);
 
-    spectraExistingRadio->setEnabled(n > 1);
-    spectraNonExistingRadio->setEnabled((n > 1) && !smartfluxOn);
-    spectraFileBrowse->setEnabled(n > 1 && spectraExistingRadio->isChecked());
+    const bool inSitu = isHorstIbromFratini();
+    spectraExistingRadio->setEnabled(inSitu);
+    spectraNonExistingRadio->setEnabled(inSitu && !smartfluxOn);
+    spectraFileBrowse->setEnabled(inSitu && spectraExistingRadio->isChecked());
 
     auto toEnable = isHorstIbromFratini() && spectraNonExistingRadio->isChecked();
 
@@ -2017,7 +2033,7 @@ void AdvSpectralOptions::updateHfMethod_2(int n)
     setSpectralAssessmentFrequencyCellsEnabled(toEnable);
 
     // fratini only
-    auto toEnableFratini = (n == 4);
+    auto toEnableFratini = isFratini();
 
     fullSpectraExistingRadio->setEnabled(toEnableFratini);
     fullSpectraNonExistingRadio->setEnabled(toEnableFratini);
@@ -2025,8 +2041,9 @@ void AdvSpectralOptions::updateHfMethod_2(int n)
                                      && fullSpectraExistingRadio->isChecked());
     addSonicCheck->setEnabled(toEnableFratini);
 
-    emit updateOutputsRequest(n);
+    emit updateOutputsRequest(hfMethodForRow(n));
     maybeWarnMassmanFallback();
+    refreshEsTauBox();
 }
 
 bool AdvSpectralOptions::isHorstIbromFratini()
@@ -2044,6 +2061,11 @@ bool AdvSpectralOptions::isIbrom()
 bool AdvSpectralOptions::isFratini()
 {
     return (ecProject_->generalHfMethod() == 4);
+}
+
+bool AdvSpectralOptions::isEugsterSenn()
+{
+    return (ecProject_->generalHfMethod() == 7);
 }
 
 bool AdvSpectralOptions::hasLi7500FamilyIrga() const
@@ -2564,7 +2586,81 @@ void AdvSpectralOptions::rebuildGasSpectralSpins()
     }
 
     gasSignature_ = gasSignature();
+    rebuildEsTauSpins();
     rebuildSpectralQaQcRows();
+}
+
+/// One spin per gas record, in the order the QA/QC table lists them.
+///
+/// The value is set before the connection is made, so building the list
+/// never writes back into the project.
+void AdvSpectralOptions::rebuildEsTauSpins()
+{
+    if (!ecProject_ || !esTauGrid) { return; }
+
+    while (auto item = esTauGrid->takeAt(0))
+    {
+        if (auto w = item->widget())
+        {
+            w->setParent(nullptr);
+            w->deleteLater();
+        }
+        delete item;
+    }
+    esTauSpins_.clear();
+
+    //> Three gases to a line, so a long gas list does not push the rest of
+    //> the page down by a row per record.
+    constexpr int kPerLine = 3;
+    const auto& gases = ecProject_->gasColumns();
+    int n = 0;
+    for (const int i : MeasurementRecords::gasDisplayOrder(gases))
+    {
+        auto label = new QLabel(gasRowLabel(i));
+        auto spin = new QDoubleSpinBox;
+        //> One step below zero is "not stated": the engine then takes the
+        //> analyser's response time. A real L of zero is a valid setting -
+        //> no high-frequency damping - so it cannot double as the marker.
+        spin->setRange(-0.01, 10.0);
+        spin->setSingleStep(0.01);
+        spin->setDecimals(2);
+        spin->setSuffix(tr(" [s]"));
+        spin->setSpecialValueText(tr("Analyser response time"));
+        spin->setAccelerated(true);
+        spin->setToolTip(tr("<b>Damping time constant <i>L</i> of %1:</b> "
+                            "Eugster and Senn (1995). Below 0, the response "
+                            "time of the analyser is used.").arg(gasRowLabel(i)));
+        const qreal value = gases.at(i).esTau;
+        spin->setValue(value >= 0.0 ? value : spin->minimum());
+        connect(spin, qOverload<double>(&QDoubleSpinBox::valueChanged),
+                this, [this, i](double d) { onEsTauChanged(i, d); });
+
+        const int line = n / kPerLine;
+        const int col = (n % kPerLine) * 2;
+        esTauGrid->addWidget(label, line, col, Qt::AlignRight);
+        esTauGrid->addWidget(spin, line, col + 1);
+        esTauSpins_.append(spin);
+        ++n;
+    }
+    esTauGrid->setColumnStretch(kPerLine * 2, 1);
+}
+
+void AdvSpectralOptions::refreshEsTauBox()
+{
+    if (!esTauBox) { return; }
+    esTauBox->setVisible(hfMethodCheck->isChecked() && isEugsterSenn());
+}
+
+/// Store one gas's L on its record. Negative means "not stated".
+void AdvSpectralOptions::onEsTauChanged(int gasIndex, double value)
+{
+    if (!ecProject_) { return; }
+    auto gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size()) { return; }
+    const qreal stored = value < 0.0 ? -1.0 : value;
+    if (qFuzzyCompare(gases.at(gasIndex).esTau + 2.0, stored + 2.0)) { return; }
+    gases[gasIndex].esTau = stored;
+    ecProject_->setGasColumns(gases);
 }
 
 void AdvSpectralOptions::rebuildSpectralQaQcRows()

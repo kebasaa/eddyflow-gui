@@ -1528,6 +1528,8 @@ void EcProject::writeMeasurementRecords(QSettings& project_ini)
             rec.mw >= 0.0 ? QString::number(rec.mw, 'f', 4) : QString());
         project_ini.setValue(p + QStringLiteral("diff"),
             rec.diff >= 0.0 ? QString::number(rec.diff, 'f', 5) : QString());
+        project_ini.setValue(p + QStringLiteral("es_tau"),
+            rec.esTau >= 0.0 ? QString::number(rec.esTau, 'f', 3) : QString());
     }
 
     const auto writePlain = [&](const QString& prefix,
@@ -1584,6 +1586,9 @@ bool EcProject::readMeasurementRecords(IniFile& project_ini)
             project_ini.value(p + QStringLiteral("diff")).toString();
         rec.mw = mw.isEmpty() ? -1.0 : mw.toDouble();
         rec.diff = diff.isEmpty() ? -1.0 : diff.toDouble();
+        const auto esTau =
+            project_ini.value(p + QStringLiteral("es_tau")).toString();
+        rec.esTau = esTau.isEmpty() ? -1.0 : esTau.toDouble();
         g.gasColumns.append(rec);
     }
 
@@ -2758,6 +2763,18 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.projectGeneral.hf_meth
                 = project_ini.value(EcIni::INI_PROJECT_46,
                                     defaultEcProjectState.projectGeneral.hf_meth).toInt();
+        //> Only the methods the interface offers. Anything else - 6, the
+        //> engine's 'custom', or a code from some later version - would land
+        //> on no combo row and be shown as Moncrieff while the file said
+        //> otherwise.
+        {
+            const int m = ec_project_state_.projectGeneral.hf_meth;
+            if (m < 0 || m > 7 || m == 6)
+            {
+                ec_project_state_.projectGeneral.hf_meth
+                        = defaultEcProjectState.projectGeneral.hf_meth;
+            }
+        }
         ec_project_state_.projectGeneral.lf_meth
                 = project_ini.value(EcIni::INI_PROJECT_47,
                                     defaultEcProjectState.projectGeneral.lf_meth).toInt();
@@ -5284,6 +5301,12 @@ QString EcProject::smartfluxBlockReason() const
         return tr("Conditional Eddy Covariance is not available on a SmartFlux "
                   "module. Switch it off in Advanced Settings > Processing "
                   "Options.");
+    }
+    if (ec_project_state_.projectGeneral.hf_meth == 7)
+    {
+        return tr("The Eugster and Senn (1995) spectral correction is not "
+                  "available on a SmartFlux module. Choose another method in "
+                  "Advanced Settings > Spectral Corrections.");
     }
 
     return QString();
@@ -8066,10 +8089,12 @@ bool EcProject::isEngineStep2Needed()
 
     switch (generalHfMethod())
     {
-        // case no HF spectral corrections or Moncrieff or Masssmann
+        // case no HF spectral corrections or Moncrieff or Masssmann or
+        // Eugster and Senn
         case 0:
         case 1:
         case 5:
+        case 7:
             break;
         // case Horst, Ibrom, Fratini
         case 2:

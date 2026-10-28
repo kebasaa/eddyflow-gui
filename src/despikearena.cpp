@@ -753,8 +753,8 @@ void DespikeArena::scroll(qreal dt)
         series_.removeFirst();
 
     // whole samples at a time, and everything on the series rides along;
-    // the data speed up as the round goes on
-    const qreal speed = 90.0 + 110.0 * progress();
+    // slow to begin with, and only at full speed in the last seconds
+    const qreal speed = 55.0 + 145.0 * progress() * progress();
     scrollCarry_ += speed * dt;
     while (scrollCarry_ >= STEP_PX)
     {
