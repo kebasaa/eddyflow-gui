@@ -201,6 +201,24 @@
 	- Change: "EddyFlow Forum" is gone from the Help menu. There is no
 	          forum, and the entry opened the documentation, the same page as
 	          "EddyFlow Web Page" beside it.
+	- New: Updating from GitHub. At startup EddyFlow asks GitHub for the latest
+	       release and, if it is newer, says so; a check that fails (offline,
+	       for instance) says nothing. Help > Check for Updates... does the same
+	       on request and reports every outcome. On Windows, "Download and
+	       install" downloads the release's portable archive (a .zip, or a .7z
+	       through the bundled 7-Zip) into a .update folder beside the program,
+	       with a progress bar and Cancel, checks it against the SHA-256 GitHub
+	       publishes, extracts it, and asks again: "Install and restart" first
+	       asks to stop a computation and to save a modified project, as
+	       closing does, then replaces the program's files and starts the new
+	       version with the same project open. Files being replaced are set
+	       aside as <name>.old and removed at the next start; if any step
+	       fails, everything is put back and the current version carries on.
+	       Projects, settings and anything else in the folder are kept. Where
+	       EddyFlow may not write to its folder, and on Linux and macOS, a
+	       "Go to download page" button opens the latest release in the web
+	       browser instead. The startup check no longer waits a fixed minute
+	       before showing its answer.
 
 8.1.2 (2026-10-07)
 
