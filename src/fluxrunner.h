@@ -358,6 +358,8 @@ private:
     // drawing
     void paintSky(QPainter& p) const;
     void paintParallax(QPainter& p) const;
+    void paintFarScenery(QPainter& p, qreal night) const;
+    void paintNearScenery(QPainter& p, qreal night) const;
     void paintAxes(QPainter& p) const;
     void paintAtmosphereBack(QPainter& p) const;
     void paintGround(QPainter& p) const;
