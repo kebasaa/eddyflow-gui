@@ -29,9 +29,11 @@
 
 #include "eastereggwidgets.h"
 
+class QHBoxLayout;
 class QLabel;
 class QProgressBar;
 class QPushButton;
+class QVBoxLayout;
 
 class DespikeArena;
 class DlProject;
@@ -81,6 +83,9 @@ private:
 
     QWidget* doomPanel_;
     FluxRunnerPanel* fluxRunner_;
+    QWidget* column_;
+    QHBoxLayout* row_;
+    QVBoxLayout* content_;
     DndPanel* dnd_;
     MatrixPanel* matrix_;
 

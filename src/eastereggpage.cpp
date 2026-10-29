@@ -903,6 +903,7 @@ EasterEggPage::EasterEggPage(QWidget *parent, DlProject* dlProject, EcProject* e
     //> plain box layout (unlike a stacked widget) passes height-for-width
     //> through, which is what word-wrapped labels need to get their height.
     auto column = new QWidget;
+    column_ = column;
     column->setMaximumWidth(COLUMN_MAX_WIDTH);
     column->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     // a way out at any moment, not just at the end of each joke
@@ -923,16 +924,18 @@ EasterEggPage::EasterEggPage(QWidget *parent, DlProject* dlProject, EcProject* e
     columnLayout->addWidget(doomPanel_);
     columnLayout->addWidget(fluxRunner_);
     columnLayout->addWidget(dnd_);
-    columnLayout->addWidget(matrix_);
+    columnLayout->addWidget(matrix_, 1);
 
     // centre with stretches, not alignment, so the column gets a real width
     auto row = new QHBoxLayout;
+    row_ = row;
     row->addStretch(1);
     row->addWidget(column, 10);
     row->addStretch(1);
 
     auto content = new QWidget;
     auto contentLayout = new QVBoxLayout(content);
+    content_ = contentLayout;
     contentLayout->addStretch(1);
     contentLayout->addLayout(row);
     contentLayout->addStretch(2);
@@ -1006,6 +1009,17 @@ void EasterEggPage::setVariant(Variant variant)
     fluxRunner_->setVisible(variant == Variant::Mario);
     dnd_->setVisible(variant == Variant::DnD);
     matrix_->setVisible(variant == Variant::Matrix);
+
+    //> The games sit in a centred column; the Matrix takes the whole page,
+    //> so the margins and stretches around the column give way to it.
+    const bool fill = (variant == Variant::Matrix);
+    column_->setMaximumWidth(fill ? QWIDGETSIZE_MAX : COLUMN_MAX_WIDTH);
+    column_->setSizePolicy(QSizePolicy::Expanding, fill ? QSizePolicy::Expanding : QSizePolicy::Preferred);
+    row_->setStretch(0, fill ? 0 : 1);
+    row_->setStretch(2, fill ? 0 : 1);
+    content_->setStretch(0, fill ? 0 : 1);
+    content_->setStretch(1, fill ? 1 : 0);
+    content_->setStretch(2, fill ? 0 : 2);
 }
 
 void EasterEggPage::hideEvent(QHideEvent *event)

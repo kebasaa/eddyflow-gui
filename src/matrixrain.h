@@ -61,6 +61,10 @@ public:
     double meanSpeed() const;
     double meanU() const { return u_.mean; }
     double meanW() const { return w_.mean; }
+    /// the |v| that makes the largest or smallest glyphs: |mean v| plus
+    /// two standard deviations over the last 30 s, so the sizes use the
+    /// whole range whatever the site's crosswind
+    double vScale() const;
 
     /// the last row's fluctuations over their standard deviations; 0 in a gap
     double uz() const { return uz_; }
@@ -78,7 +82,7 @@ public:
     /// v is depth: glyphs grow coming towards you and shrink going away.
     static double fallRate(double w);
     static double sideRate(double u);
-    static int sizeOf(double v);
+    static int sizeOf(double v, double scale);
     static constexpr int SIZES = 7;
     /// -1 (carried down) .. +1 (carried up): the instantaneous flux term
     static double brightness(double wz, double sz);

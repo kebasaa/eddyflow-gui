@@ -73,7 +73,7 @@ const double CELLS_PER_U = 5.0;     // 1 m/s of u: 5 cells/s sideways
 const double NO_WIND_FALL = 6.0;    // a file without a sonic still rains
 const double FALL_MAX = 60.0;
 const double SIDE_MAX = 30.0;
-const double V_FULL_SIZE = 0.4;     // m/s of v for the largest or smallest glyphs
+const double V_MIN_SCALE = 0.05;    // m/s: still air does not blow every small v up
 
 // air parcels: released when w surges past PARCEL_Z standard deviations
 const double PARCEL_Z = 1.8;
@@ -258,6 +258,8 @@ void MatrixStats::push(float u, float v, float w, const QVector<float>& scalars)
         varU_ += a * (up * up - varU_);
         varV_ += a * (vp * vp - varV_);
         w_.var += a * (wp * wp - w_.var);
+        const double vRaw = v - v_.mean;
+        v_.var += a * (vRaw * vRaw - v_.var);
         windSeen_ = true;
     }
     else
@@ -318,11 +320,19 @@ double MatrixStats::sideRate(double u)
     return std::isnan(u) ? 0.0 : clamp(CELLS_PER_U * u, -SIDE_MAX, SIDE_MAX);
 }
 
-int MatrixStats::sizeOf(double v)
+//> v = 0 is the middle size and its sign says larger or smaller, but the
+//> scale is the data's own: with a fixed one, a site whose mean v sits
+//> beyond it drew every glyph at the largest size and none ever changed.
+int MatrixStats::sizeOf(double v, double scale)
 {
-    if (std::isnan(v))
+    if (std::isnan(v) || !(scale > 0.0))
         return BASE_SIZE;
-    return BASE_SIZE + int(std::lround(clamp(v / V_FULL_SIZE, -1.0, 1.0) * BASE_SIZE));
+    return BASE_SIZE + int(std::lround(clamp(v / scale, -1.0, 1.0) * BASE_SIZE));
+}
+
+double MatrixStats::vScale() const
+{
+    return std::max(std::fabs(v_.mean) + 2.0 * std::sqrt(std::max(v_.var, 0.0)), V_MIN_SCALE);
 }
 
 double MatrixStats::brightness(double wz, double sz)
@@ -375,7 +385,7 @@ MatrixRain::MatrixRain(QWidget* parent) :
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
     setAttribute(Qt::WA_OpaquePaintEvent);
-    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     timer_->setInterval(FRAME_MS);
     connect(timer_, &QTimer::timeout, this, &MatrixRain::tick);
 }
@@ -393,7 +403,7 @@ const QStringList& MatrixRain::introLines()
 
 QSize MatrixRain::sizeHint() const
 {
-    return QSize(720, 480);
+    return QSize(1200, 800);
 }
 
 QSize MatrixRain::minimumSizeHint() const
@@ -813,7 +823,7 @@ void MatrixRain::lay(const Drop& drop, double x0, double y0, const Frame& seen, 
         // a parcel carries the flux, so it is drawn at its brightest
         cell.bright = parcel ? qint8(2) : qint8(qRound(clamp(seen.bright.value(s), -1.0, 1.0) * 2.0));
         cell.warm = qint8(qRound(clamp(seen.warm * 2.0, -2.0, 2.0)));
-        cell.size = quint8(seen.wind ? MatrixStats::sizeOf(seen.v) : BASE_SIZE);
+        cell.size = quint8(seen.wind ? MatrixStats::sizeOf(seen.v, stats_.vScale()) : BASE_SIZE);
         cell.trail = quint8(drop.trail);
         cell.stamp = steps_;
     }
@@ -1261,13 +1271,14 @@ MatrixPanel::MatrixPanel(DlProject* dlProject, EcProject* ecProject, QWidget* pa
     started_(false),
     projectFailed_(false)
 {
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     connect(rain_, &MatrixRain::leaveRequested, this, &MatrixPanel::finished);
     connect(rain_, &MatrixRain::nextFileRequested, this, &MatrixPanel::loadNext);
 
     auto layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(10);
-    layout->addWidget(rain_);
+    layout->addWidget(rain_, 1);
     layout->addWidget(EggUi::makeText(
         tr("Your own raw data, at the speed it was measured. Space pauses, N plays the next raw "
            "file, H shows the legend, and Esc takes the blue pill.")));
