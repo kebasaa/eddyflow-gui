@@ -131,6 +131,7 @@ private slots:
     void viewEasterEggPage();
     void unlockEasterEgg();
     void unlockMatrixEasterEgg();
+    void showEasterEgg(int variantIndex);
     void lockEasterEgg();
     void lockProjectEasterEgg();
 
@@ -342,7 +343,6 @@ private:
 
     Defs::CurrPage previousPage_;
     int lastEasterEggVariant_;
-    int easterEggRepeats_;
 
     Defs::CurrPage currentPage_;
     Defs::CurrPage currentPage() const;

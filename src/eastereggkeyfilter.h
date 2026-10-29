@@ -28,8 +28,9 @@
 #include <QObject>
 
 /// Application-wide filter that watches for the keys e, d, d, y typed in
-/// order and announces them with unlocked(), and for m, a, t, r, i, x with
-/// matrixUnlocked(). It never consumes an event.
+/// order and announces them with unlocked(), for m, a, t, r, i, x with
+/// matrixUnlocked(), for f, l, u, x with fluxUnlocked() and for d, n, d
+/// with dndUnlocked(). It never consumes an event.
 class EasterEggKeyFilter : public QObject
 {
     Q_OBJECT
@@ -39,12 +40,16 @@ public:
 signals:
     void unlocked();
     void matrixUnlocked();
+    void fluxUnlocked();
+    void dndUnlocked();
 
 protected:
     bool eventFilter(QObject *o, QEvent *e) override;
 
 private:
-    int progress_[2]; // how many keys of each sequence have been matched
+    void restart();
+
+    int progress_[4]; // how many keys of each sequence have been matched
     QElapsedTimer lastPress_;
 };
 

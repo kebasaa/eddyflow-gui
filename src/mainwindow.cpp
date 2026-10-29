@@ -25,8 +25,6 @@
 
 #include "mainwindow.h"
 
-#include <iterator>
-
 #include <QApplication>
 #include <QtConcurrent>
 #include <QDebug>
@@ -43,7 +41,6 @@
 #include <QNetworkProxyFactory>
 #include <QPlainTextEdit>
 #include <QPushButton>
-#include <QRandomGenerator>
 #include <QSettings>
 #include <QScreen>
 #include <QScrollBar>
@@ -115,7 +112,6 @@ MainWindow::MainWindow(const QString& filename,
     newClicked_(false),
     previousPage_(Defs::CurrPage::Welcome),
     lastEasterEggVariant_(-1),
-    easterEggRepeats_(0),
     currentPage_(Defs::CurrPage::Welcome),
     currentStatus_(Defs::CurrStatus::Ready),
     currentRunStatus_(Defs::CurrRunStatus::Express),
@@ -236,6 +232,12 @@ MainWindow::MainWindow(const QString& filename,
             this, &MainWindow::unlockEasterEgg);
     connect(easterEggFilter, &EasterEggKeyFilter::matrixUnlocked,
             this, &MainWindow::unlockMatrixEasterEgg);
+    connect(easterEggFilter, &EasterEggKeyFilter::fluxUnlocked, this, [this]() {
+        showEasterEgg(static_cast<int>(EasterEggPage::Variant::Mario));
+    });
+    connect(easterEggFilter, &EasterEggKeyFilter::dndUnlocked, this, [this]() {
+        showEasterEgg(static_cast<int>(EasterEggPage::Variant::DnD));
+    });
     connect(mainWidget_, &MainWidget::showSmartfluxBarRequest,
             this, &MainWindow::setSmartfluxMode);
     connect(mainWidget_, &MainWidget::saveSilentlyRequest,
@@ -1434,7 +1436,7 @@ void MainWindow::createActions()
     viewRunPageAction->setToolTip(tr("Go to the <i>Output Console Page</i>. (%1)")
                                   .arg((viewRunPageAction->shortcut().toString())));
 
-    // hidden until "eddy" is typed; the text and icon are set on unlock
+    // hidden until one of the codes is typed; the text and icon are set on unlock
     viewEasterEggAction = new QAction(this);
     viewEasterEggAction->setCheckable(true);
     viewEasterEggAction->setVisible(false);
@@ -2326,66 +2328,32 @@ void MainWindow::viewEasterEggPage()
 
 void MainWindow::unlockEasterEgg()
 {
-    // a second unlock while the tab is showing must not swap its variant
-    if (viewEasterEggAction->isVisible())
-        return;
-
-    // weighted, in enum order: the first two are drawn twice as often as the
-    // third, so either may come round twice running but never a third time;
-    // the third never repeats back to back. The Matrix has a code of its
-    // own, "matrix", and is never drawn here.
-    static constexpr int WEIGHTS[] = { 2, 2, 1, 0 };
-    const int count = static_cast<int>(EasterEggPage::Variant::Count);
-    static_assert(std::size(WEIGHTS) == static_cast<size_t>(EasterEggPage::Variant::Count),
-                  "one weight per variant");
-
-    const auto allowed = [this](int v) {
-        if (WEIGHTS[v] == 0)
-            return false;
-        if (v != lastEasterEggVariant_)
-            return true;
-        return WEIGHTS[v] > 1 && easterEggRepeats_ < 2;
-    };
-    int total = 0;
-    for (int v = 0; v < count; ++v)
-        if (allowed(v))
-            total += WEIGHTS[v];
-    int draw = QRandomGenerator::global()->bounded(total);
-    int v = 0;
-    for (; v < count; ++v)
-    {
-        if (!allowed(v))
-            continue;
-        if (draw < WEIGHTS[v])
-            break;
-        draw -= WEIGHTS[v];
-    }
-    easterEggRepeats_ = (v == lastEasterEggVariant_) ? easterEggRepeats_ + 1 : 1;
-    lastEasterEggVariant_ = v;
-    auto variant = static_cast<EasterEggPage::Variant>(v);
-    mainWidget_->easterEggPage()->setVariant(variant);
-    viewEasterEggAction->setText(EasterEggPage::tabText(variant));
-    viewEasterEggAction->setIcon(EasterEggPage::tabIcon(variant));
-    viewEasterEggAction->setEnabled(true);
-    sepEasterEggAction->setVisible(true);
-    viewEasterEggAction->setVisible(true);
-    changeViewToolbarSeparators(currentPage());
+    // "eddy" is the despiking arena's; the others have codes of their own
+    showEasterEgg(static_cast<int>(EasterEggPage::Variant::Doom));
 }
 
 void MainWindow::unlockMatrixEasterEgg()
 {
     //> The Matrix plays the open project's raw data, so without a project
-    //> the code does nothing. Typed while another egg is showing, it takes
-    //> that egg's place: the code asks for this one by name.
+    //> the code does nothing.
     if (!hasOpenProject())
         return;
-    const int matrix = static_cast<int>(EasterEggPage::Variant::Matrix);
-    if (viewEasterEggAction->isVisible() && lastEasterEggVariant_ == matrix)
+    showEasterEgg(static_cast<int>(EasterEggPage::Variant::Matrix));
+}
+
+void MainWindow::showEasterEgg(int variantIndex)
+{
+    //> Each code asks for its egg by name, so typed while another egg's tab
+    //> is showing it takes that tab's place; typed again, it does nothing.
+    //> On the egg's own page the keys belong to the game being played, and
+    //> no code may swap it.
+    if (currentPage() == Defs::CurrPage::EasterEgg)
+        return;
+    if (viewEasterEggAction->isVisible() && lastEasterEggVariant_ == variantIndex)
         return;
 
-    lastEasterEggVariant_ = matrix;
-    easterEggRepeats_ = 1;
-    const auto variant = EasterEggPage::Variant::Matrix;
+    lastEasterEggVariant_ = variantIndex;
+    const auto variant = static_cast<EasterEggPage::Variant>(variantIndex);
     mainWidget_->easterEggPage()->setVariant(variant);
     viewEasterEggAction->setText(EasterEggPage::tabText(variant));
     viewEasterEggAction->setIcon(EasterEggPage::tabIcon(variant));

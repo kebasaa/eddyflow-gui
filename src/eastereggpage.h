@@ -41,11 +41,11 @@ class FakeLoading;
 class FluxRunnerPanel;
 class MatrixPanel;
 
-/// The hidden page unlocked by typing "eddy". Each unlock shows one of
-/// several variants; when the joke is over the page emits finished() and
-/// MainWindow hides its tab again. The Matrix variant has a code of its
-/// own, "matrix", and plays the open project's raw data, so MainWindow only
-/// shows it while a project is open.
+/// The hidden page, one variant per code: "eddy" unlocks Doom, "flux"
+/// Mario, "dnd" DnD and "matrix" the Matrix. When the joke is over the page
+/// emits finished() and MainWindow hides its tab again. The Matrix plays
+/// the open project's raw data, so MainWindow only shows it while a project
+/// is open.
 class EasterEggPage : public QWidget
 {
     Q_OBJECT
