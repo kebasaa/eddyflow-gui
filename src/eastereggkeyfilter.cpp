@@ -35,10 +35,27 @@
 
 namespace {
 
-const std::array<int, 4> SEQUENCE { Qt::Key_E, Qt::Key_D, Qt::Key_D, Qt::Key_Y };
+const std::array<int, 4> EDDY { Qt::Key_E, Qt::Key_D, Qt::Key_D, Qt::Key_Y };
+const std::array<int, 6> MATRIX { Qt::Key_M, Qt::Key_A, Qt::Key_T, Qt::Key_R, Qt::Key_I, Qt::Key_X };
+
+// one more key of a sequence; true when it completes it
+template <size_t N>
+bool advance(const std::array<int, N>& sequence, int& progress, int key)
+{
+    if (key == sequence[progress])
+        ++progress;
+    else // a wrong key may still start the sequence over
+        progress = (key == sequence[0]) ? 1 : 0;
+    if (progress == static_cast<int>(N))
+    {
+        progress = 0;
+        return true;
+    }
+    return false;
+}
 const qint64 MAX_GAP_MS = 1500;
 
-// typing "eddy" into a field is data entry, not a cheat code
+// typing "eddy" or "matrix" into a field is data entry, not a cheat code
 //
 // Only a field that can actually be typed into counts. A read-only view is
 // not one: the console and the info dock are read-only QPlainTextEdits, and
@@ -65,7 +82,7 @@ bool isTextInput(QWidget* w)
 
 EasterEggKeyFilter::EasterEggKeyFilter(QObject *parent) :
     QObject(parent),
-    progress_(0)
+    progress_{ 0, 0 }
 {
 }
 
@@ -90,24 +107,18 @@ bool EasterEggKeyFilter::eventFilter(QObject *o, QEvent *e)
             }
             else if ((key->modifiers() & blocking) || isTextInput(focus))
             {
-                progress_ = 0;
+                progress_[0] = progress_[1] = 0;
             }
             else
             {
-                if (progress_ > 0 && lastPress_.elapsed() > MAX_GAP_MS)
-                    progress_ = 0;
-
-                if (key->key() == SEQUENCE[progress_])
-                    ++progress_;
-                else // a wrong key may still start the sequence over
-                    progress_ = (key->key() == SEQUENCE[0]) ? 1 : 0;
+                if (lastPress_.isValid() && lastPress_.elapsed() > MAX_GAP_MS)
+                    progress_[0] = progress_[1] = 0;
                 lastPress_.start();
 
-                if (progress_ == static_cast<int>(SEQUENCE.size()))
-                {
-                    progress_ = 0;
+                if (advance(EDDY, progress_[0], key->key()))
                     emit unlocked();
-                }
+                if (advance(MATRIX, progress_[1], key->key()))
+                    emit matrixUnlocked();
             }
         }
     }

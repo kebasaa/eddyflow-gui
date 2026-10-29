@@ -234,6 +234,8 @@ MainWindow::MainWindow(const QString& filename,
     qApp->installEventFilter(easterEggFilter);
     connect(easterEggFilter, &EasterEggKeyFilter::unlocked,
             this, &MainWindow::unlockEasterEgg);
+    connect(easterEggFilter, &EasterEggKeyFilter::matrixUnlocked,
+            this, &MainWindow::unlockMatrixEasterEgg);
     connect(mainWidget_, &MainWidget::showSmartfluxBarRequest,
             this, &MainWindow::setSmartfluxMode);
     connect(mainWidget_, &MainWidget::saveSilentlyRequest,
@@ -357,6 +359,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
 
 void MainWindow::setCurrentProjectFile(const QString& fileName, bool modified)
 {
+    const QString previousFile = currEcProjectFilename_;
     if (fileName.isEmpty())
     {
         if (configState_.project.smartfluxMode)
@@ -375,6 +378,9 @@ void MainWindow::setCurrentProjectFile(const QString& fileName, bool modified)
     {
         currEcProjectFilename_ = fileName;
     }
+
+    if (currentProjectFile() != previousFile)
+        lockProjectEasterEgg();
 
     setFileCaption(currentProjectFile());
     updateStatusBar();
@@ -2326,13 +2332,16 @@ void MainWindow::unlockEasterEgg()
 
     // weighted, in enum order: the first two are drawn twice as often as the
     // third, so either may come round twice running but never a third time;
-    // the third never repeats back to back
-    static constexpr int WEIGHTS[] = { 2, 2, 1 };
+    // the third never repeats back to back. The Matrix has a code of its
+    // own, "matrix", and is never drawn here.
+    static constexpr int WEIGHTS[] = { 2, 2, 1, 0 };
     const int count = static_cast<int>(EasterEggPage::Variant::Count);
     static_assert(std::size(WEIGHTS) == static_cast<size_t>(EasterEggPage::Variant::Count),
                   "one weight per variant");
 
     const auto allowed = [this](int v) {
+        if (WEIGHTS[v] == 0)
+            return false;
         if (v != lastEasterEggVariant_)
             return true;
         return WEIGHTS[v] > 1 && easterEggRepeats_ < 2;
@@ -2361,6 +2370,47 @@ void MainWindow::unlockEasterEgg()
     sepEasterEggAction->setVisible(true);
     viewEasterEggAction->setVisible(true);
     changeViewToolbarSeparators(currentPage());
+}
+
+void MainWindow::unlockMatrixEasterEgg()
+{
+    //> The Matrix plays the open project's raw data, so without a project
+    //> the code does nothing. Typed while another egg is showing, it takes
+    //> that egg's place: the code asks for this one by name.
+    if (!hasOpenProject())
+        return;
+    const int matrix = static_cast<int>(EasterEggPage::Variant::Matrix);
+    if (viewEasterEggAction->isVisible() && lastEasterEggVariant_ == matrix)
+        return;
+
+    lastEasterEggVariant_ = matrix;
+    easterEggRepeats_ = 1;
+    const auto variant = EasterEggPage::Variant::Matrix;
+    mainWidget_->easterEggPage()->setVariant(variant);
+    viewEasterEggAction->setText(EasterEggPage::tabText(variant));
+    viewEasterEggAction->setIcon(EasterEggPage::tabIcon(variant));
+    viewEasterEggAction->setEnabled(true);
+    sepEasterEggAction->setVisible(true);
+    viewEasterEggAction->setVisible(true);
+    changeViewToolbarSeparators(currentPage());
+}
+
+bool MainWindow::hasOpenProject() const
+{
+    const auto& file = currentProjectFile();
+    return !file.isEmpty()
+           && file != Defs::DEFAULT_PROJECT_FILENAME
+           && file != Defs::DEFAULT_SMARTFLUX_PROJECT_FILENAME;
+}
+
+void MainWindow::lockProjectEasterEgg()
+{
+    //> The Matrix would go on playing a project that is no longer open
+    if (viewEasterEggAction->isVisible()
+        && lastEasterEggVariant_ == static_cast<int>(EasterEggPage::Variant::Matrix))
+    {
+        lockEasterEgg();
+    }
 }
 
 void MainWindow::lockEasterEgg()

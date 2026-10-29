@@ -56,6 +56,8 @@ HEADERS += \
     src/irga_tableview.h \
     src/irga_view.h \
     src/mainwindow.h \
+    src/matrixrain.h \
+    src/rawplayback.h \
     src/mymenu.h \
     src/mystyle.h \
     src/mytabwidget.h \
@@ -182,6 +184,8 @@ SOURCES +=  \
     src/irga_view.cpp \
     src/main.cpp \
     src/mainwindow.cpp \
+    src/matrixrain.cpp \
+    src/rawplayback.cpp \
     src/nonzerodoublespinbox.cpp \
     src/planarfitsettingsdialog.cpp \
     src/pwbtimelagsettingsdialog.cpp \
