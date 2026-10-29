@@ -123,6 +123,7 @@ const qreal THERMAL_LIFT = 600.0;
 const qreal THERMAL_MAX_RISE = 420.0;
 const int THERMAL_WIDTH = 3;
 const qreal RAIN_GRIP = 0.35;
+const qreal ICE_GRIP = 0.2;         // still stops within the room kept around a pit
 const qreal TUBE_HEIGHT = 40.0;
 
 // things
@@ -130,6 +131,9 @@ const qreal BUBBLE_G = 1400.0;
 const qreal SHOT_SPEED = 400.0;
 const qreal SHOT_G = 2200.0;
 const qreal HAT_SPEED = 80.0;
+const qreal COW_SPEED = 25.0;
+const qreal FALL_WARNING_S = 0.8;       // the shadow before a cone or a rock lets go
+const qreal FALL_WAKE = 14.0 * BAR_W;   // lets go so as to land as a runner arrives
 const qreal COFFEE_SPEED = 100.0;
 const qreal COFFEE_S = 8.0;
 const qreal HURT_INVULNERABLE_S = 1.5;
@@ -213,11 +217,16 @@ constexpr qreal CAP_PUFF_SPEED = 170.0;         // still 0.75 s to react on the 
 constexpr qreal CAP_BUBBLE_PAUSE = 1.6;         // the shortest: twice the time in the air
 constexpr qreal CAP_DEADLINE_PER_SLOT = 0.625;  // the shortest: over six times a flat-out run
 constexpr int CAP_SLOTS = 432;                  // nine days
+constexpr qreal CAP_TRACTOR_SPEED = 120.0;      // half a run: time to see it coming
+constexpr qreal CAP_SWARM_SPEED = 110.0;        // a swarm can always be outrun
+constexpr qreal CAP_DUST_DEVIL_SPEED = 60.0;
 constexpr qreal REACH_SHARE = 0.75;
 static_assert(CAP_RISE <= REACH_SHARE * JUMP_V * JUMP_V / (2.0 * G_RISE),
               "a wall the jump cannot clear with room to spare");
 static_assert(CAP_GUST <= 0.2 * MAX_RUN, "a headwind stronger than the caps allow for");
 static_assert(CAP_KICK < JUMP_V, "an eddy that outdoes the jump");
+static_assert(CAP_SWARM_SPEED < 0.5 * MAX_RUN, "a swarm the player cannot outrun");
+static_assert(CAP_TRACTOR_SPEED <= 0.5 * MAX_RUN, "a tractor too fast to react to");
 
 // how far a full-speed jump carries, landing rise px higher, into a headwind
 qreal reach(qreal rise, qreal headwind)
@@ -260,6 +269,7 @@ struct Site
     qreal bubbles;          // added to the share of pits with a bubble
     qreal moving;
     qreal showers;
+    qreal dangers;          // its own danger, against the level's count
     QColor fillTop;
     QColor fillBottom;
     QColor hills;           // the far horizon
@@ -272,56 +282,56 @@ const QList<Site>& sites()
 {
     static const QList<Site> list {
         { "forest", 30.0, 5.0, 3.5, 190, 70, 0.15, false, false,
-          1.0, 1.25, 0.8, 1.0, 0.8, 0.0, 1.0, 1.0,
+          1.0, 1.25, 0.8, 1.0, 0.8, 0.0, 1.0, 1.0, 1.0,
           QColor(34, 70, 40, 240), QColor(12, 24, 16, 250), QColor(40, 85, 55), QColor(26, 58, 36),
           { QStringLiteral("Mixed Forest"), QStringLiteral("Beech Forest"), QStringLiteral("Spruce Stand"),
             QStringLiteral("Pine Forest"), QStringLiteral("Oak Woodland"), QStringLiteral("Larch Forest") },
           { QStringLiteral("CH"), QStringLiteral("DE"), QStringLiteral("FI"), QStringLiteral("US"),
             QStringLiteral("CA"), QStringLiteral("FR") } },
         { "grassland", 20.0, 4.0, 3.5, 160, 80, 0.2, false, false,
-          1.0, 0.8, 1.2, 1.3, 1.0, 0.0, 1.0, 1.0,
+          1.0, 0.8, 1.2, 1.3, 1.0, 0.0, 1.0, 1.0, 0.8,
           QColor(70, 100, 45, 240), QColor(25, 35, 18, 250), QColor(110, 150, 80), QColor(70, 104, 52),
           { QStringLiteral("Grassland"), QStringLiteral("Meadow"), QStringLiteral("Pasture"),
             QStringLiteral("Steppe"), QStringLiteral("Prairie"), QStringLiteral("Hay Meadow") },
           { QStringLiteral("CH"), QStringLiteral("DE"), QStringLiteral("US"), QStringLiteral("CN"),
             QStringLiteral("IE"), QStringLiteral("NL") } },
         { "wetland", 14.0, 3.5, 3.5, 200, 60, 0.1, false, false,
-          1.25, 1.0, 1.0, 1.0, 1.0, 0.3, 1.3, 1.0,
+          1.25, 1.0, 1.0, 1.0, 1.0, 0.3, 1.3, 1.0, 0.6,
           QColor(30, 75, 75, 240), QColor(10, 28, 30, 250), QColor(60, 110, 100), QColor(58, 88, 58),
           { QStringLiteral("Fen"), QStringLiteral("Bog"), QStringLiteral("Marsh"),
             QStringLiteral("Mire"), QStringLiteral("Peatland"), QStringLiteral("Reed Bed") },
           { QStringLiteral("FI"), QStringLiteral("SE"), QStringLiteral("CA"), QStringLiteral("DE"),
             QStringLiteral("US"), QStringLiteral("IE") } },
         { "cropland", 40.0, 4.0, 3.5, 195, 30, 0.03, false, false,
-          1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0,
+          1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.5,
           QColor(110, 95, 40, 240), QColor(40, 32, 14, 250), QColor(150, 130, 70), QColor(104, 112, 52),
           { QStringLiteral("Winter Wheat"), QStringLiteral("Maize Field"), QStringLiteral("Barley Field"),
             QStringLiteral("Sugar Beet"), QStringLiteral("Rapeseed"), QStringLiteral("Potato Field") },
           { QStringLiteral("DE"), QStringLiteral("FR"), QStringLiteral("US"), QStringLiteral("BE"),
             QStringLiteral("DK"), QStringLiteral("IT") } },
         { "tundra", 8.0, 2.0, 7.0, 200, 45, 0.02, false, true,
-          1.0, 1.0, 1.4, 0.7, 0.7, 0.15, 1.0, 1.0,
+          1.0, 1.0, 1.4, 0.7, 0.7, 0.15, 1.0, 1.0, 1.0,
           QColor(90, 95, 90, 240), QColor(30, 34, 34, 250), QColor(150, 158, 160), QColor(96, 102, 88),
           { QStringLiteral("Tundra"), QStringLiteral("Polygon Mire"), QStringLiteral("Heath"),
             QStringLiteral("Permafrost Plateau"), QStringLiteral("Lichen Heath"), QStringLiteral("Palsa") },
           { QStringLiteral("CA"), QStringLiteral("RU"), QStringLiteral("NO"), QStringLiteral("SE"),
             QStringLiteral("FI"), QStringLiteral("US") } },
         { "savanna", 25.0, 4.5, 1.5, 30, 60, 0.05, true, false,
-          1.0, 1.0, 1.3, 1.0, 0.8, 0.0, 1.0, 1.0,
+          1.0, 1.0, 1.3, 1.0, 0.8, 0.0, 1.0, 1.0, 1.2,
           QColor(120, 95, 50, 240), QColor(45, 34, 18, 250), QColor(170, 140, 80), QColor(112, 90, 50),
           { QStringLiteral("Woodland Savanna"), QStringLiteral("Tree Savanna"), QStringLiteral("Bushveld"),
             QStringLiteral("Miombo"), QStringLiteral("Acacia Savanna"), QStringLiteral("Grass Savanna") },
           { QStringLiteral("ZA"), QStringLiteral("AU"), QStringLiteral("KE"), QStringLiteral("BR"),
             QStringLiteral("SN"), QStringLiteral("BW") } },
         { "mountain", 18.0, 3.5, 3.5, 200, 45, 0.05, false, true,
-          1.0, 1.3, 1.2, 1.0, 1.6, 0.0, 1.0, 1.0,
+          1.0, 1.3, 1.2, 1.0, 1.6, 0.0, 1.0, 1.0, 1.2,
           QColor(70, 78, 85, 240), QColor(25, 28, 32, 250), QColor(125, 135, 155), QColor(72, 78, 84),
           { QStringLiteral("Alpine Meadow"), QStringLiteral("Subalpine Forest"), QStringLiteral("Mountain Pasture"),
             QStringLiteral("Scree Slope"), QStringLiteral("High Valley"), QStringLiteral("Larch Treeline") },
           { QStringLiteral("CH"), QStringLiteral("AT"), QStringLiteral("IT"), QStringLiteral("FR"),
             QStringLiteral("US"), QStringLiteral("NP") } },
         { "desert", 3.0, 1.5, 3.0, 80, 30, 0.05, false, false,
-          1.2, 1.0, 1.5, 1.0, 1.0, 0.0, 1.0, 0.25,
+          1.2, 1.0, 1.5, 1.0, 1.0, 0.0, 1.0, 0.25, 0.8,
           QColor(150, 120, 75, 240), QColor(60, 45, 28, 250), QColor(210, 175, 120), QColor(150, 112, 72),
           { QStringLiteral("Shrub Desert"), QStringLiteral("Dune Field"), QStringLiteral("Salt Flat"),
             QStringLiteral("Stony Desert"), QStringLiteral("Creosote Bush"), QStringLiteral("Sand Sea") },
@@ -1628,6 +1638,251 @@ const QStringList& placeStems()
 }
 
 // a line on the level card for each kind of site, eight each
+const QStringList& cowPops()
+{
+    static const QStringList list {
+        QStringLiteral("MOO-VED!"),
+        QStringLiteral("UDDERLY SPRINGY!"),
+        QStringLiteral("THE HERD APPROVES!"),
+        QStringLiteral("FOOTPRINT: TRAMPLED!"),
+        QStringLiteral("METHANE SOURCE: VAULTED!"),
+        QStringLiteral("ENTERIC EMISSIONS: AVOIDED!"),
+        QStringLiteral("BOVINE BOOST!"),
+        QStringLiteral("OVER THE COW!"),
+        QStringLiteral("GRAZING INTERRUPTED!"),
+        QStringLiteral("MOOVING ON!"),
+        QStringLiteral("RUMINANT RECOIL!"),
+        QStringLiteral("COW-ABUNGA!"),
+        QStringLiteral("THE FARMER WILL HEAR OF THIS!"),
+        QStringLiteral("FETCH: NOW A PASTURE!"),
+        QStringLiteral("BELL RUNG!"),
+        QStringLiteral("HOOVES CLEARED!"),
+        QStringLiteral("STEAK-HOLDER ENGAGED!"),
+        QStringLiteral("THE COW IS UNIMPRESSED!"),
+        QStringLiteral("SPRUNG FROM THE SPOTS!"),
+        QStringLiteral("THE TOWER FENCE WAS THERE FOR A REASON!")
+    };
+    return list;
+}
+
+const QStringList& tractorPops()
+{
+    static const QStringList list {
+        QStringLiteral("TRACTOR BEAM!"),
+        QStringLiteral("HITCHED A RIDE!"),
+        QStringLiteral("OVER THE BONNET!"),
+        QStringLiteral("DIESEL DODGED!"),
+        QStringLiteral("SOIL COMPACTION: AVOIDED!"),
+        QStringLiteral("TRAMLINES CROSSED!"),
+        QStringLiteral("HAY THERE!"),
+        QStringLiteral("MANAGEMENT EVENT: SURVIVED!"),
+        QStringLiteral("FLAGGED IN THE SITE LOG!"),
+        QStringLiteral("PLOUGHED THROUGH!"),
+        QStringLiteral("TREAD: VAULTED!"),
+        QStringLiteral("THE FOOTPRINT IS NOT A ROAD!"),
+        QStringLiteral("CAB CLEARED!"),
+        QStringLiteral("HARVEST DELAYED!"),
+        QStringLiteral("CROP ROTATION!"),
+        QStringLiteral("THE FARMER WAVES!"),
+        QStringLiteral("EXHAUST PLUME: NOTED!"),
+        QStringLiteral("RIGHT OF WAY: CONTESTED!"),
+        QStringLiteral("THE TOWER STAYS WHERE IT IS!"),
+        QStringLiteral("MOWING CANCELLED!")
+    };
+    return list;
+}
+
+const QStringList& dustDevilPops()
+{
+    static const QStringList list {
+        QStringLiteral("SPUN UP!"),
+        QStringLiteral("CONVECTION!"),
+        QStringLiteral("FREE THERMAL!"),
+        QStringLiteral("SAND IN THE SONIC!"),
+        QStringLiteral("VORTEX RIDDEN!"),
+        QStringLiteral("VERTICAL WIND: CONFIRMED!"),
+        QStringLiteral("W' > 0!"),
+        QStringLiteral("LIFT-OFF!"),
+        QStringLiteral("THE ENERGY BALANCE STILL WON'T CLOSE!"),
+        QStringLiteral("WHIRLED!"),
+        QStringLiteral("BUOYANCY!"),
+        QStringLiteral("DUST: ADVECTED!"),
+        QStringLiteral("SPINNING UP THE SPECTRUM!"),
+        QStringLiteral("TWISTED!"),
+        QStringLiteral("DUST DEVIL: OUTWITTED!"),
+        QStringLiteral("SENSIBLE HEAT, INSENSIBLE JUMP!"),
+        QStringLiteral("UPDRAFT, SANDY!"),
+        QStringLiteral("THE DESERT EXPRESS!"),
+        QStringLiteral("SWIRL!"),
+        QStringLiteral("HOT AIR RISES. SO DO YOU!")
+    };
+    return list;
+}
+
+const QStringList& mosquitoPops()
+{
+    static const QStringList list {
+        QStringLiteral("SWATTED!"),
+        QStringLiteral("BZZZT!"),
+        QStringLiteral("BITE AVOIDED!"),
+        QStringLiteral("ONE LESS ITCH!"),
+        QStringLiteral("THE SWARM THINS!"),
+        QStringLiteral("SPLAT!"),
+        QStringLiteral("NO BLOOD SAMPLE TODAY!"),
+        QStringLiteral("INSECT IN THE PATH: REMOVED!"),
+        QStringLiteral("THE OPEN PATH THANKS YOU!"),
+        QStringLiteral("WHINE SILENCED!"),
+        QStringLiteral("A FIELD SEASON CLASSIC!"),
+        QStringLiteral("MOSQUITO: DESPIKED!"),
+        QStringLiteral("SIGNAL STRENGTH: RESTORED!"),
+        QStringLiteral("FLY-BY CANCELLED!"),
+        QStringLiteral("SWAMP RULES!"),
+        QStringLiteral("NETTED!"),
+        QStringLiteral("ONE DOWN, TEN THOUSAND TO GO!"),
+        QStringLiteral("SCRATCH THAT!"),
+        QStringLiteral("REPELLED!"),
+        QStringLiteral("THE MIRE WILL SEND MORE!")
+    };
+    return list;
+}
+
+const QStringList& fallPops()
+{
+    static const QStringList list {
+        QStringLiteral("LITTERFALL!"),
+        QStringLiteral("MISSED!"),
+        QStringLiteral("HEADS UP!"),
+        QStringLiteral("THAT WAS CLOSE!"),
+        QStringLiteral("GRAVITY: CONFIRMED!"),
+        QStringLiteral("NEWTON WAS RIGHT!"),
+        QStringLiteral("INCOMING!"),
+        QStringLiteral("DUCK!"),
+        QStringLiteral("SOMETHING FELL!"),
+        QStringLiteral("CHECK THE HARD HAT!"),
+        QStringLiteral("NEAR MISS LOGGED!"),
+        QStringLiteral("THE SLOPE IS RESTLESS!"),
+        QStringLiteral("THUD!"),
+        QStringLiteral("FIR ENOUGH!"),
+        QStringLiteral("ROCK BOTTOM!"),
+        QStringLiteral("LOOK UP!"),
+        QStringLiteral("THE CANOPY LETS GO!"),
+        QStringLiteral("DOWNWARD FLUX!"),
+        QStringLiteral("NOT ON THE SONIC, PLEASE!"),
+        QStringLiteral("THE MOUNTAIN SENDS ITS REGARDS!")
+    };
+    return list;
+}
+
+const QStringList& firePops()
+{
+    static const QStringList list {
+        QStringLiteral("SCORCHED!"),
+        QStringLiteral("HOT FOOT!"),
+        QStringLiteral("FIRE SEASON!"),
+        QStringLiteral("COMBUSTION FLUX!"),
+        QStringLiteral("A CO2 SOURCE, PERSONALLY!"),
+        QStringLiteral("BURNT!"),
+        QStringLiteral("SMOKE IN THE ANALYSER!"),
+        QStringLiteral("TOO HOT!"),
+        QStringLiteral("BIOMASS BURNING!"),
+        QStringLiteral("BLACK CARBON!"),
+        QStringLiteral("SINGED!"),
+        QStringLiteral("FIREBREAK MISSED!"),
+        QStringLiteral("CHARRED!"),
+        QStringLiteral("PYROGENIC!"),
+        QStringLiteral("HEAT FLUX: EXCESSIVE!"),
+        QStringLiteral("SENSIBLE HEAT: VERY SENSIBLE!"),
+        QStringLiteral("FEET: TOASTED!"),
+        QStringLiteral("THE SAVANNA BITES!"),
+        QStringLiteral("JUMP THE FLAMES NEXT TIME!"),
+        QStringLiteral("THAT WAS THE FIRE SEASON!")
+    };
+    return list;
+}
+
+const QStringList& icePops()
+{
+    static const QStringList list {
+        QStringLiteral("ICE!"),
+        QStringLiteral("SLIPPERY!"),
+        QStringLiteral("FRICTION: LOW!"),
+        QStringLiteral("WHEEE!"),
+        QStringLiteral("SKATING!"),
+        QStringLiteral("ICE PATCH!"),
+        QStringLiteral("CAREFUL NOW!"),
+        QStringLiteral("ZERO GRIP!"),
+        QStringLiteral("FROZEN SOLID!"),
+        QStringLiteral("THAW PENDING!"),
+        QStringLiteral("SLIDING!"),
+        QStringLiteral("HIGH ALBEDO, LOW GRIP!"),
+        QStringLiteral("MIND YOUR STEP!"),
+        QStringLiteral("COLD FEET!"),
+        QStringLiteral("GLIDE PATH!"),
+        QStringLiteral("BRAKES: OPTIONAL!"),
+        QStringLiteral("FROST HEAVE!"),
+        QStringLiteral("THE ACTIVE LAYER IS NOT ACTIVE!"),
+        QStringLiteral("PERMAFROST, SURFACE EDITION!"),
+        QStringLiteral("STOPPING DISTANCE: GENEROUS!")
+    };
+    return list;
+}
+
+// the first sight of a site's own danger in a level, four for each site
+const QStringList& dangerBanners(int kind)
+{
+    static const QList<QStringList> lines {
+        {   // forest
+            QStringLiteral("THE CANOPY IS SHEDDING"),
+            QStringLiteral("CONES INCOMING: WATCH FOR SHADOWS"),
+            QStringLiteral("LITTERFALL SEASON"),
+            QStringLiteral("MIND THE SHADOWS UNDER THE TREES")
+        },
+        {   // grassland
+            QStringLiteral("COWS IN THE FOOTPRINT"),
+            QStringLiteral("THE HERD IS GRAZING THE FETCH"),
+            QStringLiteral("LIVESTOCK ON THE PLOT"),
+            QStringLiteral("MIND THE COWS")
+        },
+        {   // wetland
+            QStringLiteral("MOSQUITO SWARMS"),
+            QStringLiteral("THE MIRE IS BUZZING"),
+            QStringLiteral("SWARMS AT DUSK"),
+            QStringLiteral("BRING THE NET")
+        },
+        {   // cropland
+            QStringLiteral("TRACTOR IN THE FOOTPRINT"),
+            QStringLiteral("MANAGEMENT EVENT IN PROGRESS"),
+            QStringLiteral("THE FARMER IS MOWING TODAY"),
+            QStringLiteral("HEAVY MACHINERY AHEAD")
+        },
+        {   // tundra
+            QStringLiteral("ICE ON THE TRACE"),
+            QStringLiteral("SLIPPERY GROUND AHEAD"),
+            QStringLiteral("THE MELTWATER HAS FROZEN"),
+            QStringLiteral("ICE PATCHES: LOW GRIP")
+        },
+        {   // savanna
+            QStringLiteral("GRASS FIRES"),
+            QStringLiteral("FIRE SEASON: JUMP THE FLAMES"),
+            QStringLiteral("THE DRY SEASON IS BURNING"),
+            QStringLiteral("SMOKE ON THE HORIZON")
+        },
+        {   // mountain
+            QStringLiteral("ROCKFALL"),
+            QStringLiteral("LOOSE ROCK ABOVE: WATCH FOR SHADOWS"),
+            QStringLiteral("THE SCREE IS MOVING"),
+            QStringLiteral("FALLING ROCKS AHEAD")
+        },
+        {   // desert
+            QStringLiteral("DUST DEVILS"),
+            QStringLiteral("WHIRLWINDS ON THE FLATS"),
+            QStringLiteral("CONVECTION IS SPINNING UP"),
+            QStringLiteral("SAND IN THE AIR")
+        }
+    };
+    return lines.at(std::clamp(kind, 0, static_cast<int>(lines.size()) - 1));
+}
+
 const QStringList& siteLines(int kind)
 {
     static const QList<QStringList> lines {
@@ -2397,6 +2652,7 @@ FluxRunner::FluxRunner(QWidget* parent) :
     diedInPit_(false),
     diedOfDeadline_(false),
     nightAnnounced_(false),
+    dangerAnnounced_(false),
     sky_(DAY_SKY),
     bannerColor_(AMBER),
     bannerAge_(BANNER_S),
@@ -2509,6 +2765,7 @@ void FluxRunner::startLevel(int level)
     nextGap_ = 0;
     clearStage_ = 0;
     nightAnnounced_ = false;
+    dangerAnnounced_ = false;
     tubeIndex_ = -1;
     flagY_ = bars_.at(towerColumn_).top - 250.0;
     nextEddy_ = 0.0;
@@ -2599,6 +2856,7 @@ FluxRunner::LevelSpec FluxRunner::specFor(int level)
     s.bubbleChance = at(0.35, 0.8);
     s.bubblePauseMin = std::max(at(2.4, 1.6), CAP_BUBBLE_PAUSE);
     s.bubblePauseMax = std::max(at(3.4, 2.4), s.bubblePauseMin + 0.4);
+    s.dangersPer100 = at(1.0, 2.5);
     s.hats = std::max(atInt(4, 2), 2);
     s.filters = std::max(atInt(2, 1), 1);
     s.coffees = std::max(atInt(2, 1), 1);
@@ -2853,6 +3111,12 @@ bool FluxRunner::raining(qreal x) const
     return false;
 }
 
+int FluxRunner::patchAt(qreal x) const
+{
+    const int c = columnOf(x);
+    return (c >= 0 && c < columnCount()) ? bars_.at(c).patch : -1;
+}
+
 qreal FluxRunner::gust(int zone) const
 {
     // surges and lulls around a mean wind, never a jitter
@@ -2912,6 +3176,7 @@ bool FluxRunner::generateLevel(bool hazards)
     tubes_.clear();
     moving_.clear();
     showers_.clear();
+    patches_.clear();
     gapEnds_.clear();
 
     const Site& site = sites().at(site_);
@@ -2961,7 +3226,7 @@ bool FluxRunner::generateLevel(bool hazards)
     for (int c = 0; c < n; ++c)
     {
         const int t = std::clamp(c - LEAD, 0, data - 1);
-        bars_.append({ FLOOR - height.at(t), flux.at(t), false, false, false, -1 });
+        bars_.append({ FLOOR - height.at(t), flux.at(t), false, false, false, -1, -1 });
     }
 
     checkpointColumn_ = LEAD + data / 2;
@@ -3143,6 +3408,28 @@ bool FluxRunner::generateLevel(bool hazards)
         moving_.append({ c0, c0 + length - 1, spec_.movingAmplitude, spec_.movingPeriod,
                          uniform(0.0, 2.0 * PI) });
         reserve(c0, c0 + length - 1);
+    }
+
+    // ice on the tundra, and in the dry season fire in the savanna's grass:
+    // on free ground only, a pad clear of every pit and wall, so that no
+    // take-off is ever made from either; fire is never wider than a hop
+    const bool icy = site_ == Tundra;
+    const bool burning = site_ == Savanna && seasonIndex_ == DrySeason;
+    if (hazards && (icy || burning))
+    {
+        const int wanted = count(spec_.dangersPer100, site.dangers);
+        for (int attempt = 0; attempt < 400 && patches_.size() < wanted; ++attempt)
+        {
+            const int c0 = LEAD + between(20, data - 16);
+            const int width = icy ? between(2, 6) : between(1, 2);
+            if (!isFree(c0 - spec_.pad, c0 + width - 1 + spec_.pad))
+                continue;
+            const int index = static_cast<int>(patches_.size());
+            for (int c = c0; c < c0 + width; ++c)
+                bars_[c].patch = index;
+            patches_.append({ c0, c0 + width - 1, burning, false });
+            reserve(c0, c0 + width - 1);
+        }
     }
 
     // showers, out of the turbulence zones: the site, the season and the
@@ -3402,7 +3689,7 @@ void FluxRunner::placeThings()
     auto plain = [this](int c)
     {
         const Bar& bar = bars_.at(c);
-        return !bar.gap && !bar.spike && !bar.tube && bar.moving < 0;
+        return !bar.gap && !bar.spike && !bar.tube && bar.moving < 0 && bar.patch < 0;
     };
     // a flat, plain stretch from c of the given length
     auto flat = [&](int c, int length)
@@ -3558,6 +3845,62 @@ void FluxRunner::placeThings()
         foe.spawn = foe.body;
         foes_.append(foe);
         ++puffs;
+    }
+
+    // the site's own danger: a cone or a rock above plain ground, a cow, a
+    // tractor or a dust devil on a stretch of its own, a swarm from dusk to
+    // dawn; ice and fire are already part of the ground
+    if (site_ == Tundra || site_ == Savanna)
+        return;
+    const int dangerCount = std::max(qRound(spec_.dangersPer100 * data / 100.0 * site.dangers), 0);
+    auto add = [this](FoeKind kind, const QPointF& feet, qreal halfW, qreal height, bool grounded,
+                      qreal timer)
+    {
+        Foe foe { kind, { feet, QPointF(), halfW, height, grounded }, {}, timer, 0.0, -1, true, false, false };
+        foe.spawn = foe.body;
+        foes_.append(foe);
+    };
+    QList<int> taken;
+    for (int attempt = 0; attempt < 400 && taken.size() < dangerCount; ++attempt)
+    {
+        const int c = LEAD + between(24, data - 12);
+        if (!farFromRespawn(c, 8))
+            continue;
+        bool crowded = false;
+        for (int other : taken)
+            crowded = crowded || std::abs(other - c) < 8;
+        if (crowded)
+            continue;
+        const qreal x = c * BAR_W + BAR_W / 2;
+        const qreal top = bars_.at(c).top;
+        const qreal sun = sunElevation(hourOfSlot(c - LEAD));
+        if (site_ == Forest || site_ == Mountain)
+        {
+            if (!flat(c - 2, 5))
+                continue;
+            const bool rock = site_ == Mountain;
+            add(FoeKind::Faller, QPointF(x, top), rock ? 9.0 : 6.0, rock ? 18.0 : 14.0, false, FALL_WARNING_S);
+        }
+        else if (site_ == Wetland)
+        {
+            if (sun > 0.15)
+                continue;
+            for (int i = 0; i < 3; ++i)
+                add(FoeKind::Mosquito, QPointF(x + 16.0 * i, top - 70.0 - 14.0 * i), 6.0, 10.0, false,
+                    uniform(0.0, 2.0 * PI));
+        }
+        else
+        {
+            if (!flat(c - 2, 6) || !clearAhead(c - 4, 8) || (site_ == Desert && sun <= 0.0))
+                continue;
+            if (site_ == Grassland)
+                add(FoeKind::Cow, QPointF(x, top), 16.0, 26.0, true, 0.0);
+            else if (site_ == Cropland)
+                add(FoeKind::Tractor, QPointF(x, top), 20.0, 30.0, true, 0.0);
+            else
+                add(FoeKind::DustDevil, QPointF(x, top), 10.0, 52.0, true, 0.0);
+        }
+        taken.append(c);
     }
 }
 
@@ -3848,6 +4191,30 @@ void FluxRunner::step(qreal dt)
                    pickFresh(snowy_ ? snowPops() : rainPops()), ICE);
         }
     }
+
+    // the site's own ground: named as it comes into view, ice to slide on,
+    // fire to keep out of
+    for (int i = 0; i < patches_.size() && !dangerAnnounced_; ++i)
+    {
+        if (patches_.at(i).start * BAR_W < cameraX_ + 0.8 * width())
+            noticeDanger();
+    }
+    const int patch = patchAt(x);
+    if (patch >= 0 && player_.grounded)
+    {
+        Patch& here = patches_[patch];
+        if (!here.fire && !here.announced)
+        {
+            here.announced = true;
+            addPop(QPointF(x, player_.feet.y() - 80.0), pickFresh(icePops()), ICE);
+        }
+        if (here.fire && invulnerable_ <= 0.0 && coffee_ <= 0.0)
+        {
+            hurt(pickFresh(firePops()));
+            if (state_ != State::Running)
+                return;
+        }
+    }
     const qreal night = nightAt(x);
     if (night > 0.8 && !nightAnnounced_ && runTime_ > 2.0)
     {
@@ -4015,9 +4382,11 @@ void FluxRunner::updatePlayer(qreal dt)
     crouching_ = (held_ & KeyDown) && b.grounded;
     b.height = crouching_ ? CROUCH_HEIGHT : PLAYER_HEIGHT;
 
-    // wet bars: less grip to start, turn and stop
-    const bool wet = b.grounded && raining(b.feet.x());
-    const qreal grip = wet ? RAIN_GRIP : 1.0;
+    // wet bars: less grip to start, turn and stop; ice, still less
+    const int patch = b.grounded ? patchAt(b.feet.x()) : -1;
+    const bool icy = patch >= 0 && !patches_.at(patch).fire;
+    const bool wet = icy || (b.grounded && raining(b.feet.x()));
+    const qreal grip = icy ? ICE_GRIP : (wet ? RAIN_GRIP : 1.0);
     const qreal maxRun = MAX_RUN * (coffee_ > 0.0 ? 1.2 : 1.0);
 
     qreal vx = b.vel.x();
@@ -4183,17 +4552,45 @@ void FluxRunner::updateFoes(qreal dt)
         }
         if (!foe.active)
         {
-            if (foe.spawn.feet.x() - foe.spawn.halfW > viewRight + 48.0)
+            if (foe.kind == FoeKind::Faller)
+            {
+                // it lets go while the player is far enough back to arrive
+                // under it as it lands, or to stop short of its shadow
+                const qreal ahead = foe.spawn.feet.x() - player_.feet.x();
+                if (ahead <= 0.0 || ahead > std::min(FALL_WAKE, 0.5 * width()))
+                    continue;
+                foe.body.feet.setY(-8.0);
+                foe.body.vel = QPointF();
+                foe.timer = FALL_WARNING_S;
+            }
+            else if (foe.spawn.feet.x() - foe.spawn.halfW > viewRight + 48.0)
+            {
                 continue;
+            }
             foe.active = true;
+            if (foe.kind != FoeKind::Reviewer && foe.kind != FoeKind::Bubble && foe.kind != FoeKind::Puff)
+                noticeDanger();
+            if (foe.kind == FoeKind::Tractor)
+                addPop(QPointF(std::min(foe.body.feet.x(), viewRight - 40.0), foe.body.feet.y() - 44.0),
+                       QStringLiteral("HONK!"), AMBER);
         }
 
         Body& b = foe.body;
         switch (foe.kind)
         {
             case FoeKind::Reviewer:
+            case FoeKind::Cow:
+            case FoeKind::Tractor:
+            case FoeKind::DustDevil:
             {
-                b.vel.setX(foe.facing * spec_.reviewerSpeed);
+                const qreal speed = foe.kind == FoeKind::Cow       ? COW_SPEED
+                                  : foe.kind == FoeKind::Tractor   ? std::min(1.7 * spec_.reviewerSpeed, CAP_TRACTOR_SPEED)
+                                  : foe.kind == FoeKind::DustDevil ? std::min(0.85 * spec_.reviewerSpeed, CAP_DUST_DEVIL_SPEED)
+                                                                   : spec_.reviewerSpeed;
+                // a dust devil wanders as it pleases
+                if (foe.kind == FoeKind::DustDevil && chance(0.4 * dt))
+                    foe.facing = -foe.facing;
+                b.vel.setX(foe.facing * speed);
                 b.vel.setY(std::min(b.vel.y() + G_FALL * dt, FALL_MAX));
                 const Move move = moveBody(b, dt, STEP_UP);
                 if (move.hitWall)
@@ -4244,6 +4641,48 @@ void FluxRunner::updateFoes(qreal dt)
                 const qreal ground = groundTop(b.feet.x());
                 if (std::isfinite(ground))
                     b.feet.ry() += (ground - 41.0 - b.feet.y()) * std::min(1.0, 3.0 * dt);
+                break;
+            }
+            case FoeKind::Mosquito:
+            {
+                // after the player, never faster than half a run, each of the
+                // swarm wobbling round a point of its own
+                foe.timer += dt;
+                const qreal own = foe.spawn.feet.x();
+                const QPointF target(player_.feet.x() + 14.0 * std::sin(2.0 * foe.timer + own),
+                                     player_.feet.y() - 0.6 * player_.height + 10.0 * std::cos(2.6 * foe.timer + own));
+                const QPointF to = target - QPointF(b.feet.x(), b.feet.y() - b.height / 2);
+                const qreal distance = std::max(std::hypot(to.x(), to.y()), 1.0);
+                const qreal speed = std::min(1.6 * spec_.reviewerSpeed, CAP_SWARM_SPEED);
+                b.feet += to / distance * speed * dt + QPointF(0.0, 50.0 * std::cos(9.0 * foe.timer) * dt);
+                b.feet.setY(std::clamp(b.feet.y(), 30.0, FLOOR));
+                foe.facing = to.x() < 0.0 ? -1 : 1;
+                break;
+            }
+            case FoeKind::Faller:
+            {
+                // the shadow first, then the fall
+                if (foe.timer > 0.0)
+                {
+                    foe.timer -= dt;
+                    break;
+                }
+                b.vel.setY(std::min(b.vel.y() + G_FALL * dt, FALL_MAX));
+                b.feet.ry() += b.vel.y() * dt;
+                const qreal ground = groundTop(b.feet.x());
+                if (std::isfinite(ground) && b.feet.y() >= ground)
+                {
+                    // landed: a cone breaks up, a rock lies a moment
+                    b.feet.setY(ground);
+                    foe.defeated = true;
+                    foe.squash = site_ == Mountain ? 1.0 : 0.3;
+                    if (std::abs(b.feet.x() - player_.feet.x()) < 4.0 * BAR_W)
+                        addPop(QPointF(b.feet.x(), ground - 30.0), pickFresh(fallPops()), AMBER);
+                }
+                else if (b.feet.y() > FLOOR + DEATH_DEPTH)
+                {
+                    foe.alive = false;
+                }
                 break;
             }
         }
@@ -4339,12 +4778,15 @@ void FluxRunner::updateShots(qreal dt)
             if (!foe.alive || !foe.active || foe.defeated)
                 continue;
             const Body& f = foe.body;
-            if (f.feet.y() - f.height > FLOOR)
+            // a falling cone or rock is too quick to hit
+            if (f.feet.y() - f.height > FLOOR || foe.kind == FoeKind::Faller)
                 continue;
             if (pulse.intersects(QRectF(f.feet.x() - f.halfW, f.feet.y() - f.height,
                                         2 * f.halfW, f.height)))
             {
-                defeat(foe, KILL_POINTS, pickFresh(despikePops()));
+                // a cow or a tractor shrugs a filter off
+                if (foe.kind != FoeKind::Cow && foe.kind != FoeKind::Tractor)
+                    defeat(foe, KILL_POINTS, pickFresh(despikePops()));
                 gone = true;
                 break;
             }
@@ -4399,6 +4841,9 @@ void FluxRunner::touchFoes(qreal previousFeet)
         // a bubble waiting down in its pit is no stepping stone out of it
         if (foe.body.feet.y() - foe.body.height > FLOOR)
             continue;
+        // a cone or a rock still up in the canopy is only a shadow so far
+        if (foe.kind == FoeKind::Faller && foe.timer > 0.0)
+            continue;
         const QRectF me(player_.feet.x() - player_.halfW, player_.feet.y() - player_.height,
                         2 * player_.halfW, player_.height);
         const Body& b = foe.body;
@@ -4412,14 +4857,30 @@ void FluxRunner::touchFoes(qreal previousFeet)
             continue;
         }
 
-        // from above, falling: a stomp, and each one before landing is worth more
+        // from above, falling: a stomp, and each one before landing is worth
+        // more; a cow, a tractor or a dust devil throws you back up unbeaten,
+        // and a falling cone or rock is no place to land
         const qreal top = b.feet.y() - b.height;
-        if (player_.vel.y() > 0.0 && previousFeet <= top + 6.0)
+        const bool fromAbove = player_.vel.y() > 0.0 && previousFeet <= top + 6.0;
+        if (fromAbove && (foe.kind == FoeKind::Cow || foe.kind == FoeKind::Tractor
+                          || foe.kind == FoeKind::DustDevil))
+        {
+            const bool high = foe.kind != FoeKind::Tractor || (held_ & KeyJump);
+            player_.vel.setY(-(high ? STOMP_HELD_V : STOMP_V));
+            player_.grounded = false;
+            const QStringList& pool = foe.kind == FoeKind::Cow     ? cowPops()
+                                    : foe.kind == FoeKind::Tractor ? tractorPops()
+                                                                   : dustDevilPops();
+            addPop(QPointF(b.feet.x(), top - 8.0), pickFresh(pool), ICE);
+            continue;
+        }
+        if (fromAbove && foe.kind != FoeKind::Faller)
         {
             const int points = CHAIN[std::min(stompChain_, 4)];
             ++stompChain_;
             const QStringList& pool = foe.kind == FoeKind::Reviewer ? reviewerPops()
                                     : foe.kind == FoeKind::Bubble   ? bubblePops()
+                                    : foe.kind == FoeKind::Mosquito ? mosquitoPops()
                                                                     : advectionPops();
             defeat(foe, points, pickFresh(pool));
             player_.vel.setY(-((held_ & KeyJump) ? STOMP_HELD_V : STOMP_V));
@@ -4429,6 +4890,12 @@ void FluxRunner::touchFoes(qreal previousFeet)
 
         if (invulnerable_ <= 0.0)
         {
+            // a cone or a rock that hits glances off
+            if (foe.kind == FoeKind::Faller)
+            {
+                foe.defeated = true;
+                foe.squash = 0.3;
+            }
             hurt();
             if (state_ != State::Running)
                 return;
@@ -4489,7 +4956,7 @@ void FluxRunner::fire()
     fireCooldown_ = 0.25;
 }
 
-void FluxRunner::hurt()
+void FluxRunner::hurt(const QString &why)
 {
     if (invulnerable_ > 0.0 || coffee_ > 0.0)
         return;
@@ -4497,7 +4964,8 @@ void FluxRunner::hurt()
     {
         power_ = Power::Small;
         invulnerable_ = HURT_INVULNERABLE_S;
-        addPop(QPointF(player_.feet.x(), player_.feet.y() - 70.0), pickFresh(hurtPops()), DANGER);
+        addPop(QPointF(player_.feet.x(), player_.feet.y() - 70.0),
+               why.isEmpty() ? pickFresh(hurtPops()) : why, DANGER);
         return;
     }
     die(false);
@@ -4629,6 +5097,15 @@ void FluxRunner::togglePause()
         clock_.restart();
     }
     update();
+}
+
+void FluxRunner::noticeDanger()
+{
+    // the site's own danger is named the first time it shows in a level
+    if (dangerAnnounced_)
+        return;
+    dangerAnnounced_ = true;
+    announce(pickFresh(dangerBanners(site_)), AMBER);
 }
 
 void FluxRunner::addPop(const QPointF &world, const QString &text, const QColor &color)
@@ -5739,6 +6216,69 @@ void FluxRunner::paintGround(QPainter &p) const
         }
     }
 
+    // the site's own ground: ice, glinting, and grass fires, flickering
+    for (const auto& patch : patches_)
+    {
+        const qreal x0 = patch.start * BAR_W;
+        const qreal x1 = (patch.end + 1) * BAR_W;
+        if (x1 < cameraX_ - 40.0 || x0 > cameraX_ + width() + 40.0)
+            continue;
+        if (patch.fire)
+        {
+            p.setPen(Qt::NoPen);
+            for (qreal x = x0 + 2.5; x < x1 - 1.0; x += 5.0)
+            {
+                const qreal top = groundTop(x);
+                if (!std::isfinite(top))
+                    continue;
+                const qreal flicker = 0.5 + 0.5 * std::sin(14.0 * clockTime_ + 0.7 * x);
+                const qreal tall = 10.0 + 9.0 * flicker;
+                const qreal sway = 1.5 * std::sin(9.0 * clockTime_ + x);
+                p.setBrush(QColor(230, 90, 30, 210));
+                p.drawPolygon(QPolygonF { QPointF(x - 3.5, top), QPointF(x + sway, top - tall),
+                                          QPointF(x + 3.5, top) });
+                p.setBrush(QColor(255, 210, 80, 230));
+                p.drawPolygon(QPolygonF { QPointF(x - 1.8, top), QPointF(x + 0.5 * sway, top - 0.55 * tall),
+                                          QPointF(x + 1.8, top) });
+            }
+            // and the smoke over it
+            p.setBrush(QColor(90, 85, 80, 70));
+            const qreal mid = (x0 + x1) / 2.0;
+            const qreal ground = groundTop(mid);
+            for (int k = 0; k < 3 && std::isfinite(ground); ++k)
+            {
+                const qreal age = std::fmod(0.8 * clockTime_ + k / 3.0, 1.0);
+                p.drawEllipse(QPointF(mid + 8.0 * age, ground - 24.0 - 40.0 * age), 5.0 + 6.0 * age, 4.0 + 5.0 * age);
+            }
+        }
+        else
+        {
+            QPolygonF sheet;
+            for (qreal x = x0; x <= x1; x += SAMPLE_W)
+            {
+                const qreal top = groundTop(std::min(x, x1 - 0.5));
+                if (std::isfinite(top))
+                    sheet << QPointF(x, top - 1.0);
+            }
+            p.setBrush(Qt::NoBrush);
+            p.setPen(QPen(QColor(200, 230, 255, 200), 4.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+            p.drawPolyline(sheet);
+            p.setPen(QPen(QColor(255, 255, 255, 220), 1.0));
+            p.drawPolyline(sheet.translated(0.0, -1.5));
+            // a glint here and there
+            for (qreal x = x0 + 10.0; x < x1 - 4.0; x += 22.0)
+            {
+                const qreal top = groundTop(x);
+                const int alpha = static_cast<int>(255 * std::max(0.0, std::sin(3.0 * clockTime_ + x)));
+                if (!std::isfinite(top) || alpha < 20)
+                    continue;
+                p.setPen(QPen(QColor(255, 255, 255, alpha), 1.0));
+                p.drawLine(QPointF(x - 3.0, top - 4.0), QPointF(x + 3.0, top - 4.0));
+                p.drawLine(QPointF(x, top - 7.0), QPointF(x, top - 1.0));
+            }
+        }
+    }
+
     // sampling tubes over their raised pair of half-hours, with a rain cap
     for (int c = firstSlot; c <= lastSlot; ++c)
     {
@@ -6032,6 +6572,172 @@ void FluxRunner::paintFoes(QPainter &p) const
                 p.drawEllipse(c + QPointF(0, -4), 8, 6);
                 p.setPen(QColor(40, 30, 20));
                 p.drawText(QRectF(c.x() - 12, c.y() - 6, 24, 12), Qt::AlignCenter, QStringLiteral("CO₂"));
+                break;
+            }
+            case FoeKind::Cow:
+            {
+                if (foe.defeated)
+                    break;
+                const int s = foe.facing;
+                const qreal stride = 2.0 * std::sin(6.0 * clockTime_ + foe.spawn.feet.x());
+                p.setPen(QPen(QColor(40, 40, 40), 2.2, Qt::SolidLine, Qt::RoundCap));
+                for (qreal leg : { -10.0, -4.0, 5.0, 11.0 })
+                    p.drawLine(QPointF(f.x() + leg, f.y() - 9), QPointF(f.x() + leg + (leg < 0 ? stride : -stride), f.y()));
+                p.setPen(QPen(QColor(60, 60, 60), 1));
+                p.setBrush(QColor(245, 245, 240));
+                p.drawRoundedRect(QRectF(f.x() - 15, f.y() - 22, 30, 14), 6, 6);
+                p.setPen(Qt::NoPen);
+                p.setBrush(QColor(35, 35, 35));
+                p.drawEllipse(QPointF(f.x() - 6, f.y() - 17), 4.5, 3.5);
+                p.drawEllipse(QPointF(f.x() + 5, f.y() - 13), 3.5, 2.5);
+                // the head, on the side it walks towards
+                const QPointF head(f.x() + s * 17, f.y() - 22);
+                p.setPen(QPen(QColor(60, 60, 60), 1));
+                p.setBrush(QColor(245, 245, 240));
+                p.drawEllipse(head, 6.0, 5.0);
+                p.setBrush(QColor(240, 170, 160));
+                p.drawEllipse(head + QPointF(s * 4, 2.5), 3.5, 2.5);
+                p.setPen(QPen(QColor(220, 210, 180), 1.6));
+                p.drawLine(head + QPointF(-3, -4), head + QPointF(-5, -8));
+                p.drawLine(head + QPointF(3, -4), head + QPointF(5, -8));
+                p.setPen(Qt::NoPen);
+                p.setBrush(QColor(20, 20, 20));
+                p.drawEllipse(head + QPointF(s * 1.5, -1), 1.1, 1.1);
+                break;
+            }
+            case FoeKind::Tractor:
+            {
+                if (foe.defeated)
+                    break;
+                const int s = foe.facing;
+                // the chassis, the bonnet in front, the cab behind
+                p.setPen(QPen(QColor(30, 50, 25), 1));
+                p.setBrush(QColor(60, 140, 50));
+                p.drawRect(QRectF(f.x() - 18, f.y() - 20, 36, 10));
+                p.drawRect(QRectF(s > 0 ? f.x() : f.x() - 18, f.y() - 27, 18, 8));
+                const qreal cabX = s > 0 ? f.x() - 18 : f.x() + 4;
+                p.drawRect(QRectF(cabX, f.y() - 36, 14, 17));
+                p.setBrush(QColor(190, 220, 235));
+                p.drawRect(QRectF(cabX + 3, f.y() - 33, 8, 7));
+                // the exhaust, puffing
+                const QPointF pipe(f.x() + s * 8, f.y() - 27);
+                p.setPen(QPen(QColor(50, 50, 50), 2));
+                p.drawLine(pipe, pipe + QPointF(0, -8));
+                p.setPen(Qt::NoPen);
+                p.setBrush(QColor(110, 110, 110, 120));
+                for (int k = 0; k < 2; ++k)
+                {
+                    const qreal age = std::fmod(2.0 * clockTime_ + 0.5 * k, 1.0);
+                    p.drawEllipse(pipe + QPointF(-s * 10.0 * age, -10.0 - 14.0 * age), 2.0 + 3.0 * age, 2.0 + 3.0 * age);
+                }
+                // the wheels, turning
+                const qreal turn = -s * 8.0 * clockTime_;
+                for (const auto& wheel : { QPointF(f.x() - s * 9, f.y() - 10), QPointF(f.x() + s * 12, f.y() - 6) })
+                {
+                    const qreal r = wheel.y() < f.y() - 8 ? 10.0 : 6.0;
+                    p.setPen(QPen(QColor(25, 25, 25), 1));
+                    p.setBrush(QColor(45, 45, 45));
+                    p.drawEllipse(wheel, r, r);
+                    p.setBrush(QColor(230, 190, 40));
+                    p.drawEllipse(wheel, 0.45 * r, 0.45 * r);
+                    p.setPen(QPen(QColor(25, 25, 25), 1.2));
+                    p.drawLine(wheel + QPointF(r * std::cos(turn), r * std::sin(turn)),
+                               wheel - QPointF(r * std::cos(turn), r * std::sin(turn)));
+                }
+                break;
+            }
+            case FoeKind::DustDevil:
+            {
+                if (foe.defeated)
+                    break;
+                // a funnel of sand, wide at the top, spinning
+                p.setBrush(Qt::NoBrush);
+                for (int k = 0; k < 9; ++k)
+                {
+                    const qreal t = k / 8.0;
+                    const qreal y = f.y() - 4.0 - 48.0 * t;
+                    const qreal r = 3.0 + 13.0 * t;
+                    const qreal sway = 3.0 * std::sin(5.0 * clockTime_ + 0.8 * k);
+                    const int start = static_cast<int>(900.0 * clockTime_ + 70.0 * k) % 360;
+                    p.setPen(QPen(QColor(210, 180, 130, 110 + 12 * k), 1.6));
+                    p.drawArc(QRectF(f.x() + sway - r, y - 0.3 * r, 2 * r, 0.6 * r), start * 16, 250 * 16);
+                }
+                // grit kicked up at its foot
+                p.setPen(Qt::NoPen);
+                p.setBrush(QColor(200, 170, 120, 160));
+                for (int k = 0; k < 5; ++k)
+                {
+                    const qreal a = 7.0 * clockTime_ + 1.3 * k;
+                    p.drawEllipse(QPointF(f.x() + 9.0 * std::cos(a), f.y() - 3.0 - 2.5 * std::sin(a)), 1.4, 1.4);
+                }
+                break;
+            }
+            case FoeKind::Mosquito:
+            {
+                if (foe.defeated)
+                    break;
+                const QPointF c(f.x(), f.y() - 5);
+                const int s = foe.facing;
+                const qreal flap = std::sin(60.0 * clockTime_ + foe.spawn.feet.x());
+                p.setPen(Qt::NoPen);
+                p.setBrush(QColor(220, 230, 240, 130));
+                p.drawEllipse(c + QPointF(-2.5, -4.0 - 1.5 * flap), 4.5, 2.2);
+                p.drawEllipse(c + QPointF(2.5, -4.0 + 1.5 * flap), 4.5, 2.2);
+                p.setBrush(QColor(40, 35, 30));
+                p.drawEllipse(c, 4.0, 2.4);
+                p.drawEllipse(c + QPointF(s * 4.0, -0.5), 1.8, 1.8);
+                p.setPen(QPen(QColor(40, 35, 30), 0.8));
+                p.drawLine(c + QPointF(s * 5.5, 0.0), c + QPointF(s * 9.5, 1.5));
+                for (int k = -1; k <= 1; ++k)
+                    p.drawLine(c + QPointF(2.0 * k, 1.0), c + QPointF(3.5 * k, 5.0));
+                break;
+            }
+            case FoeKind::Faller:
+            {
+                const bool rock = site_ == Mountain;
+                const QPointF landing = foe.spawn.feet;
+                if (foe.timer > 0.0)
+                {
+                    // the warning: a shadow growing where it will land, and
+                    // a trickle of debris
+                    const qreal t = 1.0 - foe.timer / FALL_WARNING_S;
+                    p.setPen(Qt::NoPen);
+                    p.setBrush(QColor(0, 0, 0, static_cast<int>(40 + 80 * t)));
+                    p.drawEllipse(landing + QPointF(0.0, -1.0), 4.0 + 8.0 * t, 1.5 + 1.5 * t);
+                    p.setBrush(rock ? QColor(150, 145, 140) : QColor(120, 90, 50));
+                    for (int k = 0; k < 4; ++k)
+                    {
+                        const qreal y = std::fmod(260.0 * clockTime_ + 61.0 * k, std::max(landing.y(), 1.0));
+                        p.drawEllipse(QPointF(landing.x() + 5.0 * std::sin(2.1 * k), y), 1.3, 1.3);
+                    }
+                    break;
+                }
+                p.setOpacity(foe.defeated ? std::clamp(foe.squash / 0.3, 0.0, 1.0) : 1.0);
+                const QPointF c(f.x(), f.y() - foe.body.height / 2);
+                if (rock)
+                {
+                    const qreal turn = foe.defeated ? 0.0 : 6.0 * clockTime_;
+                    QPolygonF stone;
+                    for (int k = 0; k < 7; ++k)
+                    {
+                        const qreal a = turn + k * 2.0 * PI / 7.0;
+                        const qreal r = 8.0 + 2.5 * hash01(k + foe.spawn.feet.x());
+                        stone << c + QPointF(r * std::cos(a), 0.85 * r * std::sin(a));
+                    }
+                    p.setPen(QPen(QColor(70, 70, 72), 1));
+                    p.setBrush(QColor(140, 138, 135));
+                    p.drawPolygon(stone);
+                }
+                else
+                {
+                    p.setPen(QPen(QColor(80, 50, 25), 1));
+                    p.setBrush(QColor(150, 100, 50));
+                    p.drawEllipse(c, 4.5, 7.5);
+                    p.setPen(QPen(QColor(90, 60, 30), 0.8));
+                    for (int k = -1; k <= 1; ++k)
+                        p.drawLine(c + QPointF(-4.0, 3.5 * k), c + QPointF(4.0, 3.5 * k + 1.5));
+                }
+                p.setOpacity(1.0);
                 break;
             }
         }
