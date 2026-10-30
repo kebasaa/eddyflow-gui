@@ -266,7 +266,7 @@ private:
     {
         QPointF pos;
         qreal radius;
-        int spin;       // +1 anticlockwise on screen
+        int spin;       // +1 clockwise on screen: top forward, bottom back
         qreal age;
         qreal cooldown;
         int zone;

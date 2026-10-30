@@ -4430,7 +4430,9 @@ void FluxRunner::updatePlayer(qreal dt)
         vy = std::min(vy + gravity * dt, FALL_MAX);
     }
 
-    // eddies: a kick along the swirl, up on its rising side
+    // eddies: a kick along the swirl where the player meets it - up on its
+    // rising side, down on its sinking one, with the flow across its top and
+    // against it across its bottom; a shove, never a hurt
     for (auto& eddy : eddies_)
     {
         if (eddy.cooldown > 0.0)
@@ -4449,7 +4451,9 @@ void FluxRunner::updatePlayer(qreal dt)
             kick.setX(0.0);
             kick.setY(std::min(kick.y(), 0.0));
         }
-        vx = std::clamp(vx + 0.5 * kick.x(), -1.4 * maxRun, 1.4 * maxRun);
+        // the whole kick sideways, enough to throw a runner back against
+        // the run for a moment rather than only slow them
+        vx = std::clamp(vx + kick.x(), -1.6 * maxRun, 1.6 * maxRun);
         vy = std::max(vy + kick.y(), -JUMP_V);
         if (kick.y() < -150.0)
         {
@@ -4523,14 +4527,15 @@ void FluxRunner::updateAtmosphere(qreal dt)
         const qreal to = std::min((zones_.at(z).end + 1) * BAR_W, viewRight + 200.0);
         if (to - from < 60.0)
             continue;
-        // born upwind
+        // born upwind, and turning as the shear turns it: the wind is
+        // stronger aloft, so its top moves downwind and its bottom upwind
         const qreal x = zones_.at(z).direction > 0 ? from + uniform(0.0, 80.0)
                                                    : to - uniform(0.0, 80.0);
         qreal ground = groundTop(x);
         if (!std::isfinite(ground))
             ground = FLOOR - 150.0;
         eddies_.append({ QPointF(x, ground - uniform(50.0, 130.0)), uniform(15.0, 35.0),
-                         chance(0.5) ? 1 : -1, 0.0, 0.0, z });
+                         zones_.at(z).direction, 0.0, 0.0, z });
         break;
     }
 }
@@ -6750,13 +6755,24 @@ void FluxRunner::paintEddies(QPainter &p) const
     for (const auto& eddy : eddies_)
     {
         const qreal alpha = std::min(1.0, eddy.age / 0.5) * std::clamp((7.0 - eddy.age) / 0.8, 0.0, 1.0);
-        const int turn = static_cast<int>(eddy.age * 220.0 * eddy.spin) % 360;
+        // Qt's angles run anticlockwise, the kick of a positive spin clockwise
+        const int turn = static_cast<int>(-eddy.age * 220.0 * eddy.spin) % 360;
         for (int k = 0; k < 3; ++k)
         {
             const qreal r = eddy.radius * (1.0 - 0.33 * k);
+            const int start = turn + k * 50;
             p.setPen(QPen(QColor(255, 255, 255, static_cast<int>(110 * alpha)), 1.8 - 0.4 * k));
-            p.drawArc(QRectF(eddy.pos.x() - r, eddy.pos.y() - r, 2 * r, 2 * r),
-                      (turn + k * 50) * 16, 240 * 16);
+            p.drawArc(QRectF(eddy.pos.x() - r, eddy.pos.y() - r, 2 * r, 2 * r), start * 16, 240 * 16);
+
+            // an arrowhead on the leading end of each ring, so that which way
+            // it turns, and so where it pushes, can be read at a glance
+            const qreal lead = (eddy.spin > 0 ? start : start + 240) * PI / 180.0;
+            const QPointF tip = eddy.pos + QPointF(r * std::cos(lead), -r * std::sin(lead));
+            const QPointF ahead = eddy.spin * QPointF(std::sin(lead), std::cos(lead));
+            const QPointF side(-ahead.y(), ahead.x());
+            const qreal size = 4.5 - k;
+            p.drawLine(tip, tip - size * ahead + 0.7 * size * side);
+            p.drawLine(tip, tip - size * ahead - 0.7 * size * side);
         }
     }
 }
