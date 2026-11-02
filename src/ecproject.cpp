@@ -2277,12 +2277,12 @@ bool EcProject::saveEcProject(const QString &filename)
                 if (proc.toMinLag > -9000.0 && proc.toMinLag != -1.0)
                 {
                     project_ini.setValue(pfx + QStringLiteral("min_lag"),
-                                         QString::number(proc.toMinLag, 'f', 1));
+                                         QString::number(proc.toMinLag, 'f', 2));
                 }
                 if (proc.toMaxLag > -9000.0 && proc.toMaxLag != -1.0)
                 {
                     project_ini.setValue(pfx + QStringLiteral("max_lag"),
-                                         QString::number(proc.toMaxLag, 'f', 1));
+                                         QString::number(proc.toMaxLag, 'f', 2));
                 }
                 if (proc.toMinFlux >= 0.0)
                 {
@@ -5233,9 +5233,9 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
             const qreal dMin[4] = { dto.co2_min_lag, dto.h2o_min_lag, dto.ch4_min_lag, dto.gas4_min_lag };
             const qreal dMax[4] = { dto.co2_max_lag, dto.h2o_max_lag, dto.ch4_max_lag, dto.gas4_max_lag };
             ini.setValue(QStringLiteral("to_%1_min_lag").arg(s),
-                         QString::number(pickLag(p.toMinLag, dMin[i]), 'f', 1));
+                         QString::number(pickLag(p.toMinLag, dMin[i]), 'f', 2));
             ini.setValue(QStringLiteral("to_%1_max_lag").arg(s),
-                         QString::number(pickLag(p.toMaxLag, dMax[i]), 'f', 1));
+                         QString::number(pickLag(p.toMaxLag, dMax[i]), 'f', 2));
 
             //> Water's counterpart is to_le_min_flux, a project-wide key that
             //> is already in the file - the same exception the QA/QC triple

@@ -30,6 +30,9 @@
 	       cleared when it stops being a tube-mate. Changing it marks a
 	       computed dataset stale. The two fixes above and this are pinned
 	       by tests/test_tlag_borrow_contract_static.py.
+	- Fix: The time lag optimization search windows take two decimals rather
+	       than one, in the dialog and in the project file, so a bound can sit
+	       on a single 20 Hz sample.
 
 8.1.3 (2026-10-28)
 
