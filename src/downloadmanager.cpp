@@ -29,10 +29,28 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkRequest>
+#include <QRegularExpression>
 #include <QSaveFile>
+#include <QSysInfo>
 #include <QUrl>
 
 #include "defs.h"
+
+namespace {
+
+// The architecture this program was built for, as the build script names
+// its archive: the first field of the compiler's target triple, with arm64
+// for GCC's aarch64. Not the machine's: an update replaces this program's
+// own files, so an x86_64 build running under emulation stays x86_64.
+QString releaseArch()
+{
+    const auto arch = QSysInfo::buildCpuArchitecture();
+    if (arch == QStringLiteral("i386"))
+        return QStringLiteral("i686");
+    return arch;
+}
+
+} // namespace
 
 DownloadManager::DownloadManager(QObject *parent) :
     QObject(parent),
@@ -140,7 +158,15 @@ void DownloadManager::parseRelease(const QByteArray &data)
     version_ = tag;
     name_ = release.value(QStringLiteral("name")).toString().trimmed();
 
-    // the portable archive: a zip if there is one, as it needs no helper
+    // the portable archive for this build's architecture, named
+    // ..._windows_<arch>.7z; one with no architecture in its name predates
+    // the arm64 builds, and so is x86_64
+    static const QRegularExpression archPattern(
+        QStringLiteral("_windows_([A-Za-z0-9]+)\\.(zip|7z)$"),
+        QRegularExpression::CaseInsensitiveOption);
+    const auto arch = releaseArch();
+
+    // a zip if there is one, as it needs no helper
     QJsonObject chosen;
     const auto assets = release.value(QStringLiteral("assets")).toArray();
     for (const auto& value : assets)
@@ -148,6 +174,11 @@ void DownloadManager::parseRelease(const QByteArray &data)
         const auto asset = value.toObject();
         const auto name = asset.value(QStringLiteral("name")).toString();
         if (!name.contains(QStringLiteral("portable"), Qt::CaseInsensitive))
+            continue;
+        const auto match = archPattern.match(name);
+        const auto assetArch = match.hasMatch() ? match.captured(1)
+                                                : QStringLiteral("x86_64");
+        if (assetArch.compare(arch, Qt::CaseInsensitive) != 0)
             continue;
         if (name.endsWith(QStringLiteral(".zip"), Qt::CaseInsensitive))
         {

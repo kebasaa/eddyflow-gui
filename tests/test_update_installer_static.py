@@ -67,6 +67,16 @@ class TheCheck(unittest.TestCase):
         self.assertIn("JlCompress::extractDir", extract)
         self.assertIn("sevenZip()", extract)
 
+    def test_takes_the_archive_for_this_build_architecture(self):
+        manager = read("downloadmanager.cpp")
+        self.assertIn('"_windows_([A-Za-z0-9]+)\\\\.(zip|7z)$"', manager)
+        self.assertIn("QSysInfo::buildCpuArchitecture()", body(manager, "QString releaseArch()"))
+        self.assertNotIn("currentCpuArchitecture", manager)
+        parse = body(manager, "void DownloadManager::parseRelease(")
+        self.assertIn("releaseArch()", parse)
+        # an archive with no architecture in its name predates arm64
+        self.assertIn(': QStringLiteral("x86_64");', parse)
+
     def test_startup_shows_only_a_newer_release_and_waits_for_no_timer(self):
         main = read("mainwindow.cpp")
         self.assertNotIn("showAutoUpdateResults", main)

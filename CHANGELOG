@@ -33,6 +33,12 @@
 	- Fix: The time lag optimization search windows take two decimals rather
 	       than one, in the dialog and in the project file, so a bound can sit
 	       on a single 20 Hz sample.
+	- Fix: The updater downloads the portable archive built for the
+	       architecture of the running EddyFlow, now that the build names it
+	       ..._windows_<arch>.7z (x86_64 or arm64). An archive with no
+	       architecture in its name is taken to be x86_64. A release with no
+	       archive for this architecture is offered as its release page
+	       only. Pinned by tests/test_update_installer_static.py.
 
 8.1.3 (2026-10-28)
 
