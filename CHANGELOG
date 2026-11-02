@@ -1,3 +1,45 @@
+8.1.4 (2026-11-02)
+
+    GUI:
+	- Version bump to match EddyFlow engine 8.1.4. Nothing in the interface
+	  changes.
+	- Fix: "Borrow a tube-mate's lag below the detection limit" could not be
+	       switched on with the flux detection limit off. The checkbox was
+	       greyed, correctly, because the default floor needs the limit - but
+	       "Judged against", the one control that lifts that by choosing the
+	       Lenschow noise, was only enabled while the box was ticked, so the
+	       whole block stayed grey. "Judged against" is now also enabled
+	       whenever it is what greys the checkbox. The checkbox tooltip says
+	       the Lenschow floor needs no detection limit.
+	- Fix: Switching the flux detection limit on or off under Statistical
+	       Analysis now updates the borrowing controls straight away; before,
+	       they kept their old greying until the project was reloaded. A new
+	       EcProject signal, detlimMethodChanged, carries the change across
+	       the two tabs.
+	- New feature: "Chosen per gas", a third row under "Borrow from"
+	       (tlag_borrow_donor 2). "Donors..." beside the menu opens a list
+	       with one row per gas that has a tube-mate, each offering
+	       "Automatic (best-resolved)" and the other non-water gases on the
+	       same analyser. A gas that names a donor borrows from that one or
+	       not at all, the way the carbon dioxide rule does. Stored as the
+	       new key tlag_borrow_pairs (RawProcess_Settings), 1-based gas-record
+	       pairs "borrower:donor", written whatever the rule so the choice
+	       survives switching away and back. The donor rides on the gas
+	       record as tlagDonor and is renumbered everywhere moistureRef is -
+	       compaction, choosing a primary instrument and removing a gas - and
+	       cleared when it stops being a tube-mate. Changing it marks a
+	       computed dataset stale. The two fixes above and this are pinned
+	       by tests/test_tlag_borrow_contract_static.py.
+	- Fix: The time lag optimization search windows take two decimals rather
+	       than one, in the dialog and in the project file, so a bound can sit
+	       on a single 20 Hz sample.
+	- Fix: The updater downloads the portable archive built for the
+	       architecture of the running EddyFlow, now that the build names it
+	       ..._windows_<arch>.7z (x86_64 or arm64). An archive with no
+	       architecture in its name is taken to be x86_64. A release with no
+	       archive for this architecture is offered as its release page
+	       only. Pinned by tests/test_update_installer_static.py.
+
 8.1.3 (2026-10-28)
 
     GUI:

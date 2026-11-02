@@ -38,8 +38,11 @@ class QSaveFile;
 /// The release comes from the GitHub API rather than the release page, as
 /// only the API lists the files a release carries: the version is its tag,
 /// and the archive the first asset named *portable* that is a .zip or a .7z,
-/// a zip preferred. GitHub publishes a SHA-256 for every asset, which the
-/// download is checked against.
+/// a zip preferred, built for the architecture this program was built for:
+/// the build script names it ..._windows_<arch>.7z, and an archive with no
+/// architecture in its name is taken to be x86_64. A release with no archive
+/// for this architecture is offered only as its release page. GitHub
+/// publishes a SHA-256 for every asset, which the download is checked against.
 class DownloadManager : public QObject
 {
     Q_OBJECT

@@ -5,7 +5,7 @@ TEMPLATE = app
 # EddyFlow version
 VER_MAJ = 8
 VER_MIN = 1
-VER_PAT = 3
+VER_PAT = 4
 VERSION = $$sprintf("%1.%2.%3",$$VER_MAJ,$$VER_MIN,$$VER_PAT)
 
 # Qt version and path
@@ -48,7 +48,8 @@ CONFIG(debug, debug|release) {
 
     # to suppress qt and 3rdparty library warnings
     QMAKE_CXXFLAGS += -isystem "$$QT_PATH/include"
-    QMAKE_CXXFLAGS += -isystem "$$_PRO_FILE_PWD_/libs/quazip-1.x/quazip"
+    !isEmpty(QUAZIP_INCLUDE_DIR): QMAKE_CXXFLAGS += -isystem "$$QUAZIP_INCLUDE_DIR"
+    else: QMAKE_CXXFLAGS += -isystem "$$_PRO_FILE_PWD_/libs/quazip-1.x/quazip"
 
     win32 {
         # mingw warnings
@@ -71,7 +72,7 @@ CONFIG(debug, debug|release) {
         QMAKE_CXXFLAGS_WARN_ON += -Wno-exit-time-destructors # static objects
         QMAKE_CXXFLAGS_WARN_ON += -Wno-documentation -Wno-documentation-unknown-command -Wno-documentation-deprecated-sync
 
-        QMAKE_PRE_LINK += && $$_PRO_FILE_PWD_/scripts/build/mac-update-translations.sh$$escape_expand(\\n\\t)
+        QMAKE_PRE_LINK += && /bin/bash $$shell_quote($$_PRO_FILE_PWD_/scripts/build/mac-update-translations.sh) $$shell_quote($$[QT_HOST_BINS])$$escape_expand(\\n\\t)
     }
 } else {
     TARGET = EddyFlow
@@ -82,7 +83,7 @@ CONFIG(debug, debug|release) {
     DEFINES += QT_NO_WARNING_OUTPUT
 
     macx {
-        QMAKE_PRE_LINK += && $$_PRO_FILE_PWD_/scripts/build/mac-update-translations.sh$$escape_expand(\\n\\t)
+        QMAKE_PRE_LINK += && /bin/bash $$shell_quote($$_PRO_FILE_PWD_/scripts/build/mac-update-translations.sh) $$shell_quote($$[QT_HOST_BINS])$$escape_expand(\\n\\t)
 
         # remove debug symbols
         QMAKE_POST_LINK += && strip -S "$$OUT_PWD/release/EddyFlow.app/Contents/MacOS/EddyFlow"

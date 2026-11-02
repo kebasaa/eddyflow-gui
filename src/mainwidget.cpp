@@ -84,7 +84,7 @@ MainWidget::MainWidget(QWidget *parent, DlProject *dlProject, EcProject *ecProje
                             QSizePolicy::Ignored);
 
     // stacked widget # 5, hidden until unlocked
-    easterEggPage_ = new EasterEggPage(this);
+    easterEggPage_ = new EasterEggPage(this, dlProject_, ecProject_);
     easterEggPage_->setSizePolicy(QSizePolicy::Ignored,
                             QSizePolicy::Ignored);
 

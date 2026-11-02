@@ -44,6 +44,7 @@
 #include "despikearena.h"
 #include "dndpanel.h"
 #include "fluxrunner.h"
+#include "matrixrain.h"
 
 using namespace EggUi;
 
@@ -824,12 +825,64 @@ void paintRunnerIcon(QPainter& p, int scale)
     p.drawLine(QPointF(21.0, 17.5), QPointF(23.5, 16.0));
 }
 
+// the white rabbit, sitting on a black screen with the code falling past
+void paintRabbitIcon(QPainter& p, int scale)
+{
+    p.setPen(QPen(ICON_GREY, 1.0));
+    p.setBrush(Qt::black);
+    p.drawRect(ICON_FRAME);
+
+    // a few streams of code either side of it
+    const QColor green(0, 220, 70);
+    p.setPen(Qt::NoPen);
+    const std::array<std::pair<qreal, int>, 3> streams { { { 8.0, 4 }, { 11.0, 2 }, { 33.5, 3 } } };
+    for (const auto& stream : streams)
+    {
+        for (int i = 0; i < stream.second; ++i)
+        {
+            QColor c = green;
+            c.setAlpha(i == stream.second - 1 ? 255 : 90 + 50 * i);
+            p.setBrush(i == stream.second - 1 ? QColor(200, 255, 210) : c);
+            p.drawRect(QRectF(stream.first, 10.5 + 3.0 * i + (stream.first > 30 ? 6.0 : 0.0), 1.6, 2.0));
+        }
+    }
+
+    // sitting, facing left: body, head, two tall ears, tail, front paws
+    p.setBrush(Qt::white);
+    p.drawEllipse(QPointF(23.5, 26.0), 6.8, 5.2);
+    p.drawEllipse(QPointF(16.8, 21.6), 3.7, 3.3);
+    for (const auto& ear : { std::pair<QPointF, qreal>{ QPointF(17.6, 15.2), 12.0 },
+                             std::pair<QPointF, qreal>{ QPointF(20.0, 15.8), 30.0 } })
+    {
+        p.save();
+        p.translate(ear.first);
+        p.rotate(ear.second);
+        p.drawEllipse(QPointF(0, 0), 1.35, 4.4);
+        p.restore();
+    }
+    p.drawEllipse(QPointF(30.4, 24.6), 1.7, 1.7);
+    p.drawEllipse(QPointF(18.8, 30.2), 2.8, 1.2);
+
+    // its eye, and at 2x an ear's pink inside
+    p.setBrush(Qt::black);
+    p.drawEllipse(QPointF(15.6, 21.0), 0.6, 0.6);
+    if (scale > 1)
+    {
+        p.save();
+        p.translate(17.6, 15.4);
+        p.rotate(12.0);
+        p.setBrush(QColor(255, 190, 200));
+        p.drawEllipse(QPointF(0, 0), 0.5, 3.2);
+        p.restore();
+    }
+}
+
 const int COLUMN_MAX_WIDTH = 720;
 const int DOOM_STEP_MS = 600;
 
 } // namespace
 
-EasterEggPage::EasterEggPage(QWidget *parent) :
+EasterEggPage::EasterEggPage(QWidget *parent, DlProject* dlProject, EcProject* ecProject) :
     QWidget(parent),
     variant_(Variant::Doom)
 {
@@ -843,10 +896,14 @@ EasterEggPage::EasterEggPage(QWidget *parent) :
     dnd_ = new DndPanel;
     connect(dnd_, &DndPanel::finished, this, &EasterEggPage::finished);
 
+    matrix_ = new MatrixPanel(dlProject, ecProject);
+    connect(matrix_, &MatrixPanel::finished, this, &EasterEggPage::finished);
+
     //> Only the active panel is visible, so the others take no space. A
     //> plain box layout (unlike a stacked widget) passes height-for-width
     //> through, which is what word-wrapped labels need to get their height.
     auto column = new QWidget;
+    column_ = column;
     column->setMaximumWidth(COLUMN_MAX_WIDTH);
     column->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     // a way out at any moment, not just at the end of each joke
@@ -867,15 +924,18 @@ EasterEggPage::EasterEggPage(QWidget *parent) :
     columnLayout->addWidget(doomPanel_);
     columnLayout->addWidget(fluxRunner_);
     columnLayout->addWidget(dnd_);
+    columnLayout->addWidget(matrix_, 1);
 
     // centre with stretches, not alignment, so the column gets a real width
     auto row = new QHBoxLayout;
+    row_ = row;
     row->addStretch(1);
     row->addWidget(column, 10);
     row->addStretch(1);
 
     auto content = new QWidget;
     auto contentLayout = new QVBoxLayout(content);
+    content_ = contentLayout;
     contentLayout->addStretch(1);
     contentLayout->addLayout(row);
     contentLayout->addStretch(2);
@@ -904,6 +964,8 @@ QString EasterEggPage::tabText(Variant variant)
             return QStringLiteral("Doom");
         case Variant::Mario:
             return QStringLiteral("Flux Run");
+        case Variant::Matrix:
+            return QStringLiteral("Follow the\nwhite rabbit");
         case Variant::DnD:
         case Variant::Count:
             break;
@@ -921,6 +983,9 @@ QIcon EasterEggPage::tabIcon(Variant variant)
             break;
         case Variant::Mario:
             painter = paintRunnerIcon;
+            break;
+        case Variant::Matrix:
+            painter = paintRabbitIcon;
             break;
         case Variant::DnD:
         case Variant::Count:
@@ -943,6 +1008,18 @@ void EasterEggPage::setVariant(Variant variant)
     doomPanel_->setVisible(variant == Variant::Doom);
     fluxRunner_->setVisible(variant == Variant::Mario);
     dnd_->setVisible(variant == Variant::DnD);
+    matrix_->setVisible(variant == Variant::Matrix);
+
+    //> The games sit in a centred column; the Matrix takes the whole page,
+    //> so the margins and stretches around the column give way to it.
+    const bool fill = (variant == Variant::Matrix);
+    column_->setMaximumWidth(fill ? QWIDGETSIZE_MAX : COLUMN_MAX_WIDTH);
+    column_->setSizePolicy(QSizePolicy::Expanding, fill ? QSizePolicy::Expanding : QSizePolicy::Preferred);
+    row_->setStretch(0, fill ? 0 : 1);
+    row_->setStretch(2, fill ? 0 : 1);
+    content_->setStretch(0, fill ? 0 : 1);
+    content_->setStretch(1, fill ? 1 : 0);
+    content_->setStretch(2, fill ? 0 : 2);
 }
 
 void EasterEggPage::hideEvent(QHideEvent *event)
@@ -960,6 +1037,7 @@ void EasterEggPage::resetAll()
     resetDoomPanel();
     fluxRunner_->reset();
     dnd_->reset();
+    matrix_->reset();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

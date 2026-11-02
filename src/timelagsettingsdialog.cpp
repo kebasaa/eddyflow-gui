@@ -627,8 +627,10 @@ double TimeLagSettingsDialog::minFluxFor(int gasIndex) const
 
 QDoubleSpinBox* TimeLagSettingsDialog::createTlSpin(bool isMin)
 {
+    //> Two decimals: at 20 Hz one sample is 0.05 s, so a window bound typed
+    //> to the tenth could not be placed on the sample it was meant for.
     auto spin = new QDoubleSpinBox;
-    spin->setDecimals(1);
+    spin->setDecimals(2);
     spin->setRange(-1000.1, 1000.0);
     spin->setSingleStep(0.1);
     spin->setSpecialValueText(tr("Detect automatically"));

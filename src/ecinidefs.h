@@ -358,6 +358,10 @@ namespace EcIni
     //> the default; 1 is EddyUH's.
     const auto INI_SCREEN_SETTINGS_110  = QStringLiteral("tlag_borrow_noise");
     const auto INI_SCREEN_SETTINGS_111  = QStringLiteral("tlag_borrow_donor");
+    //> The donor each gas names when tlag_borrow_donor is 2, as 1-based
+    //> gas-record pairs `borrower:donor`, comma-separated. A gas left out
+    //> borrows from the best-resolved tube-mate.
+    const auto INI_SCREEN_SETTINGS_124  = QStringLiteral("tlag_borrow_pairs");
 
     //> Two hardware corrections applied to the raw wind before any rotation.
     //> The inclinometer reads its angles from ordinary extra raw columns

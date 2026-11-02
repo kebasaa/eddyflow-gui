@@ -1314,6 +1314,8 @@ void BasicSettingsPage::removeGasRecord(const QString& slug, int rawColumn)
         {
             if (gas.moistureRef == i + 1) { gas.moistureRef = 0; }
             else if (gas.moistureRef > i + 1) { --gas.moistureRef; }
+            if (gas.tlagDonor == i + 1) { gas.tlagDonor = 0; }
+            else if (gas.tlagDonor > i + 1) { --gas.tlagDonor; }
         }
         break;
     }

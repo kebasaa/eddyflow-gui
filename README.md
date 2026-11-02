@@ -75,11 +75,14 @@ the directory where the source code is:
 
 ##### On Mac
 
-In a terminal enter the following commands, where `EddyFlow-source-dir` is the
-directory where the source code is:
+Use `build_eddyflow_macos.sh` from the
+[eddyflow-build-script](https://github.com/kebasaa/eddyflow-build-script) repository. On an
+Apple Silicon Mac it builds QuaZIP, the engine and the GUI, and packages them as a `.dmg`.
 
-    1. $ cd EddyFlow-source-dir/source/scripts/build/
-    2. $ ./mac-build-EddyFlow.sh [debug|release]
+For a development build, run qmake on `EddyFlow_mac.pro` and pass the QuaZIP paths as
+`QUAZIP_INCLUDE_DIR`, `QUAZIP_LIB_DIR` and `QUAZIP_LIB_NAME`. The `scripts/build/mac-*.sh`
+link steps copy the file templates, the docs and QuaZIP into the app bundle. The engines and
+`7z` must be placed in `EddyFlow.app/Contents/MacOS/bin` by hand.
 
 #### Build the GUI using QtCreator (on Windows or Mac)
 

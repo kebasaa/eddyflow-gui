@@ -29,25 +29,33 @@
 
 #include "eastereggwidgets.h"
 
+class QHBoxLayout;
 class QLabel;
 class QProgressBar;
 class QPushButton;
+class QVBoxLayout;
 
 class DespikeArena;
+class DlProject;
 class DndPanel;
+class EcProject;
 class FakeLoading;
 class FluxRunnerPanel;
+class MatrixPanel;
 
-/// The hidden page unlocked by typing "eddy". Each unlock shows one of
-/// several variants; when the joke is over the page emits finished() and
-/// MainWindow hides its tab again.
+/// The hidden page, one variant per code: "eddy" unlocks Doom, "flux"
+/// Mario, "dnd" DnD and "matrix" the Matrix. When the joke is over the page
+/// emits finished() and MainWindow hides its tab again. The Matrix plays
+/// the open project's raw data, so MainWindow only shows it while a project
+/// is open.
 class EasterEggPage : public QWidget
 {
     Q_OBJECT
 public:
-    enum class Variant { Doom, Mario, DnD, Count };
+    enum class Variant { Doom, Mario, DnD, Matrix, Count };
 
-    explicit EasterEggPage(QWidget* parent = nullptr);
+    explicit EasterEggPage(QWidget* parent = nullptr, DlProject* dlProject = nullptr,
+                           EcProject* ecProject = nullptr);
 
     void setVariant(Variant variant);
     static QString tabText(Variant variant);
@@ -75,7 +83,11 @@ private:
 
     QWidget* doomPanel_;
     FluxRunnerPanel* fluxRunner_;
+    QWidget* column_;
+    QHBoxLayout* row_;
+    QVBoxLayout* content_;
     DndPanel* dnd_;
+    MatrixPanel* matrix_;
 
     QPushButton* launchButton_;
     QProgressBar* doomBar_;

@@ -130,7 +130,10 @@ private slots:
     void viewRunPage();
     void viewEasterEggPage();
     void unlockEasterEgg();
+    void unlockMatrixEasterEgg();
+    void showEasterEgg(int variantIndex);
     void lockEasterEgg();
+    void lockProjectEasterEgg();
 
     void getRunExpress();
     void getRunAdvanced();
@@ -205,6 +208,8 @@ private:
 
     void setCurrentProjectFile(const QString& fileName, bool modified = false);
     const QString &currentProjectFile() const;
+    /// a project file is loaded, not just the untitled default
+    bool hasOpenProject() const;
 
     // set window caption from file name
     void setFileCaption(const QString& filename, bool clearStar = true);
@@ -338,7 +343,6 @@ private:
 
     Defs::CurrPage previousPage_;
     int lastEasterEggVariant_;
-    int easterEggRepeats_;
 
     Defs::CurrPage currentPage_;
     Defs::CurrPage currentPage() const;

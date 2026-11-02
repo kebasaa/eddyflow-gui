@@ -108,7 +108,8 @@ private:
     enum KeyBit : unsigned { KeyLeft = 1, KeyRight = 2, KeyJump = 4, KeyDown = 8 };
     enum class Power { Small, Hat, Filter };
     enum class Item { Coin, Hat, Filter, Coffee };
-    enum class FoeKind { Reviewer, Bubble, Puff };
+    // the shared foes first, then each site's own
+    enum class FoeKind { Reviewer, Bubble, Puff, Cow, Tractor, DustDevil, Mosquito, Faller };
 
     // everything that makes one level harder than another, from its number;
     // each knob is clamped to a cap the jump can always manage
@@ -156,6 +157,7 @@ private:
         qreal bubbleChance;
         qreal bubblePauseMin;
         qreal bubblePauseMax;
+        qreal dangersPer100;    // the site's own danger
         int hats;
         int filters;
         int coffees;
@@ -174,6 +176,7 @@ private:
         bool spike;
         bool tube;      // one of the two half-hours of a sampling tube
         int moving;     // index into moving_, or -1
+        int patch;      // index into patches_, or -1
     };
 
     // one point of the raw trace: the ground the game is played on
@@ -263,7 +266,7 @@ private:
     {
         QPointF pos;
         qreal radius;
-        int spin;       // +1 anticlockwise on screen
+        int spin;       // +1 clockwise on screen: top forward, bottom back
         qreal age;
         qreal cooldown;
         int zone;
@@ -289,6 +292,15 @@ private:
     {
         int start;
         int end;
+        bool announced;
+    };
+
+    // ice on the tundra, a grass fire in the savanna
+    struct Patch
+    {
+        int start;
+        int end;
+        bool fire;
         bool announced;
     };
 
@@ -323,6 +335,7 @@ private:
     int zoneAt(qreal x) const;
     bool inThermal(qreal x) const;
     bool raining(qreal x) const;
+    int patchAt(qreal x) const;         // the patch under x, or -1
     qreal gust(int zone) const;
     qreal rhythmDensity(int t) const;
     qreal rhythmLateness(int t) const;
@@ -343,7 +356,7 @@ private:
     void defeat(Foe& foe, int value, const QString& text);
     void gainCoin(const QPointF& where);
     void fire();
-    void hurt();
+    void hurt(const QString& why = QString());
     void die(bool pit);
     void respawn();
     void enterTube(int index);
@@ -352,12 +365,15 @@ private:
     void togglePause();
     void addPop(const QPointF& world, const QString& text, const QColor& color);
     void announce(const QString& text, const QColor& color);
+    void noticeDanger();
     qreal levelQuality() const;
     Result result() const;
 
     // drawing
     void paintSky(QPainter& p) const;
     void paintParallax(QPainter& p) const;
+    void paintFarScenery(QPainter& p, qreal night) const;
+    void paintNearScenery(QPainter& p, qreal night) const;
     void paintAxes(QPainter& p) const;
     void paintAtmosphereBack(QPainter& p) const;
     void paintGround(QPainter& p) const;
@@ -407,6 +423,7 @@ private:
     QList<Tube> tubes_;
     QList<MovingRun> moving_;
     QList<Shower> showers_;
+    QList<Patch> patches_;
     QList<QPointF> stars_;      // the night sky, in screen fractions
     QList<int> gapEnds_;        // first column after each pit, in order
     QList<int> clusters_;       // where a clustered rhythm puts its hazards
@@ -451,6 +468,7 @@ private:
     bool diedInPit_;
     bool diedOfDeadline_;
     bool nightAnnounced_;
+    bool dangerAnnounced_;
     QColor sky_;
     QString banner_;
     QColor bannerColor_;

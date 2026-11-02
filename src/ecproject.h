@@ -1128,6 +1128,11 @@ signals:
     //> than a project load.
     void randomErrorMethodChanged();
 
+    //> detlim_meth changed, from wherever. Lag borrowing on the processing
+    //> page is greyed by it, and the dialog that writes it is on the
+    //> statistical page.
+    void detlimMethodChanged();
+
     void updateInfo();
 
 private:

@@ -75,6 +75,7 @@
         <file alias="console">img/view_toolbar/console-output.png</file>
         <file alias="egg-doom">img/view_toolbar/freedoom-head.png</file>
         <file alias="egg-doom-licence">img/view_toolbar/freedoom-head.LICENSE.txt</file>
+        <file alias="egg-matrix-sample">img/egg/matrix-sample.csv</file>
         <file alias="figure">img/figure/figure.png</file>
         <file alias="figure2">img/figure/figure2_strip.png</file>
         <file alias="clear-line">img/lineedit/clear-line.png</file>
