@@ -178,11 +178,21 @@ bool EcProject::gasRecordsCompare(const QVector<GasRecord>& current,
             //> Molecular weight and diffusivity are part of the identity:
             //> reprocessing with a different diffusivity gives different
             //> fluxes for the same column.
-            keys << QStringLiteral("%1|%2|%3|%4|%5")
+            //> The lag donor too, by what it is rather than where it sits,
+            //> so the comparison stays order-insensitive: borrowing from a
+            //> different tube-mate moves this gas's flux.
+            QString donor;
+            if (rec.tlagDonor > 0 && rec.tlagDonor <= recs.size())
+            {
+                const auto& d = recs.at(rec.tlagDonor - 1);
+                donor = QStringLiteral("%1@%2").arg(d.slug).arg(d.rawColumn);
+            }
+            keys << QStringLiteral("%1|%2|%3|%4|%5|%6")
                         .arg(rec.slug, rec.instrumentId)
                         .arg(rec.rawColumn)
                         .arg(rec.mw, 0, 'f', 4)
-                        .arg(rec.diff, 0, 'f', 5);
+                        .arg(rec.diff, 0, 'f', 5)
+                        .arg(donor);
         }
         keys.sort();
         return keys;
@@ -1934,6 +1944,22 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_109, ec_project_state_.screenSetting.tlag_borrow_snr);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_110, ec_project_state_.screenSetting.tlag_borrow_noise);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_111, ec_project_state_.screenSetting.tlag_borrow_donor);
+        {
+            //> Written whatever the donor rule, so a choice made per gas
+            //> survives a trip through the other two; the engine reads it
+            //> only under rule 2. Checked again here because the records can
+            //> change on another page after the choice was made.
+            const auto& gases = ec_project_state_.projectGeneral.gasColumns;
+            QStringList pairs;
+            for (int i = 0; i < gases.size(); ++i)
+            {
+                const int donor = gases.at(i).tlagDonor;
+                if (donor <= 0) { continue; }
+                if (!MeasurementRecords::isTlagDonorFor(gases, i, donor - 1)) { continue; }
+                pairs << QStringLiteral("%1:%2").arg(i + 1).arg(donor);
+            }
+            project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_124, pairs.join(QLatin1Char(',')));
+        }
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_112, ec_project_state_.screenSetting.tilt_sensor_meth);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_113, QString::number(ec_project_state_.screenSetting.tilt_sensor_v_g, 'f', 4));
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_114, QString::number(ec_project_state_.screenSetting.tilt_arm_x, 'f', 4));
@@ -3413,9 +3439,34 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenSetting.tlag_borrow_noise = readChoice(
             EcIni::INI_SCREEN_SETTINGS_110,
             defaultEcProjectState.screenSetting.tlag_borrow_noise);
-        ec_project_state_.screenSetting.tlag_borrow_donor = readChoice(
-            EcIni::INI_SCREEN_SETTINGS_111,
-            defaultEcProjectState.screenSetting.tlag_borrow_donor);
+        //> The donor has a third row, chosen per gas, so it is read with the
+        //> same fallback but one more value.
+        {
+            const auto fallback = defaultEcProjectState.screenSetting.tlag_borrow_donor;
+            const auto v = project_ini.value(EcIni::INI_SCREEN_SETTINGS_111, fallback).toInt();
+            ec_project_state_.screenSetting.tlag_borrow_donor = (v >= 0 && v <= 2) ? v : fallback;
+        }
+        {
+            //> [Project] is read before this group, so the records exist.
+            //> A pair that does not parse, names a record that is not there,
+            //> or is not a tube-mate is dropped rather than guessed at.
+            auto& gases = ec_project_state_.projectGeneral.gasColumns;
+            for (auto& gas : gases) { gas.tlagDonor = 0; }
+            const auto pairs = project_ini.value(EcIni::INI_SCREEN_SETTINGS_124)
+                                   .toString().split(QLatin1Char(','), Qt::SkipEmptyParts);
+            for (const auto& pair : pairs)
+            {
+                const auto parts = pair.trimmed().split(QLatin1Char(':'));
+                if (parts.size() != 2) { continue; }
+                bool okGas = false;
+                bool okDonor = false;
+                const int gas = parts.at(0).trimmed().toInt(&okGas);
+                const int donor = parts.at(1).trimmed().toInt(&okDonor);
+                if (!okGas || !okDonor) { continue; }
+                if (!MeasurementRecords::isTlagDonorFor(gases, gas - 1, donor - 1)) { continue; }
+                gases[gas - 1].tlagDonor = donor;
+            }
+        }
         //> Three-valued rather than two, so readChoice above does not fit.
         //> Same intent: a value this version does not know falls back to off
         //> rather than to one of the two corrections, because guessing wrong
@@ -4394,8 +4445,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
     return true;
 }
 
-/// Rewrite every moistureRef through \a remap, a map from old 1-based position
-/// to new, with 0 meaning "gone".
+/// Rewrite every moistureRef - and every tlagDonor, the other index into the
+/// gas list - through \a remap, a map from old 1-based position to new, with 0
+/// meaning "gone".
 ///
 /// Any rearrangement of the gas list has to do this, and there is now more than
 /// one: compaction drops records, and choosing a primary instrument reorders
@@ -4413,6 +4465,9 @@ static void remapMoistureRefs(QVector<GasRecord>& gases,
         //> itself instead of silently naming an unrelated species.
         gas.moistureRef = gas.moistureRef > 0 && gas.moistureRef < remap.size()
                 ? remap.at(gas.moistureRef) : 0;
+        //> The lag donor is an index into the same list, and goes the same way.
+        gas.tlagDonor = gas.tlagDonor > 0 && gas.tlagDonor < remap.size()
+                ? remap.at(gas.tlagDonor) : 0;
     }
 }
 
@@ -5938,8 +5993,12 @@ void EcProject::setScreenWOffset(double d)
 
 void EcProject::setScreenDetlimMethod(int n)
 {
+    const auto changed = ec_project_state_.screenSetting.detlim_meth != n;
     ec_project_state_.screenSetting.detlim_meth = n;
     setModified(true);
+    //> Announced, because lag borrowing on the processing page is greyed by
+    //> it and lives on a different tab from the dialog that writes it.
+    if (changed) { emit detlimMethodChanged(); }
 }
 
 void EcProject::setScreenSpectroMethod(int n)

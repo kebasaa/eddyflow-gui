@@ -61,6 +61,7 @@
 #include "richtextcheckbox.h"
 #include "timelagsettingsdialog.h"
 #include "timelagpreassessdialog.h"
+#include "tlagdonordialog.h"
 #include "stringutils.h"
 #include "widget_utils.h"
 
@@ -498,8 +499,9 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
         "(Nemitz et al., 2018)."
         "<br><br>It also fires when the maximum lands on an end of the search window, "
         "where a maximisation goes when there is no interior peak to find."
-        "<br><br><b>Requires the flux detection limit</b>, under Statistical Analysis: "
-        "without it there is nothing to compare a covariance against, and this control "
+        "<br><br><b>Requires the flux detection limit</b>, under Statistical Analysis, "
+        "unless judged against the Lenschow instrument noise instead: without one or "
+        "the other there is nothing to compare a covariance against, and this control "
         "stays greyed. Water is never borrowed for or from - its lag is the one every "
         "other gas's water covariance is taken at. A borrowed lag is flagged in "
         "<i>&lt;gas&gt;_def_timelag</i> and the donor is named in the run log. "
@@ -560,7 +562,18 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
         "its carbon dioxide did not clear the threshold either, nothing is "
         "borrowed - another instrument's gas shares no tube with this one and "
         "is not a substitute."), Qt::ToolTipRole);
+    tlagBorrowDonorCombo->addItem(tr("Chosen per gas"));
+    tlagBorrowDonorCombo->setItemData(2, tr("<b>Chosen per gas:</b> Name "
+        "the donor of each gas yourself, from the gases on its own analyser, "
+        "under <i>Donors...</i>. A gas left on <i>Automatic</i> takes the "
+        "best-resolved tube-mate. A gas that names one borrows from that one "
+        "only: if the donor did not clear the threshold itself, nothing is "
+        "borrowed in that period."), Qt::ToolTipRole);
     tlagBorrowDonorLabel->setToolTip(tlagBorrowDonorCombo->itemData(1, Qt::ToolTipRole).toString());
+    tlagDonorsButton = new QPushButton(tr("Donors..."));
+    tlagDonorsButton->setProperty("mdButton", true);
+    tlagDonorsButton->setMaximumWidth(tlagDonorsButton->sizeHint().width());
+    tlagDonorsButton->setToolTip(tlagBorrowDonorCombo->itemData(2, Qt::ToolTipRole).toString());
 
     spectroCheckBox = new RichTextCheckBox;
     spectroCheckBox->setText(tr("Remove the spectroscopic effect of water vapour"));
@@ -759,7 +772,8 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     settingsLayout->addWidget(tlagBorrowNoiseLabel, 17, 1, Qt::AlignRight);
     settingsLayout->addWidget(tlagBorrowNoiseCombo, 17, 2, 1, 2);
     settingsLayout->addWidget(tlagBorrowDonorLabel, 18, 1, Qt::AlignRight);
-    settingsLayout->addWidget(tlagBorrowDonorCombo, 18, 2, 1, 2);
+    settingsLayout->addWidget(tlagBorrowDonorCombo, 18, 2);
+    settingsLayout->addWidget(tlagDonorsButton, 18, 3);
     settingsLayout->addWidget(hrLabel, 19, 0, 1, 4);
     settingsLayout->addWidget(wplTitle, 20, 0);
     //> One cell, not two: column 0 is as wide as its widest widget, so the
@@ -1009,7 +1023,13 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
                 updateTlagBorrowAvailability();
             });
     connect(tlagBorrowDonorCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [=](int n) { ecProject_->setScreenTlagBorrowDonor(n); });
+            this, [=](int n)
+            {
+                ecProject_->setScreenTlagBorrowDonor(n);
+                updateTlagBorrowAvailability();
+            });
+    connect(tlagDonorsButton, &QPushButton::clicked,
+            this, &AdvProcessingOptions::showTlagDonorDialog);
     //> clicked, not toggled: refresh() blocks the project's signals and
     //> not the widgets', so a toggled connection writes the file back while
     //> the page is only being redrawn.
@@ -1103,6 +1123,11 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             this, &AdvProcessingOptions::reset);
     connect(ecProject_, &EcProject::ecProjectChanged,
             this, &AdvProcessingOptions::refresh);
+    //> detlim_meth is set on the Statistical Analysis page, and the borrowing
+    //> controls here are greyed by it. Without this they went on showing the
+    //> old answer until the project was reloaded.
+    connect(ecProject_, &EcProject::detlimMethodChanged,
+            this, &AdvProcessingOptions::updateTlagBorrowAvailability);
 
     auto combo_list = QWidgetList() << aoaMethCombo
                                     << rotMethCombo
@@ -1140,6 +1165,9 @@ AdvProcessingOptions::~AdvProcessingOptions()
 
     if (cecDialog_)
         delete cecDialog_;
+
+    if (tlagDonorDialog_)
+        delete tlagDonorDialog_;
 }
 
 void AdvProcessingOptions::updateUOffset(double d)
@@ -1334,14 +1362,16 @@ void AdvProcessingOptions::updateTlagBorrowAvailability()
     tlagBorrowSnrSpin->setEnabled(on);
     tlagBorrowDonorLabel->setEnabled(on);
     tlagBorrowDonorCombo->setEnabled(on);
+    tlagDonorsButton->setEnabled(on && ecProject_->screenTlagBorrowDonor() == 2);
 
-    //> The floor itself stays reachable whenever borrowing is ticked, even
-    //> when the current choice is the unavailable one - otherwise a user
-    //> whose detection limit is off would find the control that fixes it
-    //> greyed out along with everything else.
+    //> The floor itself stays reachable whenever borrowing is ticked, and
+    //> also whenever it is the very thing greying the checkbox. Gating it on
+    //> the tick alone stranded a user whose detection limit is off: the box
+    //> could not be ticked, so the control that fixes it never woke up.
     const bool ticked = tlagBorrowCheckBox->isChecked();
-    tlagBorrowNoiseLabel->setEnabled(ticked);
-    tlagBorrowNoiseCombo->setEnabled(ticked);
+    const bool floorReachable = ticked || !usable;
+    tlagBorrowNoiseLabel->setEnabled(floorReachable);
+    tlagBorrowNoiseCombo->setEnabled(floorReachable);
 }
 
 /// The baseline subtraction only means anything to a method that maximises a
@@ -1841,6 +1871,19 @@ void AdvProcessingOptions::showCecSettingsDialog()
     cecDialog_->show();
     cecDialog_->raise();
     cecDialog_->activateWindow();
+}
+
+void AdvProcessingOptions::showTlagDonorDialog()
+{
+    //> Created on first use: most projects never choose donors per gas.
+    if (!tlagDonorDialog_)
+    {
+        tlagDonorDialog_ = new TlagDonorDialog(this, ecProject_);
+    }
+    tlagDonorDialog_->refresh();
+    tlagDonorDialog_->show();
+    tlagDonorDialog_->raise();
+    tlagDonorDialog_->activateWindow();
 }
 
 void AdvProcessingOptions::onClickQcMethodLabel()

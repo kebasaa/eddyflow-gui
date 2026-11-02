@@ -67,6 +67,7 @@ class PwbTimelagSettingsDialog;
 class RichTextCheckBox;
 class TimeLagSettingsDialog;
 class TimelagPreassessDialog;
+class TlagDonorDialog;
 
 /// \class AdvlProcessingOptions
 /// \brief Class representing the 'Settings' tab in the 'RawProcess' page
@@ -108,7 +109,8 @@ private slots:
     /// Grey the baseline-subtraction box unless the method maximises a
     /// covariance, which is the only thing it modifies.
     void updateCovmaxDebaselineAvailability();
-    /// Grey the borrowing controls unless the flux detection limit is on.
+    /// Grey the borrowing controls unless their noise floor is available:
+    /// the flux detection limit when judged against it, nothing otherwise.
     void updateTlagBorrowAvailability();
     void updateSonicHardwareAvailability();
     void onClickHeadCorrMethLabel();
@@ -158,6 +160,7 @@ private slots:
     void showTlSettingsDialog();
     void showTlPreassessDialog();
     void showCecSettingsDialog();
+    void showTlagDonorDialog();
 
     void updateTooltip(int i);
 
@@ -243,6 +246,8 @@ private:
     QComboBox* tlagBorrowNoiseCombo;
     ClickLabel* tlagBorrowDonorLabel;
     QComboBox* tlagBorrowDonorCombo;
+    //> Opens the per-gas donor list; lit only under "Chosen per gas".
+    QPushButton* tlagDonorsButton;
     //> Two hardware corrections on the raw wind, ahead of any rotation.
     //> The Metek tables are that company's data and are not shipped, so the
     //> directory holding them is a setting rather than a fixed path.
@@ -339,6 +344,7 @@ private:
     PwbTimelagSettingsDialog* pwbTlDialog_{};
     TimelagPreassessDialog* tlPreassessDialog_{};
     CecSettingsDialog* cecDialog_{};
+    TlagDonorDialog* tlagDonorDialog_{};
 
     DetrendMethod previousDetrendMethod_{DetrendMethod::BlockAverage};
 };

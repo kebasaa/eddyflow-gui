@@ -103,6 +103,39 @@ void validateReferences(QVector<GasRecord>& gases,
 
         if (gas.cellRef > cells.size() || gas.cellRef < 0) { gas.cellRef = 0; }
     }
+    validateTlagDonors(gases);
+}
+
+bool isTlagDonorFor(const QVector<GasRecord>& gases, int gasIndex,
+                    int donorIndex)
+{
+    if (gasIndex < 0 || gasIndex >= gases.size()) { return false; }
+    if (donorIndex < 0 || donorIndex >= gases.size()) { return false; }
+    if (gasIndex == donorIndex) { return false; }
+
+    const auto& gas = gases.at(gasIndex);
+    const auto& donor = gases.at(donorIndex);
+    //> Water on neither side: its lag is the one every other gas's water
+    //> covariance is taken at, so the engine never moves it.
+    if (gas.slug == kH2o || donor.slug == kH2o) { return false; }
+    if (gas.rawColumn <= 0 || donor.rawColumn <= 0) { return false; }
+    //> The same tube is the whole justification, and "other" names no tube.
+    return isRealInstrument(gas.instrumentId)
+        && donor.instrumentId == gas.instrumentId;
+}
+
+void validateTlagDonors(QVector<GasRecord>& gases)
+{
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        //> Back to automatic rather than to some other record, for the same
+        //> reason as moistureRef: automatic re-resolves on every run.
+        const int donor = gases.at(i).tlagDonor;
+        if (donor != 0 && !isTlagDonorFor(gases, i, donor - 1))
+        {
+            gases[i].tlagDonor = 0;
+        }
+    }
 }
 
 QString gasLabel(const QVector<GasRecord>& gases, int index)

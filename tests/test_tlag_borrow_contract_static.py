@@ -96,15 +96,32 @@ class TheDependencyOnTheDetectionLimitHolds(unittest.TestCase):
     def test_the_floor_control_stays_reachable_when_it_is_the_problem(self):
         #> Greying the noise combo along with everything else would strand a
         #> user whose detection limit is off: the control that fixes it is
-        #> the one they could not reach.
+        #> the one they could not reach. Gating it on the tick alone did
+        #> exactly that - an unusable checkbox cannot be ticked - so it is
+        #> also lit whenever it is what greys the checkbox.
         body = self.body()
-        self.assertIn("tlagBorrowNoiseCombo->setEnabled(ticked)", body)
+        self.assertIn("const bool floorReachable = ticked || !usable;", body)
+        self.assertIn("tlagBorrowNoiseCombo->setEnabled(floorReachable)", body)
         self.assertNotIn("tlagBorrowNoiseCombo->setEnabled(on)", body)
+        self.assertNotIn("tlagBorrowNoiseCombo->setEnabled(ticked)", body)
 
     def test_the_helper_runs_from_every_path_that_can_change_it(self):
         #> Declaration, the checkbox handler, refresh and reset.
         self.assertGreaterEqual(
             PAGE.count("updateTlagBorrowAvailability()"), 4)
+
+    def test_a_detection_limit_changed_on_another_tab_is_heard(self):
+        #> detlim_meth is written from the Statistical Analysis page. Without
+        #> a signal the checkbox kept its old greying until a reload.
+        header = read(GUI_ROOT / "src" / "ecproject.h")
+        self.assertIn("void detlimMethodChanged();", header)
+        setter = PROJECT[PROJECT.index("void EcProject::setScreenDetlimMethod(int n)"):]
+        setter = setter[:setter.index("\n}")]
+        self.assertIn("if (changed) { emit detlimMethodChanged(); }", setter)
+        self.assertRegex(
+            PAGE,
+            r"connect\(ecProject_, &EcProject::detlimMethodChanged,\s*"
+            r"this, &AdvProcessingOptions::updateTlagBorrowAvailability\);")
 
     @unittest.skipUnless(ENGINE_BORROW.is_file(), "engine repo not beside the GUI")
     def test_the_engine_refuses_the_same_combination(self):
@@ -193,8 +210,10 @@ class TheTwoChoicesReachTheEngine(unittest.TestCase):
 
     def test_an_out_of_range_value_falls_back_rather_than_being_kept(self):
         block = PROJECT[PROJECT.index("const auto readChoice = "):]
-        block = block[:block.index("tlag_borrow_donor") + 40]
+        block = block[:block.index("INI_SCREEN_SETTINGS_124")]
         self.assertIn("(v == 0 || v == 1) ? v : fallback", block)
+        #> The donor has a third row, chosen per gas.
+        self.assertIn("tlag_borrow_donor = (v >= 0 && v <= 2) ? v : fallback", block)
 
     def test_each_row_names_eddyuh_where_that_is_the_reason_to_pick_it(self):
         for combo in ("tlagBorrowNoiseCombo", "tlagBorrowDonorCombo"):
@@ -217,6 +236,91 @@ class TheTwoChoicesReachTheEngine(unittest.TestCase):
     def test_both_settings_invalidate_a_computed_dataset(self):
         for key in self.KEYS:
             self.assertIn("screenSetting.%s" % key, PROJECT)
+
+
+class EachGasCanNameItsDonor(unittest.TestCase):
+    """The third donor rule: the user names a tube-mate per gas.
+
+    Stored as one key, ``tlag_borrow_pairs``, of 1-based gas-record pairs
+    ``borrower:donor``. The donor is an index into the gas list, so it rides on
+    the record and every rearrangement of the list must carry it - the same
+    hazard ``moistureRef`` has.
+    """
+
+    RECORD_H = read(GUI_ROOT / "src" / "measurement_record.h")
+    RECORD_CPP = read(GUI_ROOT / "src" / "measurement_record.cpp")
+    BASIC = read(GUI_ROOT / "src" / "basicsettingspage.cpp")
+    DIALOG = read(GUI_ROOT / "src" / "tlagdonordialog.cpp")
+
+    def test_the_gui_declares_writes_and_reads_the_key(self):
+        self.assertRegex(
+            INIDEFS,
+            r'const auto INI_SCREEN_SETTINGS_124\s*=\s*QStringLiteral\("tlag_borrow_pairs"\)')
+        self.assertIn("setValue(EcIni::INI_SCREEN_SETTINGS_124", PROJECT)
+        self.assertIn("value(EcIni::INI_SCREEN_SETTINGS_124", PROJECT)
+
+    def test_the_name_does_not_nest_with_its_neighbours(self):
+        names = ["tlag_borrow_meth", "tlag_borrow_snr", "tlag_borrow_noise",
+                 "tlag_borrow_donor", "tlag_borrow_pairs"]
+        for a in names:
+            for b in names:
+                if a != b:
+                    self.assertNotIn(a, b)
+
+    def test_the_record_carries_the_donor_and_defaults_to_automatic(self):
+        self.assertIn("int tlagDonor = 0;", self.RECORD_H)
+
+    def test_every_rearrangement_carries_it(self):
+        remap = PROJECT[PROJECT.index("static void remapMoistureRefs("):]
+        remap = remap[:remap.index("\n}")]
+        self.assertIn("gas.tlagDonor = gas.tlagDonor > 0", remap)
+        #> Removing a gas on the basic settings page shifts by hand.
+        self.assertIn("else if (gas.tlagDonor > i + 1) { --gas.tlagDonor; }",
+                      self.BASIC)
+        self.assertIn("validateTlagDonors(gases);", self.RECORD_CPP)
+
+    def test_only_a_tube_mate_that_is_not_water_is_a_donor(self):
+        fn = self.RECORD_CPP[self.RECORD_CPP.index("bool isTlagDonorFor("):]
+        fn = fn[:fn.index("\n}")]
+        self.assertIn("gas.slug == kH2o || donor.slug == kH2o", fn)
+        self.assertIn("donor.instrumentId == gas.instrumentId", fn)
+        self.assertIn("isRealInstrument(gas.instrumentId)", fn)
+        #> The dialog offers exactly what this admits, and the writer and
+        #> reader both refuse anything else.
+        self.assertIn("MeasurementRecords::isTlagDonorFor(gases, i, j)", self.DIALOG)
+        self.assertGreaterEqual(
+            PROJECT.count("MeasurementRecords::isTlagDonorFor("), 2)
+
+    def test_the_choice_invalidates_a_computed_dataset(self):
+        block = PROJECT[PROJECT.index("bool EcProject::gasRecordsCompare("):]
+        block = block[:block.index("\n}")]
+        self.assertIn("rec.tlagDonor", block)
+
+    def test_the_donors_button_is_lit_only_under_the_third_rule(self):
+        body = PAGE[PAGE.index("void AdvProcessingOptions::updateTlagBorrowAvailability()"):]
+        body = body[:body.index("\n}")]
+        self.assertIn(
+            "tlagDonorsButton->setEnabled(on && ecProject_->screenTlagBorrowDonor() == 2)",
+            body)
+
+    @unittest.skipUnless(engine_available, "engine repo not beside the GUI")
+    def test_the_engine_holds_the_key_and_reads_rule_two(self):
+        self.assertRegex(read(ENGINE_TAGS),
+                         r"SCTags\(86\)%Label\s*/\s*'tlag_borrow_pairs'\s*/")
+        src = read(ENGINE_READER)
+        self.assertIn("SCTags(82)%value(1:1) == '2'", src)
+        self.assertIn("RPSetup%tlag_borrow_donor = 'per_gas'", src)
+        self.assertIn("call ParseTlagBorrowPairs(SCTags(86)%value", src)
+
+    @unittest.skipUnless(ENGINE_BORROW.is_file(), "engine repo not beside the GUI")
+    def test_the_engine_holds_a_named_donor_to_the_same_rule(self):
+        src = read(ENGINE_BORROW)
+        block = src[src.index("else if (named /= 0) then"):]
+        block = block[:block.index("        else\n") if "        else\n" in block
+                      else block.index("        else\r\n")]
+        self.assertIn("trusted(named)", block)
+        self.assertIn("Eligible(named)", block)
+        self.assertIn("SameAnalyser(gas, named)", block)
 
 
 if __name__ == "__main__":

@@ -122,6 +122,14 @@ struct GasRecord : MeasurementRecord
     /// record rather than in proc because it is a [Project] key: RP applies
     /// that correction itself.
     qreal esTau = -1.0;
+    /// 1-based index into the gas record list naming the tube-mate this gas
+    /// borrows its time lag from, when lag borrowing is chosen per gas.
+    /// **0 means automatic**: the best-resolved gas on the analyser. Kept on
+    /// the record because it is an index into this list, and every
+    /// rearrangement of the list has to carry it the way it carries
+    /// moistureRef. Written to [RawProcess_Settings] as tlag_borrow_pairs,
+    /// not to [Project].
+    int tlagDonor = 0;
 
     GasProcessingSettings proc;
 };
@@ -201,6 +209,19 @@ int resolveMoistureRef(const QVector<GasRecord>& gases, int gasIndex,
 /// Reset references that point at records which no longer exist.
 void validateReferences(QVector<GasRecord>& gases,
                         const QVector<MeasurementRecord>& cells);
+
+/// Whether record \a donorIndex (0-based) may lend its time lag to record
+/// \a gasIndex: a different, measured, non-water gas on the same real
+/// analyser.
+///
+/// Mirrors the per-gas branch of BorrowTimelagBelowDetectionLimit in the
+/// engine's borrow_timelag.f90, which also refuses open-path gases - this
+/// interface does not know a path type, so the engine has the last word there.
+bool isTlagDonorFor(const QVector<GasRecord>& gases, int gasIndex,
+                    int donorIndex);
+
+/// Clear every tlagDonor that is no longer a tube-mate of its gas.
+void validateTlagDonors(QVector<GasRecord>& gases);
 
 /// Row label: the species, qualified by the analyser when there is one, so
 /// two CO2 records on different analysers are told apart.
