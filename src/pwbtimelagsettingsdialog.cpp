@@ -21,7 +21,6 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
-#include "ancillaryfiletest.h"
 #include "defs.h"
 #include "ecproject.h"
 #include "measurement_record.h"
@@ -52,17 +51,17 @@ PwbTimelagSettingsDialog::PwbTimelagSettingsDialog(QWidget *parent,
     title->setProperty("groupLabel", true);
 
     existingRadio = new QRadioButton(tr("Time-lag file available : "));
-    existingRadio->setToolTip(tr("<b>Time-lag file available:</b> Select either a PWB half-hourly time-lag table (*_pwb_timelag_*.csv, written by a previous run) or a standard Time-lag_optimisation_results file. The half-hourly table reuses the exact lag recorded for each timestamp and gas; any period missing from it is detected and the table rewritten. An aggregate file uses its gas and H2O RH-class lags for the whole run and does not run PWB."));
+    existingRadio->setToolTip(tr("<b>Time-lag file available:</b> Select the PWB half-hourly time-lag table (*_pwb_timelag_&lt;timestamp&gt;.csv) written by a previous PWB run. It reuses the exact lag recorded for each timestamp and gas; any period missing from it is detected and the table rewritten. The *_pwb_timelag_opt_*.txt summary written beside it, and time-lag optimisation files, are not accepted."));
 
     nonExistingRadio = new QRadioButton(tr("Time lag file not available :"));
     nonExistingRadio->setToolTip(tr("<b>Time lag file not available:</b> Choose this option and provide the following information if you need to detect time lags for your dataset with pre-whitening block-bootstrap."));
 
     fileBrowse = new FileBrowseWidget;
     fileBrowse->setRemoteBrowseEnabled(true);
-    fileBrowse->setToolTip(tr("<b>Load:</b> Load a PWB half-hourly time-lag table or an aggregate time-lag file"));
-    fileBrowse->setDialogTitle(tr("Select a PWB Time-Lag Table or Time-Lag Results File"));
+    fileBrowse->setToolTip(tr("<b>Load:</b> Load a PWB half-hourly time-lag table"));
+    fileBrowse->setDialogTitle(tr("Select a PWB Half-Hourly Time-Lag Table"));
     fileBrowse->setDialogWorkingDir(WidgetUtils::getDialogPathHint(QStringLiteral("timelag_file")));
-    fileBrowse->setDialogFilter(tr("All Files (*.*)"));
+    fileBrowse->setDialogFilter(tr("PWB Time-Lag Tables (*_pwb_timelag_*.csv);;All Files (*.*)"));
 
     auto existingFileLayout = new QHBoxLayout;
     existingFileLayout->addWidget(existingRadio);
@@ -331,42 +330,47 @@ void PwbTimelagSettingsDialog::testSelectedFile(const QString& fp)
         return;
     }
 
-    // PWB caches are validated by the engine. Standard aggregate time-lag
-    // assessment files continue through the existing ancillary-file validator.
+    // Only the half-hourly table is accepted; the engine checks the rest of it
+    // (settings fingerprint, averaging period, gases). An aggregate file - the
+    // *_pwb_timelag_opt_* summary written beside the table above all - used to
+    // be taken too, and silently replaced PWB with covariance maximisation
+    // inside its RH-class windows. The engine now stops on one, so it is
+    // refused here, where the user can still pick the right file.
+    // The version must follow PWB_TIMELAG_CACHE_VERSION in the engine's
+    // pwb_timelag_handle.f90, which reads no other.
+    QString firstLine;
     QFile pwbCache(canonicalParamFile);
     if (pwbCache.open(QIODevice::ReadOnly | QIODevice::Text))
     {
-        const auto firstLine = QString::fromUtf8(pwbCache.readLine()).trimmed();
-        if (firstLine == QLatin1String("PWB_TIMELAG_CACHE_VERSION=1") ||
-            firstLine == QLatin1String("PWB_TIMELAG_CACHE_VERSION=2"))
-        {
-            fileBrowse->setPath(canonicalParamFile);
-            WidgetUtils::rememberDialogPath(QStringLiteral("timelag_file"), canonicalParamFile, true);
-            WidgetUtils::rememberDialogPath(QStringLiteral("timelag_import_file"), canonicalParamFile, true);
-            return;
-        }
+        firstLine = QString::fromUtf8(pwbCache.readLine()).trimmed();
     }
 
-    AncillaryFileTest test_dialog(AncillaryFileTest::FileType::TimeLag, ecProject_, this);
-    test_dialog.refresh(canonicalParamFile);
-
-    auto test_result = test_dialog.makeTest();
-    auto dialog_result = true;
-    if (!test_result)
-    {
-        dialog_result = test_dialog.exec();
-    }
-
-    if (dialog_result)
+    if (firstLine == QLatin1String("PWB_TIMELAG_CACHE_VERSION=5"))
     {
         fileBrowse->setPath(canonicalParamFile);
         WidgetUtils::rememberDialogPath(QStringLiteral("timelag_file"), canonicalParamFile, true);
         WidgetUtils::rememberDialogPath(QStringLiteral("timelag_import_file"), canonicalParamFile, true);
+        return;
+    }
+
+    if (firstLine.startsWith(QLatin1String("PWB_TIMELAG_CACHE_VERSION=")))
+    {
+        WidgetUtils::warning(this,
+                             tr("PWB Time-Lag Table"),
+                             tr("This PWB time-lag table was written by an earlier version "
+                                "of EddyFlow and cannot be reused. Regenerate it by running "
+                                "PWB with \"Time lag file not available\" selected."));
     }
     else
     {
-        fileBrowse->clear();
+        WidgetUtils::warning(this,
+                             tr("PWB Time-Lag Table"),
+                             tr("This file is not a PWB half-hourly time-lag table.\n\n"
+                                "Select the *_pwb_timelag_<timestamp>.csv file a PWB run "
+                                "writes, not the *_pwb_timelag_opt_<timestamp>.txt summary "
+                                "beside it or a time-lag optimisation file."));
     }
+    fileBrowse->clear();
 }
 
 /// Rebuild one search-window row per configured gas.
