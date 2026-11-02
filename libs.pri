@@ -18,11 +18,13 @@ CONFIG(debug, debug|release) {
     }
     macx {
         # quazip 1.x for Qt6 (debug)
-        LIBS += -L$$OUT_PWD/../../libs/mac/quazip-1.x -lquazip1-qt6_debug
+        !isEmpty(QUAZIP_LIB_DIR): LIBS += -L$$QUAZIP_LIB_DIR
+        !isEmpty(QUAZIP_LIB_NAME): LIBS += -l$$QUAZIP_LIB_NAME
+        else: LIBS += -lquazip1-qt6
 
-        # linking
-        QMAKE_PRE_LINK += $$_PRO_FILE_PWD_/scripts/build/mac-pre-link.sh debug $$OUT_PWD
-        QMAKE_POST_LINK += $$_PRO_FILE_PWD_/scripts/build/mac-post-link.sh debug
+        # linking: templates, docs and QuaZIP into the bundle, then its rpath
+        QMAKE_PRE_LINK += /bin/bash $$shell_quote($$_PRO_FILE_PWD_/scripts/build/mac-pre-link.sh) debug $$shell_quote($$OUT_PWD) $$shell_quote($$QUAZIP_LIB_DIR)
+        QMAKE_POST_LINK += /bin/bash $$shell_quote($$_PRO_FILE_PWD_/scripts/build/mac-post-link.sh) debug $$shell_quote($$OUT_PWD)
     }
     linux {
         # quazip 1.x for Qt6 (debug)
@@ -44,11 +46,13 @@ CONFIG(debug, debug|release) {
     }
     macx {
         # quazip 1.x for Qt6 (release)
-        LIBS += -L$$OUT_PWD/../../libs/mac/quazip-1.x -lquazip1-qt6
+        !isEmpty(QUAZIP_LIB_DIR): LIBS += -L$$QUAZIP_LIB_DIR
+        !isEmpty(QUAZIP_LIB_NAME): LIBS += -l$$QUAZIP_LIB_NAME
+        else: LIBS += -lquazip1-qt6
 
-        # linking
-        QMAKE_PRE_LINK += $$_PRO_FILE_PWD_/scripts/build/mac-pre-link.sh release
-        QMAKE_POST_LINK += $$_PRO_FILE_PWD_/scripts/build/mac-post-link.sh release
+        # linking: templates, docs and QuaZIP into the bundle, then its rpath
+        QMAKE_PRE_LINK += /bin/bash $$shell_quote($$_PRO_FILE_PWD_/scripts/build/mac-pre-link.sh) release $$shell_quote($$OUT_PWD) $$shell_quote($$QUAZIP_LIB_DIR)
+        QMAKE_POST_LINK += /bin/bash $$shell_quote($$_PRO_FILE_PWD_/scripts/build/mac-post-link.sh) release $$shell_quote($$OUT_PWD)
     }
     linux {
         # quazip 1.x for Qt6 (release)

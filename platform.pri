@@ -1,21 +1,11 @@
 # platform specific configurations
 
 macx {
-    CONFIG += x86
     CONFIG += app_bundle
 
-    # 10.7 = lion
-    # 10.8 = mountain lion
-    # 10.9 = mavericks
-    # 10.10 = yosemite
-    # 10.11 = el capitan
-    # 10.12 = sierra (current minimum supported)
-    # 10.13 = high sierra
-    # 10.14 = mojave
-#    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9
-#    QMAKE_MAC_SDK = macosx
-#    QMAKE_MAC_SDK.macosx.version = 10.12
-#    QMAKE_MAC_SDK = macosx10.12
+    # Apple Silicon only. The minimum macOS version is Qt's default; pass
+    # QMAKE_MACOSX_DEPLOYMENT_TARGET=<version> to qmake to change it.
+    QMAKE_APPLE_DEVICE_ARCHS = arm64
 
     QMAKE_CFLAGS += -gdwarf-2
     QMAKE_CXXFLAGS += -gdwarf-2
