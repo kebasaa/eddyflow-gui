@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import unittest
 
 
@@ -86,6 +87,28 @@ class PwbGuiStaticIntegrationTests(unittest.TestCase):
             "setPwbRandomSeed",
         ):
             self.assertIn(setter, dialog)
+
+    def test_pwb_dialog_accepts_only_the_half_hourly_table(self):
+        # The *_pwb_timelag_opt_* summary written beside the table, or any
+        # time-lag optimisation file, used to be accepted and silently turned
+        # the run into covariance maximisation. The engine stops on one now,
+        # and the dialog refuses it rather than handing it on.
+        dialog = read("src/pwbtimelagsettingsdialog.cpp")
+        self.assertNotIn("AncillaryFileTest", dialog)
+        self.assertNotIn("aggregate time-lag file", dialog)
+        self.assertIn("This file is not a PWB half-hourly time-lag table.", dialog)
+        self.assertIn("written by an earlier version", dialog)
+        self.assertIn("fileBrowse->clear();", dialog)
+        accepted = re.findall(r'firstLine == QLatin1String\("(PWB_TIMELAG_CACHE_VERSION=\d+)"\)', dialog)
+        self.assertEqual(len(accepted), 1, accepted)
+
+        # The engine reads exactly one version; the dialog must accept that one.
+        engine = ROOT.parent / "eddyflow-engine" / "src" / "src_rp" / "pwb_timelag_handle.f90"
+        if not engine.exists():
+            self.skipTest("eddyflow-engine is not checked out beside this repository")
+        read_versions = set(re.findall(r"trim\(line\) /= '(PWB_TIMELAG_CACHE_VERSION=\d+)'",
+                                       engine.read_text(encoding="utf-8")))
+        self.assertEqual(read_versions, {accepted[0]})
 
 
 if __name__ == "__main__":
