@@ -1,3 +1,9 @@
+8.1.5 (2026-11-03)
+
+    GUI:
+	- Version bump to match EddyFlow engine 8.1.5. Nothing in the interface
+	  changes.
+
 8.1.4 (2026-11-02)
 
     GUI:
