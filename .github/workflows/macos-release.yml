@@ -1,0 +1,113 @@
+name: macOS release build
+
+# Builds the Apple Silicon .dmg with build_eddyflow_macos.sh from the private
+# eddyflow-build-script repository, checks the app it contains, and attaches
+# it to the release, next to the Windows .7z.
+#
+# Needs the repository secret BUILD_SCRIPT_TOKEN: a fine-grained token with
+# read-only Contents access to kebasaa/eddyflow-build-script.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build and attach the .dmg to, e.g. v8.1.5
+        required: true
+      engine_ref:
+        description: eddyflow-engine branch, tag or commit (default the same tag)
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      ENGINE_REF: ${{ inputs.engine_ref || github.event.release.tag_name || inputs.tag }}
+    steps:
+      # The build script expects the three repositories side by side, with its
+      # own folder named eddyflow-build-script.
+      - name: Check out eddyflow-gui at ${{ env.TAG }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          path: eddyflow-gui
+
+      - name: Check out eddyflow-engine at ${{ env.ENGINE_REF }}
+        uses: actions/checkout@v4
+        with:
+          repository: kebasaa/eddyflow-engine
+          ref: ${{ env.ENGINE_REF }}
+          path: eddyflow-engine
+
+      - name: Check out eddyflow-build-script
+        uses: actions/checkout@v4
+        with:
+          repository: kebasaa/eddyflow-build-script
+          ref: main
+          token: ${{ secrets.BUILD_SCRIPT_TOKEN }}
+          path: eddyflow-build-script
+
+      - name: Install build dependencies
+        run: brew install qt gcc cmake
+
+      - name: Build the .dmg
+        run: bash eddyflow-build-script/build_eddyflow_macos.sh --no-install-deps
+
+      - name: Keep the .dmg with the run
+        uses: actions/upload-artifact@v4
+        with:
+          name: eddyflow-macos-arm64
+          path: dist/eddyflow_v*_macos_arm64.dmg
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Check the app in the .dmg
+        run: |
+          dmg=$(ls dist/eddyflow_v*_macos_arm64.dmg)
+          mount=$(mktemp -d)
+          hdiutil attach "$dmg" -nobrowse -readonly -mountpoint "$mount"
+          app="$mount/EddyFlow.app"
+          bin="$app/Contents/MacOS/bin"
+
+          codesign --verify --strict --deep --verbose=1 "$app"
+
+          leaks=0
+          while IFS= read -r file; do
+            file -b "$file" | grep -q '^Mach-O' || continue
+            if otool -L "$file" | tail -n +2 | grep -E '^[[:space:]]*(/opt/homebrew|/usr/local)/'; then
+              echo "::error::$file loads a library from Homebrew"
+              leaks=1
+            fi
+          done < <(find "$app" -type f)
+          [ "$leaks" -eq 0 ]
+
+          "$bin/eddyflow_rp" --version
+          "$bin/eddyflow_fcc" --version
+          "$bin/7z" i | head -n 5
+          test -d "$app/Contents/MacOS/docs"
+          test -d "$app/Contents/MacOS/file-templates"
+
+          # The GUI must start and keep running; it is stopped after 15 s.
+          QT_QPA_PLATFORM=offscreen "$app/Contents/MacOS/EddyFlow" &
+          pid=$!
+          sleep 15
+          if ! kill -0 "$pid" 2>/dev/null; then
+            wait "$pid" || status=$?
+            echo "::error::the GUI exited early (status ${status:-0})"
+            exit 1
+          fi
+          kill "$pid"
+
+          hdiutil detach "$mount"
+
+      # --clobber replaces a .dmg of the same name when a release is rebuilt.
+      - name: Attach the .dmg to release ${{ env.TAG }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" dist/eddyflow_v*_macos_arm64.dmg --clobber --repo "$GITHUB_REPOSITORY"

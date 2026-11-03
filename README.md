@@ -78,6 +78,11 @@ the directory where the source code is:
 Use `build_eddyflow_macos.sh` from the
 [eddyflow-build-script](https://github.com/kebasaa/eddyflow-build-script) repository. On an
 Apple Silicon Mac it builds QuaZIP, the engine and the GUI, and packages them as a `.dmg`.
+Publishing a release here runs `.github/workflows/macos-release.yml`. It builds the `.dmg` on a
+GitHub macOS runner, using the eddyflow-engine tag with the same name, and attaches it to the
+release. The workflow needs the repository secret `BUILD_SCRIPT_TOKEN`, a token with read-only
+access to the private eddyflow-build-script repository. To rebuild an existing release, run it
+from the Actions tab and enter the tag.
 
 For a development build, run qmake on `EddyFlow_mac.pro` and pass the QuaZIP paths as
 `QUAZIP_INCLUDE_DIR`, `QUAZIP_LIB_DIR` and `QUAZIP_LIB_NAME`. The `scripts/build/mac-*.sh`
