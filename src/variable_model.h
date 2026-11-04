@@ -88,6 +88,11 @@ public:
 
 signals:
     void modified();
+    //> A variable was inserted or removed at this 0-based position, so every
+    //> raw column from there on moved by one. Records that name a column by
+    //> number have to move with it.
+    void variableInserted(int column);
+    void variableRemoved(int column);
 
 private:
     VariableDescList *list_;

@@ -181,10 +181,22 @@ class MeasurementRecordContract(unittest.TestCase):
         src = _read(GUI_ROOT / "src" / "basicsettingspage.cpp")
         body = src[src.index("void BasicSettingsPage::removeGasRecord("):]
         body = body[: body.index("\n}\n")]
-        self.assertIn("gases.remove(i)", body)
+        self.assertIn("removeGasRecordsAt({ i });", body)
         self.assertNotIn("kLegacyGasSlots", body,
                          "no position is reserved any more")
-        self.assertIn("--gas.moistureRef", body)
+
+        #> The renumbering lives in EcProject, beside the other two
+        #> rearrangers, so it is the same remap for all three.
+        helper = src[src.index("void BasicSettingsPage::removeGasRecordsAt("):]
+        helper = helper[: helper.index("\n}\n")]
+        self.assertIn("ecProject_->removeGasRecords(indices)", helper)
+        self.assertIn("MeasurementRecords::validateReferences(", helper)
+
+        project = _read(GUI_ROOT / "src" / "ecproject.cpp")
+        remove = project[project.index("bool EcProject::removeGasRecords("):]
+        remove = remove[: remove.index("\n}\n")]
+        self.assertIn("remapMoistureRefs(kept, remap);", remove)
+        self.assertIn("remapCecPairs(", remove)
 
         cells = src[src.index("void BasicSettingsPage::removeNonGasRecord("):]
         cells = cells[: cells.index("\n}\n")]

@@ -274,9 +274,12 @@ class EachGasCanNameItsDonor(unittest.TestCase):
         remap = PROJECT[PROJECT.index("static void remapMoistureRefs("):]
         remap = remap[:remap.index("\n}")]
         self.assertIn("gas.tlagDonor = gas.tlagDonor > 0", remap)
-        #> Removing a gas on the basic settings page shifts by hand.
-        self.assertIn("else if (gas.tlagDonor > i + 1) { --gas.tlagDonor; }",
-                      self.BASIC)
+        #> Removing a gas goes through the same remap, by way of
+        #> EcProject::removeGasRecords, instead of shifting by hand.
+        removal = PROJECT[PROJECT.index("bool EcProject::removeGasRecords("):]
+        removal = removal[:removal.index("\n}")]
+        self.assertIn("remapMoistureRefs(kept, remap);", removal)
+        self.assertIn("ecProject_->removeGasRecords(indices)", self.BASIC)
         self.assertIn("validateTlagDonors(gases);", self.RECORD_CPP)
 
     def test_only_a_tube_mate_that_is_not_water_is_a_donor(self):

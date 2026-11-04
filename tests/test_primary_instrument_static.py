@@ -79,10 +79,11 @@ class OneRemapForEveryRearrangement(unittest.TestCase):
     def test_the_helper_exists_and_is_shared(self):
         src = code(PROJECT)
         self.assertIn("static void remapMoistureRefs(", src)
-        #> One definition and two call sites: compaction and the reorder.
+        #> One definition and three call sites: compaction, the reorder, and
+        #> removing records when the metadata no longer declares them.
         call_sites = src.count("remapMoistureRefs(") - 1
         self.assertEqual(
-            2, call_sites,
+            3, call_sites,
             "both rearrangers must go through the one helper; found %d call "
             "sites" % call_sites)
 
@@ -94,6 +95,11 @@ class OneRemapForEveryRearrangement(unittest.TestCase):
         self.assertIn(
             "remapMoistureRefs(reordered, remap)",
             body(PROJECT, "bool EcProject::setPrimaryGasInstrument("))
+
+    def test_removal_uses_it(self):
+        self.assertIn(
+            "remapMoistureRefs(kept, remap)",
+            body(PROJECT, "bool EcProject::removeGasRecords("))
 
     def test_neither_rewrites_moisture_refs_by_hand(self):
         """A second open-coded copy is how the two drift apart."""

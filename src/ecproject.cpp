@@ -4463,12 +4463,80 @@ static void remapMoistureRefs(QVector<GasRecord>& gases,
         //> A reference to a record that went away becomes automatic rather
         //> than some other gas: auto re-resolves on every read, so it repairs
         //> itself instead of silently naming an unrelated species.
-        gas.moistureRef = gas.moistureRef > 0 && gas.moistureRef < remap.size()
-                ? remap.at(gas.moistureRef) : 0;
+        //>
+        //> The biomet sentinel is not an index and passes through untouched.
+        //> This used to send every non-positive value to 0, so choosing a
+        //> primary instrument quietly turned "use the biomet" into automatic.
+        if (gas.moistureRef > 0)
+        {
+            gas.moistureRef = gas.moistureRef < remap.size()
+                    ? remap.at(gas.moistureRef) : 0;
+        }
         //> The lag donor is an index into the same list, and goes the same way.
         gas.tlagDonor = gas.tlagDonor > 0 && gas.tlagDonor < remap.size()
                 ? remap.at(gas.tlagDonor) : 0;
     }
+}
+
+/// The CEC pairings through the same \a remap. Their carbon, water and extra
+/// channels are 1-based gas indices too, and no rearrangement carried them:
+/// removing a gas ahead of the pair moved the partition onto its neighbours.
+/// A channel that went away becomes 0, "not stated", which the engine
+/// resolves from the analyser layout.
+static void remapCecPairs(QVector<CecPairRecord>& pairs,
+                          const QVector<int>& remap)
+{
+    const auto through = [&remap](int idx)
+    {
+        return idx > 0 && idx < remap.size() ? remap.at(idx) : 0;
+    };
+    for (auto& pair : pairs)
+    {
+        pair.carbonIndex = through(pair.carbonIndex);
+        pair.waterIndex = through(pair.waterIndex);
+        QVector<int> extras;
+        for (const int idx : pair.extraIndices)
+        {
+            const int moved = through(idx);
+            if (moved > 0) { extras.append(moved); }
+        }
+        pair.extraIndices = extras;
+    }
+}
+
+/// Remove the gas records at \a indices (0-based) and renumber every
+/// reference into the list in one pass. The single way records leave the list
+/// other than compaction, so no caller can be the one that forgets the
+/// lag donors or the CEC pairs.
+bool EcProject::removeGasRecords(const QVector<int>& indices)
+{
+    auto& gases = ec_project_state_.projectGeneral.gasColumns;
+
+    QVector<bool> drop(gases.size(), false);
+    bool any = false;
+    for (const int i : indices)
+    {
+        if (i < 0 || i >= gases.size()) { continue; }
+        drop[i] = true;
+        any = true;
+    }
+    if (!any) { return false; }
+
+    QVector<int> remap(gases.size() + 1, 0);
+    QVector<GasRecord> kept;
+    kept.reserve(gases.size());
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        if (drop.at(i)) { continue; }
+        kept.append(gases.at(i));
+        remap[i + 1] = kept.size();
+    }
+
+    remapMoistureRefs(kept, remap);
+    remapCecPairs(ec_project_state_.projectGeneral.cecPairs, remap);
+    gases = kept;
+    setModified(true);
+    return true;
 }
 
 /// Drop every gas record that names no column, and renumber what pointed past
@@ -4503,6 +4571,7 @@ void EcProject::compactGasRecords()
     if (kept.size() == gases.size()) { return; }
 
     remapMoistureRefs(kept, remap);
+    remapCecPairs(ec_project_state_.projectGeneral.cecPairs, remap);
     gases = kept;
 }
 
@@ -4589,6 +4658,7 @@ bool EcProject::setPrimaryGasInstrument(const QString& instrumentId)
     //> Built before anything moved, applied to the new list — see
     //> remapMoistureRefs.
     remapMoistureRefs(reordered, remap);
+    remapCecPairs(ec_project_state_.projectGeneral.cecPairs, remap);
     gases = reordered;
     setModified(true);
     return true;

@@ -133,6 +133,11 @@ DlRawfileDescTab::DlRawfileDescTab(QWidget* parent, DlProject* dlProject) :
     connect(variableModel_, &VariableModel::modified, [=]()
             { dlProject_->setModified(true); });
 
+    connect(variableModel_, &VariableModel::variableInserted,
+            dlProject_, &DlProject::rawColumnInserted);
+    connect(variableModel_, &VariableModel::variableRemoved,
+            dlProject_, &DlProject::rawColumnRemoved);
+
     connect(dlProject, &DlProject::projectModified,
             this, &DlRawfileDescTab::updateModels);
 

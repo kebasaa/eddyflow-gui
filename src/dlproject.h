@@ -229,6 +229,11 @@ signals:
     void projectChanged();
     // send that a project has been modified
     void projectModified();
+    //> The metadata editor inserted or removed the variable at this 0-based
+    //> position. Every later raw column moved by one, and the processing
+    //> project's records, which name columns by number, must follow.
+    void rawColumnInserted(int column);
+    void rawColumnRemoved(int column);
 
 private:
     enum class InstrumentType { UNDEFINED, ANEM, IRGA };

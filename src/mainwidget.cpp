@@ -108,6 +108,13 @@ MainWidget::MainWidget(QWidget *parent, DlProject *dlProject, EcProject *ecProje
     connect(this, &MainWidget::showSetPrototypeRequest,
             basicSettingsPage_, &BasicSettingsPage::showSetPrototype);
 
+    //> A variable added or removed in the metadata editor moves every later
+    //> raw column; the records that name columns by number move with it.
+    connect(dlProject_, &DlProject::rawColumnInserted,
+            basicSettingsPage_, &BasicSettingsPage::onRawColumnInserted);
+    connect(dlProject_, &DlProject::rawColumnRemoved,
+            basicSettingsPage_, &BasicSettingsPage::onRawColumnRemoved);
+
     connect(mainWindow, &MainWindow::checkMetadataOutputRequest,
             advancedSettingsPage_->advancedSettingPages(), &AdvSettingsContainer::checkMetadataOutputRequest);
 

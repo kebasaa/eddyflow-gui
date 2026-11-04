@@ -990,6 +990,7 @@ bool VariableModel::insertColumns(int column, int count, const QModelIndex& pare
     beginInsertColumns(QModelIndex(), column, column);
     list_->insert(column, variableDesc);
     endInsertColumns();
+    emit variableInserted(column);
     emit modified();
     return true;
 }
@@ -1010,6 +1011,7 @@ bool VariableModel::removeColumns(int column, int count, const QModelIndex& pare
     beginRemoveColumns(QModelIndex(), column, column);
     list_->removeAt(column);
     endRemoveColumns();
+    emit variableRemoved(column);
     emit modified();
     return true;
 }
