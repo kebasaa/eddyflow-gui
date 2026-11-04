@@ -94,7 +94,9 @@ jobs:
           test -d "$app/Contents/MacOS/file-templates"
 
           # The GUI must start and keep running; it is stopped after 15 s.
-          QT_QPA_PLATFORM=offscreen "$app/Contents/MacOS/EddyFlow" &
+          # It runs on cocoa, the only platform plugin the app bundles: the
+          # runner has a logged-in desktop session.
+          "$app/Contents/MacOS/EddyFlow" &
           pid=$!
           sleep 15
           if ! kill -0 "$pid" 2>/dev/null; then
