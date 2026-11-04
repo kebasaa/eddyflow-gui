@@ -1,4 +1,4 @@
-"""A newer release is offered, and on Windows installed in place, only on request.
+"""A newer release is offered, and on Windows and macOS installed in place, only on request.
 
 The startup check reads the latest release from the GitHub API, which lists
 the files a release carries; the release page it used to follow could only
@@ -11,8 +11,15 @@ question closing asks.
 Installing renames each file being replaced to <name>.old, as Windows will
 rename a running program but not overwrite it, and puts everything back if a
 step fails. The next start removes the .old files the update listed in
-.update/replaced.txt, and nothing else. On Linux and macOS there is only a
-button to the download page, which is the latest release page.
+.update/replaced.txt, and nothing else.
+
+On macOS the whole EddyFlow.app is replaced, from the release's .dmg: it is
+mounted with hdiutil, its app copied with ditto, the copy's signature
+checked, and the running bundle renamed into .eddyflow-update/old beside it
+before the new one takes its place - and renamed back if that fails. Nothing
+is written inside the bundle. The new version starts through open -n, and the
+next start removes the old bundle. On Linux there is only a button to the
+download page, which is the latest release page.
 """
 
 from pathlib import Path
@@ -76,6 +83,8 @@ class TheCheck(unittest.TestCase):
         self.assertIn("releaseArch()", parse)
         # an archive with no architecture in its name predates arm64
         self.assertIn(': QStringLiteral("x86_64");', parse)
+        # on macOS, the disk image for this architecture
+        self.assertIn('"_macos_([A-Za-z0-9]+)\\\\.dmg$"', parse)
 
     def test_startup_shows_only_a_newer_release_and_waits_for_no_timer(self):
         main = read("mainwindow.cpp")
@@ -121,12 +130,14 @@ class AskedTwice(unittest.TestCase):
 
 
 class InPlace(unittest.TestCase):
-    def test_only_on_windows(self):
+    def test_only_on_windows_and_macos(self):
         installer = read("updateinstaller.cpp")
         for signature in ("bool UpdateInstaller::isAvailable()",
                           "bool UpdateInstaller::install(QString* error)",
                           "void UpdateInstaller::cleanUp()"):
-            self.assertIn("#if defined(Q_OS_WIN)", body(installer, signature), signature)
+            text = body(installer, signature)
+            self.assertIn("#if defined(Q_OS_WIN)", text, signature)
+            self.assertIn("#elif defined(Q_OS_MACOS)", text, signature)
         available = body(installer, "bool UpdateInstaller::isAvailable()")
         self.assertIn("#else\n    return false;", available)
 
@@ -146,6 +157,39 @@ class InPlace(unittest.TestCase):
         self.assertIn('contains(QStringLiteral(".."))', clean)
         self.assertNotIn("*.old", installer)
         self.assertIn("UpdateInstaller::cleanUp();", read("main.cpp"))
+
+    def test_macos_stages_beside_the_bundle(self):
+        installer = read("updateinstaller.cpp")
+        self.assertIn('UPDATE_STAGING_DIR_MAC = QStringLiteral(".eddyflow-update")', read("defs.h"))
+        staging = body(installer, "QString UpdateInstaller::stagingDir()")
+        self.assertIn("QFileInfo(bundle).absolutePath()", staging)
+        self.assertIn("Defs::UPDATE_STAGING_DIR_MAC", staging)
+
+    def test_macos_copies_the_app_out_of_the_dmg_and_checks_it(self):
+        installer = read("updateinstaller.cpp")
+        self.assertIn('"/usr/bin/hdiutil"', installer)
+        copy = body(installer, "QString copyAppFromDiskImage(")
+        self.assertIn('QStringLiteral("attach")', copy)
+        self.assertIn("runTool(DITTO,", copy)
+        self.assertIn('QStringLiteral("detach")', copy)
+        # detached before the copy is judged, whatever happened
+        self.assertLess(copy.index('QStringLiteral("detach")'), copy.index("runTool(CODESIGN,"))
+        self.assertIn('QStringLiteral("--strict")', copy)
+        self.assertIn("bundleIdentifier(copy) != id", copy)
+        self.assertIn('".dmg"', body(installer, "bool UpdateInstaller::canExtract("))
+
+    def test_macos_swaps_the_bundle_and_puts_it_back(self):
+        install = body(read("updateinstaller.cpp"), "bool UpdateInstaller::install(QString* error)")
+        mac = install[install.index("#elif defined(Q_OS_MACOS)"):]
+        self.assertIn("dir.rename(bundlePath_, aside)", mac)
+        self.assertIn("dir.rename(newRoot_, bundlePath_)", mac)
+        self.assertIn("dir.rename(aside, bundlePath_);", mac)
+        self.assertIn("writeReplacedList(replaced)", mac)
+
+    def test_macos_restarts_through_open(self):
+        restart = body(read("updateinstaller.cpp"), "bool UpdateInstaller::restart(")
+        self.assertIn('QStringLiteral("-n"), bundlePath_', restart)
+        self.assertIn('QStringLiteral("--args")', restart)
 
     def test_built(self):
         sources = (ROOT / "sources.pri").read_text(encoding="utf-8")

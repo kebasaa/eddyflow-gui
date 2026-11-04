@@ -4619,7 +4619,7 @@ Cov_{Max}=Cov(j_\tau)=\max_{j=m,..,M}\left(\sum_{i=1}^{N-j} w_i h_{i+j}\right) \
 <div class="arithmatex">\[
 \tau_{nom}=\mathit{median}(\tau_i) \tag{6-24}
 \]</div>
-<p>where, for convenience, τi represents all time lags calculated from the available dataset.</p>
+<p>where, for convenience, τi represents all time lags calculated from the available dataset. Only half-hours whose flux exceeds the gas's <strong>Minimum (absolute) flux</strong> in magnitude contribute, so an uptake flux counts as much as an emission of the same size: the threshold is there because a weak covariance gives a poorly defined peak, and the sign does not change that. A time lag found at either end of the search window is left out too.</p>
 <p>The plausibility window is defined as:</p>
 <div class="arithmatex">\[
 \begin{gathered}
@@ -4679,13 +4679,13 @@ Cov_{Max}=Cov(j_\tau)=\max_{j=m,..,M}\left(\sum_{i=1}^{N-j} w_i h_{i+j}\right) \
 <li>A window that is too wide for the lag structure still gives a poor chord; keep the <strong>Minimum</strong> and <strong>Maximum time lags</strong> plausible.</li>
 </ul>
 <h2 id="conditional-lag-borrowing">Conditional lag borrowing<a class="headerlink" href="#conditional-lag-borrowing" title="Permanent link">&para;</a></h2>
-<p>Project-file keys <code>tlag_borrow_meth</code>, <code>tlag_borrow_snr</code>, <code>tlag_borrow_noise</code>, <code>tlag_borrow_donor</code>; interface controls <strong>Borrow a tube-mate's lag below the detection limit</strong>, <strong>Detection limits to clear</strong>, <strong>Judged against</strong>, <strong>Borrow from</strong> (see <a href="raw-processing-options.html#conditional-lag-borrowing">Advanced settings: processing options</a>). Off by default.</p>
+<p>Project-file keys <code>tlag_borrow_meth</code>, <code>tlag_borrow_snr</code>, <code>tlag_borrow_noise</code>, <code>tlag_borrow_donor</code>, <code>tlag_borrow_pairs</code>; interface controls <strong>Borrow a tube-mate's lag below the detection limit</strong>, <strong>Detection limits to clear</strong>, <strong>Judged against</strong>, <strong>Borrow from</strong> (see <a href="raw-processing-options.html#conditional-lag-borrowing">Advanced settings: processing options</a>). Off by default.</p>
 <p><strong>Idea.</strong> Gases drawn through the same intake tube share the same transport delay. A trace gas whose cross-covariance with <em>w</em> cannot be distinguished from noise has no peak of its own to detect, and the lag a maximization returns for it is close to a random draw over the search window. A gas on the same analyser that resolves its peak is measuring that same delay, so its lag is the best estimate available for the weak gas (Nemitz et al., 2018).</p>
 <p><strong>Procedure</strong>, applied in each averaging period after the lag of every gas has been found by the chosen method and before the series are shifted:</p>
 <ol>
 <li>For each gas compute the signal-to-noise ratio: the absolute covariance at its own lag divided by the noise floor chosen under <strong>Judged against</strong>. The floor is either the flux detection limit (<a href="references.html#Wienhold1994">Wienhold et al., 1994</a>; see <a href="flux-detection-limit.html#top">Flux detection limit</a>), which is the scatter of the cross-covariance far from the peak, or the instrumental noise (<a href="references.html#Lenschow">Lenschow et al., 2000</a>; <a href="references.html#Mauder2013">Mauder et al., 2013</a>), which is the step in the autocovariance at zero lag.</li>
 <li>A gas is <em>trusted</em> if its ratio is at least <strong>Detection limits to clear</strong> (default 3). The trusted set is fixed before any borrowing happens, so a borrowed lag can never become a donor and the result does not depend on column order.</li>
-<li>A gas that is not trusted, or whose lag landed on an end of its search window, takes the lag of a donor. The donor is the trusted gas on the same analyser with the highest ratio, or, if <strong>The analyser's carbon dioxide (EddyUH)</strong> is chosen, the carbon dioxide of that analyser provided it is trusted.</li>
+<li>A gas that is not trusted, or whose lag landed on an end of its search window, takes the lag of a donor. The donor is the trusted gas on the same analyser with the highest ratio, or, if <strong>The analyser's carbon dioxide (EddyUH)</strong> is chosen, the carbon dioxide of that analyser provided it is trusted. Under <strong>Chosen per gas</strong> a gas that names a donor takes that gas's lag provided it is trusted, eligible and on the same analyser, and a gas that names none is treated as under the first rule.</li>
 <li>The borrowed lag is applied in place of the gas's own. The lag that the gas's own maximization found remains in the output of actual lags, so the two differing is the record that a lag was taken from elsewhere.</li>
 </ol>
 <p><strong>Rules and limitations.</strong></p>
@@ -4694,6 +4694,7 @@ Cov_{Max}=Cov(j_\tau)=\max_{j=m,..,M}\left(\sum_{i=1}^{N-j} w_i h_{i+j}\right) \
 <li>Water vapor is never borrowed for or from.</li>
 <li>A lag is never taken from a different instrument, and a gas whose record names no instrument neither donates nor borrows.</li>
 <li>With the carbon dioxide donor, nothing is borrowed if the analyser measures no carbon dioxide, and carbon dioxide itself never borrows.</li>
+<li>A donor named per gas is never replaced by another: if it is not trusted in a period, nothing is borrowed for that period, for the same reason the carbon dioxide rule does not fall back.</li>
 <li>Borrowing trades a noisy number for a biased one: two gases down one tube can differ systematically by a few tenths of a second. It is intended for gases whose own detection is unreliable, not as a general replacement for detection.</li>
 <li>A borrowed lag is flagged in <code>&lt;gas&gt;_def_timelag</code> like a nominal-lag fallback, and the run log names the donor.</li>
 <li>Borrowing is separate from the borrowing inside the pre-whitening block-bootstrap method (below). The first asks whether a peak stands above the noise in this period; the second asks whether a bootstrap could not settle on a lag across periods.</li>

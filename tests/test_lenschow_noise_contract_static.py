@@ -32,7 +32,6 @@ ROWS = {
     1: (2, "mann_lenschow_94"),
     2: (4, "billesbach_11"),
     3: (5, "lenschow_00"),
-    4: (6, "langford_15"),
 }
 
 

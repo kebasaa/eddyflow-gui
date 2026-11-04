@@ -158,17 +158,33 @@ void DownloadManager::parseRelease(const QByteArray &data)
     version_ = tag;
     name_ = release.value(QStringLiteral("name")).toString().trimmed();
 
+    const auto arch = releaseArch();
+    QJsonObject chosen;
+    const auto assets = release.value(QStringLiteral("assets")).toArray();
+#if defined(Q_OS_MACOS)
+    // the disk image for this build's architecture, named ..._macos_<arch>.dmg
+    static const QRegularExpression dmgPattern(
+        QStringLiteral("_macos_([A-Za-z0-9]+)\\.dmg$"),
+        QRegularExpression::CaseInsensitiveOption);
+    for (const auto& value : assets)
+    {
+        const auto asset = value.toObject();
+        const auto match = dmgPattern.match(asset.value(QStringLiteral("name")).toString());
+        if (match.hasMatch() && match.captured(1).compare(arch, Qt::CaseInsensitive) == 0)
+        {
+            chosen = asset;
+            break;
+        }
+    }
+#else
     // the portable archive for this build's architecture, named
     // ..._windows_<arch>.7z; one with no architecture in its name predates
     // the arm64 builds, and so is x86_64
     static const QRegularExpression archPattern(
         QStringLiteral("_windows_([A-Za-z0-9]+)\\.(zip|7z)$"),
         QRegularExpression::CaseInsensitiveOption);
-    const auto arch = releaseArch();
 
     // a zip if there is one, as it needs no helper
-    QJsonObject chosen;
-    const auto assets = release.value(QStringLiteral("assets")).toArray();
     for (const auto& value : assets)
     {
         const auto asset = value.toObject();
@@ -188,6 +204,7 @@ void DownloadManager::parseRelease(const QByteArray &data)
         if (name.endsWith(QStringLiteral(".7z"), Qt::CaseInsensitive) && chosen.isEmpty())
             chosen = asset;
     }
+#endif
     if (chosen.isEmpty())
         return;
 

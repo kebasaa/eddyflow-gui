@@ -46,7 +46,7 @@ LangfordSettingsDialog::LangfordSettingsDialog(QWidget *parent, EcProject *ecPro
         "out there is noise. Its scatter is the random flux error RE, and the "
         "limit of detection is LoD = α × RE (Langford et al. 2015, "
         "Sect. 2.2). These settings apply wherever the method is chosen: as the "
-        "random uncertainty method and as the flux detection limit."), this);
+        "limit of detection and as the flux detection limit."), this);
     intro->setWordWrap(true);
 
     //> Combo rows are the ini values (lod_window, lod_stat), so no mapping.
@@ -127,15 +127,16 @@ LangfordSettingsDialog::LangfordSettingsDialog(QWidget *parent, EcProject *ecPro
     grid->addWidget(alphaSpin, 3, 1, Qt::AlignLeft);
     grid->setColumnStretch(2, 1);
 
-    auto note = new QLabel(tr("As the random uncertainty method, RE is written "
-        "in flux units as <i>rand_err_*</i> and the limit of detection as "
-        "<i>lod_*</i> (full output) and <i>*_LOD</i> (FLUXNET file), measured "
-        "on the detrended series the flux comes from. As the flux detection "
-        "limit, RE is written per gas in covariance units as <i>&lt;gas&gt;_detlim</i>, "
-        "measured on the raw series about each gas's own lag. RE and LoD are "
-        "multiplied by the flux's spectral correction factor while <b>Spectrally "
-        "correct the random uncertainty</b> is checked (off by default); the "
-        "detection limit is not."), this);
+    auto note = new QLabel(tr("As the limit of detection, the LoD is written "
+        "in flux units as <i>lod_*</i> (full output) and <i>*_LOD</i> (FLUXNET "
+        "file), measured on the detrended series the flux comes from, beside "
+        "the random uncertainty of whichever method is chosen. As the flux "
+        "detection limit, RE is written per gas in covariance units as "
+        "<i>&lt;gas&gt;_detlim</i>, measured on the raw series about each gas's "
+        "own lag. The LoD is multiplied by the flux's spectral correction "
+        "factor while <b>Spectrally correct the random uncertainty and limit "
+        "of detection</b> is checked (off by default); the detection limit is "
+        "not."), this);
     note->setWordWrap(true);
 
     auto resetButton = new QPushButton(tr("Restore Default Values"), this);

@@ -53,8 +53,8 @@ class QStringLiteral;
 /// \brief Contains global string literals
 namespace Defs
 {
-    const auto APP_VERSION = 0x080106;
-    const auto APP_VERSION_STR = QStringLiteral("8.1.6");
+    const auto APP_VERSION = 0x080107;
+    const auto APP_VERSION_STR = QStringLiteral("8.1.7");
     const auto APP_STAGE_STR = QStringLiteral(""); // -rc1
 
     //> 5.0.0 is the record format: gases, cell measurements and diagnostics
@@ -239,6 +239,8 @@ namespace Defs
     const auto TMP_FILE_DIR         = QStringLiteral("tmp");
     // beside the program: where an update is downloaded and extracted
     const auto UPDATE_STAGING_DIR   = QStringLiteral(".update");
+    // on macOS beside the app bundle, as nothing may be written inside it
+    const auto UPDATE_STAGING_DIR_MAC = QStringLiteral(".eddyflow-update");
     const auto SMF_FILE_DIR         = QStringLiteral("smf");
     const auto CAL_FILE_DIR         = QStringLiteral("cal");
     const auto TRANSLATION_FILE_DIR = QStringLiteral("tra");

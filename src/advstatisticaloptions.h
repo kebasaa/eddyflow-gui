@@ -194,6 +194,8 @@ private slots:
     void setRandomErrorControlsEnabled(bool b);
     void onClickRandomMethodLabel();
     void updateRandomMethod(int n);
+    void onClickLodMethodLabel();
+    void updateLodMethod(int n);
     void onClickItsDefinitionLabel();
     void updateItsDefinition(int n);
     void onTimelagMaxLabelCLicked();
@@ -457,16 +459,23 @@ private:
     QPushButton* detlimSettingsButton;
     DetlimSettingsDialog* detlimDialog_{};
 
-    //> Limit of detection after Langford et al. (2015). One dialog for both
-    //> places the method is offered; this button beside the method combo is
-    //> live only while that method is chosen, and the detection limit dialog
-    //> asks for the same one.
+    //> Limit of detection after Langford et al. (2015), on its own switch
+    //> under the random uncertainty method rather than as one of its
+    //> methods, so a run can report both (lod_meth; the row is the value).
+    //> One settings dialog for both places Langford is offered: this button
+    //> is live while the limit of detection is on, and the detection limit
+    //> dialog asks for the same one.
+    ClickLabel* lodMethodLabel;
+    QComboBox* lodMethodCombo;
     QPushButton* lodSettingsButton;
-    //> Spectral correction of the reported random errors, Langford et al.
-    //> (2015). Live with the random uncertainty checkbox.
+    //> Spectral correction of the reported random errors and limit of
+    //> detection, Langford et al. (2015). Live while either is on.
     QCheckBox* specCorrCheckBox;
     LangfordSettingsDialog* lodDialog_{};
-    void updateLodSettingsButton();
+    //> The controls the random error and the limit of detection share - the
+    //> ITS settings, which the automatic Langford window reads, and the
+    //> spectral correction - live while either is on.
+    void updateLodControls();
 
     //> The four grids that carry generated gas rows. Held because the rows,
     //> and everything the grid places below them, are positioned in

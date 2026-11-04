@@ -558,6 +558,7 @@ public:
     void setRandomErrorItsSecFactor(double d);
     void setRandomErrorLodAlpha(double d);
     void setRandomErrorSpecCorr(int n);
+    void setRandomErrorLodMethod(int n);
 
     void setBiomParamColAirT(int n);
     void setBiomParamColAirP(int n);
@@ -1053,6 +1054,7 @@ public:
     double randErrorSecFactor() const { return ec_project_state_.randomError.its_sec_factor; }
     double randErrorLodAlpha() const { return ec_project_state_.randomError.lod_alpha; }
     int randErrorSpecCorr() const { return ec_project_state_.randomError.spec_corr; }
+    int randErrorLodMethod() const { return ec_project_state_.randomError.lod_meth; }
 
     int biomParamColAirT() const { return ec_project_state_.biomParam.col_ta; }
     int biomParamColAirP() const { return ec_project_state_.biomParam.col_pa; }

@@ -1,8 +1,11 @@
 """Limit of detection after Langford et al. (2015): the interface and the engine agree.
 
-The method is offered in two places - as random uncertainty method
-``ru_meth = 6`` and as flux detection limit ``detlim_meth = 2`` - and both read
-one set of settings from one dialog. What could break silently:
+The method is offered in two places - as the limit of detection
+``lod_meth = 1``, its own switch under the random uncertainty method, and as
+flux detection limit ``detlim_meth = 2`` - and both read one set of settings
+from one dialog. It is no longer a random uncertainty method: a run reports the
+chosen method's random error and Langford's limit of detection side by side.
+What could break silently:
 
 **A label that loses its citation.** Each lag window names the paper it comes
 from: Langford et al. (2015), Maier et al. (2022), and the automatic one after
@@ -10,7 +13,8 @@ Spirig et al. (2005), whose rule is EddyFlow's own and says so.
 
 **A key the engine never sees.** ``lod_window``, ``lod_stat`` and
 ``lod_its_mult`` go to ``[RawProcess_Settings]``, which only RP reads;
-``lod_alpha`` to ``[Project]``, because FCC writes the LoD columns too.
+``lod_alpha`` and ``lod_meth`` to ``[Project]``, because FCC writes the LoD
+columns too.
 
 **A default that drifts.** +/-150-180 s, RMSE, ten integral scales and
 alpha = 1.96 on both sides, or the same file computes different limits
@@ -46,9 +50,38 @@ SOURCES = read(GUI_ROOT / "sources.pri")
 
 class TheLabelsCiteTheirPapers(unittest.TestCase):
 
-    def test_the_random_uncertainty_row(self):
-        self.assertIn('randomMethodCombo->addItem(tr("Limit of detection (Langford et al. 2015)"));', PAGE)
-        self.assertIn("randomMethodCombo->setItemData(4, 6);", PAGE)
+    def test_the_limit_of_detection_row(self):
+        # Its own combo, the row being the lod_meth value; no longer a row of
+        # the random uncertainty method.
+        self.assertIn('lodMethodCombo->addItem(tr("None"));', PAGE)
+        self.assertIn('lodMethodCombo->addItem(tr("Langford et al. (2015)"));', PAGE)
+        self.assertNotIn('randomMethodCombo->addItem(tr("Limit of detection', PAGE)
+        self.assertNotIn("randomMethodCombo->setItemData(4,", PAGE)
+
+    def test_it_sits_under_the_random_uncertainty_method(self):
+        grid = PAGE[PAGE.index("auto downLayout = new QGridLayout;"):]
+        grid = grid[:grid.index("downLayout->setColumnStretch")]
+        self.assertIn("downLayout->addWidget(randomMethodCombo, 1, 2);", grid)
+        self.assertIn("downLayout->addWidget(lodMethodLabel, 2, 1, Qt::AlignRight);", grid)
+        self.assertIn("downLayout->addWidget(lodMethodCombo, 2, 2);", grid)
+        self.assertIn("downLayout->addWidget(lodSettingsButton, 2, 3, Qt::AlignLeft);", grid)
+        self.assertIn("downLayout->addWidget(itsLabel, 3, 1);", grid)
+
+    def test_its_controls_follow_either_switch(self):
+        body = PAGE[PAGE.index("void AdvStatisticalOptions::updateLodControls()"):]
+        body = body[:body.index("\n}\n")]
+        self.assertIn("lodSettingsButton->setEnabled(lod);", body)
+        self.assertIn("const bool shared = randomError || lod;", body)
+        self.assertIn("itsDefinitionCombo->setEnabled(shared);", body)
+        self.assertIn("specCorrCheckBox->setEnabled(shared);", body)
+
+    def test_the_key(self):
+        self.assertRegex(INIDEFS, r'INI_RAND_ERROR_6\s*= QStringLiteral\("lod_meth"\)')
+        self.assertIn("int lod_meth = 0;", STATE)
+        self.assertIn("project_ini.setValue(EcIni::INI_RAND_ERROR_6,", PROJECT)
+        self.assertIn("project_ini.value(EcIni::INI_RAND_ERROR_6,", PROJECT)
+        self.assertIn("ec_project_state_.randomError.lod_meth = defaultEcProjectState.randomError.lod_meth;",
+                      PROJECT)
 
     def test_the_detection_limit_row(self):
         self.assertIn('methodCombo->addItem(tr("Langford et al. (2015)"));', DETLIM)
@@ -132,7 +165,9 @@ class TheDefaultsAgree(unittest.TestCase):
         self.assertIn("RUsetup%lod_stat = 'rmse'", reader)
         self.assertIn("RUsetup%lod_its_mult = 10d0", reader)
         self.assertIn("RUsetup%lod_alpha = 1.96d0", decoder)
-        self.assertIn("RUsetup%meth = 'langford_15'", decoder)
+        self.assertIn("RUsetup%lod_meth = 'none'", decoder)
+        self.assertIn("RUsetup%lod_meth = 'langford_15'", decoder)
+        self.assertNotIn("RUsetup%meth = 'langford_15'", decoder)
         self.assertIn("RPSetup%detlim_meth = 'langford_15'", reader)
 
 

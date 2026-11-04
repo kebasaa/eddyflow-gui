@@ -4458,14 +4458,14 @@
 
 <h1 id="limit-of-detection-settings-langford-et-al-2015">Limit of detection settings (Langford et al. 2015)<a class="headerlink" href="#limit-of-detection-settings-langford-et-al-2015" title="Permanent link">&para;</a></h1>
 <p><span id="top"></span></p>
-<p>Under: Advanced Settings &gt; Statistical Analysis &gt; Random uncertainty estimation &gt; Settings...</p>
+<p>Under: Advanced Settings &gt; Statistical Analysis &gt; Limit of detection &gt; Settings...</p>
 <p>Under: Advanced Settings &gt; Statistical Analysis &gt; Flux Detection Limit &gt; Langford Settings...</p>
 <p>This dialog (window title: Limit of detection (Langford et al. 2015)) holds the settings of the limit of detection after <a href="references.html#Langford2015">Langford et al. (2015)</a>. It opens from two places, and both use the same settings:</p>
 <ul>
-<li><strong>Settings...</strong> beside the <strong>Method</strong> dropdown of the random uncertainty estimation, enabled when the method is <strong>Limit of detection (Langford et al. 2015)</strong> (<code>ru_meth=6</code>);</li>
+<li><strong>Settings...</strong> beside the <strong>Limit of detection</strong> dropdown, directly below the random uncertainty <strong>Method</strong>, enabled when it is <strong>Langford et al. (2015)</strong> (<code>lod_meth=1</code>);</li>
 <li><strong>Langford Settings...</strong> in the <a href="flux-detection-limit-settings.html">Flux Detection Limit dialog</a>, enabled when its method is <strong>Langford et al. (2015)</strong> (<code>detlim_meth=2</code>).</li>
 </ul>
-<p>The method, its equations and the meaning of each setting are described under <a href="random-uncertainty-estimation.html#far-lag-cross-covariance-and-limit-of-detection-langford-et-al-2015">Random uncertainty estimation</a>.</p>
+<p>The method, its equations and the meaning of each setting are described under <a href="random-uncertainty-estimation.html#limit-of-detection-langford-et-al-2015">Random uncertainty estimation</a>.</p>
 <p><img alt="The Limit of detection (Langford et al. 2015) dialog" src="../assets/limit-of-detection-settings-dialog.png" /></p>
 <h2 id="lag-window">Lag window<a class="headerlink" href="#lag-window" title="Permanent link">&para;</a></h2>
 <p><strong>Exact UI label:</strong> Lag window (project-file key <code>lod_window</code>, in <code>[RawProcess_Settings]</code>; default 0).</p>
@@ -4486,7 +4486,7 @@
 </ul>
 <h2 id="coverage-factor">Coverage factor α<a class="headerlink" href="#coverage-factor" title="Permanent link">&para;</a></h2>
 <p><strong>Exact UI label:</strong> Coverage factor α (project-file key <code>lod_alpha</code>, in <code>[Project]</code>; default 1.96; allowed range 1 to 5).</p>
-<p>The limit of detection is LoD = α · RE. 1.96 gives the 95 % level, as used by <a href="references.html#Langford2015">Langford et al. (2015)</a> and <a href="references.html#Maier2022">Maier et al. (2022)</a>; 3 gives about 99 %. It scales only the <code>lod_*</code> and <code>*_LOD</code> columns of the random uncertainty method: the random error itself, and the flux detection limit <code>&lt;gas&gt;_detlim</code>, are not multiplied by it. The random error, and so the LoD, is multiplied by the flux's spectral correction factor when <strong>Spectrally correct the random uncertainty</strong> is checked (off by default, as in EddyPro); see <a href="random-uncertainty-estimation.html#spectral-correction-of-the-random-uncertainty">Spectral correction of the random uncertainty</a>. The flux detection limit is not. It is in <code>[Project]</code> because the flux computation module writes the LoD columns as well.</p>
+<p>The limit of detection is LoD = α · RE. 1.96 gives the 95 % level, as used by <a href="references.html#Langford2015">Langford et al. (2015)</a> and <a href="references.html#Maier2022">Maier et al. (2022)</a>; 3 gives about 99 %. It scales only the <code>lod_*</code> and <code>*_LOD</code> columns of the limit of detection: the random error itself, and the flux detection limit <code>&lt;gas&gt;_detlim</code>, are not multiplied by it. The random error, and so the LoD, is multiplied by the flux's spectral correction factor when <strong>Spectrally correct the random uncertainty and limit of detection</strong> is checked (off by default, as in EddyPro); see <a href="random-uncertainty-estimation.html#spectral-correction-of-the-random-uncertainty">Spectral correction of the random uncertainty</a>. The flux detection limit is not. It is in <code>[Project]</code> because the flux computation module writes the LoD columns as well.</p>
 <h2 id="dialog-buttons">Dialog buttons<a class="headerlink" href="#dialog-buttons" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Restore Default Values:</strong> ±150–180 s, RMSE, 10 integral turbulence scales and α = 1.96.</li>

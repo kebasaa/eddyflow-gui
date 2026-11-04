@@ -62,7 +62,7 @@ DetlimSettingsDialog::DetlimSettingsDialog(QWidget *parent, EcProject *ecProject
         "RE<sub>RMSE</sub> = &radic;(&sigma;<sup>2</sup> + &mu;<sup>2</sup>) "
         "(their Eq. 9), which also counts an offset of the function from zero "
         "that the standard deviation misses. Its window and statistic are "
-        "shared with the random uncertainty method of that name, under "
+        "shared with the limit of detection of that name, under "
         "<b>Langford Settings...</b>."), Qt::ToolTipRole);
     methodCombo->setToolTip(tr("<b>Method:</b> Select how the flux detection "
         "limit is estimated. Off by default; switching it on does not change "
@@ -111,7 +111,7 @@ DetlimSettingsDialog::DetlimSettingsDialog(QWidget *parent, EcProject *ecProject
     langfordButton = new QPushButton(tr("Langford Settings..."), this);
     langfordButton->setToolTip(tr("<b>Langford settings:</b> The lag window and "
         "statistic of the limit of detection after Langford et al. (2015). "
-        "Shared with the random uncertainty method of that name."));
+        "Shared with the limit of detection of that name."));
 
     auto grid = new QGridLayout;
     grid->addWidget(methodLabel, 0, 0, Qt::AlignRight);
