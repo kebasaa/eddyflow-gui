@@ -34,6 +34,7 @@ jobs:
       TAG: ${{ github.event.release.tag_name || inputs.tag }}
       ENGINE_REF: ${{ inputs.engine_ref || github.event.release.tag_name || inputs.tag }}
       QT_VERSION: 6.11.1
+      AQTINSTALL_COMMIT: 5a49f2b391ae8ee1d3c0dd87f8b33c1d49a4deb7
       QT_BIN: C:\Qt\6.11.1\mingw_64\bin
       GUI_MINGW_BIN: C:\Qt\Tools\mingw1310_64\bin
       ENGINE_MINGW_BIN: C:\mingw64\bin
@@ -66,9 +67,14 @@ jobs:
           token: ${{ secrets.BUILD_SCRIPT_TOKEN }}
           path: eddyflow-build-script
 
+      # aqtinstall 3.3.0, the latest release, cannot read the repository layout
+      # Qt uses from 6.11 on; support for it is on master since March 2026
+      # (miurahr/aqtinstall#1000), so a master commit is pinned until a
+      # release has it.
       - name: Install Qt ${{ env.QT_VERSION }} and its MinGW
         run: |
-          python -m pip install --disable-pip-version-check aqtinstall
+          $PSNativeCommandUseErrorActionPreference = $true
+          python -m pip install --disable-pip-version-check "aqtinstall @ git+https://github.com/miurahr/aqtinstall@$env:AQTINSTALL_COMMIT"
           python -m aqt install-qt windows desktop $env:QT_VERSION win64_mingw -m qt5compat -O C:\Qt
           python -m aqt install-tool windows desktop tools_mingw1310 qt.tools.win64_mingw1310 -O C:\Qt
           foreach ($tool in "$env:QT_BIN\qmake.exe", "$env:QT_BIN\windeployqt.exe", "$env:GUI_MINGW_BIN\g++.exe") {
