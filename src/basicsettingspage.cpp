@@ -1293,7 +1293,7 @@ bool BasicSettingsPage::nonGasRecordExists(const QString& slug,
 void BasicSettingsPage::removeGasRecord(const QString& slug, int rawColumn)
 {
     if (!ecProject_) { return; }
-    auto gases = ecProject_->gasColumns();
+    const auto& gases = ecProject_->gasColumns();
     for (int i = 0; i < gases.size(); ++i)
     {
         if (gases.at(i).slug != slug || gases.at(i).rawColumn != rawColumn)
@@ -1304,25 +1304,29 @@ void BasicSettingsPage::removeGasRecord(const QString& slug, int rawColumn)
         //> emptied in place instead, so that the records after them kept their
         //> index - which is also how a project ended up naming a gas it does
         //> not measure and shipping a column of error codes for it.
-        gases.remove(i);
-
-        //> Everything that pointed past the hole moves down with it. These are
-        //> 1-based indices into this same list, and validateReferences() below
-        //> only clears the ones that now point nowhere - it cannot tell that a
-        //> still-valid index means a different gas than it did a moment ago.
-        for (auto& gas : gases)
-        {
-            if (gas.moistureRef == i + 1) { gas.moistureRef = 0; }
-            else if (gas.moistureRef > i + 1) { --gas.moistureRef; }
-            if (gas.tlagDonor == i + 1) { gas.tlagDonor = 0; }
-            else if (gas.tlagDonor > i + 1) { --gas.tlagDonor; }
-        }
-        break;
+        removeGasRecordsAt({ i });
+        return;
     }
+}
+
+/// Remove the gas records at \a indices (0-based) and settle every reference
+/// into the list.
+///
+/// Everything that pointed past a hole moves down with it: moistureRef,
+/// tlagDonor and the CEC pairings are 1-based indices into this same list, and
+/// validateReferences() only clears the ones that now point nowhere - it
+/// cannot tell that a still-valid index means a different gas than it did a
+/// moment ago. EcProject::removeGasRecords does the renumbering, through the
+/// same remap compaction and the primary-instrument reorder use.
+void BasicSettingsPage::removeGasRecordsAt(const QVector<int>& indices)
+{
+    if (!ecProject_) { return; }
+    if (!ecProject_->removeGasRecords(indices)) { return; }
+
     // References are 1-based indices into this list, so anything pointing at a
     // record that just went away has to be reset before it is read again.
-    auto cells = ecProject_->cellColumns();
-    MeasurementRecords::validateReferences(gases, cells);
+    auto gases = ecProject_->gasColumns();
+    MeasurementRecords::validateReferences(gases, ecProject_->cellColumns());
     ecProject_->setGasColumns(gases);
 }
 
@@ -5564,6 +5568,11 @@ void BasicSettingsPage::reloadSelectedItems_1()
     //> instrument filled in there. Neither touches the other's work.
     seedGasRecordsFromMetadata();
     resolveMigratedGasRecords();
+    //> After the species are resolved, which it matches on, and before the
+    //> variable tables are built: a record left on a column that no longer
+    //> holds its gas has no row there, so the gas looks unticked and ticking
+    //> it again makes a second record.
+    reconcileGasRecords();
     //> Before the instruments are synced, so a record that is about to be
     //> dropped is not first given an analyser, and before the variable tables
     //> are built, so a row cannot be drawn from a record that is going.
@@ -5752,6 +5761,362 @@ void BasicSettingsPage::resolveMigratedGasRecords()
     }
 
     if (changed) { ecProject_->setGasColumns(gases); }
+}
+
+/// Engine slug of the gas declared at 1-based \a rawColumn, or empty when no
+/// metadata covers that column.
+QString BasicSettingsPage::gasSlugAtColumn(int rawColumn) const
+{
+    if (!dlProject_ || rawColumn <= 0) { return QString(); }
+    const auto* vars = dlProject_->variables();
+    if (!vars || rawColumn > vars->size()) { return QString(); }
+    return GasMetadata::normaliseFormula(vars->at(rawColumn - 1).variable());
+}
+
+/// Keep every gas record pointing at the column that actually holds its gas.
+///
+/// A record stores its gas and analyser, but finds the data by raw column
+/// number, and nothing used to check that number again. If the metadata
+/// changed underneath it (a variable added or removed ahead of it, a different
+/// metadata file, a column declared as something else), the record kept its
+/// old number. Its row then dropped out of the variable table, the gas looked
+/// unticked, and ticking it again made a second record for the same gas. The
+/// per-gas tables in the advanced pages showed both, and both reached the
+/// project file. The stale one even took its flux unit from whatever variable
+/// had moved into its old column.
+///
+/// For each record whose column no longer carries its species:
+/// - when the same gas on the same analyser is declared elsewhere, the record
+///   moves there, keeping its settings;
+/// - when another record already sits on that column, the two are the same
+///   measurement, and the older (lower-index) one is kept, so its settings and
+///   every index that points at it survive;
+/// - when the gas is nowhere in the metadata, the record is removed, and the
+///   user is told once.
+///
+/// A column past the end of the metadata says nothing about the record (no
+/// metadata loaded, or a shorter file open for the moment), the same rule
+/// pruneStaleNonGasRecords applies.
+void BasicSettingsPage::reconcileGasRecords()
+{
+    if (!ecProject_ || !dlProject_) { return; }
+    const auto* vars = dlProject_->variables();
+    if (!vars || vars->isEmpty()) { return; }
+
+    auto gases = ecProject_->gasColumns();
+    bool changed = false;
+
+    //> The same ranking seedGasRecordsFromMetadata prefers, so a relocation
+    //> lands where a fresh selection would have.
+    const auto rank = [](const VariableDesc& var)
+    {
+        const auto type = var.measureType();
+        if (type == VariableDesc::getVARIABLE_MEASURE_TYPE_STRING_2()) { return 0; }
+        if (type == VariableDesc::getVARIABLE_MEASURE_TYPE_STRING_1()) { return 1; }
+        if (type == VariableDesc::getVARIABLE_MEASURE_TYPE_STRING_0()) { return 2; }
+        return 3;
+    };
+
+    const auto holdsGas = [&](const GasRecord& gas, int column)
+    {
+        if (gasSlugAtColumn(column) != gas.slug) { return false; }
+        //> A record whose analyser is not resolved yet matches any.
+        return gas.instrumentId.isEmpty()
+               || canonicalInstrumentForColumn(column) == gas.instrumentId;
+    };
+
+    //> Pass 1: records still on their own gas. Their columns are taken.
+    QVector<bool> settled(gases.size(), false);
+    QHash<int, int> claimedBy;
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        auto& gas = gases[i];
+        if (gas.rawColumn <= 0 || gas.slug.isEmpty()) { settled[i] = true; continue; }
+        if (gas.rawColumn > vars->size()) { settled[i] = true; continue; }
+        if (gasSlugAtColumn(gas.rawColumn) != gas.slug) { continue; }
+
+        settled[i] = true;
+        //> Same species, same column: still this record. Its analyser is
+        //> mirrored from the metadata, which is the authority on it, as
+        //> syncNonGasRecordInstruments does for cells and diagnostics.
+        const auto resolved = canonicalInstrumentForColumn(gas.rawColumn);
+        if (!resolved.isEmpty() && resolved != gas.instrumentId)
+        {
+            gas.instrumentId = resolved;
+            changed = true;
+        }
+        if (!claimedBy.contains(gas.rawColumn)) { claimedBy.insert(gas.rawColumn, i); }
+    }
+
+    QVector<int> toRemove;
+    QStringList dropped;
+    QStringList merged;
+
+    //> Pass 2: the stale ones, in list order, so older records claim first.
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        if (settled.at(i)) { continue; }
+        auto& gas = gases[i];
+
+        int best = -1;
+        int bestRank = 100;
+        int claimedMatch = -1;
+        for (int c = 1; c <= vars->size(); ++c)
+        {
+            if (!holdsGas(gas, c)) { continue; }
+            if (claimedBy.contains(c))
+            {
+                if (claimedMatch < 0) { claimedMatch = c; }
+                continue;
+            }
+            const int r = rank(vars->at(c - 1));
+            if (r < bestRank) { bestRank = r; best = c; }
+        }
+
+        const auto label = MeasurementRecords::gasLabel(gases, i);
+        if (best > 0)
+        {
+            gas.rawColumn = best;
+            if (gas.instrumentId.isEmpty())
+            {
+                gas.instrumentId = canonicalInstrumentForColumn(best);
+            }
+            claimedBy.insert(best, i);
+            changed = true;
+        }
+        else if (claimedMatch > 0)
+        {
+            //> The same measurement as a record that is already there. Keep
+            //> the older of the two.
+            const int other = claimedBy.value(claimedMatch);
+            if (i < other)
+            {
+                gas.rawColumn = claimedMatch;
+                gas.instrumentId = gases.at(other).instrumentId;
+                claimedBy.insert(claimedMatch, i);
+                toRemove.append(other);
+            }
+            else
+            {
+                toRemove.append(i);
+            }
+            merged << label;
+            changed = true;
+        }
+        else
+        {
+            toRemove.append(i);
+            dropped << label;
+        }
+    }
+
+    //> Pass 3: exact duplicates that were already in the file, the state a
+    //> project is left in once the user has ticked a stale gas a second time
+    //> and saved. The first one wins, for the same reason as above.
+    QHash<QString, int> firstOf;
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        if (toRemove.contains(i)) { continue; }
+        const auto& gas = gases.at(i);
+        if (gas.rawColumn <= 0) { continue; }
+        const auto key = gas.slug + QLatin1Char('|') + gas.instrumentId
+                         + QLatin1Char('|') + QString::number(gas.rawColumn);
+        if (firstOf.contains(key))
+        {
+            toRemove.append(i);
+            merged << MeasurementRecords::gasLabel(gases, i);
+            continue;
+        }
+        firstOf.insert(key, i);
+    }
+
+    if (changed) { ecProject_->setGasColumns(gases); }
+    if (!toRemove.isEmpty()) { removeGasRecordsAt(toRemove); }
+
+    merged.removeDuplicates();
+    noteGasRecordChanges(
+        dropped,
+        merged,
+        tr("The metadata no longer declares these gases, so they were removed "
+           "from the project together with their processing settings:"));
+}
+
+/// Tell the user, once per turn of the event loop, which gas records were
+/// changed to keep up with the metadata.
+///
+/// Queued: this is reached from inside updateMetadataRead, which runs with the
+/// project's signals blocked and, on a silent upgrade, before the window has
+/// even shown the project. Several reads in a row collapse into one message.
+void BasicSettingsPage::noteGasRecordChanges(const QStringList& dropped,
+                                             const QStringList& merged,
+                                             const QString& droppedReason)
+{
+    if (dropped.isEmpty() && merged.isEmpty()) { return; }
+
+    if (!dropped.isEmpty())
+    {
+        pendingGasNotice_ << QStringLiteral("<p>") + droppedReason
+                             + QStringLiteral("</p><ul><li>")
+                             + dropped.join(QStringLiteral("</li><li>"))
+                             + QStringLiteral("</li></ul>");
+    }
+    if (!merged.isEmpty())
+    {
+        pendingGasNotice_ << tr("<p>These gases were listed twice after the "
+                                "metadata changed, and have been merged. The "
+                                "older entry and its settings were kept:</p>")
+                             + QStringLiteral("<ul><li>")
+                             + merged.join(QStringLiteral("</li><li>"))
+                             + QStringLiteral("</li></ul>");
+    }
+    if (gasNoticeQueued_) { return; }
+    gasNoticeQueued_ = true;
+
+    QTimer::singleShot(0, this, [this]()
+    {
+        gasNoticeQueued_ = false;
+        if (pendingGasNotice_.isEmpty()) { return; }
+        const auto text = pendingGasNotice_.join(QString());
+        pendingGasNotice_.clear();
+        WidgetUtils::information(QApplication::activeWindow(),
+                                 tr("Gas Selection Updated"),
+                                 text);
+    });
+}
+
+void BasicSettingsPage::onRawColumnInserted(int column)
+{
+    shiftRawColumns(column + 1, +1);
+}
+
+void BasicSettingsPage::onRawColumnRemoved(int column)
+{
+    shiftRawColumns(column + 1, -1);
+}
+
+/// Follow a variable inserted or removed in the metadata editor.
+///
+/// \a first is the 1-based raw column of the edit. On an insertion (\a delta
+/// +1) every column from \a first onwards moves up by one; on a removal
+/// (\a delta -1) the record on \a first goes and every later one moves down.
+/// Everything in the project that names a raw column by number moves: the gas,
+/// cell, diagnostic and signal-strength records, and the single-column keys
+/// for the fast temperature, the ambient temperature and pressure, and the ten
+/// custom flags.
+///
+/// This keeps the records exact when two of them could otherwise be confused.
+/// reconcileGasRecords is the safety net for every other way the metadata
+/// can change.
+void BasicSettingsPage::shiftRawColumns(int first, int delta)
+{
+    if (!ecProject_ || first <= 0 || delta == 0) { return; }
+    const bool removal = delta < 0;
+
+    //> New column for \a col, 0 when it was the removed one.
+    const auto moved = [&](int col)
+    {
+        if (col <= 0 || col < first) { return col; }
+        if (removal && col == first) { return 0; }
+        return col + delta;
+    };
+
+    if (removal)
+    {
+        //> Removed first, while the columns still say what they did, and each
+        //> through its own path so every reference into the lists is settled.
+        QVector<int> gone;
+        QStringList dropped;
+        const auto& gases = ecProject_->gasColumns();
+        for (int i = 0; i < gases.size(); ++i)
+        {
+            if (gases.at(i).rawColumn != first) { continue; }
+            gone.append(i);
+            dropped << MeasurementRecords::gasLabel(gases, i);
+        }
+        removeGasRecordsAt(gone);
+        noteGasRecordChanges(
+            dropped, QStringList(),
+            tr("These gases were measured in the variable you removed, so they "
+               "were removed from the project together with their processing "
+               "settings:"));
+
+        const auto cells = ecProject_->cellColumns();
+        for (const auto& rec : cells)
+        {
+            if (rec.rawColumn == first) { removeNonGasRecord(rec.slug, first); }
+        }
+        const auto diags = ecProject_->diagColumns();
+        for (const auto& rec : diags)
+        {
+            if (rec.rawColumn == first) { removeNonGasRecord(rec.slug, first); }
+        }
+    }
+
+    const auto shift = [&](auto records)
+    {
+        bool changed = false;
+        for (int i = records.size() - 1; i >= 0; --i)
+        {
+            const int col = moved(records.at(i).rawColumn);
+            if (col == records.at(i).rawColumn) { continue; }
+            if (col == 0) { records.removeAt(i); }
+            else { records[i].rawColumn = col; }
+            changed = true;
+        }
+        return std::make_pair(changed, records);
+    };
+
+    const auto gases = shift(ecProject_->gasColumns());
+    if (gases.first) { ecProject_->setGasColumns(gases.second); }
+    const auto cells = shift(ecProject_->cellColumns());
+    if (cells.first) { ecProject_->setCellColumns(cells.second); }
+    const auto diags = shift(ecProject_->diagColumns());
+    if (diags.first) { ecProject_->setDiagColumns(diags.second); }
+    //> Signal strength is rebuilt from the metadata on the next read, but
+    //> follows now so the project is consistent until then.
+    const auto agcs = shift(ecProject_->agcColumns());
+    if (agcs.first) { ecProject_->setAgcColumns(agcs.second); }
+
+    //> Single-column keys. 0 is "none", and the ambient temperature and
+    //> pressure use values from 1000 up for a biomet column, which is not a
+    //> raw column and does not move.
+    const auto rawKey = [&](int col)
+    {
+        return (col > 0 && col < 1000) ? moved(col) : col;
+    };
+    if (rawKey(ecProject_->generalColTs()) != ecProject_->generalColTs())
+        { ecProject_->setGeneralColTs(rawKey(ecProject_->generalColTs())); }
+    if (rawKey(ecProject_->generalColAirT()) != ecProject_->generalColAirT())
+        { ecProject_->setGeneralColAirT(rawKey(ecProject_->generalColAirT())); }
+    if (rawKey(ecProject_->generalColAirP()) != ecProject_->generalColAirP())
+        { ecProject_->setGeneralColAirP(rawKey(ecProject_->generalColAirP())); }
+
+    const struct
+    {
+        int (EcProject::*get)() const;
+        void (EcProject::*set)(int);
+    } flags[] = {
+        { &EcProject::screenFlag1Col, &EcProject::setScreenFlag1Col },
+        { &EcProject::screenFlag2Col, &EcProject::setScreenFlag2Col },
+        { &EcProject::screenFlag3Col, &EcProject::setScreenFlag3Col },
+        { &EcProject::screenFlag4Col, &EcProject::setScreenFlag4Col },
+        { &EcProject::screenFlag5Col, &EcProject::setScreenFlag5Col },
+        { &EcProject::screenFlag6Col, &EcProject::setScreenFlag6Col },
+        { &EcProject::screenFlag7Col, &EcProject::setScreenFlag7Col },
+        { &EcProject::screenFlag8Col, &EcProject::setScreenFlag8Col },
+        { &EcProject::screenFlag9Col, &EcProject::setScreenFlag9Col },
+        { &EcProject::screenFlag10Col, &EcProject::setScreenFlag10Col },
+    };
+    for (const auto& flag : flags)
+    {
+        const int col = (ecProject_->*flag.get)();
+        const int now = rawKey(col);
+        if (now != col) { (ecProject_->*flag.set)(now); }
+    }
+
+    //> The variable table is not redrawn here. Its candidates come from the
+    //> last metadata read, and opening Basic Settings reads the metadata
+    //> again, which rebuilds them against these columns.
 }
 
 void BasicSettingsPage::reloadSelectedItems_2()
@@ -6172,9 +6537,10 @@ QString BasicSettingsPage::variableForNonGasSlug(const QString& slug)
 /// find. The engine now treats such a record as inert; this stops the file
 /// carrying it in the first place.
 ///
-/// Gas records are deliberately not touched. The same staleness is possible
-/// there, but a gas record carries a block of per-species processing settings
-/// and dropping one silently discards them - a separate decision from this.
+/// Gas records are not touched here. The same staleness happens to them, but a
+/// gas record carries a block of per-species processing settings, so it is
+/// moved to its gas's new column rather than dropped when it can be: see
+/// reconcileGasRecords, which also tells the user when one has to go.
 void BasicSettingsPage::pruneStaleNonGasRecords()
 {
     if (!ecProject_ || !dlProject_) { return; }

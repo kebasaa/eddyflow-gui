@@ -595,6 +595,10 @@ public:
         { return ec_project_state_.projectGeneral.agcColumns; }
     void setGasColumns(const QVector<GasRecord>& recs)
         { ec_project_state_.projectGeneral.gasColumns = recs; setModified(true); }
+    //> Remove the records at these 0-based positions, renumbering moistureRef,
+    //> tlagDonor and the CEC pairings that point into the list. False when
+    //> nothing was removed.
+    bool removeGasRecords(const QVector<int>& indices);
     void setCellColumns(const QVector<MeasurementRecord>& recs)
         { ec_project_state_.projectGeneral.cellColumns = recs; setModified(true); }
     void setDiagColumns(const QVector<MeasurementRecord>& recs)

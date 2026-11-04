@@ -28,6 +28,7 @@
 
 #include <QDateTime>
 #include <QString>
+#include <QStringList>
 #include <QMap>
 #include <QVector>
 
@@ -135,6 +136,9 @@ public:
     QString gasLimitBlockReason(int rawColumn) const;
     void addGasRecord(const QString& slug, int rawColumn);
     void removeGasRecord(const QString& slug, int rawColumn);
+    //> Remove several records by 0-based position, renumbering every index
+    //> into the list. The one way gas records leave from this page.
+    void removeGasRecordsAt(const QVector<int>& indices);
     int firstGasColumn(const QString& slug) const;
 
     bool hasMoistureCandidates() const;
@@ -209,6 +213,10 @@ public slots:
     void clearSelectedItems();
     void alignDeclinationDate(const QDate& d);
     void showSetPrototype();
+    //> The metadata editor inserted or removed the variable at this 0-based
+    //> position; every raw column number from there on follows.
+    void onRawColumnInserted(int column);
+    void onRawColumnRemoved(int column);
 
 private:
     void noNoaaConnectionMsg();
@@ -385,6 +393,10 @@ private:
     /// Shown once per session, not once per keystroke: the check
     /// below runs whenever the gas selection changes.
     bool noHumidityWarned_ = false;
+    //> Gas records reconcileGasRecords or a column edit had to remove or
+    //> merge, collected until the queued message shows them.
+    QStringList pendingGasNotice_;
+    bool gasNoticeQueued_ = false;
 
     SmartFluxBar* smartfluxBar_;
 
@@ -446,6 +458,18 @@ private:
     //> Fill the species and instrument a migrated project could not carry:
     //> a pre-record file names a raw column and nothing else.
     void resolveMigratedGasRecords();
+    //> Move every gas record whose column no longer holds its gas to the
+    //> column that does, merge the duplicates that left behind, and drop
+    //> the records whose gas the metadata no longer declares.
+    void reconcileGasRecords();
+    //> Engine slug of the gas declared at a 1-based raw column.
+    QString gasSlugAtColumn(int rawColumn) const;
+    //> Queue one message listing the gas records that were dropped or merged.
+    void noteGasRecordChanges(const QStringList& dropped,
+                              const QStringList& merged,
+                              const QString& droppedReason);
+    //> Move every raw column number in the project past \a first by \a delta.
+    void shiftRawColumns(int first, int delta);
     //> Auto-select plausible gases the first time a metadata file is read,
     //> replacing the combo preselection that used to fill col_* invisibly.
     void seedGasRecordsFromMetadata();
