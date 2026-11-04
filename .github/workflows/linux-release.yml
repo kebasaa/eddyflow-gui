@@ -1,0 +1,136 @@
+name: Linux release build
+
+# Builds the Ubuntu .deb and .snap with build_eddyflow_linux.sh from the
+# private eddyflow-build-script repository, installs and checks both, and
+# attaches them to the release, next to the Windows .7z and the macOS .dmg.
+#
+# Runs on Ubuntu 26.04: the .deb links that release's libraries, and the
+# snap's core26 base must match the host it is packed on.
+#
+# Needs the repository secret BUILD_SCRIPT_TOKEN: a fine-grained token with
+# read-only Contents access to kebasaa/eddyflow-build-script.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build and attach the packages to, e.g. v8.1.5
+        required: true
+      engine_ref:
+        description: eddyflow-engine branch, tag or commit (default the same tag)
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      ENGINE_REF: ${{ inputs.engine_ref || github.event.release.tag_name || inputs.tag }}
+    steps:
+      # The build script expects the three repositories side by side, with its
+      # own folder named eddyflow-build-script.
+      - name: Check out eddyflow-gui at ${{ env.TAG }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+          path: eddyflow-gui
+
+      - name: Check out eddyflow-engine at ${{ env.ENGINE_REF }}
+        uses: actions/checkout@v7
+        with:
+          repository: kebasaa/eddyflow-engine
+          ref: ${{ env.ENGINE_REF }}
+          path: eddyflow-engine
+
+      - name: Check out eddyflow-build-script
+        uses: actions/checkout@v7
+        with:
+          repository: kebasaa/eddyflow-build-script
+          ref: main
+          token: ${{ secrets.BUILD_SCRIPT_TOKEN }}
+          path: eddyflow-build-script
+
+      # The script installs its own build dependencies (apt packages and the
+      # snapcraft snap) with sudo. The runner has no git identity, so the
+      # package maintainer is the author of the tagged commit.
+      - name: Build the .deb and .snap
+        run: |
+          maintainer=$(git -C eddyflow-gui log -1 --format='%an <%ae>')
+          bash eddyflow-build-script/build_eddyflow_linux.sh --install-deps --maintainer "$maintainer"
+
+      - name: Keep the packages with the run
+        uses: actions/upload-artifact@v7
+        with:
+          name: eddyflow-linux-amd64
+          path: |
+            dist/eddyflow_v*_ubuntu*.deb
+            dist/eddyflow_v*.snap
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Check the .deb
+        run: |
+          deb=$(ls dist/eddyflow_v*_ubuntu*.deb)
+          dpkg-deb --info "$deb"
+          # apt resolves the package's dependencies as on a user's machine.
+          sudo apt-get install -y "./$deb" xvfb
+
+          app=/opt/eddyflow
+          missing=0
+          for file in "$app/eddyflow" "$app/bin/eddyflow_rp" "$app/bin/eddyflow_fcc"; do
+            if ldd "$file" | grep 'not found'; then
+              echo "::error::$file needs a library the package does not pull in"
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ]
+
+          "$app/bin/eddyflow_rp" --version
+          "$app/bin/eddyflow_fcc" --version
+          command -v 7z || command -v 7za
+          test -d "$app/docs"
+          test -d "$app/file-templates"
+          test -f /usr/share/applications/eddyflow.desktop
+
+          # The GUI must start and keep running; it is stopped after 15 s.
+          xvfb-run -a /usr/bin/eddyflow &
+          pid=$!
+          sleep 15
+          if ! kill -0 "$pid" 2>/dev/null; then
+            wait "$pid" || status=$?
+            echo "::error::the GUI from the .deb exited early (status ${status:-0})"
+            exit 1
+          fi
+          kill "$pid"
+          wait "$pid" 2>/dev/null || true
+
+      - name: Check the .snap
+        run: |
+          snap=$(ls dist/eddyflow_v*.snap)
+          # --dangerous: a locally built snap carries no store signature.
+          sudo snap install --dangerous "$snap"
+          snap list eddyflow
+
+          # The GUI must start inside the snap and keep running for 15 s.
+          xvfb-run -a /snap/bin/eddyflow &
+          pid=$!
+          sleep 15
+          if ! kill -0 "$pid" 2>/dev/null; then
+            wait "$pid" || status=$?
+            echo "::error::the GUI from the .snap exited early (status ${status:-0})"
+            exit 1
+          fi
+          kill "$pid"
+          wait "$pid" 2>/dev/null || true
+
+      # --clobber replaces packages of the same name when a release is rebuilt.
+      - name: Attach the packages to release ${{ env.TAG }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" dist/eddyflow_v*_ubuntu*.deb dist/eddyflow_v*.snap --clobber --repo "$GITHUB_REPOSITORY"
