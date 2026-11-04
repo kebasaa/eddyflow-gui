@@ -82,7 +82,9 @@ Publishing a release here runs `.github/workflows/macos-release.yml`. It builds 
 GitHub macOS runner, using the eddyflow-engine tag with the same name, and attaches it to the
 release. The workflow needs the repository secret `BUILD_SCRIPT_TOKEN`, a token with read-only
 access to the private eddyflow-build-script repository. To rebuild an existing release, run it
-from the Actions tab and enter the tag.
+from the Actions tab and enter the tag. The app updates itself from that `.dmg` when it sits in
+a folder the user can write to, such as `/Applications` for an administrator or
+`~/Applications`; otherwise it offers the release page.
 
 For a development build, run qmake on `EddyFlow_mac.pro` and pass the QuaZIP paths as
 `QUAZIP_INCLUDE_DIR`, `QUAZIP_LIB_DIR` and `QUAZIP_LIB_NAME`. The `scripts/build/mac-*.sh`

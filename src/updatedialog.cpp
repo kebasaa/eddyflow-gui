@@ -360,7 +360,11 @@ void UpdateDialog::downloadFinished(bool ok, const QString& error)
     }
 
     stage_ = Stage::Extracting;
-    msgLabel->setText(tr("<b>Extracting %1 %2...</b>").arg(Defs::APP_NAME, newVersion_));
+    // a disk image is not extracted but mounted, and its app copied
+    if (archivePath_.endsWith(QStringLiteral(".dmg"), Qt::CaseInsensitive))
+        msgLabel->setText(tr("<b>Preparing %1 %2...</b>").arg(Defs::APP_NAME, newVersion_));
+    else
+        msgLabel->setText(tr("<b>Extracting %1 %2...</b>").arg(Defs::APP_NAME, newVersion_));
     progressBar_->setRange(0, 0);
     progressBar_->setFormat(QString());
     showButtons({ cancelButton_ });

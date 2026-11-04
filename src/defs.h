@@ -239,6 +239,8 @@ namespace Defs
     const auto TMP_FILE_DIR         = QStringLiteral("tmp");
     // beside the program: where an update is downloaded and extracted
     const auto UPDATE_STAGING_DIR   = QStringLiteral(".update");
+    // on macOS beside the app bundle, as nothing may be written inside it
+    const auto UPDATE_STAGING_DIR_MAC = QStringLiteral(".eddyflow-update");
     const auto SMF_FILE_DIR         = QStringLiteral("smf");
     const auto CAL_FILE_DIR         = QStringLiteral("cal");
     const auto TRANSLATION_FILE_DIR = QStringLiteral("tra");
