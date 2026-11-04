@@ -3554,10 +3554,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#far-lag-cross-covariance-and-limit-of-detection-langford-et-al-2015" class="md-nav__link">
+  <a href="#limit-of-detection-langford-et-al-2015" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Far-lag cross-covariance and limit of detection: Langford et al. (2015)
+        Limit of detection: Langford et al. (2015)
       
     </span>
   </a>
@@ -4429,10 +4429,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#far-lag-cross-covariance-and-limit-of-detection-langford-et-al-2015" class="md-nav__link">
+  <a href="#limit-of-detection-langford-et-al-2015" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Far-lag cross-covariance and limit of detection: Langford et al. (2015)
+        Limit of detection: Langford et al. (2015)
       
     </span>
   </a>
@@ -4457,7 +4457,7 @@
 
 
 <h1 id="random-uncertainty-estimation">Random uncertainty estimation<a class="headerlink" href="#random-uncertainty-estimation" title="Permanent link">&para;</a></h1>
-<p>EddyFlow offers five methods for estimating the random uncertainty of a flux, selected with the <strong>Method</strong> dropdown on the Statistical Analysis page (project-file key <code>ru_meth</code>):</p>
+<p>EddyFlow offers four methods for estimating the random uncertainty of a flux, selected with the <strong>Method</strong> dropdown on the Statistical Analysis page (project-file key <code>ru_meth</code>), and, independently of them, the limit of detection of <a href="#limit-of-detection-langford-et-al-2015">Langford et al. (2015)</a>, on its own <strong>Limit of detection</strong> dropdown directly below:</p>
 <table>
 <thead>
 <tr>
@@ -4487,21 +4487,16 @@
 <td>5</td>
 <td>The analyser's own white noise</td>
 </tr>
-<tr>
-<td>Limit of detection (Langford et al. 2015)</td>
-<td>6</td>
-<td>Total random error from the far-lag cross-covariance, and the limit of detection</td>
-</tr>
 </tbody>
 </table>
-<p>The value 3 is the Mahrt (1998) estimate, which is not offered in the dropdown. The methods answer different questions and are not interchangeable. The two sampling errors tell how much the flux would differ for another realisation of the same turbulence. The Billesbach floor tells whether a flux is distinguishable from zero. The instrument-noise estimate tells how much of the signal is the analyser's own noise, and is the smallest of them. The Langford estimate is the total random error, sampling and instrument noise together, and gives a limit of detection with it. The sampling-error methods are described first; the others follow.</p>
+<p>The value 3 is the Mahrt (1998) estimate, which is not offered in the dropdown. The methods answer different questions and are not interchangeable. The two sampling errors tell how much the flux would differ for another realisation of the same turbulence. The Billesbach floor tells whether a flux is distinguishable from zero. The instrument-noise estimate tells how much of the signal is the analyser's own noise, and is the smallest of them. The Langford limit of detection rests on yet another estimate, the total random error, sampling and instrument noise together; because it is a switch of its own, a run can report one method's random uncertainty and the Langford limit of detection side by side. The sampling-error methods are described first; the others follow.</p>
 <h2 id="spectral-correction-of-the-random-uncertainty">Spectral correction of the random uncertainty<a class="headerlink" href="#spectral-correction-of-the-random-uncertainty" title="Permanent link">&para;</a></h2>
-<p><strong>Exact UI label:</strong> Spectrally correct the random uncertainty (checkbox below the method settings). Project-file key: <code>ru_spec_corr</code> in <code>[Project]</code>; 0 = off (the default), 1 = on. A project saved before this option existed has no key, and gets it <strong>off</strong>. Off is the default because EddyPro reports the random uncertainty of the uncorrected covariance, and EddyFlow's defaults reproduce EddyPro's outputs.</p>
+<p><strong>Exact UI label:</strong> Spectrally correct the random uncertainty and limit of detection (checkbox below the method settings). Project-file key: <code>ru_spec_corr</code> in <code>[Project]</code>; 0 = off (the default), 1 = on. A project saved before this option existed has no key, and gets it <strong>off</strong>. Off is the default because EddyPro reports the random uncertainty of the uncorrected covariance, and EddyFlow's defaults reproduce EddyPro's outputs.</p>
 <p>Every method below estimates the random error of the covariance as it was measured, before any correction. The flux reported beside it, however, has been through the spectral (band-pass) correction, which multiplies the measured flux by a correction factor to restore the high- and low-frequency contributions the measuring system attenuated (see <a href="spectral-corrections.html">Spectral corrections</a>). An uncorrected random error therefore understates the uncertainty of the corrected flux by the same factor. <a href="references.html#Langford2015">Langford et al. (2015)</a> recommend that any correction applied to the calculated fluxes, such as the low- and high-frequency loss corrections, should also be applied to the random error.</p>
 <p>With the option checked, EddyFlow reports each random error multiplied by the spectral correction factor of its own flux:</p>
 <pre><code>σ_F,reported = SCF_F · σ_F
 </code></pre>
-<p>where SCF<sub>F</sub> is the same factor the flux F was multiplied by: that of the w-u covariance for Tau, of w-T<sub>s</sub> for H, of the designated hygrometer for LE and ET, and of each gas for its own flux. The factors are the ones written as the spectral correction factor columns of the <a href="output-files-full-output.html#top">full output</a>. It applies to every random uncertainty method, and the limit of detection of the <a href="#far-lag-cross-covariance-and-limit-of-detection-langford-et-al-2015">Langford et al. (2015) method</a>, α · σ<sub>F,reported</sub>, follows. The CEC significance test compares the corrected flux with the corrected random error.</p>
+<p>where SCF<sub>F</sub> is the same factor the flux F was multiplied by: that of the w-u covariance for Tau, of w-T<sub>s</sub> for H, of the designated hygrometer for LE and ET, and of each gas for its own flux. The factors are the ones written as the spectral correction factor columns of the <a href="output-files-full-output.html#top">full output</a>. It applies to every random uncertainty method, and to the <a href="#limit-of-detection-langford-et-al-2015">Langford et al. (2015) limit of detection</a>, α times its own random error, which is corrected the same way. The checkbox is available while either the random uncertainty or the limit of detection is on. The CEC significance test compares the corrected flux with the corrected random error.</p>
 <p>Only the spectral correction is applied. The density (WPL) and sonic-temperature corrections are not single factors on the flux: they add terms computed from other covariances, whose random errors are not estimated, so they are not carried over. The <a href="flux-detection-limit.html">flux detection limit</a> (<code>&lt;gas&gt;_detlim</code>) is not affected either: it stays in uncorrected covariance units.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -4557,8 +4552,8 @@ ITS = \frac{1}{\overline{w'c'}}\int_0^{+\infty} R_{wc}(\tau)\,d\tau \tag{6-3}
 <p>The method declines a period rather than guessing. If the noise variance of either w or the scalar is not positive, which means that the extrapolated line sits at or above the measured lag-0 value, the assumption on which the method rests does not hold in that period and the estimate is reported as missing. On a low-noise analyser this can happen in most periods, which is itself informative.</p>
 </div>
 <p><strong>What it means.</strong> The result is the analyser's own noise and is the smallest of the four estimates. It says nothing about whether the atmosphere was sampled long enough (the sampling errors) or whether a flux is resolvable (the Billesbach floor). It can also be used as one of the noise floors for borrowing time lags from another gas on the same analyser; see <a href="raw-processing-options.html#top">Raw processing options</a> and <a href="time-lag-detect-correct.html">Detecting and compensating time lags</a>.</p>
-<h2 id="far-lag-cross-covariance-and-limit-of-detection-langford-et-al-2015">Far-lag cross-covariance and limit of detection: Langford et al. (2015)<a class="headerlink" href="#far-lag-cross-covariance-and-limit-of-detection-langford-et-al-2015" title="Permanent link">&para;</a></h2>
-<p><strong>Exact UI label:</strong> Limit of detection (Langford et al. 2015). Project-file key: <code>ru_meth=6</code>. Method after <a href="references.html#Langford2015">Langford et al. (2015)</a>, Sect. 2.2, which builds on the detection limit of <a href="references.html#Wienhold1994">Wienhold et al. (1994)</a> and <a href="references.html#Spirig2005">Spirig et al. (2005)</a>. <a href="references.html#Maier2022">Maier et al. (2022)</a> applied it to N<sub>2</sub>O and CH<sub>4</sub> fluxes; this method offers it for every flux. Its settings are under <strong>Settings...</strong> beside the method; see <a href="limit-of-detection-settings.html#top">Limit of detection settings</a>.</p>
+<h2 id="limit-of-detection-langford-et-al-2015">Limit of detection: Langford et al. (2015)<a class="headerlink" href="#limit-of-detection-langford-et-al-2015" title="Permanent link">&para;</a></h2>
+<p><strong>Exact UI label:</strong> Limit of detection: Langford et al. (2015), a dropdown with <strong>None</strong> (the default) and <strong>Langford et al. (2015)</strong>, directly below the random uncertainty <strong>Method</strong>. Project-file key: <code>lod_meth</code> in <code>[Project]</code>; 0 = none, 1 = Langford et al. (2015). It is independent of the random uncertainty method: the random uncertainty columns keep that method's estimate, and the limit of detection is reported beside them. Method after <a href="references.html#Langford2015">Langford et al. (2015)</a>, Sect. 2.2, which builds on the detection limit of <a href="references.html#Wienhold1994">Wienhold et al. (1994)</a> and <a href="references.html#Spirig2005">Spirig et al. (2005)</a>. <a href="references.html#Maier2022">Maier et al. (2022)</a> applied it to N<sub>2</sub>O and CH<sub>4</sub> fluxes; this method offers it for every flux. Its settings are under <strong>Settings...</strong> beside the dropdown; see <a href="limit-of-detection-settings.html#top">Limit of detection settings</a>.</p>
 <p><strong>Idea.</strong> The flux is the covariance of the vertical wind <em>w</em> and a scalar <em>c</em> at the transport lag. Computed at every lag <em>Δ</em>, the same quantity is the cross-covariance function</p>
 <pre><code>f(Δ) = mean over k of  w'(k) · c'(k + Δ)
 </code></pre>
@@ -4600,8 +4595,8 @@ LoD     = α · RE                                                (α = 1.96 for
 </tr>
 </tbody>
 </table>
-<p><a href="references.html#Spirig2005">Spirig et al. (2005)</a> placed their window where it lay "several times the integral timescale" from the lag, and <a href="references.html#Langford2015">Langford et al. (2015)</a> mention a multiple of the integral time scale as an alternative to fixed bounds. Neither gives a rule, so <strong>the automatic rule is EddyFlow's own</strong>: the window starts at <em>k</em> times the integral turbulence scale (ITS, computed per period and variable with the <strong>Definition of the ITS</strong> and <strong>Maximum correlation period</strong> above; <em>k</em> = 10 by default), or 10 s beyond the half-width of the variable's time-lag search range, whichever is later, and is 30 s wide. The second condition keeps the true peak, and any uncertainty in where it is, outside the window. Where the ITS cannot be measured, the 150–180 s window is used. The chosen window is written to the run log. In any mode, a window that would leave less than half the record behind each lag is shortened, and a variable whose window no longer fits is reported as missing; this matters only for very short averaging periods.</p>
-<p><strong>Units and outputs.</strong> The random error is converted from covariance to flux units exactly as the flux is (for example with ρc<sub>p</sub> for H and λ for LE), and is reported for Tau, H, LE, ET and every configured gas as <code>rand_err_*</code> in the <a href="output-files-full-output.html#top">full output</a> and <code>*_RANDUNC_HF</code> in the FLUXNET file. The limit of detection α · RE is reported as <code>lod_*</code> in the full output (only with this method) and as <code>*_LOD</code> in the FLUXNET file (error-labelled with any other method). As <a href="references.html#Langford2015">Langford et al. (2015)</a> recommend, both are multiplied by the flux's spectral correction factor when <strong>Spectrally correct the random uncertainty</strong> is checked (off by default, as in EddyPro); see <a href="#spectral-correction-of-the-random-uncertainty">Spectral correction of the random uncertainty</a>.</p>
+<p><a href="references.html#Spirig2005">Spirig et al. (2005)</a> placed their window where it lay "several times the integral timescale" from the lag, and <a href="references.html#Langford2015">Langford et al. (2015)</a> mention a multiple of the integral time scale as an alternative to fixed bounds. Neither gives a rule, so <strong>the automatic rule is EddyFlow's own</strong>: the window starts at <em>k</em> times the integral turbulence scale (ITS, computed per period and variable with the <strong>Definition of the ITS</strong> and <strong>Maximum correlation period</strong> below the dropdown, which are available while the limit of detection is on even if the random uncertainty is off; <em>k</em> = 10 by default), or 10 s beyond the half-width of the variable's time-lag search range, whichever is later, and is 30 s wide. The second condition keeps the true peak, and any uncertainty in where it is, outside the window. Where the ITS cannot be measured, the 150–180 s window is used. The chosen window is written to the run log. In any mode, a window that would leave less than half the record behind each lag is shortened, and a variable whose window no longer fits is reported as missing; this matters only for very short averaging periods.</p>
+<p><strong>Units and outputs.</strong> The random error is converted from covariance to flux units exactly as the flux is (for example with ρc<sub>p</sub> for H and λ for LE). The limit of detection α · RE is computed every averaging period for Tau, H, LE, ET and every configured gas, and reported as <code>lod_*</code> in the <a href="output-files-full-output.html#top">full output</a> (only with the limit of detection on) and as <code>*_LOD</code> in the FLUXNET file (error-labelled with it off). The <code>rand_err_*</code> and <code>*_RANDUNC_HF</code> columns hold the estimate of the random uncertainty method, not this one. As <a href="references.html#Langford2015">Langford et al. (2015)</a> recommend, the limit of detection is multiplied by the flux's spectral correction factor when <strong>Spectrally correct the random uncertainty and limit of detection</strong> is checked (off by default, as in EddyPro); see <a href="#spectral-correction-of-the-random-uncertainty">Spectral correction of the random uncertainty</a>.</p>
 <p><strong>Relation to the flux detection limit.</strong> The same calculation can also be chosen as the <a href="flux-detection-limit.html#top">flux detection limit</a> (<code>detlim_meth=2</code>), with the same settings. There it is measured on the raw series about each gas's own lag, before the lag is applied, because <a href="time-lag-detect-correct.html">time-lag borrowing</a> tests a gas's covariance against it at that stage, and it is reported in covariance units as <code>&lt;gas&gt;_detlim</code>.</p>
 
 

@@ -343,7 +343,7 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.detlim_offset_s, previousProject.ec_project_state_.screenSetting.detlim_offset_s);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.detlim_window_s, previousProject.ec_project_state_.screenSetting.detlim_window_s);
     //> The Langford settings change results whenever either use of them is on.
-    if (ec_project_state_.randomError.ru_method == 6 || ec_project_state_.screenSetting.detlim_meth == 2)
+    if (ec_project_state_.randomError.lod_meth == 1 || ec_project_state_.screenSetting.detlim_meth == 2)
     {
         dataSetTest = dataSetTest && (ec_project_state_.screenSetting.lod_window == previousProject.ec_project_state_.screenSetting.lod_window);
         dataSetTest = dataSetTest && (ec_project_state_.screenSetting.lod_stat == previousProject.ec_project_state_.screenSetting.lod_stat);
@@ -877,7 +877,12 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
 
     subTest = ec_project_state_.randomError.ru_method == previousProject.ec_project_state_.randomError.ru_method;
     advSettingsTest = advSettingsTest && subTest;
-    if (subTest && ec_project_state_.randomError.ru_method != 0)
+    //> The limit of detection is its own switch, and changes the outputs
+    //> whatever the random error method.
+    advSettingsTest = advSettingsTest
+        && ec_project_state_.randomError.lod_meth == previousProject.ec_project_state_.randomError.lod_meth;
+    if (subTest && (ec_project_state_.randomError.ru_method != 0
+                    || ec_project_state_.randomError.lod_meth == 1))
     {
         advSettingsTest = advSettingsTest
             && ec_project_state_.randomError.spec_corr == previousProject.ec_project_state_.randomError.spec_corr;
@@ -885,7 +890,7 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
 
     //> Langford's automatic window measures the integral turbulence scale too.
     if (subTest && (ec_project_state_.randomError.ru_method == 1 || ec_project_state_.randomError.ru_method == 2
-                    || ((ec_project_state_.randomError.ru_method == 6 || ec_project_state_.screenSetting.detlim_meth == 2)
+                    || ((ec_project_state_.randomError.lod_meth == 1 || ec_project_state_.screenSetting.detlim_meth == 2)
                         && ec_project_state_.screenSetting.lod_window == 2)))
     {
         advSettingsTest = advSettingsTest
@@ -1339,6 +1344,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.randomError.its_sec_factor = defaultEcProjectState.randomError.its_sec_factor;
     ec_project_state_.randomError.lod_alpha = defaultEcProjectState.randomError.lod_alpha;
     ec_project_state_.randomError.spec_corr = defaultEcProjectState.randomError.spec_corr;
+    ec_project_state_.randomError.lod_meth = defaultEcProjectState.randomError.lod_meth;
 
     ec_project_state_.biomParam.native_header = defaultEcProjectState.biomParam.native_header;
     ec_project_state_.biomParam.hlines = defaultEcProjectState.biomParam.hlines;
@@ -2367,6 +2373,8 @@ bool EcProject::saveEcProject(const QString &filename)
                              QString::number(ec_project_state_.randomError.lod_alpha, 'f', 2));
         project_ini.setValue(EcIni::INI_RAND_ERROR_5,
                              ec_project_state_.randomError.spec_corr);
+        project_ini.setValue(EcIni::INI_RAND_ERROR_6,
+                             ec_project_state_.randomError.lod_meth);
 
         // NOTE: temporarly disabled
 //        project_ini.setValue(EcIni::INI_RAND_ERROR_3,
@@ -4349,6 +4357,19 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.randomError.spec_corr
                 = project_ini.value(EcIni::INI_RAND_ERROR_5,
                                     defaultEcProjectState.randomError.spec_corr).toInt() == 1 ? 1 : 0;
+        //> Off unless the file says 1, as the engine reads it.
+        ec_project_state_.randomError.lod_meth
+                = project_ini.value(EcIni::INI_RAND_ERROR_6,
+                                    defaultEcProjectState.randomError.lod_meth).toInt() == 1 ? 1 : 0;
+        //> A method the engine does not decode falls back to the default
+        //> rather than landing on no row. 3, Mahrt, is kept: the engine
+        //> computes it, and the menu leaves it alone when it finds no row.
+        if (ec_project_state_.randomError.ru_method < 0
+            || ec_project_state_.randomError.ru_method > 5)
+        {
+            ec_project_state_.randomError.ru_method
+                    = defaultEcProjectState.randomError.ru_method;
+        }
 
         // NOTE: temporarly disabled
 //        ec_project_state_.randomError.its_sec_factor
@@ -8132,6 +8153,12 @@ void EcProject::setRandomErrorLodAlpha(double d)
 void EcProject::setRandomErrorSpecCorr(int n)
 {
     ec_project_state_.randomError.spec_corr = n;
+    setModified(true);
+}
+
+void EcProject::setRandomErrorLodMethod(int n)
+{
+    ec_project_state_.randomError.lod_meth = n;
     setModified(true);
 }
 

@@ -391,8 +391,8 @@ namespace EcIni
     //> screening-test flag, so grouping it with test_sr/test_rf there
     //> would misdescribe what it does.
     const auto INI_SCREEN_SETTINGS_120  = QStringLiteral("test_stor_clean");
-    //> Limit of detection after Langford et al. (2015), shared by the random
-    //> uncertainty method of that name (ru_meth 6) and the detection limit
+    //> Limit of detection after Langford et al. (2015), shared by the limit
+    //> of detection of that name (lod_meth 1) and the detection limit
     //> (detlim_meth 2). RawProcess_Settings: only RP measures it. The window
     //> (0 +/-150-180 s, Langford; 1 +/-160-180 s, Maier et al. 2022;
     //> 2 automatic, after Spirig et al. 2005), the statistic (0 RMSE, 1 SD)
@@ -595,6 +595,10 @@ namespace EcIni
     //> factor, as Langford et al. (2015) recommend. Off unless 1, also for a
     //> file without the key, in the engine as here: EddyPro does not do it.
     const auto INI_RAND_ERROR_5    = QStringLiteral("ru_spec_corr");
+    //> The Langford et al. (2015) limit of detection, 0 none or 1 Langford,
+    //> whatever the random error method. [Project]: FCC writes the LoD
+    //> columns too.
+    const auto INI_RAND_ERROR_6    = QStringLiteral("lod_meth");
 
     const auto INIGROUP_BIOMET = QStringLiteral("RawProcess_BiometMeasurements");
     const auto INI_BIOMET_0    = QStringLiteral("biom_use_native_header");

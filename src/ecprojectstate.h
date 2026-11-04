@@ -376,7 +376,7 @@ struct ScreenSettingState
     int detlim_meth = 0;
     qreal detlim_offset_s = 100.0;
     qreal detlim_window_s = 50.0;
-    //> Limit of detection after Langford et al. (2015), shared by ru_meth 6
+    //> Limit of detection after Langford et al. (2015), shared by lod_meth 1
     //> and detlim_meth 2: +/-150-180 s, RMSE, and a multiple of ten for the
     //> automatic window. The engine's defaults - see
     //> tests/test_langford_lod_static.py.
@@ -593,6 +593,10 @@ struct RandomErrorState
     //> Spectrally correct the reported random errors (and the Langford LoD).
     //> Off by default, as in the engine and in EddyPro.
     int spec_corr = 0;
+    //> The Langford et al. (2015) limit of detection, on its own switch:
+    //> 0 none, 1 Langford. Independent of ru_method, so a run can report
+    //> both. Off by default.
+    int lod_meth = 0;
 };
 
 struct BiometState

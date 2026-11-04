@@ -1,8 +1,22 @@
 8.1.7 (2026-11-04)
 
     GUI:
-	- Version bump to match EddyFlow engine 8.1.7. Nothing in the interface
-	  changes.
+	- Change: "Limit of detection (Langford et al. 2015)" is no longer a row of
+	          the random uncertainty Method menu but a dropdown of its own,
+	          "Limit of detection :" with None (the default) and "Langford et
+	          al. (2015)", directly below the random uncertainty method on
+	          Advanced Settings > Statistical Analysis (lod_meth, [Project]).
+	          It works whatever the random uncertainty method is, or with none,
+	          so a run reports both. Its "Settings..." button moved beside it.
+	          The ITS settings, which Langford's automatic window reads, and the
+	          spectral correction checkbox, now "Spectrally correct the random
+	          uncertainty and limit of detection", are live while either is on.
+	          An ru_meth the engine does not decode, 6 included, falls back to
+	          the default on load.
+	- Fix: Opening the Statistical Analysis page no longer switches the random
+	       uncertainty on: refresh() moved the method combo while its handler
+	       was connected, which wrote ru_meth 1 into a project that held 0
+	       when the combo had been left on another row.
 
 8.1.6 (2026-11-04)
 
