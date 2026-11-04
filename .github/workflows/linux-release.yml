@@ -1,11 +1,14 @@
 name: Linux release build
 
-# Builds the Ubuntu .deb and .snap with build_eddyflow_linux.sh from the
-# private eddyflow-build-script repository, installs and checks both, and
-# attaches them to the release, next to the Windows .7z and the macOS .dmg.
+# Builds the Ubuntu .deb and .snap and the Fedora .rpm with
+# build_eddyflow_linux.sh from the private eddyflow-build-script repository,
+# installs and checks each, and attaches them to the release, next to the
+# Windows .7z and the macOS .dmg.
 #
-# Runs on Ubuntu 26.04: the .deb links that release's libraries, and the
-# snap's core26 base must match the host it is packed on.
+# The ubuntu job runs on Ubuntu 26.04: the .deb links that release's
+# libraries, and the snap's core26 base must match the host it is packed on.
+# GitHub has no Fedora runners, so the fedora job builds the .rpm in the
+# current Fedora release's container, against Fedora's own Qt and QuaZIP.
 #
 # Needs the repository secret BUILD_SCRIPT_TOKEN: a fine-grained token with
 # read-only Contents access to kebasaa/eddyflow-build-script.
@@ -26,7 +29,7 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  ubuntu:
     runs-on: ubuntu-26.04
     timeout-minutes: 60
     env:
@@ -69,14 +72,14 @@ jobs:
         with:
           name: eddyflow-linux-amd64
           path: |
-            dist/eddyflow_v*_ubuntu*.deb
-            dist/eddyflow_v*.snap
+            dist/eddyflow_v*_linux_ubuntu*.deb
+            dist/eddyflow_v*_linux_*.snap
           if-no-files-found: error
           retention-days: 14
 
       - name: Check the .deb
         run: |
-          deb=$(ls dist/eddyflow_v*_ubuntu*.deb)
+          deb=$(ls dist/eddyflow_v*_linux_ubuntu*.deb)
           dpkg-deb --info "$deb"
           # apt resolves the package's dependencies as on a user's machine.
           sudo apt-get install -y "./$deb" xvfb
@@ -112,7 +115,7 @@ jobs:
 
       - name: Check the .snap
         run: |
-          snap=$(ls dist/eddyflow_v*.snap)
+          snap=$(ls dist/eddyflow_v*_linux_*.snap)
           # --dangerous: a locally built snap carries no store signature.
           sudo snap install --dangerous "$snap"
           snap list eddyflow
@@ -133,4 +136,97 @@ jobs:
       - name: Attach the packages to release ${{ env.TAG }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$TAG" dist/eddyflow_v*_ubuntu*.deb dist/eddyflow_v*.snap --clobber --repo "$GITHUB_REPOSITORY"
+        run: gh release upload "$TAG" dist/eddyflow_v*_linux_ubuntu*.deb dist/eddyflow_v*_linux_*.snap --clobber --repo "$GITHUB_REPOSITORY"
+
+  fedora:
+    runs-on: ubuntu-26.04
+    container: fedora:latest
+    timeout-minutes: 60
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      ENGINE_REF: ${{ inputs.engine_ref || github.event.release.tag_name || inputs.tag }}
+    steps:
+      # git so the checkouts are real clones (the maintainer comes from the
+      # log), sudo because the script installs with it, gh for the upload.
+      - name: Install the tools the job itself needs
+        run: dnf install -y git sudo findutils which gh
+
+      - name: Check out eddyflow-gui at ${{ env.TAG }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+          path: eddyflow-gui
+
+      - name: Check out eddyflow-engine at ${{ env.ENGINE_REF }}
+        uses: actions/checkout@v7
+        with:
+          repository: kebasaa/eddyflow-engine
+          ref: ${{ env.ENGINE_REF }}
+          path: eddyflow-engine
+
+      - name: Check out eddyflow-build-script
+        uses: actions/checkout@v7
+        with:
+          repository: kebasaa/eddyflow-build-script
+          ref: main
+          token: ${{ secrets.BUILD_SCRIPT_TOKEN }}
+          path: eddyflow-build-script
+
+      # The workspace belongs to the runner's user, not to the container's
+      # root, so git needs it marked safe before reading the log.
+      - name: Build the .rpm
+        run: |
+          git config --global --add safe.directory '*'
+          maintainer=$(git -C eddyflow-gui log -1 --format='%an <%ae>')
+          bash eddyflow-build-script/build_eddyflow_linux.sh --rpm --install-deps --maintainer "$maintainer"
+
+      - name: Keep the package with the run
+        uses: actions/upload-artifact@v7
+        with:
+          name: eddyflow-fedora-x86_64
+          path: dist/eddyflow_v*_linux_fedora*.rpm
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Check the .rpm
+        run: |
+          rpm=$(ls dist/eddyflow_v*_linux_fedora*.rpm)
+          rpm -qip "$rpm"
+          rpm -qRp "$rpm"
+          # dnf resolves the package's dependencies as on a user's machine.
+          dnf install -y "./$rpm" /usr/bin/xvfb-run
+
+          app=/opt/eddyflow
+          missing=0
+          for file in "$app/eddyflow" "$app/bin/eddyflow_rp" "$app/bin/eddyflow_fcc"; do
+            if ldd "$file" | grep 'not found'; then
+              echo "::error::$file needs a library the package does not pull in"
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ]
+
+          "$app/bin/eddyflow_rp" --version
+          "$app/bin/eddyflow_fcc" --version
+          command -v 7za || command -v 7z
+          test -d "$app/docs"
+          test -d "$app/file-templates"
+          test -f /usr/share/applications/eddyflow.desktop
+
+          # The GUI must start and keep running; it is stopped after 15 s.
+          xvfb-run -a /usr/bin/eddyflow &
+          pid=$!
+          sleep 15
+          if ! kill -0 "$pid" 2>/dev/null; then
+            wait "$pid" || status=$?
+            echo "::error::the GUI from the .rpm exited early (status ${status:-0})"
+            exit 1
+          fi
+          kill "$pid"
+          wait "$pid" 2>/dev/null || true
+
+      # --clobber replaces a package of the same name when a release is rebuilt.
+      - name: Attach the .rpm to release ${{ env.TAG }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" dist/eddyflow_v*_linux_fedora*.rpm --clobber --repo "$GITHUB_REPOSITORY"
