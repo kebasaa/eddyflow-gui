@@ -5253,6 +5253,16 @@
 <td>CEC evaporation. Positive values indicate an upward water vapor flux. Available when Conditional Eddy Covariance is activated.</td>
 </tr>
 <tr>
+<td>gas_stomatal_cec, gas_nonstomatal_cec</td>
+<td>gas flux units</td>
+<td>CEC stomatal and non-stomatal parts of any other partitioned gas, for example <code>cos_stomatal_cec</code> (experimental). Written with <code>gas_total_cec</code>, <code>r_gas_cec</code>, <code>cec_ns_gas</code> and <code>qc_cec_gas</code>. Available for each gas partitioned in the CEC Settings table.</td>
+</tr>
+<tr>
+<td>cec_sign_cos</td>
+<td>–</td>
+<td>1 when the CEC stomatal part of carbonyl sulfide came out as emission, 0 for uptake or zero (experimental). Written for every partitioned carbonyl sulfide channel. Every CEC column ends in its pairing's suffix: the analyzer of the gas that sorts the octants, such as <code>_li7200_1</code>, with <code>_cos</code> added when carbonyl sulfide sorts them. See <a href="conditional-eddy-covariance.html#output-variables">Conditional Eddy Covariance</a> for every CEC column and how to read it.</td>
+</tr>
+<tr>
 <td>water_vapor_density</td>
 <td>kg m-3</td>
 <td>Ambient mass density of water vapor</td>

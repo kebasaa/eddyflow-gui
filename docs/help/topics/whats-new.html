@@ -5346,14 +5346,19 @@
 <li>Fix: The time-lag optimization recognises a lag at the edge of its search window to within half a sample, so edge-pinned lags stay out of the optimization dataset.</li>
 <li>Fix: The time-lag optimization fills sparse relative-humidity classes of water vapor by interpolating between the classes that have enough data, instead of from empty ones, and a lag as long as the averaging period leaves the variable missing for that period.</li>
 <li>Fix: With conditional time-lag borrowing, a gas that borrows a lag has its water-vapor and cell-temperature terms evaluated at the borrowed lag, the one its flux uses.</li>
+<li>Fix: The water-vapor covariance used in the WPL term of a gas is taken at the lag of the hygrometer that measured it, matched by analyzer identity rather than by model, when two analyzers of the same model are in use.</li>
+<li>Fix: A CEC pairing with four further gases wrote a shorter essentials row than its header, so FCC misread every field after it. The row now holds the widest pairing.</li>
 <li>
-<p>Fix: The water-vapor covariance used in the WPL term of a gas is taken at the lag of the hygrometer that measured it, matched by analyzer identity rather than by model, when two analyzers of the same model are in use.
+<p>New feature (experimental): A CEC pairing may sort its octants by carbonyl sulfide (<code>cec_&lt;i&gt;_co2</code> naming a COS channel), and a pairing may report only its further gases (<code>cec_&lt;i&gt;_meth=4</code>). A pairing naming any other gas there uses the designated carbon dioxide and raises Warning(123). Project format 5.2.0.
 GUI:</p>
 </li>
 <li>
 <p>New feature: <strong>UTC offset</strong>, directly under Longitude in the metadata editor's Station tab. While neither the metadata file nor you have set it, it is filled in from the coordinates: round(longitude/15) at once, then the standard offset of the site's time zone looked up online at timeapi.io once the coordinates stop changing (only the coordinates are sent). <strong>Look up</strong> asks again. See <a href="metadata-file-editor.html#station">Metadata file editor</a>.</p>
 </li>
 <li>New feature: A warning icon beside the high-frequency correction method while Eugster and Senn (1995) is selected. In a period without stability (z/L) no correction factor exists, so an open-path gas's flux is written uncorrected (only its spectral correction factor column shows the error code), while a closed-path gas's flux is written as missing. See <a href="low-pass-filtering.html#spectral-corrections-after-eugster-and-senn-1995">Spectral corrections after Eugster and Senn (1995)</a>.</li>
+<li>Change: The CEC Settings table lists one row per flux to partition (<strong>Flux to partition</strong>, <strong>Water channel</strong>, <strong>Octants from</strong>), the last two defaulting to the flux's own analyzer. Carbonyl sulfide, or any other gas, is partitioned by adding a row for it. Existing projects open as the rows they meant; a pairing saved switched off is no longer shown. See <a href="cec-settings.html#fluxes-to-partition">CEC settings dialog</a>.</li>
+<li>New feature (experimental): Carbonyl sulfide can sort the CEC octants instead of carbon dioxide. Its pairing's columns end in <code>_cos</code>, and its COS columns are named <code>cos_stomatal_cec</code>, <code>cos_nonstomatal_cec</code> and so on rather than <code>P_cec</code> and <code>Reco_cec</code>. Valid only where the ground is a net COS source or negligible. Projects using it are saved in project format 5.2.0. Every row beyond water and carbon dioxide is marked experimental. See <a href="conditional-eddy-covariance.html#interpreting-the-results">Interpreting the results</a>.</li>
+<li>New feature (experimental): <code>cec_sign_cos</code> is 1 where the stomatal part of carbonyl sulfide came out as emission, for example from noise or a senescent canopy. See <a href="conditional-eddy-covariance.html#carbonyl-sulfide-experimental">Conditional Eddy Covariance</a>.</li>
 </ul>
 <h2 id="813-2026-10-07">8.1.3 (2026-10-07)<a class="headerlink" href="#813-2026-10-07" title="Permanent link">&para;</a></h2>
 <p>Engine:</p>
