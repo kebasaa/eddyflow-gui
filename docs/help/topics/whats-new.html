@@ -4259,6 +4259,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#818-2026-11-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1.8 (2026-11-05)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#813-2026-10-07" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4801,6 +4812,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#818-2026-11-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1.8 (2026-11-05)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#813-2026-10-07" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5292,6 +5314,47 @@
 
 <h1 id="whats-new-in-this-version">What's new in this version<a class="headerlink" href="#whats-new-in-this-version" title="Permanent link">&para;</a></h1>
 <p>EddyFlow is an open-source fork of EddyPro, maintained by ETH Zurich starting with version 7.0.4. This is why the version numbering below jumps from the EddyPro-era <code>.9</code> (i.e. 7.0.9) directly to <code>7.0.4</code>, and why entries from 7.0.4 onward use full <code>x.y.z</code> version numbers instead of the decimal-suffix shorthand used in older EddyPro-era entries below.</p>
+<h2 id="818-2026-11-05">8.1.8 (2026-11-05)<a class="headerlink" href="#818-2026-11-05" title="Permanent link">&para;</a></h2>
+<p>Engine:</p>
+<ul>
+<li>Fix: Mauder et al. (2013) despiking replaces a spike by linear interpolation from the last good sample before it to the first good sample after it. A missing sample, such as the empty rows between the samples of an instrument slower than the file, is never an end point, and a spike with no good sample before it is flagged and left unchanged. See <a href="despiking-raw-statistical-screening.html#despiking">Despiking</a>.</li>
+<li>Fix: With <strong>Iterate the correction</strong>, each pass recomputes u* from the uncorrected (Level 0) u* with that pass's correction factor, so u*, L, z/L, the footprint and the turbulence test no longer accumulate the factor over the passes. The krypton and Lyman-α oxygen correction is applied once per averaging period, before the passes. A single-pass run is unchanged. See <a href="low-pass-filtering.html#iterating-the-correction">Iterating the correction</a>.</li>
+<li>Fix: The oxygen correction of krypton and Lyman-α hygrometers (van Dijk et al., 2003) is 1 + 0.23 (<em>k</em><sub>o</sub>/<em>k</em><sub>w</sub>) βλ/(<em>c</em><sub>p</sub><em>T</em>), and it is applied to the water vapor flux, LE, E and ET as well as to the water vapor covariance and variance, so LE and ET change for these hygrometers. See <a href="gas-analyzer-model.html">Model (gas analyzer)</a>.</li>
+<li>Fix: Detrending of a column with missing samples (an instrument slower than the file, or filtered samples): linear detrending fits the trend against the time of the valid samples, the running mean averages the valid samples of its trailing window, and the exponential running mean decays by the time elapsed since the previous valid sample and starts at the first valid sample. A column without missing samples is unchanged. See <a href="raw-processing-options.html#detrending-turbulent-fluctuations">Detrending turbulent fluctuations</a>.</li>
+<li>Fix: The discontinuity (Haar) test of Vickers and Mahrt (1997) converts molar densities to mole fractions before it compares the half-windows, and its variance test compares variances with the variance of the whole window, so HaarVar is dimensionless. Discontinuity flags change, most for gases measured as molar density. See <a href="despiking-raw-statistical-screening.html#discontinuities">Discontinuities</a>.</li>
+<li>Fix: A PWB time lag is converted from seconds to rows at each averaging period's own acquisition rate, so a run whose rate changes (for example from 10 to 20 Hz) shifts every period by its own lag, also when a saved time-lag table is read back. See <a href="pwb-time-lag-settings.html">PWB time lag optimization settings</a>.</li>
+<li>Fix: In PWB, water vapor never takes another gas's lag, as it never lends its own, consistent with conditional lag borrowing. LE, ET and the water terms of WPL move where water vapor had taken a trace gas's lag. See <a href="pwb-time-lag-settings.html">PWB time lag optimization settings</a>.</li>
+<li>Fix: A project without a hygrometer no longer takes another gas for its water vapor: the full output has no LE and ET columns, the FLUXNET LE and ET columns carry the error label, and no other gas is used for PWB humidity gating or the relative-humidity classes of the time-lag optimization. See <a href="output-files-full-output.html#corrected-fluxes">The full output file</a>.</li>
+<li>Fix: Post-flux despiking (<code>test_pfd</code>) works on the published final fluxes FC, H and LE (spectrally corrected, Level 3), so its series and <code>*_CLEANED</code> columns match the outputs. Its <code>NEE</code> column is FC, without the storage term. See <a href="despiking-raw-statistical-screening.html#post-flux-despiking-stl">Post-flux despiking (STL)</a>.</li>
+<li>Fix: The potential radiation (<code>SW_IN_POT</code>) is computed at apparent solar time from the latitude, the longitude, the new UTC offset and the equation of time, for the middle of each averaging period. Where biomet has neither global radiation nor PPFD it decides day and night, and with it the daytime or night-time regression of the Burba et al. (2008) LI-7500 correction, so <code>SW_IN_POT</code> and the day/night flag move for every site. See <a href="metadata-file-editor.html#station">UTC offset</a> and <a href="calculate-offseason-uptake-correction.html">Calculating the off-season uptake correction</a>.</li>
+<li>New feature: Metadata key <code>utc_offset</code> in <code>[Site]</code>: the number of hours the timestamps are ahead of UTC, as standard time (daylight saving ignored). A metadata file without it (older files, the metadata embedded in .ghg archives, imported EddyPro projects) takes round(longitude/15), and the run log says so.</li>
+<li>Fix: No footprint is computed for a period without u*, z/L or the Obukhov length; its footprint columns carry the error value instead of plausible-looking distances. See <a href="estimating-flux-footprint.html">Estimating the flux footprint</a>.</li>
+<li>Fix: The drop-out test (Vickers and Mahrt, 1997) computes its percentages as real fractions and raises the hard flag when either the central or the extreme percentage exceeds its limit, so its flag changes wherever the test is on. See <a href="despiking-raw-statistical-screening.html#drop-outs">Drop-outs</a>.</li>
+<li>Fix: The RFlux diagnostics used by the Vitale et al. (2020) quality flags convert gas columns in molar density to mole fractions (µmol mol⁻¹, water vapor mmol mol⁻¹) before the flat-line and spike tests, and the DDI, HF and HD count limits are the same fractions of the samples the column should have in the averaging period, at its own acquisition rate, instead of counts for 30 minutes at the file rate. See <a href="flux-quality-flags.html#vitale-et-al-2020-0-1-2-severity-system">Vitale et al. (2020)</a>.</li>
+<li>Fix: A planar-fit file read by a later run keeps its sector boundaries relative to the north offset of the first sector, instead of shifting them by that offset. The counterclockwise option for a sector with too few periods takes the fit of the nearest valid sector counterclockwise; such a sector was double-rotated. See <a href="raw-processing-options.html#planar-fit-settings">Planar fit settings</a>.</li>
+<li>
+<p>Fix: A gas whose analyser has no cell temperature or pressure record, or no reading of it in a period, uses the ambient air temperature and pressure for its cell molar volume instead of another analyser's cell. A single-analyser project is unchanged. See <a href="calculate-ambient-and-cell-parameters.html#average-cell-molar-volume-closed-path-systems-only">Average cell molar volume</a>.</p>
+</li>
+<li>
+<p>Fix: A very short analyzer path length (a mistyped value, or dynamic metadata) no longer makes the spectral correction factor of an analytic method negative and near zero: the path-averaging transfer function tends to 1 as the path vanishes.</p>
+</li>
+<li>Fix: The <code>*_ABSLIM_NREX</code> columns count the values the absolute-limits test eliminated: zero when the test only flags, the number removed when it filters.</li>
+<li>Fix: A missing vapor pressure deficit is written as the error label in the FCC outputs, not as -999900.</li>
+<li>Fix: In a LI-COR .ghg period whose first archive is skipped, the instruments' acquisition rates are taken from the first archive actually read, so a good period is no longer dropped with Warning(116).</li>
+<li>Fix: The random error after Mahrt (1998) divides by the windows that hold data. A window without valid samples no longer lowers the random error and raises the nonstationarity ratio (M98) used by the Vitale et al. (2020) quality flags.</li>
+<li>Fix: The stationarity test (Foken and Wichura, 1996) averages the sub-period covariances that exist; a missing sub-period no longer produces a deviation of millions of percent.</li>
+<li>Fix: The time-lag optimization recognises a lag at the edge of its search window to within half a sample, so edge-pinned lags stay out of the optimization dataset.</li>
+<li>Fix: The time-lag optimization fills sparse relative-humidity classes of water vapor by interpolating between the classes that have enough data, instead of from empty ones, and a lag as long as the averaging period leaves the variable missing for that period.</li>
+<li>Fix: With conditional time-lag borrowing, a gas that borrows a lag has its water-vapor and cell-temperature terms evaluated at the borrowed lag, the one its flux uses.</li>
+<li>
+<p>Fix: The water-vapor covariance used in the WPL term of a gas is taken at the lag of the hygrometer that measured it, matched by analyzer identity rather than by model, when two analyzers of the same model are in use.
+GUI:</p>
+</li>
+<li>
+<p>New feature: <strong>UTC offset</strong>, directly under Longitude in the metadata editor's Station tab. While neither the metadata file nor you have set it, it is filled in from the coordinates: round(longitude/15) at once, then the standard offset of the site's time zone looked up online at timeapi.io once the coordinates stop changing (only the coordinates are sent). <strong>Look up</strong> asks again. See <a href="metadata-file-editor.html#station">Metadata file editor</a>.</p>
+</li>
+<li>New feature: A warning icon beside the high-frequency correction method while Eugster and Senn (1995) is selected. In a period without stability (z/L) no correction factor exists, so an open-path gas's flux is written uncorrected (only its spectral correction factor column shows the error code), while a closed-path gas's flux is written as missing. See <a href="low-pass-filtering.html#spectral-corrections-after-eugster-and-senn-1995">Spectral corrections after Eugster and Senn (1995)</a>.</li>
+</ul>
 <h2 id="813-2026-10-07">8.1.3 (2026-10-07)<a class="headerlink" href="#813-2026-10-07" title="Permanent link">&para;</a></h2>
 <p>Engine:</p>
 <ul>

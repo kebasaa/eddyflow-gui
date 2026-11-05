@@ -4420,6 +4420,7 @@
 <li>Offset distance: the area between the anemometer and the offset provides up to 1% of the total flux.</li>
 <li>10%, 30%, 50%, 70%, 90%: the area between the anemometer and the NN% distance provides NN% of the total flux.</li>
 </ul>
+<p>Every model needs the friction velocity u*, the stability parameter z/L and the Obukhov length. In an averaging period that lacks any of them, no footprint is computed and all footprint distances carry the error value.</p>
 <p>Hereafter, a short introduction to the implemented models is provided. Please refer to the respective papers for in-depth information and for an informed selection of the method to be used. The default option in EddyFlow is the parameterization of Kljun et al. (2004), merely because it is the newest 'model' and it is a thoroughly validated one. However, at this stage we explicitly don't advocate the use of a particular model among those available.</p>
 <h2 id="footprint-parameterization-from-kljun-et-al-2004">Footprint parameterization from Kljun et al (2004)<a class="headerlink" href="#footprint-parameterization-from-kljun-et-al-2004" title="Permanent link">&para;</a></h2>
 <p>A footprint estimation is provided according to the "simple footprint parameterization" described in <a href="references.html#Kljun">Kljun et al. (2004)</a>. The set of distances is calculated according to:</p>
