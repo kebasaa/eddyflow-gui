@@ -10,6 +10,17 @@
 	          for every gas, while the momentum and sensible heat fluxes
 	          keep their own factors. The engine's behaviour is described
 	          in its CHANGELOG; nothing in the interface changes.
+	- New: A UTC offset field under Longitude in the metadata editor's Site
+	       tab: how many hours the timestamps are ahead of UTC, as standard
+	       time. The engine uses it with the longitude to place solar noon for
+	       the potential radiation, which decides day and night when biomet has
+	       neither global radiation nor PPFD. While neither the file nor the
+	       user has set it, it is filled in from the coordinates: the
+	       longitude's guess at once, then the time zone's standard offset
+	       looked up at timeapi.io once the coordinates settle (only the
+	       coordinates are sent). Look up asks again. Written as [Site]
+	       utc_offset; a file without it is left without it, and the engine
+	       assumes the longitude's guess.
 
 8.1.7 (2026-11-04)
 
