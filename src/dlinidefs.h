@@ -61,6 +61,7 @@ namespace DlIni
     const auto INI_SITE_ALTITUDE            = QStringLiteral("altitude");
     const auto INI_SITE_LATITUDE            = QStringLiteral("latitude");
     const auto INI_SITE_LONGITUDE           = QStringLiteral("longitude");
+    const auto INI_SITE_UTC_OFFSET          = QStringLiteral("utc_offset");
     const auto INI_SITE_CANOPY_HEIGHT       = QStringLiteral("canopy_height");
     const auto INI_SITE_DISPLACEMENT_HEIGHT = QStringLiteral("displacement_height");
     const auto INI_SITE_ROUGHNESS_LENGTH    = QStringLiteral("roughness_length");

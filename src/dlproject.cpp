@@ -453,6 +453,9 @@ void DlProject::newProject(const ProjConfigState& project_config)
     project_state_.site.altitude = 0.0;
     project_state_.site.latitude = 0.0;
     project_state_.site.longitude = 0.0;
+    project_state_.site.utc_offset = 0.0;
+    project_state_.site.utc_offset_known = false;
+    project_state_.site.utc_offset_fixed = false;
     project_state_.site.canopy_height = 0.0;
     project_state_.site.displacement_height = 0.0;
     project_state_.site.roughness_length = 0.0;
@@ -617,6 +620,11 @@ bool DlProject::loadProject(const QString& filename, bool checkVersion, bool *mo
         project_state_.site.altitude = project_ini.value(DlIni::INI_SITE_ALTITUDE, 0.0).toDouble();
         project_state_.site.latitude = project_ini.value(DlIni::INI_SITE_LATITUDE, 0.0).toDouble();
         project_state_.site.longitude = project_ini.value(DlIni::INI_SITE_LONGITUDE, 0.0).toDouble();
+        //> Absent in older files and EddyPro's: unknown, and the engine
+        //> derives it from the longitude.
+        project_state_.site.utc_offset_known = project_ini.contains(DlIni::INI_SITE_UTC_OFFSET);
+        project_state_.site.utc_offset_fixed = project_state_.site.utc_offset_known;
+        project_state_.site.utc_offset = project_ini.value(DlIni::INI_SITE_UTC_OFFSET, 0.0).toDouble();
         project_state_.site.canopy_height = project_ini.value(DlIni::INI_SITE_CANOPY_HEIGHT, 0.0).toDouble();
         project_state_.site.displacement_height = project_ini.value(DlIni::INI_SITE_DISPLACEMENT_HEIGHT, 0.0).toDouble();
         project_state_.site.roughness_length = project_ini.value(DlIni::INI_SITE_ROUGHNESS_LENGTH, 0.0).toDouble();
@@ -1316,6 +1324,8 @@ bool DlProject::saveProject(const QString& filename)
         project_ini.setValue(DlIni::INI_SITE_ALTITUDE, QString::number(project_state_.site.altitude, 'f', 1));
         project_ini.setValue(DlIni::INI_SITE_LATITUDE, project_state_.site.latitude);
         project_ini.setValue(DlIni::INI_SITE_LONGITUDE, project_state_.site.longitude);
+        if (project_state_.site.utc_offset_known)
+            project_ini.setValue(DlIni::INI_SITE_UTC_OFFSET, QString::number(project_state_.site.utc_offset, 'f', 2));
         project_ini.setValue(DlIni::INI_SITE_CANOPY_HEIGHT, project_state_.site.canopy_height);
         project_ini.setValue(DlIni::INI_SITE_DISPLACEMENT_HEIGHT, project_state_.site.displacement_height);
         project_ini.setValue(DlIni::INI_SITE_ROUGHNESS_LENGTH, project_state_.site.roughness_length);

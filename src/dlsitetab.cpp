@@ -40,6 +40,15 @@
 #include <QSpinBox>
 #include <QTextStream>
 #include <QUrl>
+#include <QUrlQuery>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QTimeZone>
+#include <QDateTime>
+#include <QTimer>
 
 #include <cmath>
 
@@ -179,6 +188,29 @@ DlSiteTab::DlSiteTab(QWidget *parent, DlProject *dlProject) :
     longitudeEdit->setMinimumWidth(120);
     longitudeEdit->setMaximumWidth(120);
 
+    utcOffsetLabel = new ClickLabel;
+    utcOffsetLabel->setText(tr("UTC offset :"));
+    utcOffsetLabel->setToolTip(tr("<b>UTC offset:</b> How many hours the timestamps are ahead of UTC, as standard time: daylight saving is ignored. "
+        "EddyFlow uses it, with the longitude, to place solar noon for the potential radiation, which decides day and night when biomet data have neither global radiation nor PPFD. "
+        "Filled in from the coordinates: EddyFlow looks up the site's time zone online (timeapi.io, which receives the coordinates only), "
+        "or, offline, assumes the longitude divided by 15. Set it yourself if your logger keeps another time, such as UTC."));
+    utcOffsetSpin = new QDoubleSpinBox;
+    utcOffsetSpin->setDecimals(2);
+    utcOffsetSpin->setRange(-14.0, 14.0);
+    utcOffsetSpin->setSingleStep(0.25);
+    utcOffsetSpin->setSuffix(tr(" [h]", "hours"));
+    utcOffsetSpin->setToolTip(utcOffsetLabel->toolTip());
+    utcOffsetSpin->setMinimumWidth(120);
+    utcOffsetSpin->setMaximumWidth(120);
+    utcOffsetFetchButton = new QPushButton(tr("Look up"));
+    utcOffsetFetchButton->setProperty("mdButton", true);
+    utcOffsetFetchButton->setToolTip(tr("<b>Look up:</b> Ask timeapi.io for the standard time offset of the time zone at these coordinates."));
+    utcOffsetFetchButton->setMaximumWidth(utcOffsetFetchButton->sizeHint().width());
+    //> Coordinates are typed digit by digit; look up once they settle.
+    utcLookupTimer_ = new QTimer(this);
+    utcLookupTimer_->setSingleShot(true);
+    utcLookupTimer_->setInterval(1500);
+
     sexDegRadio = new QRadioButton(tr("Sexagesimal Degrees"), this);
     decDegRadio = new QRadioButton(tr("Decimal Degrees"), this);
     sexDegRadio->setChecked(true);
@@ -217,7 +249,10 @@ DlSiteTab::DlSiteTab(QWidget *parent, DlProject *dlProject) :
     infoLayout->addWidget(latitudeEdit, 3, 6);
     infoLayout->addWidget(longitudeLabel, 4, 5, Qt::AlignRight);
     infoLayout->addWidget(longitudeEdit, 4, 6);
-    infoLayout->setRowStretch(5, 1);
+    infoLayout->addWidget(utcOffsetLabel, 5, 5, Qt::AlignRight);
+    infoLayout->addWidget(utcOffsetSpin, 5, 6);
+    infoLayout->addWidget(utcOffsetFetchButton, 5, 7, Qt::AlignLeft);
+    infoLayout->setRowStretch(6, 1);
     infoLayout->setColumnStretch(0, 1);
     infoLayout->setColumnStretch(1, 1);
     infoLayout->setColumnStretch(2, 2);
@@ -281,6 +316,12 @@ DlSiteTab::DlSiteTab(QWidget *parent, DlProject *dlProject) :
             this, &DlSiteTab::onClickLongitudeLabel);
     connect(longitudeEdit, &QLineEdit::textChanged,
             this, &DlSiteTab::updateLongitude);
+    connect(utcOffsetSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &DlSiteTab::updateUtcOffset);
+    connect(utcOffsetFetchButton, &QPushButton::clicked,
+            this, &DlSiteTab::fetchUtcOffset);
+    connect(utcLookupTimer_, &QTimer::timeout,
+            this, &DlSiteTab::fetchUtcOffset);
 
     connect(sexDegRadio, &QRadioButton::toggled,
             this, &DlSiteTab::sexDegRadioToogled);
@@ -543,6 +584,8 @@ void DlSiteTab::reset()
         longitudeEdit->setText(QString::number(0.0, 'd', 6));
     }
 
+    showUtcOffset(0.0);
+
     timestampRefStartRadio->setChecked(true);
     fileDurationSpin->setValue(30);
     acquisitionFreqSpin->setValue(10.0);
@@ -573,6 +616,12 @@ void DlSiteTab::refresh()
         latitudeEdit->setText(QString::number(project_->siteLatitude(), 'd', 6));
         longitudeEdit->setText(QString::number(project_->siteLongitude(), 'd', 6));
     }
+
+    //> Shown even when unknown: then it is what the engine will assume.
+    if (project_->siteUtcOffsetKnown())
+        showUtcOffset(project_->siteUtcOffset());
+    else
+        showUtcOffset(std::round(project_->siteLongitude() / 15.0));
 
     timestampRefStartRadio->setChecked(!project_->timestampEnd());
     timestampRefEndRadio->setChecked(project_->timestampEnd());
@@ -692,6 +741,82 @@ void DlSiteTab::updateLongitude(const QString& lon)
 {
     QString lon_str = QString::number(numLongitude(lon), 'd', 6);
     project_->setSiteLongitude(lon_str.toDouble());
+    prefillUtcOffset();
+}
+
+//> The user's own value: fixed, so no look-up replaces it.
+void DlSiteTab::updateUtcOffset(double h)
+{
+    project_->setSiteUtcOffset(h, true);
+}
+
+void DlSiteTab::showUtcOffset(double h)
+{
+    utcOffsetSpin->blockSignals(true);
+    utcOffsetSpin->setValue(h);
+    utcOffsetSpin->blockSignals(false);
+}
+
+//> While the offset is not the user's or the file's: show the longitude's
+//> guess at once, and look the time zone up when the coordinates settle.
+void DlSiteTab::prefillUtcOffset()
+{
+    if (project_->siteUtcOffsetFixed()) return;
+    if (project_->signalsBlocked()) return;
+    showUtcOffset(std::round(project_->siteLongitude() / 15.0));
+    utcLookupTimer_->start();
+}
+
+void DlSiteTab::fetchUtcOffset()
+{
+    if (!utcHttp_)
+    {
+        utcHttp_ = new QNetworkAccessManager(this);
+        connect(utcHttp_, &QNetworkAccessManager::finished,
+                this, &DlSiteTab::utcOffsetReply);
+    }
+    QUrl url(QStringLiteral("https://timeapi.io/api/TimeZone/coordinate"));
+    QUrlQuery q;
+    q.addQueryItem(QStringLiteral("latitude"), QString::number(project_->siteLatitude(), 'f', 4));
+    q.addQueryItem(QStringLiteral("longitude"), QString::number(project_->siteLongitude(), 'f', 4));
+    url.setQuery(q);
+    QNetworkRequest request(url);
+    request.setRawHeader("User-Agent", "EddyFlow");
+    request.setTransferTimeout(10000);
+    utcOffsetFetchButton->setEnabled(false);
+    utcHttp_->get(request);
+}
+
+//> The zone's STANDARD offset: daylight saving is ignored, as the engine
+//> expects. A failed look-up leaves the longitude's guess standing.
+void DlSiteTab::utcOffsetReply(QNetworkReply *reply)
+{
+    utcOffsetFetchButton->setEnabled(true);
+    reply->deleteLater();
+    if (reply->error() != QNetworkReply::NoError) return;
+    const auto obj = QJsonDocument::fromJson(reply->readAll()).object();
+    double hours = 0.0;
+    bool found = false;
+    const auto std_off = obj.value(QStringLiteral("standardUtcOffset")).toObject();
+    if (std_off.contains(QStringLiteral("seconds")))
+    {
+        hours = std_off.value(QStringLiteral("seconds")).toDouble() / 3600.0;
+        found = true;
+    }
+    else
+    {
+        const QTimeZone zone(obj.value(QStringLiteral("timeZone")).toString().toUtf8());
+        if (zone.isValid())
+        {
+            hours = zone.standardTimeOffset(QDateTime::currentDateTimeUtc()) / 3600.0;
+            found = true;
+        }
+    }
+    if (!found || hours < -14.0 || hours > 14.0) return;
+    //> Never marks the value fixed: a look-up answers for these coordinates,
+    //> and moving them looks again, unless the user or the file set it.
+    project_->setSiteUtcOffset(hours, false);
+    showUtcOffset(hours);
 }
 
 void DlSiteTab::updateCanopyHeight(double d)

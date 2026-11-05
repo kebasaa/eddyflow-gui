@@ -57,6 +57,12 @@ struct SiteState {
     double altitude = 0.0;
     double latitude = 0.0;
     double longitude = 0.0;
+    //> Hours the timestamps are ahead of UTC, standard time. known: there is
+    //> a value to write (else the engine derives it from the longitude);
+    //> fixed: it came from the file or the user, so a look-up leaves it.
+    double utc_offset = 0.0;
+    bool utc_offset_known = false;
+    bool utc_offset_fixed = false;
     double canopy_height = 0.0;
     double displacement_height = 0.0;
     double roughness_length = 0.0;
