@@ -1,7 +1,6 @@
 8.1.8 (2026-11-05)
 
     GUI:
-	- Version bump to match EddyFlow engine 8.1.8.
 	- Change: The offline help describes the in-situ spectral corrections'
 	          fallbacks. Under Ibrom et al. (2007): where the fit for a
 	          period's stability failed, no correction factor exists and
