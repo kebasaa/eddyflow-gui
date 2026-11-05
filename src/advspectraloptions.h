@@ -223,6 +223,9 @@ private:
     //> rather than a column of the QA/QC table, which belongs to the in-situ
     //> assessment and is greyed for every analytic method.
     QWidget* esTauBox = nullptr;
+    //> Lit beside the method while Eugster and Senn is selected: an
+    //> open-path flux without a factor is written uncorrected.
+    QLabel* esOpenPathWarning = nullptr;
     QGridLayout* esTauGrid = nullptr;
     QVector<QDoubleSpinBox*> esTauSpins_;
     QCheckBox* horstCheck;

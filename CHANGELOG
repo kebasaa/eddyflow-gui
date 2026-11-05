@@ -21,6 +21,12 @@
 	       coordinates are sent). Look up asks again. Written as [Site]
 	       utc_offset; a file without it is left without it, and the engine
 	       assumes the longitude's guess.
+	- New: A warning icon beside the low-pass correction method while Eugster
+	       and Senn (1995) is selected. In a period without stability no
+	       correction factor exists, and an open-path gas's flux is then
+	       written uncorrected - only its correction factor column shows the
+	       error code - while a closed-path gas is written as missing. The
+	       tooltip says so.
 
 8.1.7 (2026-11-04)
 
