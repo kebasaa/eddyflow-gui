@@ -61,8 +61,13 @@ namespace Defs
     //> are described by indexed records rather than by one column per fixed
     //> role. A 4.x file is migrated on load and saved back in this format;
     //> nothing but the reader understands the old shape.
+    //>
+    //> 5.2.0: a CEC pairing's octant gas (cec_<i>_co2) may be a carbonyl
+    //> sulfide record, and cec_<i>_meth may be 4, extras only. An older engine
+    //> would put CO2 in place of the first without a word, so it must refuse
+    //> the file; MaxSupportedIniVer in the engine moved with this.
     const auto PROJECT_FILE_VERSION = 0x050000;
-    const auto PROJECT_FILE_VERSION_STR = QStringLiteral("5.1.0");
+    const auto PROJECT_FILE_VERSION_STR = QStringLiteral("5.2.0");
 
     const auto METADATA_FILE_VERSION = 0x030201;
     const auto METADATA_FILE_VERSION_STR = QStringLiteral("3.2.2");

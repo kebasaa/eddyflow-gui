@@ -41,7 +41,9 @@ class BothSpeciesAreRequired(unittest.TestCase):
         self.page = read("src/advprocessingoptions.cpp")
 
     def test_availability_asks_for_both_not_either(self):
-        self.assertIn("const bool hasBoth = hasCo2 && hasH2o;", self.page)
+        #> An octant gas and a water. The octant gas may be carbonyl sulfide
+        #> (experimental), so CO2 or COS will do; water is always required.
+        self.assertIn("const bool hasBoth = (hasCo2 || hasCos) && hasH2o;", self.page)
         self.assertIn("cecCheckBox->setEnabled(hasBoth);", self.page)
         self.assertNotIn("const bool hasAny = hasCo2 || hasH2o;", self.page)
 
@@ -89,8 +91,13 @@ class ThePairingTableStatesTheChoice(unittest.TestCase):
         self.dialog = read("src/cecsettingsdialog.cpp")
 
     def test_the_table_has_the_columns_the_choice_needs(self):
-        for column in ("Use", "Carbon", "Water", "Partition", "Extra", "Warning"):
+        #> One row per flux now: the flux, the water, the octant gas. The
+        #> per-pairing Use / Partition / Extra columns went with the pairing
+        #> rows they described.
+        for column in ("Flux = 0,", "Water,", "Octants,", "Warning,"):
             self.assertIn(column, self.header)
+        for column in ("Use = 0", "Partition,", "Extra,"):
+            self.assertNotIn(column, self.header)
         self.assertIn("class CecPairModel : public QAbstractTableModel", self.header)
         self.assertIn("class CecPairDelegate : public QStyledItemDelegate", self.header)
 
@@ -100,17 +107,22 @@ class ThePairingTableStatesTheChoice(unittest.TestCase):
         The same discipline the moisture column in the Basic Settings variable
         table keeps, and for the same reason.
         """
-        self.assertIn("case Carbon: return pair.carbonIndex;", self.model)
-        self.assertIn("case Water: return pair.waterIndex;", self.model)
+        self.assertIn("case Flux: return row.fluxIndex;", self.model)
+        self.assertIn("case Water: return row.waterIndex;", self.model)
+        self.assertIn("case Octants: return row.octantIndex;", self.model)
         self.assertIn("combo->addItem(choice.second, choice.first);", self.model)
         self.assertIn("model->setData(index, combo->currentData(), Qt::UserRole);",
                       self.model)
 
     def test_a_pairing_may_not_name_its_own_channel_as_an_extra(self):
-        #> It is already targets one and two. Naming it again would partition
-        #> the same series twice under two names.
-        self.assertIn("if (i + 1 == pair.carbonIndex || i + 1 == pair.waterIndex) { continue; }",
-                      self.model)
+        #> A row whose flux is its own octant gas or its own water switches
+        #> that target on; only every other flux becomes an extra. Naming one
+        #> as an extra would partition the same series twice under two names.
+        record = read("src/measurement_record.cpp")
+        self.assertIn("if (row.octantIndex > 0 && row.fluxIndex == row.octantIndex)",
+                      record)
+        self.assertIn("else if (row.fluxIndex == 0 || (water > 0 && row.fluxIndex == water))",
+                      record)
 
     def test_a_pairing_across_two_analysers_is_flagged(self):
         self.assertIn("bool CecPairModel::crossAnalyser", self.model)
@@ -123,7 +135,8 @@ class ThePairingTableStatesTheChoice(unittest.TestCase):
         self.assertIn('gases.at(j).instrumentId != gases.at(i).instrumentId', record)
         #> And the table shows that default rather than an empty grid, so what
         #> the user sees is what an unstated project will run.
-        self.assertIn("pairs_ = MeasurementRecords::defaultCecPairs", self.model)
+        self.assertIn("pairs = MeasurementRecords::defaultCecPairs(ecProject_->gasColumns());",
+                      self.model)
 
     def test_the_table_follows_the_gas_records(self):
         #> A pairing names records, so a record removed elsewhere can invalidate
@@ -226,7 +239,7 @@ class TheProjectFileCarriesIt(unittest.TestCase):
     def test_the_format_version_was_bumped_with_the_new_keys(self):
         #> So an older engine refuses the file rather than ignoring cec_num and
         #> silently running one pairing.
-        self.assertIn('PROJECT_FILE_VERSION_STR = QStringLiteral("5.1.0")',
+        self.assertIn('PROJECT_FILE_VERSION_STR = QStringLiteral("5.2.0")',
                       read("src/defs.h"))
 
 

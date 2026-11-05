@@ -15,6 +15,7 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QSet>
@@ -210,14 +211,28 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject,
     qcLayout->addWidget(minFluxSigmaWarningLabel, 4, 2, Qt::AlignLeft);
     qcLayout->setColumnStretch(2, 1);
 
-    //> Which channels go together, and what else rides along with them.
+    //> Which fluxes are split, and which channels sort them.
     //>
     //> This used to be implicit: the first record of each species, whatever
-    //> analyser each happened to sit on. A site running two analysers had no
-    //> way to say that each should be partitioned against its own water, and
-    //> no way to partition anything but its CO2 and its H2O.
-    auto pairGroup = new QGroupBox(tr("Channel pairing"), this);
-    pairGroup->setToolTip(tr("Which CO\xe2\x82\x82 channel is partitioned against which H\xe2\x82\x82O channel, and which further species ride along in the same octants. Defaults to one pairing per CO\xe2\x82\x82 channel, each with the water on its own analyser."));
+    //> analyser each happened to sit on. Then it was a table of CO2/H2O
+    //> pairings with a cell of further species riding along. Now it is one row
+    //> per flux, because that is the question a user arrives with - "split my
+    //> COS" - and the pairing the engine runs is derived from the rows.
+    auto pairGroup = new QGroupBox(tr("Fluxes to partition"), this);
+    pairGroup->setToolTip(tr(
+        "<b>One row per flux to partition.</b> Each names the flux, the water "
+        "channel whose moist updrafts are sorted, and the gas whose sign sorts "
+        "them: an updraft that lost CO\xe2\x82\x82 passed through stomata, one "
+        "that gained it came off the ground (Zahn et al. 2022). The water and "
+        "the octant gas default to the flux's own analyser."
+        "<p>Any gas can be split in those octants. Carbonyl sulfide is the "
+        "useful case: its leaf uptake is stomatal and one-way, so its stomatal "
+        "part is a photosynthesis proxy independent of the CO\xe2\x82\x82 "
+        "partition. Everything beyond water and CO\xe2\x82\x82, and octants "
+        "sorted by COS, is <b>experimental</b>.</p>"
+        "<p>Rows sharing an octant gas and a water are one pairing to the "
+        "engine, and their columns share one suffix: the analyser of the "
+        "octant gas, with <i>_cos</i> added when COS sorts them.</p>"));
 
     pairModel = new CecPairModel(ecProject_, this);
     pairTable = new QTableView(pairGroup);
@@ -230,18 +245,27 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject,
     pairTable->verticalHeader()->setVisible(false);
     pairTable->horizontalHeader()->setStretchLastSection(false);
     pairTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
-    pairTable->horizontalHeader()->setSectionResizeMode(CecPairModel::Extra,
+    pairTable->horizontalHeader()->setSectionResizeMode(CecPairModel::Flux,
                                                         QHeaderView::Stretch);
-    pairTable->setMinimumHeight(120);
+    pairTable->setMinimumHeight(140);
+
+    //> Shown only while a row is experimental, so it is read when it applies
+    //> rather than learned to be ignored.
+    experimentalLabel = new QLabel(tr(
+        "<i>Rows marked experimental go beyond Zahn et al. (2022): partitioning "
+        "carbonyl sulfide or another gas, or sorting by COS octants. Hover a "
+        "row for how to read its columns.</i>"), pairGroup);
+    experimentalLabel->setWordWrap(true);
+    experimentalLabel->hide();
 
     addPairButton = new QPushButton(tr("Add"), pairGroup);
     addPairButton->setProperty("mdButton", true);
-    addPairButton->setToolTip(tr("Add a pairing. Two pairings may share a CO\xe2\x82\x82 channel \xe2\x80\x93 a site with two hygrometers on one analyser \xe2\x80\x93 and their columns are told apart by an occurrence number after the instrument name."));
+    addPairButton->setToolTip(tr("Add a row for the first channel not yet partitioned \xe2\x80\x93 carbonyl sulfide first \xe2\x80\x93 with the water and the octant gas on its own analyser. Change any cell afterwards."));
     removePairButton = new QPushButton(tr("Remove"), pairGroup);
     removePairButton->setProperty("mdButton", true);
     resetPairsButton = new QPushButton(tr("Same-analyser default"), pairGroup);
     resetPairsButton->setProperty("mdButton", true);
-    resetPairsButton->setToolTip(tr("Discard the table and derive it again: one pairing per CO\xe2\x82\x82 channel, each with the H\xe2\x82\x82O on the same analyser."));
+    resetPairsButton->setToolTip(tr("Discard the table and derive it again: water and CO\xe2\x82\x82 for every CO\xe2\x82\x82 channel, each sorted by its own analyser's CO\xe2\x82\x82 and H\xe2\x82\x82O."));
 
     auto pairButtons = new QHBoxLayout;
     pairButtons->addWidget(addPairButton);
@@ -251,6 +275,7 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject,
 
     auto pairLayout = new QVBoxLayout(pairGroup);
     pairLayout->addWidget(pairTable);
+    pairLayout->addWidget(experimentalLabel);
     pairLayout->addLayout(pairButtons);
 
     auto restoreButton = new QPushButton(tr("Restore Default Values"), this);
@@ -325,6 +350,13 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject,
             this, &CecSettingsDialog::updatePairButtons);
     connect(pairModel, &QAbstractItemModel::modelReset,
             this, &CecSettingsDialog::updatePairButtons);
+    connect(pairModel, &QAbstractItemModel::modelReset,
+            this, &CecSettingsDialog::updateExperimentalNote);
+    connect(pairModel, &QAbstractItemModel::dataChanged,
+            this, &CecSettingsDialog::updateExperimentalNote);
+    //> Refused rather than written and silently truncated by the engine.
+    connect(pairModel, &CecPairModel::editRefused, this, [this](const QString& reason)
+            { QMessageBox::information(this, tr("CEC Settings"), reason); });
     connect(restoreButton, &QPushButton::clicked,
             this, &CecSettingsDialog::restoreDefaults);
     connect(closeButtons, &QDialogButtonBox::rejected,
@@ -369,7 +401,13 @@ void CecSettingsDialog::refresh()
     //> can invalidate one. Re-read rather than trust what the table holds.
     pairModel->reload();
     updatePairButtons();
+    updateExperimentalNote();
     updateSignalStrengthAvailability();
+}
+
+void CecSettingsDialog::updateExperimentalNote()
+{
+    experimentalLabel->setVisible(pairModel->anyExperimental());
 }
 
 /// The screen needs a diagnostic, and most analysers do not report one.

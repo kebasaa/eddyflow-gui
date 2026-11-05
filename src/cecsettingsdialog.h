@@ -35,6 +35,8 @@ private slots:
     void addPair();
     void removeSelectedPair();
     void updatePairButtons();
+    /// The note under the table: shown while any row is experimental.
+    void updateExperimentalNote();
 
 private:
     QDoubleSpinBox *createPercentSpin();
@@ -77,6 +79,7 @@ private:
     QPushButton *addPairButton;
     QPushButton *removePairButton;
     QPushButton *resetPairsButton;
+    QLabel *experimentalLabel;
 
     EcProject *ecProject_;
     /// The Raw File Description. Only read, and only to ask whether a

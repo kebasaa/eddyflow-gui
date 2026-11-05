@@ -1,6 +1,37 @@
 8.1.8 (2026-11-05)
 
     GUI:
+	- Change: The CEC Settings table is one row per flux to partition:
+	          "Flux to partition", "Water channel" and "Octants from", the
+	          last two defaulting to the flux's own analyser. Any gas can be
+	          a row, so carbonyl sulfide is split into canopy uptake and
+	          ground exchange by choosing it, rather than by ticking it as an
+	          additional species of a CO2/H2O pairing. Rows that share an
+	          octant gas and a water are one pairing to the engine, and the
+	          project file still stores pairings (cec_<i>_*), so existing
+	          projects open as the rows they meant. The per-pairing Use and
+	          Partition columns are gone: a row is removed rather than
+	          switched off, and a pairing saved switched off is no longer
+	          shown. Edits the engine could not run - a fifth extra flux on
+	          one octant gas and water, a ninth pairing, the same flux twice -
+	          are refused with the reason. Pinned by
+	          tests/test_cec_flux_rows_static.py.
+	- New (experimental): "Octants from" offers carbonyl sulfide as well as
+	          CO2, labelled experimental. COS octants count soil uptake
+	          carried in moist updrafts as stomatal, so they are sound only
+	          where the ground is a net COS source or negligible; the tooltip
+	          says so. Writes the COS record as cec_<i>_co2, and project
+	          format 5.2.0, so an older engine refuses the file rather than
+	          swapping in CO2. CEC is now available with water and COS but no
+	          CO2.
+	- New: Every row that goes beyond Zahn et al. (2022) - a flux other
+	       than water or CO2, or COS octants - is marked experimental in the
+	       table, with a note under it, and its tooltip says what its columns
+	       mean: for COS, that the stomatal part is leaf uptake (expected
+	       negative), the non-stomatal part is the ground in either
+	       direction plus non-stomatal canopy exchange such as a senescent
+	       canopy's emission, and the new cec_sign_cos flags a stomatal part
+	       that came out as emission.
 	- Change: The offline help describes the in-situ spectral corrections'
 	          fallbacks. Under Ibrom et al. (2007): where the fit for a
 	          period's stability failed, no correction factor exists and

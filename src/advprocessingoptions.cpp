@@ -450,7 +450,7 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     fpMethodCombo->setItemData(2, tr("<b>Hsien et al. (2000):</b> A cross-wind integrated model based based on the former model of Gash (1986) and on simulations with a Lagrangian stochastic model."), Qt::ToolTipRole);
 
     cecCheckBox = new RichTextCheckBox;
-    cecAvailableTooltip_ = tr("<b>Conditional Eddy Covariance:</b> Partitions fluxes into stomatal and non-stomatal components using the octant-based conditional statistics method of Zahn et al. (2022). Each CO\xe2\x82\x82/H\xe2\x82\x82O pairing adds evaporation and transpiration (<i>E_cec</i>, <i>Tr_cec</i>), ecosystem respiration and net photosynthesis (<i>Reco_cec</i>, <i>P_cec</i>), the ratios and quality flags behind them, and the octant counts they were computed from. Any further species the pairing carries \xe2\x80\x93 carbonyl sulfide, for instance \xe2\x80\x93 is partitioned in the same octants. Use <i>CEC Settings</i> to choose which channels pair with which."
+    cecAvailableTooltip_ = tr("<b>Conditional Eddy Covariance:</b> Partitions fluxes into stomatal and non-stomatal components using the octant-based conditional statistics method of Zahn et al. (2022). Each CO\xe2\x82\x82/H\xe2\x82\x82O pairing adds evaporation and transpiration (<i>E_cec</i>, <i>Tr_cec</i>), ecosystem respiration and net photosynthesis (<i>Reco_cec</i>, <i>P_cec</i>), the ratios and quality flags behind them, and the octant counts they were computed from. Any other gas can be split in the same octants \xe2\x80\x93 carbonyl sulfide above all, into canopy uptake and ground exchange (<i>cos_stomatal_cec</i>, <i>cos_nonstomatal_cec</i>), and the octants can be sorted by COS instead of CO\xe2\x82\x82. Both are <b>experimental</b>. Use <i>CEC Settings</i> to choose which fluxes are split and by which channels."
                               "<p>Ticking this also switches on <b>compensation of density fluctuations (WPL)</b>, because the method sorts each air parcel by the SIGN of its water and carbon dioxide fluctuation. In an uncorrected molar density from an open-path analyser, part of that fluctuation is the air expanding rather than the gas arriving, and it is large enough to reverse the sign \xe2\x80\x93 which puts the parcel in the wrong octant.</p>");
     cecCheckBox->setToolTip(cecAvailableTooltip_);
     cecCheckBox->setText(tr("Conditional Eddy Covariance"));
@@ -2022,20 +2022,24 @@ void AdvProcessingOptions::updateCecAvailability()
     //> reads the water. This used to accept either and force the choice to
     //> whichever was present, which the engine then refused, and the project
     //> got a full set of columns containing nothing but the error code.
+    //>
+    //> The octant gas may be carbonyl sulfide instead of CO2 (experimental),
+    //> so a site with COS and water but no CO2 can still partition.
     const bool hasCo2 = !ecProject_->gasRecordsFor(QStringLiteral("co2")).isEmpty()
                         || ecProject_->generalColCo2() != -1;
+    const bool hasCos = !ecProject_->gasRecordsFor(QStringLiteral("cos")).isEmpty();
     const bool hasH2o = !ecProject_->gasRecordsFor(QStringLiteral("h2o")).isEmpty()
                         || ecProject_->generalColH2o() != -1;
-    const bool hasBoth = hasCo2 && hasH2o;
+    const bool hasBoth = (hasCo2 || hasCos) && hasH2o;
 
     cecCheckBox->setEnabled(hasBoth);
     cecCheckBox->setToolTip(hasBoth
         ? cecAvailableTooltip_
         : tr("<b>Conditional Eddy Covariance:</b> Unavailable. The method sorts "
-             "air parcels by the signs of the vertical wind, the water and the "
-             "carbon dioxide together, so it needs both a CO\xe2\x82\x82 channel "
-             "and an H\xe2\x82\x82O channel \xe2\x80\x93 whichever of the two "
-             "fluxes you want partitioned."));
+             "air parcels by the signs of the vertical wind, the water and an "
+             "octant gas together, so it needs an H\xe2\x82\x82O channel and a "
+             "CO\xe2\x82\x82 channel (or, experimentally, a carbonyl sulfide "
+             "one) \xe2\x80\x93 whichever fluxes you want partitioned."));
 
     if (!hasBoth)
     {

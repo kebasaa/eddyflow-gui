@@ -15,13 +15,15 @@
 
 class EcProject;
 
-/// The Conditional Eddy Covariance pairings, one per row.
+/// The Conditional Eddy Covariance table: one row per flux to partition.
 ///
-/// A pairing is one carbon channel, one water channel, and any further species
-/// partitioned in the octants those two define. Which channels go together
-/// used to be implicit - the first record of each species, whatever analyser
-/// each happened to sit on - and a site running two analysers had no way to
-/// say that each should be partitioned against its own water.
+/// Each row names the flux, the water whose moist ejections select the
+/// parcels, and the octant gas whose sign sorts them - CO2 as Zahn et al.
+/// (2022) define the method, or carbonyl sulfide, experimentally. The project
+/// file does not store rows. It stores pairings, one per octant gas and water,
+/// which is what the engine runs; rows sharing both are one pairing, and the
+/// table is rebuilt from the pairings after every edit so that what the user
+/// sees is exactly what the file reloads.
 ///
 /// Cells carry the 1-based gas RECORD index in Qt::UserRole, never the label,
 /// for the same reason the moisture column in the Basic Settings variable
@@ -34,11 +36,9 @@ class CecPairModel : public QAbstractTableModel
 public:
     enum Column
     {
-        Use = 0,
-        Carbon,
+        Flux = 0,
         Water,
-        Partition,
-        Extra,
+        Octants,
         Warning,
         ColumnCount
     };
@@ -54,34 +54,46 @@ public:
     Qt::ItemFlags flags(const QModelIndex& index) const override;
 
     /// Re-read the project. Called whenever the gas records change, because a
-    /// pairing names records and a record that has gone takes its pairing with
-    /// it.
+    /// row names records and a record that has gone takes its row with it.
     void reload();
 
     /// Seed the same-instrument default the engine would derive on its own.
     void restoreDefaults();
 
+    /// Add a row for the first channel not yet partitioned, carbonyl sulfide
+    /// first, with the water and octant gas on its own analyser.
     void addPair();
     void removePair(int row);
 
-    /// Every gas record of a species, as (record index, label) pairs.
-    QVector<QPair<int, QString>> channelChoices(const QString& slug) const;
-    /// Everything that is neither the carbon nor the water of this pairing.
-    QVector<QPair<int, QString>> extraChoices(int row) const;
+    /// The records a column's combo offers, as (record index, label) pairs.
+    QVector<QPair<int, QString>> choices(int column) const;
 
+    /// The octant gas and the water this row's pairing reads sit on two
+    /// analysers.
     bool crossAnalyser(int row) const;
+    /// The row goes beyond the published method. See isCecExperimental.
+    bool experimental(int row) const;
+    bool anyExperimental() const;
+
+signals:
+    /// An edit was not applied, and why - the engine could not have run it.
+    void editRefused(const QString& reason);
 
 private:
+    bool apply(const QVector<CecFluxRow>& candidate);
     void commit();
     QString labelFor(int recordIndex) const;
+    QString fluxLabel(const CecFluxRow& row) const;
+    QString octantLabel(int recordIndex) const;
+    QString fluxTooltip(const CecFluxRow& row) const;
 
     EcProject* ecProject_;
-    QVector<CecPairRecord> pairs_;
+    QVector<CecFluxRow> rows_;
 };
 
-/// Combo cells for the channel and partition columns, and a checkable popup
-/// for the extra species. Same shape as BasicVariableSelectionDelegate, which
-/// is the other table in this program where a cell picks a measurement.
+/// Combo cells for the flux, water and octant columns. Same shape as
+/// BasicVariableSelectionDelegate, which is the other table in this program
+/// where a cell picks a measurement.
 class CecPairDelegate : public QStyledItemDelegate
 {
     Q_OBJECT
@@ -98,9 +110,6 @@ public:
                const QModelIndex& index) const override;
     QSize sizeHint(const QStyleOptionViewItem& option,
                    const QModelIndex& index) const override;
-    bool editorEvent(QEvent* event, QAbstractItemModel* model,
-                     const QStyleOptionViewItem& option,
-                     const QModelIndex& index) override;
 
 private:
     CecPairModel* model_;
