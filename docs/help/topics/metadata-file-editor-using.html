@@ -4317,7 +4317,8 @@
                                                                     <strong>Displacement height:</strong> See <a href="displacement-height.html#top">Displacement height</a>.
                                                                     <strong>Roughness length:</strong> See <a href="roughness-length.html#top">Roughness length</a>.
                                                                     <strong>Altitude:</strong> Elevation above sea level of the flux site.
-                                                                    <strong>Latitude and Longitude:</strong> WGS84 coordinates in decimal degrees.</li>
+                                                                    <strong>Latitude and Longitude:</strong> WGS84 coordinates in decimal degrees.
+                                                                    <strong>UTC offset:</strong> Directly under Longitude. The number of hours the timestamps are ahead of UTC, as standard time (daylight saving ignored), used to compute the potential radiation at apparent solar time. Filled in from the coordinates until you set it; <strong>Look up</strong> asks timeapi.io again for the site's time zone. See <a href="metadata-file-editor.html#station">UTC offset</a>.</li>
 <li>Configure the Instruments Tab. It has fields for anemometers and gas analyzers:</li>
 <li><img alt="" src="../assets/Project_Page_MetaIns2.png" /></li>
 <li>For Anemometer Info, enter:</li>
@@ -4348,7 +4349,7 @@
                                                                     <strong>Transversal path length:</strong> Path length in the direction orthogonal to the longitudinal path length.
                                                                     <strong>Time response:</strong> Time response of the gas analyzer. Its inverse defines the maximum frequency of the atmospheric turbulent concentration fluctuations that the instrument is able to resolve. Consult the analyzer's specifications or user manual.
                                                                     <strong>Extinction coefficient in water, Kw:</strong> In Krypton or Lyman-α hygrometers, the extinction coefficients for water vapor of the hygrometers, associated with the third-order Taylor expansion of the Lambert–Beer law around reference conditions (<a href="references.html#vanDijk">van Dijk et al. 2003</a>).
-                                                                    <strong>Extinction coefficient in water, Ko:</strong> In Krypton or Lyman-α hygrometers, the extinction coefficients for oxygen of the hygrometers, associated with the third-order Taylor expansion of the Lambert–Beer law around reference conditions (<a href="references.html#vanDijk">van Dijk et al. 2003</a>).
+                                                                    <strong>Extinction coefficient in oxygen, Ko:</strong> In Krypton or Lyman-α hygrometers, the extinction coefficients for oxygen of the hygrometers, associated with the third-order Taylor expansion of the Lambert–Beer law around reference conditions (<a href="references.html#vanDijk">van Dijk et al. 2003</a>).
                                                                     <strong>Acquisition frequency</strong> and <strong>Sampling:</strong> Leave both at their station defaults unless this analyzer samples slower than the station or reports averaged rather than instantaneous values. See <a href="metadata-file-editor.html#Instrume">Metadata File Editor</a> for details.</li>
 <li>Enter information in the Raw File Description tab:</li>
 <li><img alt="" src="../assets/Project_Page_MetaRaw.png" /></li>

@@ -134,19 +134,24 @@ struct GasRecord : MeasurementRecord
     GasProcessingSettings proc;
 };
 
-//> One Conditional Eddy Covariance pairing: a carbon channel, a water
-//> channel, and any further species partitioned in the octants those two
-//> define. Indices are 1-based into the gas record list, matching the engine's
-//> cec_<i>_carbon / cec_<i>_water keys; 0 means "not stated", which the engine
+//> One Conditional Eddy Covariance pairing: an octant gas, a water channel,
+//> and any further species partitioned in the octants those two define.
+//> Indices are 1-based into the gas record list, matching the engine's
+//> cec_<i>_co2 / cec_<i>_h2o keys; 0 means "not stated", which the engine
 //> resolves from the analyser layout.
 //>
-//> Named for the role rather than the species because that is what they are -
-//> nothing requires the carbon channel to be CO2 rather than a second CO2
-//> isotopologue - and because a bare co2/h2o reads as the fixed slot constant
-//> the gas records replaced.
+//> carbonIndex is the OCTANT GAS: a CO2 record, as Zahn et al. (2022) define
+//> the method, or - experimentally, from project format 5.2.0 - a carbonyl
+//> sulfide record. The engine replaces anything else with the designated CO2
+//> and says so (Warning 123).
+//>
+//> This is what the project file stores. The CEC Settings table shows it one
+//> flux per row instead (CecFluxRow), and converts between the two with
+//> cecRowsFromPairs / cecPairsFromRows.
 struct CecPairRecord
 {
-    //> 0 off, 1 water and carbon, 2 water only, 3 carbon only.
+    //> 0 off, 1 water and octant gas, 2 water only, 3 octant gas only,
+    //> 4 extras only.
     int meth = 1;
     int carbonIndex = 0;
     int waterIndex = 0;
@@ -162,7 +167,40 @@ struct CecPairRecord
     bool operator!=(const CecPairRecord& other) const { return !(*this == other); }
 };
 
+//> One row of the CEC Settings table: one flux to partition, the water whose
+//> moist ejections select the parcels, and the octant gas whose sign sorts
+//> them into stomatal and non-stomatal. 1-based record indices like the
+//> pairing's. waterIndex 0 is "the water on the octant gas's analyser", as in
+//> CecPairRecord; fluxIndex 0 is only ever the water row of a pairing whose
+//> water the engine resolves itself, to the designated hygrometer.
+//>
+//> Never stored. Rows sharing an octant gas and a water are one pairing, and
+//> that pairing is what the project file carries.
+struct CecFluxRow
+{
+    int fluxIndex = 0;
+    int waterIndex = 0;
+    int octantIndex = 0;
+
+    bool operator==(const CecFluxRow& other) const
+    {
+        return fluxIndex == other.fluxIndex
+               && waterIndex == other.waterIndex
+               && octantIndex == other.octantIndex;
+    }
+    bool operator!=(const CecFluxRow& other) const { return !(*this == other); }
+};
+
 namespace MeasurementRecords {
+
+/// The engine's MaxNumCecPairs and MaxNumCecExtra (m_typedef.f90). A project
+/// stating more is truncated by the engine without a word, so the table
+/// refuses to build one.
+inline constexpr int cecMaxPairs = 8;
+inline constexpr int cecMaxExtras = 4;
+/// cec_<i>_meth for a pairing that reports neither of its own two gases, only
+/// the extras sorted by them.
+inline constexpr int cecMethExtrasOnly = 4;
 
 /// `moistureRef` value meaning "the biomet relative humidity".
 ///
@@ -248,6 +286,46 @@ QVector<int> gasDisplayOrder(const QVector<GasRecord>& gases);
 //> disagree about which channels were paired. Same contract as
 //> resolveMoistureRef above.
 QVector<CecPairRecord> defaultCecPairs(const QVector<GasRecord>& gases);
+
+/// Whether a record can sort the octants: CO2, or carbonyl sulfide
+/// (experimental). The same two species the engine's CecPairs accepts.
+bool isCecOctantGas(const QVector<GasRecord>& gases, int recordIndex);
+
+/// Whether a row goes beyond Zahn et al. (2022): a flux that is neither CO2
+/// nor water, or octants sorted by carbonyl sulfide. Shown as experimental.
+bool isCecExperimental(const QVector<GasRecord>& gases, const CecFluxRow& row);
+
+/// The water a pairing actually reads: the stated one, else the H2O on the
+/// octant gas's analyser, else 0 - the engine's designated hygrometer, which
+/// only the engine knows. Mirrors CecWaterOnAnalyserOf as far as the project
+/// can.
+int resolvedCecWater(const QVector<GasRecord>& gases, int octantIndex,
+                     int waterIndex);
+
+/// What a row partitioning \a fluxIndex starts with: the water and the octant
+/// gas on the flux's own analyser. A water flux is its own water and a CO2
+/// flux its own octant gas; without a CO2 on the analyser the first CO2
+/// anywhere, and only failing every CO2 a carbonyl sulfide.
+int defaultCecWater(const QVector<GasRecord>& gases, int fluxIndex);
+int defaultCecOctant(const QVector<GasRecord>& gases, int fluxIndex);
+
+/// One row per flux the pairings report: the octant gas (meth 1 or 3), the
+/// water (meth 1 or 2), then the extras. A pairing that is off reports
+/// nothing and contributes no row.
+QVector<CecFluxRow> cecRowsFromPairs(const QVector<GasRecord>& gases,
+                                     const QVector<CecPairRecord>& pairs);
+
+/// The pairings the rows mean: one per (octant gas, water actually read), in
+/// order of first appearance. A row whose flux is the octant gas or that water
+/// switches that gas on; every other flux is an extra. Repeats are dropped,
+/// and so is anything past the engine's limits - check cecRowsFit first.
+QVector<CecPairRecord> cecPairsFromRows(const QVector<GasRecord>& gases,
+                                        const QVector<CecFluxRow>& rows);
+
+/// Whether the rows fit what the engine holds, and if not, why not.
+/// \a reason is set for the first problem found.
+bool cecRowsFit(const QVector<GasRecord>& gases, const QVector<CecFluxRow>& rows,
+                QString* reason = nullptr);
 
 } // namespace MeasurementRecords
 

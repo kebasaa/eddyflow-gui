@@ -1474,6 +1474,12 @@ void EcProject::readCecPairs(IniFile& project_ini)
         const auto p = QStringLiteral("cec_%1_").arg(i);
         CecPairRecord pair;
         pair.meth = project_ini.value(p + QStringLiteral("meth"), 1).toInt();
+        //> The engine's own rule (ReadCecRecords): a value it does not know is
+        //> a pairing that is on, not one that is off.
+        if (pair.meth < 0 || pair.meth > MeasurementRecords::cecMethExtrasOnly)
+        {
+            pair.meth = 1;
+        }
         pair.carbonIndex = project_ini.value(p + QStringLiteral("co2"), 0).toInt();
         pair.waterIndex = project_ini.value(p + QStringLiteral("h2o"), 0).toInt();
         const auto extras = project_ini.value(p + QStringLiteral("extra"))

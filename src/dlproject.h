@@ -122,6 +122,10 @@ public:
     void setSiteLatitude(double l);
     double siteLongitude() const;
     void setSiteLongitude(double l);
+    double siteUtcOffset() const;
+    bool siteUtcOffsetKnown() const;
+    bool siteUtcOffsetFixed() const;
+    void setSiteUtcOffset(double h, bool fixed);
     double siteCanopyHeight() const;
     void setSiteCanopyHeight(double c);
     double siteDisplacementHeight() const;
@@ -507,6 +511,18 @@ inline double DlProject::siteLongitude() const
    { return project_state_.site.longitude; }
 inline void DlProject::setSiteLongitude(double l)
    { project_state_.site.longitude = l; setModified(true); }
+
+inline double DlProject::siteUtcOffset() const
+   { return project_state_.site.utc_offset; }
+inline bool DlProject::siteUtcOffsetKnown() const
+   { return project_state_.site.utc_offset_known; }
+inline bool DlProject::siteUtcOffsetFixed() const
+   { return project_state_.site.utc_offset_fixed; }
+inline void DlProject::setSiteUtcOffset(double h, bool fixed)
+   { project_state_.site.utc_offset = h;
+     project_state_.site.utc_offset_known = true;
+     if (fixed) project_state_.site.utc_offset_fixed = true;
+     setModified(true); }
 
 inline double DlProject::siteCanopyHeight() const
    { return project_state_.site.canopy_height; }

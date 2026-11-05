@@ -34,6 +34,9 @@ class QLineEdit;
 class QPushButton;
 class QRadioButton;
 class QSpinBox;
+class QNetworkAccessManager;
+class QNetworkReply;
+class QTimer;
 
 class ClickLabel;
 class DlProject;
@@ -69,6 +72,9 @@ private slots:
     void updateAltitude(double n);
     void updateLatitude(const QString & lat);
     void updateLongitude(const QString & lon);
+    void updateUtcOffset(double h);
+    void fetchUtcOffset();
+    void utcOffsetReply(QNetworkReply *reply);
     void updateCanopyHeight(double d);
     void updateDisplacementHeight(double d);
     void updateRoughnessLength(double d);
@@ -109,6 +115,14 @@ private:
     QRadioButton *decDegRadio;
     QLineEdit *longitudeEdit;
     bool decimalDegrees_;
+
+    ClickLabel *utcOffsetLabel;
+    QDoubleSpinBox *utcOffsetSpin;
+    QPushButton *utcOffsetFetchButton;
+    QNetworkAccessManager *utcHttp_ = nullptr;
+    QTimer *utcLookupTimer_ = nullptr;
+    void showUtcOffset(double h);
+    void prefillUtcOffset();
 
     QPushButton *questionMark_1;
     QPushButton *questionMark_2;

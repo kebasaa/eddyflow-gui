@@ -4954,6 +4954,7 @@
 <h3 id="corrected-fluxes">Corrected fluxes<a class="headerlink" href="#corrected-fluxes" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Net vertical turbulent fluxes of momentum, sensible heat, latent heat and all available gases, calculated from uncorrected fluxes, by correcting for spectral attenuations, air density fluctuations and instrument-specific effects, as applicable. Quality flags and random uncertainty estimates are provided for all fluxes.</li>
+<li>A project without a hygrometer (no water vapor record) has no LE and ET columns in the full output, and its FLUXNET LE and ET columns carry the error label. No other gas is then used as water vapor, whether for the latent heat flux, the humidity gating of PWB or the relative-humidity classes of the time-lag optimization.</li>
 </ul>
 <h3 id="conditional-eddy-covariance-partitioning">Conditional eddy covariance partitioning<a class="headerlink" href="#conditional-eddy-covariance-partitioning" title="Permanent link">&para;</a></h3>
 <ul>
@@ -5250,6 +5251,16 @@
 <td>E_cec</td>
 <td>mmol m-2 s-1</td>
 <td>CEC evaporation. Positive values indicate an upward water vapor flux. Available when Conditional Eddy Covariance is activated.</td>
+</tr>
+<tr>
+<td>gas_stomatal_cec, gas_nonstomatal_cec</td>
+<td>gas flux units</td>
+<td>CEC stomatal and non-stomatal parts of any other partitioned gas, for example <code>cos_stomatal_cec</code> (experimental). Written with <code>gas_total_cec</code>, <code>r_gas_cec</code>, <code>cec_ns_gas</code> and <code>qc_cec_gas</code>. Available for each gas partitioned in the CEC Settings table.</td>
+</tr>
+<tr>
+<td>cec_sign_cos</td>
+<td>–</td>
+<td>1 when the CEC stomatal part of carbonyl sulfide came out as emission, 0 for uptake or zero (experimental). Written for every partitioned carbonyl sulfide channel. Every CEC column ends in its pairing's suffix: the analyzer of the gas that sorts the octants, such as <code>_li7200_1</code>, with <code>_cos</code> added when carbonyl sulfide sorts them. See <a href="conditional-eddy-covariance.html#output-variables">Conditional Eddy Covariance</a> for every CEC column and how to read it.</td>
 </tr>
 <tr>
 <td>water_vapor_density</td>
@@ -5570,7 +5581,7 @@
 </ul>
 <h3 id="other-files">Other files<a class="headerlink" href="#other-files" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong><code>&lt;project id&gt;_flux_despiking&lt;timestamp&gt;.csv</code></strong>: written when <strong>Post-flux despiking (STL)</strong> (<code>test_pfd</code>) is on, with the columns <code>TIMESTAMP</code>, <code>NEE</code>, <code>NEE_SPIKE</code>, <code>NEE_CLEANED</code>, <code>H</code>, <code>H_SPIKE</code>, <code>H_CLEANED</code>, <code>LE</code>, <code>LE_SPIKE</code>, <code>LE_CLEANED</code>. See <a href="statistical-tests.html#top">Statistical tests</a>.</li>
+<li><strong><code>&lt;project id&gt;_flux_despiking&lt;timestamp&gt;.csv</code></strong>: written when <strong>Post-flux despiking (STL)</strong> (<code>test_pfd</code>) is on, with the columns <code>TIMESTAMP</code>, <code>NEE</code>, <code>NEE_SPIKE</code>, <code>NEE_CLEANED</code>, <code>H</code>, <code>H_SPIKE</code>, <code>H_CLEANED</code>, <code>LE</code>, <code>LE_SPIKE</code>, <code>LE_CLEANED</code>. <code>NEE</code> is the final CO2 flux FC, without the storage term. See <a href="statistical-tests.html#top">Statistical tests</a>.</li>
 <li>The processing log summary column <code>S4_instrument_filled</code> is now named <code>S4_borrowed</code>.</li>
 <li>The spectral assessment file marks a gas that has more than one acquisition rate with a <code>rates=</code> token; see <a href="spectral-corrections.html#top">Spectral corrections</a>.</li>
 </ul>

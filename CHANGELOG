@@ -1,6 +1,37 @@
 8.1.8 (2026-11-05)
 
     GUI:
+	- Change: The CEC Settings table is one row per flux to partition:
+	          "Flux to partition", "Water channel" and "Octants from", the
+	          last two defaulting to the flux's own analyser. Any gas can be
+	          a row, so carbonyl sulfide is split into canopy uptake and
+	          ground exchange by choosing it, rather than by ticking it as an
+	          additional species of a CO2/H2O pairing. Rows that share an
+	          octant gas and a water are one pairing to the engine, and the
+	          project file still stores pairings (cec_<i>_*), so existing
+	          projects open as the rows they meant. The per-pairing Use and
+	          Partition columns are gone: a row is removed rather than
+	          switched off, and a pairing saved switched off is no longer
+	          shown. Edits the engine could not run - a fifth extra flux on
+	          one octant gas and water, a ninth pairing, the same flux twice -
+	          are refused with the reason. Pinned by
+	          tests/test_cec_flux_rows_static.py.
+	- New (experimental): "Octants from" offers carbonyl sulfide as well as
+	          CO2, labelled experimental. COS octants count soil uptake
+	          carried in moist updrafts as stomatal, so they are sound only
+	          where the ground is a net COS source or negligible; the tooltip
+	          says so. Writes the COS record as cec_<i>_co2, and project
+	          format 5.2.0, so an older engine refuses the file rather than
+	          swapping in CO2. CEC is now available with water and COS but no
+	          CO2.
+	- New: Every row that goes beyond Zahn et al. (2022) - a flux other
+	       than water or CO2, or COS octants - is marked experimental in the
+	       table, with a note under it, and its tooltip says what its columns
+	       mean: for COS, that the stomatal part is leaf uptake (expected
+	       negative), the non-stomatal part is the ground in either
+	       direction plus non-stomatal canopy exchange such as a senescent
+	       canopy's emission, and the new cec_sign_cos flags a stomatal part
+	       that came out as emission.
 	- Change: The offline help describes the in-situ spectral corrections'
 	          fallbacks. Under Ibrom et al. (2007): where the fit for a
 	          period's stability failed, no correction factor exists and
@@ -10,6 +41,23 @@
 	          for every gas, while the momentum and sensible heat fluxes
 	          keep their own factors. The engine's behaviour is described
 	          in its CHANGELOG; nothing in the interface changes.
+	- New: A UTC offset field under Longitude in the metadata editor's
+	       Station tab: how many hours the timestamps are ahead of UTC, as standard
+	       time. The engine uses it with the longitude to place solar noon for
+	       the potential radiation, which decides day and night when biomet has
+	       neither global radiation nor PPFD. While neither the file nor the
+	       user has set it, it is filled in from the coordinates: the
+	       longitude's guess at once, then the time zone's standard offset
+	       looked up at timeapi.io once the coordinates settle (only the
+	       coordinates are sent). Look up asks again. Written as [Site]
+	       utc_offset; a file without it is left without it, and the engine
+	       assumes the longitude's guess.
+	- New: A warning icon beside the low-pass correction method while Eugster
+	       and Senn (1995) is selected. In a period without stability no
+	       correction factor exists, and an open-path gas's flux is then
+	       written uncorrected - only its correction factor column shows the
+	       error code - while a closed-path gas is written as missing. The
+	       tooltip says so.
 
 8.1.7 (2026-11-04)
 

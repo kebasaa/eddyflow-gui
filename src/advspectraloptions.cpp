@@ -48,6 +48,8 @@
 #include <QSizePolicy>
 #include <QSpinBox>
 #include <QStyledItemDelegate>
+#include <QApplication>
+#include <QStyle>
 #include <QTableView>
 #include <QTimer>
 #include <QTimeEdit>
@@ -653,6 +655,18 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     esTauLayout->addLayout(esTauGrid);
     esTauBox->setVisible(false);
 
+    esOpenPathWarning = new QLabel;
+    esOpenPathWarning->setPixmap(QApplication::style()
+                                 ->standardIcon(QStyle::SP_MessageBoxWarning)
+                                 .pixmap(16, 16));
+    esOpenPathWarning->setToolTip(tr("<b>Open-path gases may be left uncorrected.</b> "
+        "Eugster and Senn (1995) need the stability <i>z</i>/<i>L</i><sub>MO</sub> of each averaging period. "
+        "In a period without it - for example when the sensible heat flux is missing - no correction factor exists. "
+        "The flux of an open-path gas is then written <b>uncorrected</b>, and only its spectral correction "
+        "factor column shows the error code; a closed-path gas in the same period is written as missing. "
+        "Check the correction factor columns before using such periods."));
+    esOpenPathWarning->setVisible(false);
+
     //> The analytic cospectral SHAPE, not a correction method. Every method
     //> above weights a transfer function by it, so it is a modifier on all of
     //> them rather than a sixth entry in their list.
@@ -1021,6 +1035,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     settingsLayout->addWidget(hfMethodCheck, 21, 0, 1, 2);
     settingsLayout->addWidget(hfMethLabel, 21, 1, Qt::AlignRight);
     settingsLayout->addWidget(hfMethCombo, 21, 2, 1, 3);
+    settingsLayout->addWidget(esOpenPathWarning, 21, 5, Qt::AlignLeft);
     settingsLayout->addWidget(esTauBox, 22, 1, 1, 4);
     settingsLayout->addWidget(horstCheck, 23, 0, 1, 2);
     settingsLayout->addWidget(horstMethodLabel, 23, 1, Qt::AlignRight);
@@ -2649,6 +2664,8 @@ void AdvSpectralOptions::refreshEsTauBox()
 {
     if (!esTauBox) { return; }
     esTauBox->setVisible(hfMethodCheck->isChecked() && isEugsterSenn());
+    if (esOpenPathWarning)
+        esOpenPathWarning->setVisible(hfMethodCheck->isChecked() && isEugsterSenn());
 }
 
 /// Store one gas's L on its record. Negative means "not stated".
