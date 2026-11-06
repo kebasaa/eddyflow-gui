@@ -4259,6 +4259,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#819-2026-11-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1.9 (2026-11-05)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#818-2026-11-05" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4812,6 +4823,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#819-2026-11-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1.9 (2026-11-05)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#818-2026-11-05" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5314,6 +5336,16 @@
 
 <h1 id="whats-new-in-this-version">What's new in this version<a class="headerlink" href="#whats-new-in-this-version" title="Permanent link">&para;</a></h1>
 <p>EddyFlow is an open-source fork of EddyPro, maintained by ETH Zurich starting with version 7.0.4. This is why the version numbering below jumps from the EddyPro-era <code>.9</code> (i.e. 7.0.9) directly to <code>7.0.4</code>, and why entries from 7.0.4 onward use full <code>x.y.z</code> version numbers instead of the decimal-suffix shorthand used in older EddyPro-era entries below.</p>
+<h2 id="819-2026-11-05">8.1.9 (2026-11-05)<a class="headerlink" href="#819-2026-11-05" title="Permanent link">&para;</a></h2>
+<p>Engine:</p>
+<ul>
+<li>Change: Two CEC pairings sorted by the same octant gas, such as one gas split once with each analyzer's water, are told apart by the water's analyzer instead of a number: <code>_miro_mga4_6_2_cos_h2o_li7200_1</code> beside <code>_miro_mga4_6_2_cos</code>. Pairings still sharing a suffix after that are numbered <code>_1</code>, <code>_2</code>; a pairing that shares nothing keeps its name. See <a href="conditional-eddy-covariance.html#splitting-one-gas-several-ways">Splitting one gas several ways</a>.</li>
+<li>New feature (experimental): <code>cec_noisy_octants</code> for every CEC pairing sorted by carbonyl sulfide octants, 1 in a period where that sorting was mostly noise. The other gases of such a pairing are then split near 50/50 under quality code 1. Warning(124) says so once per pairing per run. See <a href="conditional-eddy-covariance.html#carbonyl-sulfide-experimental">Carbonyl sulfide</a>.</li>
+</ul>
+<p>GUI:</p>
+<ul>
+<li>New feature: One flux can be partitioned several ways in CEC Settings, for example carbonyl sulfide by carbon dioxide octants and by carbonyl sulfide octants side by side. <strong>Duplicate</strong> adds the selected row's flux again with the next octant gas or water not yet used for it, <strong>Add</strong> offers second versions once every channel has a row, and a new <strong>Columns end in</strong> column shows each row's output suffix. Rows are sorted alphabetically and re-sorted after every edit, pairings are saved in a fixed order, and the dialog opens larger. See <a href="cec-settings.html#fluxes-to-partition">CEC settings dialog</a>.</li>
+</ul>
 <h2 id="818-2026-11-05">8.1.8 (2026-11-05)<a class="headerlink" href="#818-2026-11-05" title="Permanent link">&para;</a></h2>
 <p>Engine:</p>
 <ul>

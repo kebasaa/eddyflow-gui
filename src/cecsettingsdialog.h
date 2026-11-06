@@ -33,6 +33,7 @@ public slots:
 private slots:
     void restoreDefaults();
     void addPair();
+    void duplicateSelectedPair();
     void removeSelectedPair();
     void updatePairButtons();
     /// The note under the table: shown while any row is experimental.
@@ -77,6 +78,7 @@ private:
     QTableView *pairTable;
     CecPairModel *pairModel;
     QPushButton *addPairButton;
+    QPushButton *duplicatePairButton;
     QPushButton *removePairButton;
     QPushButton *resetPairsButton;
     QLabel *experimentalLabel;

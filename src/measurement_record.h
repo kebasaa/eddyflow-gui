@@ -17,6 +17,7 @@
 #define MEASUREMENT_RECORD_H
 
 #include <QString>
+#include <QStringList>
 #include <QVector>
 
 /// \file src/measurement_record.h
@@ -311,13 +312,17 @@ int defaultCecOctant(const QVector<GasRecord>& gases, int fluxIndex);
 
 /// One row per flux the pairings report: the octant gas (meth 1 or 3), the
 /// water (meth 1 or 2), then the extras. A pairing that is off reports
-/// nothing and contributes no row.
+/// nothing and contributes no row. The table shows these through
+/// sortCecRowsForDisplay.
 QVector<CecFluxRow> cecRowsFromPairs(const QVector<GasRecord>& gases,
                                      const QVector<CecPairRecord>& pairs);
 
-/// The pairings the rows mean: one per (octant gas, water actually read), in
-/// order of first appearance. A row whose flux is the octant gas or that water
-/// switches that gas on; every other flux is an extra. Repeats are dropped,
+/// The pairings the rows mean: one per (octant gas, water actually read),
+/// ordered by octant record and then by that water - never by the order the
+/// rows arrive in, so a round trip through the sorted table cannot renumber
+/// them. A row whose flux is the octant gas or that water switches that gas
+/// on; every other flux is an extra. One flux may appear in several pairings:
+/// that is a gas split several ways. Repeats within one pairing are dropped,
 /// and so is anything past the engine's limits - check cecRowsFit first.
 QVector<CecPairRecord> cecPairsFromRows(const QVector<GasRecord>& gases,
                                         const QVector<CecFluxRow>& rows);
@@ -326,6 +331,31 @@ QVector<CecPairRecord> cecPairsFromRows(const QVector<GasRecord>& gases,
 /// \a reason is set for the first problem found.
 bool cecRowsFit(const QVector<GasRecord>& gases, const QVector<CecFluxRow>& rows,
                 QString* reason = nullptr);
+
+/// For each row, the index of its pairing in cecPairsFromRows, or -1 for a
+/// row past the engine's limits.
+QVector<int> cecRowPairIndices(const QVector<GasRecord>& gases,
+                               const QVector<CecFluxRow>& rows);
+
+/// The rows as the table shows them: alphabetically by flux, so every
+/// version of one gas sits together, then by octant gas, then by the water
+/// read - all by their labels, case-insensitively.
+QVector<CecFluxRow> sortCecRowsForDisplay(const QVector<GasRecord>& gases,
+                                          const QVector<CecFluxRow>& rows);
+
+/// The suffix each pairing's columns end in - "_miro_mga4_6_2_cos",
+/// "_miro_mga4_6_2_cos_h2o_li7200_1" - by the engine's rule in CecPairs. Must
+/// keep mirroring it, or the table names columns the run does not write.
+QStringList cecPairSuffixes(const QVector<GasRecord>& gases,
+                            const QVector<CecPairRecord>& pairs);
+
+/// Another version of \a fluxIndex the rows have room for: the preferred
+/// water and octant gas, else another octant gas with that water - the
+/// flux's own analyser's CO2 and COS, then other analysers' CO2 and COS -
+/// else another water, own analyser first. False when no combination fits.
+bool cecNextFreeVariant(const QVector<GasRecord>& gases,
+                        const QVector<CecFluxRow>& rows, int fluxIndex,
+                        int preferredWater, int preferredOctant, CecFluxRow* found);
 
 } // namespace MeasurementRecords
 

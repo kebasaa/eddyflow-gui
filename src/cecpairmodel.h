@@ -39,6 +39,7 @@ public:
         Flux = 0,
         Water,
         Octants,
+        Suffix,
         Warning,
         ColumnCount
     };
@@ -61,8 +62,14 @@ public:
     void restoreDefaults();
 
     /// Add a row for the first channel not yet partitioned, carbonyl sulfide
-    /// first, with the water and octant gas on its own analyser.
-    void addPair();
+    /// first, with the water and octant gas on its own analyser; once every
+    /// channel has one, a second version of one. Returns where the new row
+    /// landed, or -1 when there was no room.
+    int addPair();
+    /// Another version of \a row's flux: the same gas, split by another
+    /// octant gas or another water - COS by CO2 and by COS octants, say.
+    /// Returns where the new row landed, or -1.
+    int duplicatePair(int row);
     void removePair(int row);
 
     /// The records a column's combo offers, as (record index, label) pairs.
@@ -82,6 +89,14 @@ signals:
 private:
     bool apply(const QVector<CecFluxRow>& candidate);
     void commit();
+    /// The display order of \a rows, through the pairings and back.
+    QVector<CecFluxRow> normalised(const QVector<CecFluxRow>& rows) const;
+    void refreshSuffixes();
+    /// Where \a row sits now, matched on what the engine reads rather than
+    /// on the water cell, which normalising may have rewritten.
+    int rowOf(const CecFluxRow& row) const;
+    /// The same, in \a rows.
+    int rowIn(const QVector<CecFluxRow>& rows, const CecFluxRow& row) const;
     QString labelFor(int recordIndex) const;
     QString fluxLabel(const CecFluxRow& row) const;
     QString octantLabel(int recordIndex) const;
@@ -89,6 +104,8 @@ private:
 
     EcProject* ecProject_;
     QVector<CecFluxRow> rows_;
+    /// What each row's columns end in, parallel to rows_.
+    QStringList suffixes_;
 };
 
 /// Combo cells for the flux, water and octant columns. Same shape as

@@ -1,3 +1,37 @@
+8.1.9 (2026-11-05)
+
+    GUI:
+	- Version bump to match EddyFlow engine 8.1.9, which fixes the
+	  time-lag optimisation and running-mean detrending.
+	- Change: The COS-octant tooltips in CEC Settings explain the engine's new
+	          cec_noisy_octants flag and Warning(124): where COS's sign in the
+	          updrafts is mostly noise, the other gases of that pairing come
+	          out near half stomatal, half not, under a quality code that
+	          looks fine.
+	- New: One flux can be partitioned several ways in CEC Settings - COS
+	       by CO2/H2O octants and by COS/H2O octants side by side, say, or
+	       with each analyser's water. "Duplicate" adds the selected row's
+	       flux again with the next octant gas or water not yet used for it,
+	       the flux's own analyser first; Add goes on offering such second
+	       versions once every channel has a row; and choosing a flux that
+	       is already in the table keeps the row's water and octant gas, or
+	       takes the next free ones, instead of landing on the existing row
+	       and being refused. A refusal names the row that already holds the
+	       combination.
+	- Change: CEC Settings opens larger (up to 1040 x 860, within the
+	          screen) with a taller table, so a row can be read whole.
+	- New: A "Columns end in" column shows the suffix each row's output
+	       columns will carry, by the engine's own rule, so the versions of
+	       one gas can be told apart before the run.
+	- Change: The CEC table re-sorts itself alphabetically after every edit -
+	       by flux, then octant gas, then water - so every version of a gas
+	       sits together, and an edited row moves with its selection. The
+	       pairings are saved in a fixed order - by octant gas, then water -
+	       rather than the order rows were added in.
+	       A project edited here may therefore list its cec_<i>_* pairings in
+	       a different order than before, and its CEC column blocks follow.
+	       Pinned by tests/test_cec_flux_rows_static.py.
+
 8.1.8 (2026-11-05)
 
     GUI:
