@@ -250,14 +250,30 @@ struct CecGroup
     bool waterReported = false;
 };
 
+/// \a repeatedRow, when given, is set to the 0-based row that already held
+/// the flux a later row repeats, and \a repeatingRow to that later row; both
+/// -1 when nothing repeats.
+///
+/// The groups come back in a canonical order - by octant record, then by the
+/// water actually read - and not in order of first appearance. The table
+/// sorts its rows by flux, so the order rows arrive in says nothing about
+/// the pairings; were it to decide the file's order, a round trip through a
+/// sorted table could renumber them, and with them every _1/_2 suffix.
 QVector<CecGroup> groupCecRows(const QVector<GasRecord>& gases,
                                const QVector<CecFluxRow>& rows,
-                               bool* repeated)
+                               bool* repeated,
+                               int* repeatedRow = nullptr,
+                               int* repeatingRow = nullptr)
 {
     QVector<CecGroup> groups;
+    //> Which row set each target, so a repeat can name the row it repeats.
+    QVector<QVector<QPair<int, int>>> setBy;
     if (repeated) { *repeated = false; }
-    for (const auto& row : rows)
+    if (repeatedRow) { *repeatedRow = -1; }
+    if (repeatingRow) { *repeatingRow = -1; }
+    for (int r = 0; r < rows.size(); ++r)
     {
+        const auto& row = rows.at(r);
         //> Grouped on the water the pairing READS, not on the cell's value:
         //> "(same analyser)" and that analyser's H2O named outright are one
         //> pairing, and the engine drops the second of two pairings that read
@@ -281,18 +297,24 @@ QVector<CecGroup> groupCecRows(const QVector<GasRecord>& gases,
             group.pair.waterIndex = row.waterIndex;
             group.water = water;
             groups.append(group);
+            setBy.append(QVector<QPair<int, int>>());
             at = groups.size() - 1;
         }
 
         auto& group = groups[at];
+        //> The target this row sets: -1 the octant gas, -2 the water, else
+        //> the extra's own record.
+        int target = row.fluxIndex;
         bool again = false;
         if (row.octantIndex > 0 && row.fluxIndex == row.octantIndex)
         {
+            target = -1;
             again = group.octantReported;
             group.octantReported = true;
         }
         else if (row.fluxIndex == 0 || (water > 0 && row.fluxIndex == water))
         {
+            target = -2;
             again = group.waterReported;
             group.waterReported = true;
         }
@@ -301,7 +323,24 @@ QVector<CecGroup> groupCecRows(const QVector<GasRecord>& gases,
             again = group.pair.extraIndices.contains(row.fluxIndex);
             if (!again) { group.pair.extraIndices.append(row.fluxIndex); }
         }
-        if (again && repeated) { *repeated = true; }
+        if (again)
+        {
+            if (repeated && !*repeated)
+            {
+                *repeated = true;
+                for (const auto& seen : setBy.at(at))
+                {
+                    if (seen.first != target) { continue; }
+                    if (repeatedRow) { *repeatedRow = seen.second; }
+                    break;
+                }
+                if (repeatingRow) { *repeatingRow = r; }
+            }
+        }
+        else
+        {
+            setBy[at].append(qMakePair(target, r));
+        }
     }
 
     for (auto& group : groups)
@@ -311,7 +350,42 @@ QVector<CecGroup> groupCecRows(const QVector<GasRecord>& gases,
         else if (group.octantReported) { group.pair.meth = 3; }
         else { group.pair.meth = MeasurementRecords::cecMethExtrasOnly; }
     }
+    std::stable_sort(groups.begin(), groups.end(),
+                     [](const CecGroup& left, const CecGroup& right)
+                     {
+                         if (left.pair.carbonIndex != right.pair.carbonIndex)
+                         {
+                             return left.pair.carbonIndex < right.pair.carbonIndex;
+                         }
+                         return left.water < right.water;
+                     });
     return groups;
+}
+
+/// Where each row's pairing lands among the canonically ordered groups.
+QVector<int> groupIndexOfRows(const QVector<GasRecord>& gases,
+                              const QVector<CecFluxRow>& rows,
+                              const QVector<CecGroup>& groups)
+{
+    QVector<int> out;
+    out.reserve(rows.size());
+    for (const auto& row : rows)
+    {
+        const int water = MeasurementRecords::resolvedCecWater(
+            gases, row.octantIndex, row.waterIndex);
+        int at = -1;
+        for (int g = 0; g < groups.size(); ++g)
+        {
+            if (groups.at(g).pair.carbonIndex == row.octantIndex
+                && groups.at(g).water == water)
+            {
+                at = g;
+                break;
+            }
+        }
+        out.append(at);
+    }
+    return out;
 }
 
 } // namespace
@@ -430,11 +504,24 @@ bool cecRowsFit(const QVector<GasRecord>& gases, const QVector<CecFluxRow>& rows
     }
 
     bool repeated = false;
-    const auto groups = groupCecRows(gases, rows, &repeated);
+    int repeatedRow = -1;
+    int repeatingRow = -1;
+    const auto groups = groupCecRows(gases, rows, &repeated, &repeatedRow, &repeatingRow);
     if (repeated)
     {
+        const int flux = repeatingRow >= 0 ? rows.at(repeatingRow).fluxIndex : 0;
+        const auto name = flux > 0
+                              ? gasLabel(gases, flux - 1)
+                              : QCoreApplication::translate("MeasurementRecords", "That flux");
+        if (repeatedRow >= 0)
+        {
+            return say(QCoreApplication::translate("MeasurementRecords",
+                "%1 is already split with this water and these octants, in row %2. "
+                "Choose another water or octant gas to split it a second way.")
+                           .arg(name).arg(repeatedRow + 1));
+        }
         return say(QCoreApplication::translate("MeasurementRecords",
-            "That flux is already partitioned with this water and these octants."));
+            "%1 is already split with this water and these octants.").arg(name));
     }
     if (groups.size() > cecMaxPairs)
     {
@@ -455,6 +542,186 @@ bool cecRowsFit(const QVector<GasRecord>& gases, const QVector<CecFluxRow>& rows
     }
     if (reason) { reason->clear(); }
     return true;
+}
+
+QVector<int> cecRowPairIndices(const QVector<GasRecord>& gases,
+                               const QVector<CecFluxRow>& rows)
+{
+    const auto groups = groupCecRows(gases, rows, nullptr);
+    auto out = groupIndexOfRows(gases, rows, groups);
+    //> Past the engine's limit a group is not written, so it has no pairing.
+    for (auto& at : out)
+    {
+        if (at >= cecMaxPairs) { at = -1; }
+    }
+    return out;
+}
+
+QVector<CecFluxRow> sortCecRowsForDisplay(const QVector<GasRecord>& gases,
+                                          const QVector<CecFluxRow>& rows)
+{
+    //> Alphabetically, as the cells read: by flux, so every version of one
+    //> gas sits together, then by octant gas, then by the water actually
+    //> read. Every key comes from what the row means rather than from where
+    //> it was added, so the order is the same however the rows arrived -
+    //> which is what lets the table re-sort after every edit without
+    //> breaking "what you see is what reloads". Record order breaks a tie,
+    //> which only two channels with one label can produce.
+    const auto labelOf = [&gases](int recordIndex)
+    {
+        if (recordIndex < 1 || recordIndex > gases.size()) { return QString(); }
+        return gasLabel(gases, recordIndex - 1);
+    };
+    const auto compare = [&labelOf](int left, int right)
+    {
+        //> An unresolved channel - the designated hygrometer or CO2, which
+        //> only the engine knows - after every named one.
+        if ((left > 0) != (right > 0)) { return left > 0 ? -1 : 1; }
+        const int byLabel = QString::compare(labelOf(left), labelOf(right),
+                                             Qt::CaseInsensitive);
+        if (byLabel != 0) { return byLabel; }
+        return left < right ? -1 : (left > right ? 1 : 0);
+    };
+
+    QVector<int> at(rows.size());
+    for (int i = 0; i < rows.size(); ++i) { at[i] = i; }
+    std::stable_sort(at.begin(), at.end(), [&](int left, int right)
+    {
+        const auto& l = rows.at(left);
+        const auto& r = rows.at(right);
+        if (const int c = compare(l.fluxIndex, r.fluxIndex)) { return c < 0; }
+        if (const int c = compare(l.octantIndex, r.octantIndex)) { return c < 0; }
+        const int c = compare(resolvedCecWater(gases, l.octantIndex, l.waterIndex),
+                              resolvedCecWater(gases, r.octantIndex, r.waterIndex));
+        return c < 0;
+    });
+
+    QVector<CecFluxRow> out;
+    out.reserve(rows.size());
+    for (const int i : at) { out.append(rows.at(i)); }
+    return out;
+}
+
+QStringList cecPairSuffixes(const QVector<GasRecord>& gases,
+                            const QVector<CecPairRecord>& pairs)
+{
+    //> The engine's rule, CecPairs in gas_slot_resolution.f90, step for step:
+    //> the octant gas's analyser, or pair<n> when it has no name; its species
+    //> when it is not CO2; where two pairings share that, a water on another
+    //> named analyser; and a number for whatever is still shared. Two things
+    //> only the engine resolves are left out - the designated CO2 behind an
+    //> octant gas of 0 and the designated hygrometer behind a water it cannot
+    //> find on the analyser - so a project relying on those may be named
+    //> differently in the run.
+    const auto lowerInstrument = [&gases](int recordIndex)
+    {
+        return instrumentOf(gases, recordIndex).toLower();
+    };
+
+    QStringList bases;
+    for (int i = 0; i < pairs.size(); ++i)
+    {
+        const auto& pair = pairs.at(i);
+        auto base = lowerInstrument(pair.carbonIndex);
+        if (base.isEmpty()) { base = QStringLiteral("pair%1").arg(i + 1); }
+        if (pair.carbonIndex >= 1 && pair.carbonIndex <= gases.size())
+        {
+            const auto species = gases.at(pair.carbonIndex - 1).slug.toLower();
+            if (!species.isEmpty() && species != QStringLiteral("co2"))
+            {
+                base += QLatin1Char('_') + species;
+            }
+        }
+        bases.append(base);
+    }
+
+    QStringList names;
+    for (int i = 0; i < pairs.size(); ++i)
+    {
+        auto name = bases.at(i);
+        if (bases.count(bases.at(i)) > 1)
+        {
+            const auto& pair = pairs.at(i);
+            const auto water = lowerInstrument(
+                resolvedCecWater(gases, pair.carbonIndex, pair.waterIndex));
+            if (!water.isEmpty() && water != lowerInstrument(pair.carbonIndex))
+            {
+                name += QStringLiteral("_h2o_") + water;
+            }
+        }
+        names.append(name);
+    }
+
+    QStringList out;
+    for (int i = 0; i < names.size(); ++i)
+    {
+        if (names.count(names.at(i)) == 1)
+        {
+            out.append(QLatin1Char('_') + names.at(i));
+            continue;
+        }
+        int occurrence = 0;
+        for (int k = 0; k <= i; ++k)
+        {
+            if (names.at(k) == names.at(i)) { ++occurrence; }
+        }
+        out.append(QStringLiteral("_%1_%2").arg(names.at(i)).arg(occurrence));
+    }
+    return out;
+}
+
+bool cecNextFreeVariant(const QVector<GasRecord>& gases,
+                        const QVector<CecFluxRow>& rows, int fluxIndex,
+                        int preferredWater, int preferredOctant, CecFluxRow* found)
+{
+    //> Channels on the flux's own analyser before those on another, and
+    //> within each the published method before the experiment: CO2, then COS.
+    //> So a second version of the MIRO's COS is sorted by the MIRO's COS, not
+    //> by another analyser's CO2 that would only add a time-lag mismatch.
+    const auto own = instrumentOf(gases, fluxIndex);
+    const auto add = [&gases, &own](QVector<int>& into, const QString& slug, bool onOwn)
+    {
+        for (int i = 0; i < gases.size(); ++i)
+        {
+            if (gases.at(i).rawColumn <= 0) { continue; }
+            if (gases.at(i).slug.compare(slug, Qt::CaseInsensitive) != 0) { continue; }
+            const bool same = !own.isNull() && gases.at(i).instrumentId == own;
+            if (same != onOwn) { continue; }
+            if (!into.contains(i + 1)) { into.append(i + 1); }
+        }
+    };
+    const auto co2 = QStringLiteral("co2");
+    const auto cos = QStringLiteral("cos");
+    QVector<int> octants{preferredOctant};
+    add(octants, co2, true);
+    add(octants, cos, true);
+    add(octants, co2, false);
+    add(octants, cos, false);
+    QVector<int> waters{preferredWater};
+    add(waters, kH2o, true);
+    add(waters, kH2o, false);
+
+    //> Another octant gas before another water: splitting one gas by CO2 and
+    //> by COS octants is the comparison this exists for.
+    for (const int water : waters)
+    {
+        for (const int octant : octants)
+        {
+            if (octant <= 0) { continue; }
+            CecFluxRow row;
+            row.fluxIndex = fluxIndex;
+            row.waterIndex = water;
+            row.octantIndex = octant;
+            auto candidate = rows;
+            candidate.append(row);
+            if (cecRowsFit(gases, candidate))
+            {
+                if (found) { *found = row; }
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 } // namespace MeasurementRecords

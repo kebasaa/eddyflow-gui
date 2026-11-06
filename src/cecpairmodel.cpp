@@ -41,7 +41,10 @@ void CecPairModel::reload()
     {
         pairs = MeasurementRecords::defaultCecPairs(ecProject_->gasColumns());
     }
-    rows_ = MeasurementRecords::cecRowsFromPairs(ecProject_->gasColumns(), pairs);
+    rows_ = MeasurementRecords::sortCecRowsForDisplay(
+        ecProject_->gasColumns(),
+        MeasurementRecords::cecRowsFromPairs(ecProject_->gasColumns(), pairs));
+    refreshSuffixes();
     endResetModel();
 }
 
@@ -49,10 +52,35 @@ void CecPairModel::restoreDefaults()
 {
     const auto& gases = ecProject_->gasColumns();
     beginResetModel();
-    rows_ = MeasurementRecords::cecRowsFromPairs(
-        gases, MeasurementRecords::defaultCecPairs(gases));
+    rows_ = normalised(MeasurementRecords::cecRowsFromPairs(
+        gases, MeasurementRecords::defaultCecPairs(gases)));
+    refreshSuffixes();
     endResetModel();
     commit();
+}
+
+QVector<CecFluxRow> CecPairModel::normalised(const QVector<CecFluxRow>& rows) const
+{
+    const auto& gases = ecProject_->gasColumns();
+    return MeasurementRecords::sortCecRowsForDisplay(
+        gases, MeasurementRecords::cecRowsFromPairs(
+                   gases, MeasurementRecords::cecPairsFromRows(gases, rows)));
+}
+
+/// The suffix the engine will give each row's columns, so that several
+/// versions of one gas can be told apart before the run as well as after it.
+void CecPairModel::refreshSuffixes()
+{
+    const auto& gases = ecProject_->gasColumns();
+    const auto pairs = MeasurementRecords::cecPairsFromRows(gases, rows_);
+    const auto suffixes = MeasurementRecords::cecPairSuffixes(gases, pairs);
+    const auto pairOf = MeasurementRecords::cecRowPairIndices(gases, rows_);
+    suffixes_.clear();
+    for (int i = 0; i < rows_.size(); ++i)
+    {
+        const int at = pairOf.value(i, -1);
+        suffixes_.append(at >= 0 && at < suffixes.size() ? suffixes.at(at) : QString());
+    }
 }
 
 void CecPairModel::commit()
@@ -73,23 +101,39 @@ bool CecPairModel::apply(const QVector<CecFluxRow>& candidate)
         emit editRefused(reason);
         return false;
     }
-    const auto normalised = MeasurementRecords::cecRowsFromPairs(
-        gases, MeasurementRecords::cecPairsFromRows(gases, candidate));
-    if (normalised.size() == rows_.size())
+    const auto rows = normalised(candidate);
+    if (rows.size() == rows_.size())
     {
-        //> The usual edit: one cell of a row that stays where it is. A plain
-        //> dataChanged keeps the open editor and the selection where they are,
-        //> which a reset in the middle of setModelData would not.
-        rows_ = normalised;
+        //> The usual edit: one cell of one row. The rows are re-sorted
+        //> alphabetically after it, so the edited row may move; a layout
+        //> change carries the selection and any open editor along with it,
+        //> which a reset in the middle of setModelData would not. candidate
+        //> still has the old positions, so it says where each row went.
+        emit layoutAboutToBeChanged();
+        const auto before = persistentIndexList();
+        rows_ = rows;
+        refreshSuffixes();
+        QModelIndexList after;
+        for (const auto& old : before)
+        {
+            const int moved = old.row() < candidate.size()
+                                  ? rowIn(rows_, candidate.at(old.row()))
+                                  : -1;
+            after.append(moved >= 0 ? index(moved, old.column()) : QModelIndex());
+        }
+        changePersistentIndexList(before, after);
+        emit layoutChanged();
         if (!rows_.isEmpty())
         {
+            //> The suffix and the warnings of other rows can change with it.
             emit dataChanged(index(0, 0), index(rows_.size() - 1, ColumnCount - 1));
         }
     }
     else
     {
         beginResetModel();
-        rows_ = normalised;
+        rows_ = rows;
+        refreshSuffixes();
         endResetModel();
     }
     commit();
@@ -268,7 +312,9 @@ QString CecPairModel::fluxTooltip(const CecFluxRow& row) const
                + (cosOctants
                       ? tr("<p>Sorted by <b>COS octants</b>: soil uptake carried "
                            "in moist updrafts counts as stomatal here. Compare "
-                           "with a row sorted by CO\xe2\x82\x82.</p>")
+                           "with a row sorted by CO\xe2\x82\x82, and check "
+                           "<i>cec_noisy_octants</i>: where it is 1 the sort was "
+                           "noise.</p>")
                       : tr("<p>Sorted by CO\xe2\x82\x82 octants, so the sign of "
                            "COS plays no part in the sorting and the ground may "
                            "go either way.</p>"))
@@ -336,11 +382,28 @@ QVariant CecPairModel::data(const QModelIndex& index, int role) const
                                 "negligible: many soils take COS up, and that "
                                 "uptake is then counted as the canopy's. Where "
                                 "the soil gives COS off, COS and CO\xe2\x82\x82 "
-                                "octants sort alike.")
+                                "octants sort alike."
+                                "<p>COS is noisy at 10 Hz. Where its sign in the "
+                                "updrafts is mostly noise, the sort is close to "
+                                "random: COS's own split cancels and is refused "
+                                "as singular, while every other gas of the row's "
+                                "pairing comes out near half stomatal, half not "
+                                "\xe2\x80\x93 with a quality code that looks fine. "
+                                "Those periods are flagged 1 in "
+                                "<i>cec_noisy_octants</i>, and the run log warns "
+                                "(Warning 124).</p>")
                            : tr("<b>Octants from CO\xe2\x82\x82</b>, as Zahn et "
                                 "al. (2022): a moist updraft that lost CO\xe2\x82\x82 "
                                 "passed through stomata, one that gained it came "
                                 "off the ground.");
+            case Suffix:
+                return tr("<b>Columns end in:</b> every column this row "
+                          "produces carries this suffix \xe2\x80\x93 "
+                          "<i>cos_stomatal_cec%1</i>, for instance \xe2\x80\x93 "
+                          "and so do the other rows sorted by the same octant "
+                          "gas and water. Splitting one gas several ways gives "
+                          "each version its own.")
+                    .arg(suffixes_.value(index.row()));
             case Warning:
             {
                 QString text;
@@ -387,6 +450,7 @@ QVariant CecPairModel::data(const QModelIndex& index, int role) const
             return row.waterIndex > 0 ? labelFor(row.waterIndex)
                                       : tr("(same analyser)");
         case Octants: return octantLabel(row.octantIndex);
+        case Suffix: return suffixes_.value(index.row());
         default: return {};
     }
 }
@@ -404,14 +468,40 @@ bool CecPairModel::setData(const QModelIndex& index, const QVariant& value, int 
     switch (index.column())
     {
         case Flux:
+        {
             if (picked == row.fluxIndex) { return false; }
             //> A different flux is usually a different analyser, so the water
             //> and the octant gas follow it there - the same-instrument default
-            //> the whole table starts from.
-            row.fluxIndex = picked;
-            row.waterIndex = MeasurementRecords::defaultCecWater(gases, picked);
-            row.octantIndex = MeasurementRecords::defaultCecOctant(gases, picked);
+            //> the whole table starts from. Where that version of the flux is
+            //> already in the table, the row keeps its own water and octant
+            //> gas, and failing that takes the next combination not yet
+            //> there: choosing a gas a second time is how a second version of
+            //> it is made, and it must not land on the first and be refused.
+            auto others = rows_;
+            others.remove(index.row());
+            const auto fits = [&](const CecFluxRow& r)
+            {
+                auto with = others;
+                with.append(r);
+                return MeasurementRecords::cecRowsFit(gases, with);
+            };
+            const CecFluxRow byDefault{picked,
+                                       MeasurementRecords::defaultCecWater(gases, picked),
+                                       MeasurementRecords::defaultCecOctant(gases, picked)};
+            const CecFluxRow kept{picked, row.waterIndex, row.octantIndex};
+            CecFluxRow next = byDefault;
+            if (!fits(byDefault))
+            {
+                if (fits(kept)) { next = kept; }
+                //> Nothing at all: left at the default, which apply() then
+                //> refuses with the engine's own reason.
+                else { MeasurementRecords::cecNextFreeVariant(
+                           gases, others, picked, byDefault.waterIndex,
+                           byDefault.octantIndex, &next); }
+            }
+            row = next;
             break;
+        }
         case Water:
             if (picked == row.waterIndex) { return false; }
             row.waterIndex = picked;
@@ -455,6 +545,12 @@ QVariant CecPairModel::headerData(int section, Qt::Orientation orientation,
                           "default; carbonyl sulfide is experimental. Rows that "
                           "share an octant gas and a water are one pairing, and "
                           "their columns share one suffix.");
+            case Suffix:
+                return tr("<b>Columns end in:</b> the suffix of every output "
+                          "column the row produces: the analyser of the octant "
+                          "gas, with <i>_cos</i> for COS octants, and \xe2\x80\x93 "
+                          "where two rows would otherwise share it \xe2\x80\x93 "
+                          "<i>_h2o_</i> and the water's analyser, or a number.");
             default: return {};
         }
     }
@@ -464,6 +560,7 @@ QVariant CecPairModel::headerData(int section, Qt::Orientation orientation,
         case Flux: return tr("Flux to partition");
         case Water: return tr("Water channel");
         case Octants: return tr("Octants from");
+        case Suffix: return tr("Columns end in");
         case Warning: return QString();
         default: return {};
     }
@@ -473,11 +570,11 @@ Qt::ItemFlags CecPairModel::flags(const QModelIndex& index) const
 {
     if (!index.isValid()) { return Qt::NoItemFlags; }
     auto f = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
-    if (index.column() == Warning) { return f; }
+    if (index.column() == Warning || index.column() == Suffix) { return f; }
     return f | Qt::ItemIsEditable;
 }
 
-void CecPairModel::addPair()
+int CecPairModel::addPair()
 {
     const auto& gases = ecProject_->gasColumns();
 
@@ -497,27 +594,91 @@ void CecPairModel::addPair()
         if (!order.contains(i + 1)) { order.append(i + 1); }
     }
 
-    QString reason;
+    //> Fluxes not yet in the table before those that are, and each through
+    //> the next combination there is room for: once every channel has a row,
+    //> Add goes on offering second versions - COS by COS octants, say - until
+    //> the engine's limits are reached.
+    QVector<int> untakenFirst;
     for (const int flux : order)
     {
-        if (taken.contains(flux)) { continue; }
+        if (!taken.contains(flux)) { untakenFirst.append(flux); }
+    }
+    for (const int flux : order)
+    {
+        if (taken.contains(flux)) { untakenFirst.append(flux); }
+    }
+
+    for (const int flux : untakenFirst)
+    {
         CecFluxRow row;
-        row.fluxIndex = flux;
-        row.waterIndex = MeasurementRecords::defaultCecWater(gases, flux);
-        row.octantIndex = MeasurementRecords::defaultCecOctant(gases, flux);
+        if (!MeasurementRecords::cecNextFreeVariant(
+                gases, rows_, flux, MeasurementRecords::defaultCecWater(gases, flux),
+                MeasurementRecords::defaultCecOctant(gases, flux), &row))
+        {
+            continue;
+        }
         auto candidate = rows_;
         candidate.append(row);
-        if (MeasurementRecords::cecRowsFit(gases, candidate, &reason))
+        return apply(candidate) ? rowOf(row) : -1;
+    }
+    emit editRefused(tr("There is no room for another row: the engine runs at "
+                        "most %1 combinations of octant gas and water, each "
+                        "carrying at most %2 fluxes besides its own. Remove a "
+                        "row, or give it the octant gas and water of another.")
+                         .arg(MeasurementRecords::cecMaxPairs)
+                         .arg(MeasurementRecords::cecMaxExtras));
+    return -1;
+}
+
+int CecPairModel::duplicatePair(int row)
+{
+    if (row < 0 || row >= rows_.size()) { return -1; }
+    const auto& gases = ecProject_->gasColumns();
+    const auto from = rows_.at(row);
+
+    //> The same flux, starting from this row's own water and octant gas: that
+    //> combination is taken, so the search moves to the next octant gas -
+    //> CO2 octants become COS octants - and only then to another water.
+    CecFluxRow next;
+    if (from.fluxIndex <= 0
+        || !MeasurementRecords::cecNextFreeVariant(gases, rows_, from.fluxIndex,
+                                                   from.waterIndex, from.octantIndex,
+                                                   &next))
+    {
+        emit editRefused(tr("%1 cannot be split another way here: every "
+                            "combination of octant gas and water it could take "
+                            "is already in the table, or the engine's limits "
+                            "are reached.").arg(fluxLabel(from)));
+        return -1;
+    }
+    auto candidate = rows_;
+    candidate.append(next);
+    return apply(candidate) ? rowOf(next) : -1;
+}
+
+int CecPairModel::rowOf(const CecFluxRow& row) const
+{
+    return rowIn(rows_, row);
+}
+
+int CecPairModel::rowIn(const QVector<CecFluxRow>& rows, const CecFluxRow& row) const
+{
+    const auto& gases = ecProject_->gasColumns();
+    const int water = MeasurementRecords::resolvedCecWater(gases, row.octantIndex,
+                                                           row.waterIndex);
+    for (int i = 0; i < rows.size(); ++i)
+    {
+        const auto& r = rows.at(i);
+        if (r.octantIndex != row.octantIndex) { continue; }
+        if (MeasurementRecords::resolvedCecWater(gases, r.octantIndex, r.waterIndex) != water)
+        { continue; }
+        //> The water row of its pairing reads as the water itself.
+        if (r.fluxIndex == row.fluxIndex || (r.fluxIndex == water && row.fluxIndex == water))
         {
-            apply(candidate);
-            return;
+            return i;
         }
     }
-    emit editRefused(reason.isEmpty()
-                         ? tr("Every channel is already partitioned. Change a "
-                              "row's octant gas or water to split a flux a "
-                              "second way.")
-                         : reason);
+    return -1;
 }
 
 void CecPairModel::removePair(int row)
@@ -540,7 +701,11 @@ QWidget* CecPairDelegate::createEditor(QWidget* parent,
                                        const QModelIndex& index) const
 {
     Q_UNUSED(option)
-    if (index.column() == CecPairModel::Warning) { return nullptr; }
+    if (index.column() == CecPairModel::Warning
+        || index.column() == CecPairModel::Suffix)
+    {
+        return nullptr;
+    }
 
     auto combo = new QComboBox(parent);
     TableDelegateUtils::prepareComboEditor(combo, parent);
@@ -594,7 +759,8 @@ QSize CecPairDelegate::sizeHint(const QStyleOptionViewItem& option,
                                 const QModelIndex& index) const
 {
     const QSize base = QStyledItemDelegate::sizeHint(option, index);
-    if (index.column() != CecPairModel::Warning)
+    if (index.column() != CecPairModel::Warning
+        && index.column() != CecPairModel::Suffix)
     {
         return TableDelegateUtils::comboCellSizeHint(option, base);
     }

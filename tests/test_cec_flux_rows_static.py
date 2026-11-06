@@ -84,12 +84,80 @@ def group_rows(gases, rows):
             repeated = True
         else:
             group["extras"].append(flux)
+    #> Canonical order: by octant record, then by the water read - never by
+    #> the order the rows arrive in.
+    groups.sort(key=lambda g: (g["octant"], g["water"]))
     pairs = []
     for g in groups:
         meth = (1 if g["own"] and g["wet"] else 2 if g["wet"]
                 else 3 if g["own"] else 4)
         pairs.append((meth, g["octant"], g["cell"], g["extras"]))
     return pairs, repeated
+
+
+def label(gases, index):
+    slug, instrument, _ = gases[index - 1]
+    text = slug.upper()
+    return text + (" (%s)" % instrument if real(instrument) else "")
+
+
+def sort_for_display(gases, rows):
+    """Alphabetically by flux, then octant gas, then the water read; a
+    channel only the engine resolves (index 0) after every named one."""
+    def key(index):
+        if index < 1:
+            return (1, "", 0)
+        return (0, label(gases, index).lower(), index)
+
+    return sorted(rows, key=lambda r: (key(r[0]), key(r[2]),
+                                       key(resolved_water(gases, r[2], r[1]))))
+
+
+def normalised(gases, rows):
+    return sort_for_display(gases, rows_from_pairs(gases, group_rows(gases, rows)[0]))
+
+
+def next_free_variant(gases, rows, flux, water, octant):
+    own = gases[flux - 1][1] if flux > 0 and real(gases[flux - 1][1]) else None
+
+    def channels(slug, on_own):
+        return [i for i, (s, instr, col) in enumerate(gases, start=1)
+                if col > 0 and s == slug and ((own is not None and instr == own) == on_own)]
+
+    octants = [octant]
+    for slug, on_own in (("co2", True), ("cos", True), ("co2", False), ("cos", False)):
+        octants += [i for i in channels(slug, on_own) if i not in octants]
+    waters = [water]
+    for on_own in (True, False):
+        waters += [i for i in channels("h2o", on_own) if i not in waters]
+    for w in waters:
+        for o in octants:
+            if o > 0 and rows_fit(gases, rows + [(flux, w, o)]):
+                return (flux, w, o)
+    return None
+
+
+def pair_suffixes(gases, pairs):
+    """The engine's CecPairs suffix rule, as cecPairSuffixes mirrors it."""
+    def instrument(index):
+        if index < 1 or index > len(gases) or not real(gases[index - 1][1]):
+            return ""
+        return gases[index - 1][1].lower()
+
+    bases = []
+    for n, (_, octant, _, _) in enumerate(pairs, start=1):
+        base = instrument(octant) or "pair%d" % n
+        if 1 <= octant <= len(gases) and gases[octant - 1][0] != "co2":
+            base += "_" + gases[octant - 1][0]
+        bases.append(base)
+    names = []
+    for base, (_, octant, water, _) in zip(bases, pairs):
+        w = instrument(resolved_water(gases, octant, water))
+        names.append(base + "_h2o_" + w
+                     if bases.count(base) > 1 and w and w != instrument(octant)
+                     else base)
+    return ["_" + n if names.count(n) == 1 else "_%s_%d" % (n, names[:i + 1].count(n))
+            for i, n in enumerate(names)]
 
 
 def rows_from_pairs(gases, pairs):
@@ -156,6 +224,74 @@ class TheRowsAreAViewOfThePairings(unittest.TestCase):
         self.assertFalse(rows_fit(SITE, [(4, 2, 1), (4, 0, 1)]))
 
 
+#: The default table for SITE, as the model shows it.
+DEFAULT_ROWS = normalised(SITE, [(1, 2, 1), (2, 2, 1), (6, 7, 6), (7, 7, 6)])
+
+
+class OneGasSplitSeveralWays(unittest.TestCase):
+    """COS by CO2/H2O octants and by COS/H2O octants, side by side - the
+    point of the whole table - and with another analyser's water too."""
+
+    def test_two_versions_of_one_flux_coexist(self):
+        rows = DEFAULT_ROWS + [(4, 2, 1), (4, 2, 4)]
+        self.assertTrue(rows_fit(SITE, rows))
+        pairs, _ = group_rows(SITE, rows)
+        #> In canonical order: by octant record, so COS (4) before the
+        #> LI-7200's CO2 (6).
+        self.assertEqual(pairs, [(1, 1, 2, [4]), (3, 4, 2, []), (1, 6, 7, [])])
+
+    def test_duplicate_moves_to_the_own_analysers_cos_octants(self):
+        #> Not to the LI-7200's CO2: that would only add a time-lag mismatch.
+        rows = DEFAULT_ROWS + [(4, 2, 1)]
+        self.assertEqual(next_free_variant(SITE, rows, 4, 2, 1), (4, 2, 4))
+        rows.append((4, 2, 4))
+        #> Then the LI-7200's CO2 octants with the MIRO's water, and only
+        #> then another water.
+        self.assertEqual(next_free_variant(SITE, rows, 4, 2, 1), (4, 2, 6))
+
+    def test_add_goes_on_when_every_flux_has_a_row(self):
+        rows = DEFAULT_ROWS + [(4, 2, 1), (5, 2, 1)]
+        taken = {r[0] for r in rows}
+        self.assertTrue(all(i in taken for i, g in enumerate(SITE, 1) if g[2] > 0))
+        self.assertIsNotNone(next_free_variant(SITE, rows, 4, 2, 1))
+
+    def test_versions_sit_together(self):
+        rows = normalised(SITE, DEFAULT_ROWS + [(4, 2, 4), (4, 2, 1), (4, 7, 1)])
+        fluxes = [r[0] for r in rows]
+        first = fluxes.index(4)
+        self.assertEqual(fluxes[first:first + 3], [4, 4, 4])
+
+    def test_the_table_is_alphabetical(self):
+        #> By flux label, then octant gas label, then water label: CO2 before
+        #> COS before H2O, the LI-7200 before the MIRO, CO2 octants before COS.
+        rows = normalised(SITE, DEFAULT_ROWS + [(4, 2, 4), (4, 7, 1), (4, 2, 1)])
+        self.assertEqual(rows, [
+            (6, 7, 6),   # CO2 (li7200)
+            (1, 2, 1),   # CO2 (miro)
+            (4, 7, 1),   # COS (miro), CO2 (miro) octants, H2O (li7200)
+            (4, 2, 1),   # COS (miro), CO2 (miro) octants, H2O (miro)
+            (4, 2, 4),   # COS (miro), COS (miro) octants
+            (7, 7, 6),   # H2O (li7200)
+            (2, 2, 1),   # H2O (miro)
+        ])
+
+    def test_the_round_trip_does_not_depend_on_row_order(self):
+        rows = DEFAULT_ROWS + [(4, 2, 4), (4, 7, 1), (5, 2, 4)]
+        self.assertEqual(normalised(SITE, rows), normalised(SITE, list(reversed(rows))))
+        once = normalised(SITE, rows)
+        self.assertEqual(normalised(SITE, once), once)
+
+    def test_each_version_gets_its_own_suffix(self):
+        #> base_cec_cos_octants, whose expected names the engine's own check
+        #> holds too.
+        pairs = [(1, 1, 2, [4, 5, 6, 7]), (1, 6, 7, []), (1, 4, 2, [5]), (4, 4, 7, [5])]
+        self.assertEqual(pair_suffixes(SITE, pairs),
+                         ["_miro", "_li7200", "_miro_cos", "_miro_cos_h2o_li7200"])
+        #> Two versions sorted by the MIRO's CO2, one with each water.
+        self.assertEqual(pair_suffixes(SITE, [(1, 1, 2, [4]), (4, 1, 7, [4])]),
+                         ["_miro", "_miro_h2o_li7200"])
+
+
 class TheCppIsWhatThePortSays(unittest.TestCase):
     def setUp(self):
         self.record = read("src/measurement_record.cpp")
@@ -194,16 +330,79 @@ class TheCppIsWhatThePortSays(unittest.TestCase):
     def test_every_edit_is_checked_and_then_rebuilt_from_the_pairings(self):
         self.assertIn("if (!MeasurementRecords::cecRowsFit(gases, candidate, &reason))",
                       self.model)
-        self.assertIn("gases, MeasurementRecords::cecPairsFromRows(gases, candidate));",
+        self.assertIn("gases, MeasurementRecords::cecPairsFromRows(gases, rows)));",
                       self.model)
+        self.assertIn("const auto rows = normalised(candidate);", self.model)
         self.assertIn("emit editRefused(reason);", self.model)
         self.assertIn("&CecPairModel::editRefused", read("src/cecsettingsdialog.cpp"))
 
     def test_a_new_flux_brings_its_own_analysers_water_and_octant_gas(self):
-        self.assertIn("row.waterIndex = MeasurementRecords::defaultCecWater(gases, picked);",
-                      self.model)
-        self.assertIn("row.octantIndex = MeasurementRecords::defaultCecOctant(gases, picked);",
-                      self.model)
+        #> Unless that version is already in the table: then the row keeps its
+        #> own water and octant gas, and failing that takes the next free
+        #> combination - choosing a gas twice is how its second version is made.
+        block = self.model[self.model.index("        case Flux:\n        {"):]
+        block = block[:block.index("            row = next;")]
+        self.assertIn("MeasurementRecords::defaultCecWater(gases, picked),", block)
+        self.assertIn("MeasurementRecords::defaultCecOctant(gases, picked)};", block)
+        self.assertLess(block.index("if (!fits(byDefault))"),
+                        block.index("if (fits(kept)) { next = kept; }"))
+        self.assertLess(block.index("if (fits(kept)) { next = kept; }"),
+                        block.index("MeasurementRecords::cecNextFreeVariant("))
+
+    def test_add_and_duplicate_search_for_a_free_version(self):
+        add = self.model[self.model.index("int CecPairModel::addPair()"):]
+        add = add[:add.index("\n}\n")]
+        self.assertIn("MeasurementRecords::cecNextFreeVariant(", add)
+        self.assertNotIn("if (taken.contains(flux)) { continue; }", add)
+        dup = self.model[self.model.index("int CecPairModel::duplicatePair(int row)"):]
+        dup = dup[:dup.index("\n}\n")]
+        self.assertIn("from.waterIndex, from.octantIndex,", dup)
+        dialog = read("src/cecsettingsdialog.cpp")
+        self.assertIn('duplicatePairButton = new QPushButton(tr("Duplicate"), pairGroup);', dialog)
+        self.assertIn("duplicatePairButton->setEnabled(selected);", dialog)
+
+    def test_the_search_prefers_the_flux_own_analyser(self):
+        block = self.record[self.record.index("bool cecNextFreeVariant("):]
+        block = block[:block.index("\n}\n")]
+        order = ["add(octants, co2, true);", "add(octants, cos, true);",
+                 "add(octants, co2, false);", "add(octants, cos, false);",
+                 "add(waters, kH2o, true);", "add(waters, kH2o, false);"]
+        at = [block.index(line) for line in order]
+        self.assertEqual(at, sorted(at))
+
+    def test_the_canonical_order_and_the_display_sort(self):
+        self.assertIn("return left.pair.carbonIndex < right.pair.carbonIndex;", self.record)
+        self.assertIn("return left.water < right.water;", self.record)
+        block = self.record[self.record.index("QVector<CecFluxRow> sortCecRowsForDisplay("):]
+        block = block[:block.index("\n}\n")]
+        flux = block.index("if (const int c = compare(l.fluxIndex, r.fluxIndex)) { return c < 0; }")
+        octant = block.index("if (const int c = compare(l.octantIndex, r.octantIndex)) { return c < 0; }")
+        water = block.index("const int c = compare(resolvedCecWater(gases, l.octantIndex, l.waterIndex),")
+        self.assertLess(flux, octant)
+        self.assertLess(octant, water)
+        self.assertIn("Qt::CaseInsensitive", block)
+
+    def test_an_edited_row_moves_with_its_selection(self):
+        apply = self.model[self.model.index("bool CecPairModel::apply("):]
+        apply = apply[:apply.index("\n}\n")]
+        self.assertLess(apply.index("emit layoutAboutToBeChanged();"),
+                        apply.index("changePersistentIndexList(before, after);"))
+        self.assertLess(apply.index("changePersistentIndexList(before, after);"),
+                        apply.index("emit layoutChanged();"))
+
+    def test_the_suffix_column_mirrors_the_engine(self):
+        block = self.record[self.record.index("QStringList cecPairSuffixes("):]
+        block = block[:block.index("\n}\n")]
+        self.assertIn('base = QStringLiteral("pair%1").arg(i + 1);', block)
+        self.assertIn('name += QStringLiteral("_h2o_") + water;', block)
+        self.assertIn('out.append(QStringLiteral("_%1_%2").arg(names.at(i)).arg(occurrence));',
+                      block)
+        self.assertIn('case Suffix: return tr("Columns end in");', self.model)
+        resolver = ENGINE / "src/src_common/gas_slot_resolution.f90"
+        if not resolver.exists():
+            self.skipTest("eddyflow-engine is not checked out beside this repo")
+        text = resolver.read_text(encoding="utf-8", errors="replace")
+        self.assertIn("names(i) = trim(bases(i)) // '_h2o_' // trim(base)", text)
 
     def test_co2_octants_are_the_default_wherever_there_is_co2(self):
         block = self.record[self.record.index("int defaultCecOctant("):]
@@ -240,6 +439,7 @@ class CarbonylSulfideIsLabelledExperimental(unittest.TestCase):
     def test_the_tooltips_say_how_to_read_the_cos_columns(self):
         for text in ("cos_stomatal_cec", "cos_nonstomatal_cec", "r_cos_cec",
                      "cec_sign_cos", "senescent", "relative uptake",
+                     "cec_noisy_octants", "Warning 124",
                      "Zahn et al. (2022)"):
             self.assertIn(text, self.model)
         #> And the COS-octant caveat, where the choice is made.

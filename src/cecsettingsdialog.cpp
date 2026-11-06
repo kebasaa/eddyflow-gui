@@ -12,11 +12,13 @@
 #include <QDoubleSpinBox>
 #include <QGridLayout>
 #include <QGroupBox>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QScreen>
 #include <QSignalBlocker>
 #include <QSet>
 #include <QSpinBox>
@@ -247,7 +249,9 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject,
     pairTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     pairTable->horizontalHeader()->setSectionResizeMode(CecPairModel::Flux,
                                                         QHeaderView::Stretch);
-    pairTable->setMinimumHeight(140);
+    //> Room for several versions of a few gases without scrolling: the table
+    //> is what this dialog is mostly for now.
+    pairTable->setMinimumHeight(280);
 
     //> Shown only while a row is experimental, so it is read when it applies
     //> rather than learned to be ignored.
@@ -260,7 +264,10 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject,
 
     addPairButton = new QPushButton(tr("Add"), pairGroup);
     addPairButton->setProperty("mdButton", true);
-    addPairButton->setToolTip(tr("Add a row for the first channel not yet partitioned \xe2\x80\x93 carbonyl sulfide first \xe2\x80\x93 with the water and the octant gas on its own analyser. Change any cell afterwards."));
+    addPairButton->setToolTip(tr("Add a row for the first channel not yet partitioned \xe2\x80\x93 carbonyl sulfide first \xe2\x80\x93 with the water and the octant gas on its own analyser. Once every channel has a row, Add offers second versions instead. Change any cell afterwards."));
+    duplicatePairButton = new QPushButton(tr("Duplicate"), pairGroup);
+    duplicatePairButton->setProperty("mdButton", true);
+    duplicatePairButton->setToolTip(tr("Split the selected row's flux a second way: the same gas, sorted by the next octant gas not yet used for it \xe2\x80\x93 COS octants beside CO\xe2\x82\x82 octants, say \xe2\x80\x93 or with another water channel. Each version's columns get their own suffix, shown under <i>Columns end in</i>."));
     removePairButton = new QPushButton(tr("Remove"), pairGroup);
     removePairButton->setProperty("mdButton", true);
     resetPairsButton = new QPushButton(tr("Same-analyser default"), pairGroup);
@@ -269,6 +276,7 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject,
 
     auto pairButtons = new QHBoxLayout;
     pairButtons->addWidget(addPairButton);
+    pairButtons->addWidget(duplicatePairButton);
     pairButtons->addWidget(removePairButton);
     pairButtons->addWidget(resetPairsButton);
     pairButtons->addStretch();
@@ -342,6 +350,8 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject,
             ecProject_, &EcProject::setGeneralCecSingularBand);
     connect(addPairButton, &QPushButton::clicked,
             this, &CecSettingsDialog::addPair);
+    connect(duplicatePairButton, &QPushButton::clicked,
+            this, &CecSettingsDialog::duplicateSelectedPair);
     connect(removePairButton, &QPushButton::clicked,
             this, &CecSettingsDialog::removeSelectedPair);
     connect(resetPairsButton, &QPushButton::clicked,
@@ -363,6 +373,15 @@ CecSettingsDialog::CecSettingsDialog(QWidget *parent, EcProject *ecProject,
             this, &CecSettingsDialog::hide);
 
     refresh();
+
+    //> Opened wide enough to read a row whole - flux, water, octant gas and
+    //> suffix - but never past the screen it opens on.
+    QSize wanted = sizeHint().expandedTo(QSize(1040, 860));
+    if (const auto screen = QGuiApplication::primaryScreen())
+    {
+        wanted = wanted.boundedTo(screen->availableGeometry().size() * 0.9);
+    }
+    resize(wanted);
 }
 
 void CecSettingsDialog::refresh()
@@ -483,8 +502,17 @@ void CecSettingsDialog::updateSignalStrengthAvailability()
 
 void CecSettingsDialog::addPair()
 {
-    pairModel->addPair();
-    pairTable->selectRow(pairModel->rowCount() - 1);
+    //> Selected where it landed, not at the bottom: rows are sorted by flux.
+    const int at = pairModel->addPair();
+    if (at >= 0) { pairTable->selectRow(at); }
+}
+
+void CecSettingsDialog::duplicateSelectedPair()
+{
+    const auto rows = pairTable->selectionModel()->selectedRows();
+    if (rows.isEmpty()) { return; }
+    const int at = pairModel->duplicatePair(rows.first().row());
+    if (at >= 0) { pairTable->selectRow(at); }
 }
 
 void CecSettingsDialog::removeSelectedPair()
@@ -496,8 +524,9 @@ void CecSettingsDialog::removeSelectedPair()
 
 void CecSettingsDialog::updatePairButtons()
 {
-    removePairButton->setEnabled(
-        !pairTable->selectionModel()->selectedRows().isEmpty());
+    const bool selected = !pairTable->selectionModel()->selectedRows().isEmpty();
+    removePairButton->setEnabled(selected);
+    duplicatePairButton->setEnabled(selected);
 }
 
 /// Switch random uncertainty estimation on, as the CEC checkbox switches on
