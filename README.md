@@ -1,6 +1,7 @@
 ![C++](https://img.shields.io/badge/c++-%2300599C.svg?style=for-the-badge&logo=c%2B%2B&logoColor=white)
 ![Qt](https://img.shields.io/badge/Qt-%23217346.svg?style=for-the-badge&logo=Qt&logoColor=white)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![DOI](https://zenodo.org/badge/1274359692.svg)](https://doi.org/10.5281/zenodo.24011261)
 
 ![EddyFlow](img/logo/app-logo.svg)
 
@@ -12,26 +13,14 @@ EddyFlow&reg; is a powerful open source software application for processing eddy
 
 ## Overview
 
-EddyFlow consists of 4 repositories:
+EddyFlow is a fully cross-platform application, which consists of a set of command line programs and a graphical user interface (GUI). It consists of 4 repositories:
 
 - [eddyflow-engine](https://github.com/kebasaa/eddyflow-engine): The core engine, a command line software
 - [eddyflow-gui](https://github.com/kebasaa/eddyflow-gui) (current repository): The graphical user interface to configure and run the engine
 - [eddyflow-documentation](https://github.com/kebasaa/eddyflow-documentation): The documentation of the software and its usage
+  It provides the [documentation website](https://kebasaa.github.io/eddyflow-documentation/)
 - [eddyflow-build-script](https://github.com/kebasaa/eddyflow-build-script): This builds the software binaries (currently Windows only)
 
-## License
-
-This fork of EddyPro 6.2.2 is released with and will retain the
-[GNU General Public License (GPL) v3.0](LICENSE).
-
-## Source Code Repository
-
-EddyFlow is a fully cross-platform application, which consists of a set of command line programs and a graphical user interface (GUI).
-
-The source code is developed using two independent Git repositories, namely:
-
-  - [EddyFlow-engine](https://github.com/kebasaa/EddyFlow-engine)
-  - [EddyFlow-gui](https://github.com/kebasaa/EddyFlow-gui)
 
 ## Installing EddyFlow
 
@@ -41,13 +30,6 @@ You can download EddyFlow from the releases .7z file, the contained folder is fu
 
 To build EddyFlow, use the scripts on [eddyflow-build-script](https://github.com/kebasaa/eddyflow-build-script): a PowerShell script for a portable Windows folder, and a bash script for Linux packages (`.deb` and `.snap`, optionally `.rpm`).
 
-### Engine
-
-To compile the Engine only, you can use [gfortran](https://gcc.gnu.org/wiki/GFortran) (The GNU Fortran compiler) and run:
-
-    $ cd prj
-    $ make rp
-    $ make fcc
 
 <!-- ### GUI
 
@@ -228,4 +210,13 @@ In order to help users who want to cite EddyFlow on posters or publications, we 
 More information is available at the help website [EddyFlow help](https://kebasaa.github.io/eddyflow-documentation/).
 
 See also the [CHANGELOG](CHANGELOG).
+
+
+## How to Cite
+
+Muller, J.D. (2026). *eddyflow-gui: EddyFlow graphical user interface*. DOI: https://doi.org/10.5281/zenodo.24011261
+
+## License
+
+This software is distributed under the [GNU General Public License (GPL) v3.0](LICENSE). Any modification of the code in this repository may only be released under the same license, and with attribution of authorship of the original code (i.e., citation above).
 
