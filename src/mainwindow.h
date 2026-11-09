@@ -232,6 +232,13 @@ private:
     void displayExitMsg2(Process::ExitStatus exitReason);
     bool okToStopRun();
     int testBeforeRunningPassed(int step);
+    //> Room on the output disk, before a run: refuse when the engine would
+    //> stop at once, and warn when the raw datasets will not fit. `fromRaw`
+    //> is false for a run that only recomputes fluxes from a previous one.
+    bool confirmOutputSpace(bool fromRaw);
+    //> The exit message's explanation when the engine stopped for lack of
+    //> room, with the room there is now.
+    QString outputDiskFullInfo() const;
     bool testForPreviousData();
     bool alertChangesWhileRunning();
     void togglePageButton(Defs::CurrPage page);
@@ -356,6 +363,9 @@ private:
     bool expressClicked_;
     bool advancedClicked_;
     bool retrieverClicked_;
+    //> The engine said it stopped for lack of room on the output disk; the
+    //> exit message then says so instead of "an error has occurred".
+    bool outputDiskFullSeen_ = false;
 
     void showStatusTip(const QString &text) const;
 

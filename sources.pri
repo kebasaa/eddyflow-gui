@@ -62,6 +62,7 @@ HEADERS += \
     src/mystyle.h \
     src/mytabwidget.h \
     src/nonzerodoublespinbox.h \
+    src/outputspace.h \
     src/planarfitsettingsdialog.h \
     src/pwbtimelagsettingsdialog.h \
     src/engineprogress.h \
@@ -188,6 +189,7 @@ SOURCES +=  \
     src/matrixrain.cpp \
     src/rawplayback.cpp \
     src/nonzerodoublespinbox.cpp \
+    src/outputspace.cpp \
     src/planarfitsettingsdialog.cpp \
     src/pwbtimelagsettingsdialog.cpp \
     src/lagstats.cpp \

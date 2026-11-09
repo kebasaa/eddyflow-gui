@@ -1,8 +1,23 @@
 8.1.10 (2026-11-06)
 
     GUI:
-	- Version bump to match EddyFlow engine 8.1.10. Nothing in the interface
-	  changes.
+	- Version bump to match EddyFlow engine 8.1.10.
+	- New: Room on the output disk is checked before a run. Below 1 GB free -
+	       the point at which the engine now stops - the run is refused with
+	       the disk and the room left. When raw datasets are written, their
+	       size is estimated from the levels and variables chosen, the
+	       acquisition frequency and the averaging period, over the subset or
+	       the raw files' own span; if that will not fit, the dialog says how
+	       much a period and the run will take against what is free, and
+	       where to write fewer levels, and asks before starting. On CH-LAE
+	       all seven levels at 20 Hz came to 77 MB a period, about 2 TB over
+	       the run, and filled the network share the run wrote to.
+	- New: A run the engine stops for lack of room ends with "Stopped: the
+	       output disk is full." and what to do, instead of "Oops, an error has
+	       occurred". The interface recognises the engine's own wording, on
+	       either output stream and from a worker as well as the parent.
+	       Pinned by tests/test_output_space_static.py, which also holds the
+	       interface's threshold to the engine's.
 
 8.1.9 (2026-11-05)
 

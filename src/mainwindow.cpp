@@ -73,6 +73,7 @@
 #include "infomessage.h"
 #include "mainwidget.h"
 #include "mymenu.h"
+#include "outputspace.h"
 #include "planarfitsettingsdialog.h"
 #include "projectpage.h"
 #include "runpage.h"
@@ -3674,6 +3675,75 @@ int MainWindow::testBeforeRunningPassed(int step)
     }
 }
 
+bool MainWindow::confirmOutputSpace(bool fromRaw)
+{
+    const auto outDir = ecProject_->generalOutPath();
+    const qint64 free = OutputSpace::freeBytes(outDir);
+    //> Nothing to judge by - a path the system cannot answer for - so let the
+    //> engine, which watches the disk while it runs, be the one to stop.
+    if (free < 0) { return true; }
+
+    if (free < OutputSpace::MinFreeBytes)
+    {
+        QMessageBox::critical(this, tr("Output Disk Full"),
+            tr("<p>The disk of the output folder has only %1 free:</p>"
+               "<p>%2</p>"
+               "<p>EddyFlow stops a run when less than %3 is left, because "
+               "files written to a full disk come out empty, with no error "
+               "to say so. Free some space or choose another output folder.</p>")
+                .arg(OutputSpace::sizeText(free),
+                     QDir::toNativeSeparators(outDir),
+                     OutputSpace::sizeText(OutputSpace::MinFreeBytes)));
+        return false;
+    }
+    if (!fromRaw) { return true; }
+
+    const qint64 perPeriod = OutputSpace::rawBytesPerPeriod(ecProject_,
+                                                            dlProject_->acquisitionFrequency());
+    if (perPeriod <= 0 || ecProject_->screenAvrgLen() <= 0) { return true; }
+
+    //> The run's span: the subset when one is set, otherwise the raw files'
+    //> own - which lists the raw folder, so only asked for when raw datasets
+    //> are written at all.
+    FileUtils::DateRange range;
+    if (ecProject_->generalSubset())
+    {
+        range.first = QDateTime(QDate::fromString(ecProject_->generalStartDate(), Qt::ISODate),
+                                QTime::fromString(ecProject_->generalStartTime(), QStringLiteral("hh:mm")));
+        range.second = QDateTime(QDate::fromString(ecProject_->generalEndDate(), Qt::ISODate),
+                                 QTime::fromString(ecProject_->generalEndTime(), QStringLiteral("hh:mm")));
+    }
+    else
+    {
+        range = getCurrentDateRange();
+    }
+    if (!range.first.isValid() || !range.second.isValid() || range.second <= range.first)
+    {
+        return true;
+    }
+    const qint64 periods = range.first.secsTo(range.second) / (ecProject_->screenAvrgLen() * 60);
+    const qint64 need = perPeriod * periods;
+    if (need <= free - OutputSpace::MinFreeBytes) { return true; }
+
+    return WidgetUtils::yesNoQuestion(this,
+        tr("Raw Datasets Will Not Fit"),
+        tr("The raw datasets will not fit on the output disk."),
+        tr("This run writes %1 raw-dataset level(s): about %2 per averaging "
+           "period, so about %3 for the %4 periods from %5 to %6. The disk of "
+           "the output folder has %7 free.\n\n"
+           "EddyFlow measures the first period it writes and stops the run "
+           "there if the rest will not fit. Write fewer levels, or none, under "
+           "Advanced Settings > Output Files > Processed raw data, or choose "
+           "an output folder with more room.\n\n"
+           "Start the run anyway?")
+            .arg(OutputSpace::rawLevels(ecProject_))
+            .arg(OutputSpace::sizeText(perPeriod), OutputSpace::sizeText(need))
+            .arg(periods)
+            .arg(range.first.toString(QStringLiteral("yyyy-MM-dd hh:mm")),
+                 range.second.toString(QStringLiteral("yyyy-MM-dd hh:mm")),
+                 OutputSpace::sizeText(free)));
+}
+
 void MainWindow::closeOpenDialogs()
 {
     QList<QDialog *> childDialogs = findChildren<QDialog *>(QString());
@@ -3858,6 +3928,7 @@ void MainWindow::runExpress()
     if (status == Defs::CurrStatus::Ready)
     {
         if (testBeforeRunningPassed(0) == QMessageBox::Cancel) { return; }
+        if (!confirmOutputSpace(true)) { return; }
 
         changePage(Defs::CurrPage::Run);
         QString workingDir = qApp->applicationDirPath() + QLatin1Char('/') + Defs::BIN_FILE_DIR;
@@ -3974,6 +4045,8 @@ void MainWindow::runAdvancedStep_1()
     {
         int ret = testBeforeRunningPassed(0);
         if (ret == QMessageBox::Cancel) { return; }
+        //> Yes starts from the raw files; No reuses a previous run's results.
+        if (!confirmOutputSpace(ret == QMessageBox::Yes)) { return; }
 
         // start from step 1
         if (ret == QMessageBox::Yes)
@@ -4409,6 +4482,29 @@ void MainWindow::displayExitDialog()
     {
         displayExitMsg2(engineProcess_->processExit());
     }
+    //> Said once, for the run that said it.
+    outputDiskFullSeen_ = false;
+}
+
+QString MainWindow::outputDiskFullInfo() const
+{
+    const auto outDir = ecProject_->generalOutPath();
+    const qint64 free = OutputSpace::freeBytes(outDir);
+    QString room;
+    if (free >= 0)
+    {
+        room = tr("<p>%1 is free on the disk of the output folder now.</p>")
+                   .arg(OutputSpace::sizeText(free));
+    }
+    return tr("<p>EddyFlow stopped the run because the disk it writes to has "
+              "too little room left, or will have before the run ends. Files "
+              "written to a full disk come out empty, with no error to say so, "
+              "so it stops rather than carry on.</p>")
+         + room
+         + tr("<p>Free some space, write fewer raw datasets (Advanced Settings "
+              "&gt; Output Files &gt; Processed raw data) - they are by far the "
+              "largest output - or choose an output folder with more room. The "
+              "output console says which disk and how much.</p>");
 }
 
 void MainWindow::displayExitMsg(Process::ExitStatus exitReason)
@@ -4455,6 +4551,16 @@ void MainWindow::displayExitMsg(Process::ExitStatus exitReason)
         msgBox.setEscapeButton(QMessageBox::Ok);
         break;
     case Process::ExitStatus::Failure:
+        if (outputDiskFullSeen_)
+        {
+            msgBox.setText(tr("<h3>Stopped: the output disk is full.</h3>"));
+            msgBox.setInformativeText(outputDiskFullInfo());
+            msgBox.setStandardButtons(QMessageBox::Ok);
+            msgBox.addButton(openOutDirButton, QMessageBox::ActionRole);
+            msgBox.setDefaultButton(QMessageBox::Ok);
+            msgBox.setEscapeButton(QMessageBox::Ok);
+            break;
+        }
         msgBox.setText(tr("<h3>Oops, an error has occurred.</h3>"));
         msgBox.setInformativeText(tr("<p>Double check the project parameters and check "
                                      "the output console for more information.</p>"));
@@ -4578,6 +4684,15 @@ void MainWindow::displayExitMsg2(Process::ExitStatus exitReason)
         msgBox.setEscapeButton(QMessageBox::Ok);
         break;
     case Process::ExitStatus::Failure:
+        if (outputDiskFullSeen_)
+        {
+            msgBox.setText(tr("<h3>Stopped: the output disk is full.</h3>"));
+            msgBox.setInformativeText(outputDiskFullInfo());
+            msgBox.setStandardButtons(QMessageBox::Ok);
+            msgBox.setDefaultButton(QMessageBox::Ok);
+            msgBox.setEscapeButton(QMessageBox::Ok);
+            break;
+        }
         msgBox.setText(tr("<h3>Oops, an error has occurred.<h3>"));
         msgBox.setInformativeText(tr("<p>Double check the project parameters and check "
                                      "the output console for more information.</p>"));
@@ -4680,6 +4795,7 @@ void MainWindow::updateConsoleReceived()
 
     if (!newData.isEmpty())
     {
+        if (OutputSpace::isDiskFullMessage(newData)) { outputDiskFullSeen_ = true; }
         mainWidget_->runPage()->bufferData(newData);
     }
 }
@@ -4690,6 +4806,7 @@ void MainWindow::updateConsoleError()
 
     if (!newData.isEmpty())
     {
+        if (OutputSpace::isDiskFullMessage(newData)) { outputDiskFullSeen_ = true; }
         updateConsoleLine(newData);
     }
 }
