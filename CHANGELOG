@@ -101,6 +101,19 @@
 	       engine reads (pf_sect_1_* .. pf_sect_36_*). A 37th was saved and
 	       silently left out of the fit. Their numbering was already right.
 	       Pinned by tests/test_wind_filter_sectors_static.py.
+	- Change: The GUI is built with CMake instead of qmake. One
+	          CMakeLists.txt replaces EddyFlow_win.pro, EddyFlow_lin.pro,
+	          EddyFlow_mac.pro and their seven .pri files, which had
+	          already drifted apart. CMakePresets.json holds a release and a
+	          debug preset per platform. The build itself now compiles the
+	          translation and embeds it at :/tra/en, so the .qm no longer
+	          has to exist in tra/ beforehand. It also copies the file
+	          templates, QuaZIP and on macOS docs/ next to the binary, which
+	          retires the pre- and post-link scripts in scripts/build. QuaZIP
+	          is found through its CMake package or, when that package asks
+	          for a Qt module the kit lacks, as a plain header and library.
+	          Binary names and folders are unchanged: release/EddyFlow and
+	          debug/EddyFlow_debug in the build folder.
 
 8.1.9 (2026-11-05)
 

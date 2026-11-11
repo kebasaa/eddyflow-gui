@@ -54,7 +54,7 @@ jobs:
           path: eddyflow-build-script
 
       - name: Install build dependencies
-        run: brew install qt gcc cmake
+        run: brew install qt gcc cmake ninja
 
       - name: Build the .dmg
         run: bash eddyflow-build-script/build_eddyflow_macos.sh --no-install-deps

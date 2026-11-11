@@ -33,7 +33,7 @@ PAGE = read(GUI_ROOT / "src" / "runpage.cpp")
 HEADER = read(GUI_ROOT / "src" / "runpage.h")
 ETA = read(GUI_ROOT / "src" / "runeta.cpp")
 ETA_H = read(GUI_ROOT / "src" / "runeta.h")
-SOURCES = read(GUI_ROOT / "sources.pri")
+SOURCES = read(GUI_ROOT / "CMakeLists.txt")
 
 engine_available = ENGINE_POOL.is_file() and ENGINE_RP.is_file() and ENGINE_FCC.is_file()
 

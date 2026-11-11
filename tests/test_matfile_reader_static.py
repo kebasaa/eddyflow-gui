@@ -38,8 +38,7 @@ from pathlib import Path
 GUI_ROOT = Path(__file__).resolve().parents[1]
 HEADER = GUI_ROOT / "src" / "matfile.h"
 SOURCE = GUI_ROOT / "src" / "matfile.cpp"
-SOURCES_PRI = GUI_ROOT / "sources.pri"
-LIBS_PRI = GUI_ROOT / "libs.pri"
+CMAKELISTS = GUI_ROOT / "CMakeLists.txt"
 
 #> The supplied EddyUH project, which lives outside the repository: it carries
 #> a site's coordinates and one machine's absolute paths, and committing it to
@@ -279,18 +278,20 @@ class TheWidthOfAnIntegerMeansNothing(unittest.TestCase):
 class ItIsInTheBuild(unittest.TestCase):
 
     def test_both_files_are_listed(self):
-        pri = read(SOURCES_PRI)
-        self.assertIn("src/matfile.h", pri)
-        self.assertIn("src/matfile.cpp", pri)
+        build = read(CMAKELISTS)
+        self.assertIn("src/matfile.h", build)
+        self.assertIn("src/matfile.cpp", build)
 
     def test_zlib_is_named_rather_than_arriving_by_accident(self):
         #> QuaZip drags it in, so this links either way - until someone drops
         #> QuaZip, or the linker reorders, and then it does not.
-        libs = read(LIBS_PRI)
-        self.assertIn("LIBS += -lz", libs)
-        #> Outside the debug/release branches, so both get it.
-        head = libs[:libs.index("CONFIG(debug, debug|release)")]
-        self.assertIn("-lz", head)
+        build = read(CMAKELISTS)
+        self.assertIn("find_package(ZLIB REQUIRED)", build)
+        #> In the executable's own link line, not only in QuaZip's: and with
+        #> no generator expression around it, so debug and release both get it.
+        start = build.index("target_link_libraries(EddyFlow PRIVATE")
+        link = build[start:build.index(")", start)]
+        self.assertIn("    ZLIB::ZLIB", link)
 
 
 if __name__ == "__main__":

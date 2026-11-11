@@ -42,7 +42,7 @@ SCANNER = read(GUI_ROOT / "src" / "previousrun.cpp")
 DIALOG = read(GUI_ROOT / "src" / "detectdaterangedialog.cpp")
 MAIN = read(GUI_ROOT / "src" / "mainwindow.cpp")
 RUNPAGE = read(GUI_ROOT / "src" / "runpage.cpp")
-SOURCES = read(GUI_ROOT / "sources.pri")
+SOURCES = read(GUI_ROOT / "CMakeLists.txt")
 
 
 def engine(relative):

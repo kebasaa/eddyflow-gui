@@ -554,44 +554,6 @@ const QStringList& introLines()
     return list;
 }
 
-// the level card under the days; {place} is filled in
-const QStringList& cardLines()
-{
-    static const QStringList list {
-        QStringLiteral("A week at {place}"),
-        QStringLiteral("Fluxes from {place}"),
-        QStringLiteral("Field campaign: {place}"),
-        QStringLiteral("Site visit to {place}"),
-        QStringLiteral("Seven days in {place}"),
-        QStringLiteral("{place}, half-hourly"),
-        QStringLiteral("Raw data from {place}"),
-        QStringLiteral("The {place} flux tower"),
-        QStringLiteral("Somewhere near {place}"),
-        QStringLiteral("{place}: level 2 data"),
-        QStringLiteral("Uploading from {place}"),
-        QStringLiteral("The long week at {place}"),
-        QStringLiteral("{place}, gaps and all"),
-        QStringLiteral("Night shift at {place}"),
-        QStringLiteral("The carbon balance of {place}"),
-        QStringLiteral("{place}, unprocessed"),
-        QStringLiteral("Maintenance trip: {place}"),
-        QStringLiteral("{place}, before quality control"),
-        QStringLiteral("A windy week at {place}"),
-        QStringLiteral("{place} and its many spikes"),
-        QStringLiteral("Fieldwork at {place}"),
-        QStringLiteral("{place}, straight off the logger"),
-        QStringLiteral("The {place} footprint"),
-        QStringLiteral("Seven nights of advection at {place}"),
-        QStringLiteral("{place}: the missing week"),
-        QStringLiteral("Live from {place}"),
-        QStringLiteral("{place}, in 10 Hz"),
-        QStringLiteral("Data rescue at {place}"),
-        QStringLiteral("The {place} time series"),
-        QStringLiteral("{place}, with feeling")
-    };
-    return list;
-}
-
 // every tenth good half-hour; %1 is the count
 const QStringList& streakPops()
 {
