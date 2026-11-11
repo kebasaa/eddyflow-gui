@@ -168,7 +168,7 @@ class VocabularyTest(unittest.TestCase):
 
     def test_renamed_instruments_follow_into_columns_and_master_sonic(self):
         self.assertIn("renamed.contains(instrument)", self.cpp)
-        self.assertIn("out.setValue(EcIni::INI_PROJECT_17, standIn", self.cpp)
+        self.assertIn("out.setValue(EcIni::INI_PROJECT_17, QString(standIn", self.cpp)
 
 
 class OptionRulesTest(unittest.TestCase):

@@ -710,7 +710,7 @@ bool EddyProExport::convertProjectOptions(const QString& nativeCopy,
             const auto standIn = sonicStandIn(base);
             if (standIn != base)
             {
-                out.setValue(EcIni::INI_PROJECT_17, standIn + QLatin1Char('_') + n);
+                out.setValue(EcIni::INI_PROJECT_17, QString(standIn + QLatin1Char('_') + n));
             }
         }
 
@@ -868,7 +868,7 @@ bool EddyProExport::convertMetadata(const DlProject& dl, QString* error)
 
                 if (standIn != base)
                 {
-                    const auto newId = standIn + QLatin1Char('_') + n;
+                    const QString newId = standIn + QLatin1Char('_') + n;
                     renamed.insert(model, newId);
                     f[DlIni::INI_ANEM_2] = newId;
                     if (standIn.startsWith(QLatin1String("generic_")))
@@ -1038,7 +1038,7 @@ bool EddyProExport::convertMetadata(const DlProject& dl, QString* error)
                 }
 
                 // keys EddyPro lacks, and the pair it needs
-                const auto errorKey = col + DlIni::INI_VARDESC_ERROR_VALUE;
+                const QString errorKey = col + DlIni::INI_VARDESC_ERROR_VALUE;
                 if (ini.contains(errorKey))
                 {
                     const double ev = ini.value(errorKey).toDouble();
@@ -1180,7 +1180,8 @@ QString EddyProExport::reportHtml() const
         {
             out += QStringLiteral("<li>%1</li>").arg(l.toHtmlEscaped());
         }
-        return out + QStringLiteral("</ul>");
+        out += QStringLiteral("</ul>");
+        return out;
     };
     html += list(tr("Warnings"), warnings_);
     html += list(tr("Notes"), notes_);
