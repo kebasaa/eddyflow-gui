@@ -29,6 +29,7 @@
 #include <cmath>
 
 #include <QDebug>
+#include <QLocale>
 #include <QRegularExpression>
 #include <QSet>
 #include <QSettings>
@@ -5072,6 +5073,31 @@ bool EcProject::importEddyProProject(const QString &filename, bool updateMode, b
     return loadEcProject(tmpFile.fileName(), updateMode, modified);
 }
 
+//> The molecular weight and diffusivity EddyPro should read for the gas in its
+//> fourth slot, or -1 where it should keep its own.
+//>
+//> EddyPro has one constant for that slot and it is N2O's: a gas_mw or
+//> gas_diff of -1, or anything not above zero, makes it use 44.01 g/mol
+//> (write_processing_project_variables.f90). That is right for N2O and wrong
+//> for everything else. A record leaving the species default in place carries
+//> -1 too, since this program looks the default up as it goes, so for any
+//> other species the default is resolved here and written out. An N2O record
+//> keeps what it has: the sentinel is what the reference package holds.
+static void eddyProFourthGasConstants(const GasRecord* rec, qreal* mw, qreal* diff)
+{
+    *mw = -1.0;
+    *diff = -1.0;
+    if (!rec) { return; }
+    *mw = rec->mw;
+    *diff = rec->diff;
+    if (rec->slug == QLatin1String("n2o")) { return; }
+
+    const auto* entry = GasMetadata::findSpecies(rec->slug);
+    if (!entry) { return; }
+    if (*mw <= 0.0 && entry->molecularWeight > 0.0) { *mw = entry->molecularWeight; }
+    if (*diff <= 0.0 && entry->diffusivity > 0.0) { *diff = entry->diffusivity; }
+}
+
 /// Turn a freshly copied native project into an EddyPro one, in place.
 ///
 /// Three jobs: rebuild the flat per-slot keys the record format replaced, drop
@@ -5247,14 +5273,17 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini,
         ini.setValue(QStringLiteral("col_diag_anem"), columnForSlug(g.diagColumns, "diag_anem"));
 
         //> EddyPro carries one molecular weight and diffusivity, for the open
-        //> slot; -1 is its "use the built-in constant" sentinel, which is what
-        //> the reference package contains.
-        const qreal openMw = slotOf[3] >= 0 ? gases.at(slotOf[3]).mw : -1.0;
-        const qreal openDiff = slotOf[3] >= 0 ? gases.at(slotOf[3]).diff : -1.0;
+        //> slot. -1 is its "use the built-in constant" sentinel and what the
+        //> reference package contains, but the built-in constant is N2O's, so
+        //> any other species has its own values written.
+        qreal openMw = -1.0;
+        qreal openDiff = -1.0;
+        eddyProFourthGasConstants(slotOf[3] >= 0 ? &gases.at(slotOf[3]) : nullptr,
+                                  &openMw, &openDiff);
         ini.setValue(QStringLiteral("gas_mw"),
-                     QString::number(openMw >= 0.0 ? openMw : -1.0, 'f', 4));
+                     QString::number(openMw > 0.0 ? openMw : -1.0, 'f', 4));
         ini.setValue(QStringLiteral("gas_diff"),
-                     QString::number(openDiff >= 0.0 ? openDiff : -1.0, 'f', 5));
+                     QString::number(openDiff > 0.0 ? openDiff : -1.0, 'f', 5));
 
         //> The file says it was written by the program that can read it. A
         //> module checking either of these against its own build must not be
@@ -5482,6 +5511,74 @@ QString EcProject::smartfluxBlockReason() const
                 .arg(configured);
     }
 
+    //> One gas per slot. EddyPro has a column for CO2, one for H2O, one for
+    //> CH4 and one for everything else, and writeEddyProCompatibleKeys keeps
+    //> the first record that fits each. Four gases can still be too many for
+    //> that layout: a second CO2 analyser, or COS beside N2O, would be left
+    //> out of the package and the module would never say so.
+    QVector<int> inSlot[kEddyProGasSlots];
+    for (int i = 0; i < g.gasColumns.size(); ++i)
+    {
+        const auto& rec = g.gasColumns.at(i);
+        if (rec.rawColumn <= 0) { continue; }
+        inSlot[legacySlotOfSpecies(rec.slug)] << i;
+    }
+    const auto speciesName = [&g](int i)
+    {
+        const auto& slug = g.gasColumns.at(i).slug;
+        const auto* entry = GasMetadata::findSpecies(slug);
+        return entry ? entry->displayFormula : slug.toUpper();
+    };
+    for (int s = 0; s < kEddyProGasSlots - 1; ++s)
+    {
+        if (inSlot[s].size() > 1)
+        {
+            return tr("This project measures %1 in %2 columns, and EddyPro "
+                      "provides for one. A SmartFlux package would process "
+                      "only the first. Deselect the others in Basic Settings.")
+                    .arg(speciesName(inSlot[s].first()))
+                    .arg(inSlot[s].size());
+        }
+    }
+    if (inSlot[3].size() > 1)
+    {
+        QStringList names;
+        for (const int i : inSlot[3]) { names << speciesName(i); }
+        return tr("This project measures %1, and EddyPro provides one slot "
+                  "for every gas other than CO2, H2O and CH4. A SmartFlux "
+                  "package would process only %2. Deselect the others in "
+                  "Basic Settings.")
+                .arg(QLocale().createSeparatedList(names), names.first());
+    }
+
+    //> The fourth gas needs its own constants: without them EddyPro computes
+    //> it with N2O's. eddyProFourthGasConstants resolves the species default,
+    //> so this is only a species this program has no value for either and
+    //> the user left blank.
+    if (!inSlot[3].isEmpty())
+    {
+        const int i = inSlot[3].first();
+        qreal mw = -1.0;
+        qreal diff = -1.0;
+        eddyProFourthGasConstants(&g.gasColumns.at(i), &mw, &diff);
+        if (g.gasColumns.at(i).slug != QLatin1String("n2o"))
+        {
+            if (mw <= 0.0)
+            {
+                return tr("No molecular weight is known for %1, and without "
+                          "one a SmartFlux module would compute it as N2O. "
+                          "Enter it in Basic Settings.").arg(speciesName(i));
+            }
+            if (diff <= 0.0)
+            {
+                return tr("No diffusivity is known for %1, and without one a "
+                          "SmartFlux module would correct its spectra as "
+                          "N2O's. Enter it in Basic Settings.")
+                        .arg(speciesName(i));
+            }
+        }
+    }
+
     //> One cell block, not one record: EddyPro has a single set of cell slots,
     //> so two analysers each reporting their own cell temperature cannot both
     //> be described.
@@ -5528,6 +5625,38 @@ QString EcProject::smartfluxBlockReason() const
         return tr("The Eugster and Senn (1995) spectral correction is not "
                   "available on a SmartFlux module. Choose another method in "
                   "Advanced Settings > Spectral Corrections.");
+    }
+
+    //> Methods this fork added to options EddyPro also has. The module does
+    //> not refuse a value it lacks: it reads it as one of its own, so each of
+    //> these would run as something else without a word.
+    if (ec_project_state_.projectGeneral.qcflag_meth == 4)
+    {
+        return tr("The Vitale et al. (2020) quality flagging policy is not "
+                  "available on a SmartFlux module, which would flag with "
+                  "Mauder and Foken (2004) instead. Choose another policy in "
+                  "Advanced Settings > Processing Options.");
+    }
+    if (ec_project_state_.randomError.ru_method == 4
+            || ec_project_state_.randomError.ru_method == 5)
+    {
+        return tr("The %1 random uncertainty method is not available on a "
+                  "SmartFlux module, which would estimate no random "
+                  "uncertainty at all. Choose another method in Advanced "
+                  "Settings > Statistical Analysis.")
+                .arg(ec_project_state_.randomError.ru_method == 4
+                     ? QStringLiteral("Billesbach (2011)")
+                     : QStringLiteral("Lenschow et al. (2000)"));
+    }
+    //> Only while despiking runs: with the spike test off the method is
+    //> never read, and nothing would change.
+    if (ec_project_state_.screenTest.test_sr != 0
+            && ec_project_state_.screenParam.despike_vm == 2)
+    {
+        return tr("Consecutive-difference despiking is not available on a "
+                  "SmartFlux module, which would despike with Mauder et al. "
+                  "(2013) instead. Choose another method in Advanced "
+                  "Settings > Statistical Analysis.");
     }
 
     return QString();

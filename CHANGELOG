@@ -75,6 +75,19 @@
 	- Fix: A gas record with no raw column no longer takes an EddyPro gas
 	       slot ahead of the column the user chose, in SmartFlux packages
 	       too.
+	- Fix: SmartFlux packages are refused, with where to change the
+	       setting, for projects LI-COR's embedded EddyPro would misread
+	       without a word: two gases for one of its four slots (a second
+	       CO2 analyser, or COS beside N2O), Vitale et al. (2020) quality
+	       flags (read as Mauder and Foken), Billesbach or Lenschow random
+	       uncertainty (read as none) and consecutive-difference despiking
+	       while despiking is on (read as Mauder 2013). The refused methods
+	       are held to the ones File > Export replaces by
+	       tests/test_smartflux_guard_static.py.
+	- Fix: A fourth gas other than N2O that left its molecular weight and
+	       diffusivity at the species default was packaged with gas_mw=-1,
+	       which EddyPro reads as N2O's constants. The species' own values
+	       are written now, and a species with none known is refused.
 
 8.1.9 (2026-11-05)
 
