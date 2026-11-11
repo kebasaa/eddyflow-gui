@@ -30,6 +30,8 @@
 
 class IniFile;
 class QSettings;
+struct EddyProExportChange;
+struct EddyProGasSlots;
 
 #include "configstate.h"
 #include "defs.h"
@@ -94,8 +96,15 @@ public:
     //> Deliberately a transform on a copy rather than a branch in
     //> saveEcProject: the native format must not change shape depending on
     //> what the file is going to be used for.
+    //>
+    //> \a choice, when given, names the column for each of EddyPro's four
+    //> gas slots in place of the first-match rule. \a dropped, when given,
+    //> receives the gases that ended up in no slot. SmartFlux passes neither:
+    //> it refuses a project that would lose a gas before it gets here.
     bool exportEddyProProject(const QString &sourceFile,
-                              const QString &targetFile) const;
+                              const QString &targetFile,
+                              const EddyProGasSlots* choice = nullptr,
+                              QVector<EddyProExportChange>* dropped = nullptr) const;
 
     //> Why this project cannot be expressed as an EddyPro one, or empty when
     //> it can. Asked before a SmartFlux package is built, because the export
@@ -469,6 +478,7 @@ public:
     void setSpectraFile(const QString& p);
     void setSpectraFluxRunMode(int n);
     void setSpectraAutomaticConfig(int n);
+    void setSpectraKeepParentFluxnetFile(int n);
     void setSpectraMinSmpl(int l);
     void setSpectraHorst(int n);
     void setSpectraAddSonic(int n);
@@ -961,6 +971,7 @@ public:
     int spectraMode() const { return ec_project_state_.spectraSettings.sa_mode; }
     int spectraFluxRunMode() const { return ec_project_state_.spectraSettings.flux_run_mode; }
     int spectraAutomaticConfig() const { return ec_project_state_.spectraSettings.automatic_spectra_config; }
+    int spectraKeepParentFluxnetFile() const { return ec_project_state_.spectraSettings.keep_parent_fluxnet_file; }
     const QString& spectraStartDate() const { return ec_project_state_.spectraSettings.start_sa_date; }
     const QString& spectraEndDate() const { return ec_project_state_.spectraSettings.end_sa_date; }
     const QString& spectraStartTime() const { return ec_project_state_.spectraSettings.start_sa_time; }
@@ -1151,7 +1162,9 @@ private:
     //> The body of exportEddyProProject: rebuild the flat per-slot keys the
     //> record format replaced, drop the keys this fork added, and spell the
     //> fourth slot the way EddyPro does.
-    void writeEddyProCompatibleKeys(QSettings& ini) const;
+    void writeEddyProCompatibleKeys(QSettings& ini,
+                                    const EddyProGasSlots* choice = nullptr,
+                                    QVector<EddyProExportChange>* dropped = nullptr) const;
 
     //> Drop the gas records that name no column, renumbering the moisture
     //> references that pointed past one. Runs once, after every per-gas

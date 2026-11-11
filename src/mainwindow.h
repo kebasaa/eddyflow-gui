@@ -32,6 +32,7 @@
 #include "configstate.h"
 #include "defs.h"
 #include "fileutils.h"
+#include "previousrun.h"
 #include "process.h"
 
 class QPlainTextEdit;
@@ -80,6 +81,7 @@ private slots:
     void fileOpen(const QString& fileName = QString());
     void importEddyProFile(const QString& fileName = QString());
     void importEddyUhFile(const QString& fileName = QString());
+    void exportEddyProFile();
     void fileRecent();
     bool fileSave(const bool quiet = false);
     bool fileSaveAs(const QString& fileName = QString());
@@ -232,7 +234,26 @@ private:
     void displayExitMsg2(Process::ExitStatus exitReason);
     bool okToStopRun();
     int testBeforeRunningPassed(int step);
-    bool testForPreviousData();
+    //> Room on the output disk, before a run: refuse when the engine would
+    //> stop at once, and warn when the raw datasets will not fit. `fromRaw`
+    //> is false for a run that only recomputes fluxes from a previous one.
+    bool confirmOutputSpace(bool fromRaw);
+    //> The exit message's explanation when the engine stopped for lack of
+    //> room, with the room there is now.
+    QString outputDiskFullInfo() const;
+    //> What an earlier run left in the output folder, for the project as it
+    //> stands now, saved or not. Listed in a worker thread behind a progress
+    //> dialog; `cancelled` is set when the user stopped it.
+    PreviousRun::Scan scanPreviousRun(bool* cancelled);
+    //> Removes `files` before a run, except `deferred`, which is removed
+    //> only once the run has written its replacement. In a worker thread
+    //> behind a progress dialog. False when it was stopped, or when some
+    //> could not be removed and the user would rather not carry on.
+    bool deleteObsoleteOutputs(const QStringList& files, const QString& deferred);
+    //> After a flux-correction pass: drops the record a correction-only run
+    //> replaced, or, when a chained pass did not finish, writes the record
+    //> of the raw processing so the correction can be retried on its own.
+    void finishCorrectionPass(bool success);
     bool alertChangesWhileRunning();
     void togglePageButton(Defs::CurrPage page);
     void changeViewToolbarSeparators(Defs::CurrPage page);
@@ -251,6 +272,8 @@ private:
     QMenu *optionsMenu;
     QMenu *helpMenu;
     QMenu *fileMenuOpenRecent;
+    QMenu *fileMenuImport;
+    QMenu *fileMenuExport;
 
     QToolBar *fileToolBar;
     QToolBar *viewToolBar;
@@ -267,6 +290,7 @@ private:
     QAction *openAction;
     QAction *importEddyProAction;
     QAction *importEddyUhAction;
+    QAction *exportEddyProAction;
     QAction *closeAction;
     QAction *recentOpenAction;
     QAction *saveAction;
@@ -356,6 +380,31 @@ private:
     bool expressClicked_;
     bool advancedClicked_;
     bool retrieverClicked_;
+    //> The engine said it stopped for lack of room on the output disk; the
+    //> exit message then says so instead of "an error has occurred".
+    bool outputDiskFullSeen_ = false;
+
+    //> The choice made in the dates dialog for the Advanced run about to
+    //> start, spent by testBeforeRunningPassed().
+    struct PendingRerun
+    {
+        bool active = false;
+        bool correctionOnly = false;
+        bool deleteFiles = false;
+        QStringList files;
+        QString recordFile;
+        QString exFile;
+    };
+    PendingRerun pendingRerun_;
+
+    //> Which flux-correction pass is running, so its end can be told apart
+    //> from raw processing's.
+    enum class CorrectionPass { None, Chained, CorrectionOnly };
+    CorrectionPass correctionPass_ = CorrectionPass::None;
+    bool correctionOnlyStart_ = false;
+    //> The record of the pass a correction-only run replaces, removed once
+    //> the new pass has written its own.
+    QString deferredRecordRemoval_;
 
     void showStatusTip(const QString &text) const;
 
@@ -380,7 +429,7 @@ private:
     void closeOpenDialogs();
 
     bool getDatesRangeDialog(Defs::CurrRunMode mode);
-    bool showDatesRangeDialog(Defs::CurrRunMode mode);
+    bool showDatesRangeDialog(Defs::CurrRunMode mode, bool withDates);
     FileUtils::DateRange getCurrentDateRange();
 
     void minimizeGui();

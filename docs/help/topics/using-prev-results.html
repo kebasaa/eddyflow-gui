@@ -284,6 +284,8 @@
       
         
       
+        
+      
     
     
     
@@ -400,6 +402,34 @@
     
   
     Importing EddyPro and EddyUH Projects
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="exporting-eddypro-projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exporting a Project to EddyPro
   
 
     
@@ -550,10 +580,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
         
           
-          <label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
             
   
   
@@ -571,8 +601,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_8">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -713,10 +743,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_10" >
         
           
-          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_10" id="__nav_3_10_label" tabindex="0">
             
   
   
@@ -734,8 +764,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_9">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_10">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2583,6 +2613,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using Results from a Previous Run
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="using-prev-results.html" class="md-nav__link md-nav__link--active">
         
   
@@ -2599,6 +2647,47 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#re-running-only-the-flux-correction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Re-running only the flux correction
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-a-correction-only-run-is-possible" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When a correction-only run is possible
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -4286,6 +4375,36 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#re-running-only-the-flux-correction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Re-running only the flux correction
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-a-correction-only-run-is-possible" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When a correction-only run is possible
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -4302,12 +4421,37 @@
 
 
 <h1 id="using-results-from-previous-runs">Using results from previous runs<a class="headerlink" href="#using-results-from-previous-runs" title="Permanent link">&para;</a></h1>
-<p>Internally, processing raw data to get to corrected fluxes with EddyFlow happens in either 1 single step or 2 separate steps. This is carried out automatically by the software, so that you only need to click <strong>Run</strong> once and wait while EddyFlow goes through the whole procedure and computes corrected fluxes. The two steps can be conveniently (though approximately) thought of as:</p>
-<p>STEP1: Raw Data Processing (RP hereafter)</p>
-<p>STEP2: Flux Computation and Correction (FCC)</p>
-<p>However, in some cases (basically depending on the selected spectral correction method) the "flux computation and correction" calculations are performed within RP, so that the whole processing is performed using only STEP1. In all other cases, EddyFlow goes through RP first and then uses partial results created by RP to feed the second step, FCC, and get to the final fluxes. In the first step (RP) raw data are imported, filtered, corrected and processed according to your selections, to extract all available information (mean values, covariances, uncorrected fluxes, turbulence parameters, etc.). If you selected a purely analytical spectral correction method—or no spectral correction at all—RP also corrects fluxes and provide final results. Otherwise, if you selected an <em>in situ</em> spectral correction method, RP outputs an intermediate results file (called "essentials") containing all its results, that is passed on to FCC, which starts from there to calculate spectral corrections and finally, corrected fluxes. RP is by far the most time consuming processing step, reading in and processing thousands of raw files, each containing large datasets. FCC, in contrast, works on the calculated statistics, thus it is much faster (it takes roughly 10% of the overall processing time).</p>
-<p>In general, for each new run, EddyFlow should use both RP and FCC (with the exceptions described above) to get you to the final fluxes. However, if you already performed a run (let's call it RUN1) with EddyFlow and are now processing (RUN2) the same data with different processing options, chances are that the RP step can be skipped, and the processing can start from results of RUN1, which would spare you a lot of execution time. The possibility of doing that depends on whether the new settings that you prepared for RUN2 are such that the processing steps performed in RP are identical between RUN1 and RUN2. In this case, EddyFlow can start from the essentials results of RUN1, and just perform the remaining operations to compute a second set of results. All that you have to do here is to provide the <strong>Previous Output Directory</strong>, where results from previous runs are stored. If a directory is provided, EddyFlow will search inside that folder for all previous runs (so, make sure you store all your results in the same root directory, possibly organized in subdirectories for the sake of order) and, if one is found that matches the requirements (the control is performed on the older and the new ".eddyflow" files), it will start from the partial results (the "essentials" file) of that run, and provide you with the final results of your new run.</p>
-<p>In order for this mechanism to work, it is crucial that you do not alter or move some of the results files. At the end of each run, EddyFlow creates a copy of the current ".eddyflow" file in the output folder, where the essentials file is also stored. The two files are conceptually linked by the timestamp that appears in the file names. The ".eddyflow" file is used to "evaluate" the previous run. As a good practice, you are encouraged not to eliminate the timestamp and the string "essentials" from the essentials file name. Furthermore, the paired ".eddyflow" and essentials files need to be in the same folder. You are free to move and rename all other result files.</p>
+<p>An Advanced run processes raw data in one or two steps. You click <strong>Run</strong> once and EddyFlow goes through them on its own:</p>
+<ul>
+<li><strong>Raw data processing (RP):</strong> raw files are imported, filtered, corrected and processed into mean values, covariances, uncorrected fluxes, turbulence parameters and (co)spectra. This step reads every raw file and takes by far the most time.</li>
+<li><strong>Flux computation and correction (FCC):</strong> fluxes are corrected, starting from what RP computed. It works on the half-hourly statistics only and takes a small part of the run time.</li>
+</ul>
+<p>With a purely analytic spectral correction method (or none), and without ensemble-averaged spectra or cospectra outputs, RP also corrects the fluxes and the run ends there. Otherwise RP writes an intermediate FLUXNET file, <code>eddyflow_OutputID_fluxnet_yyyy-mm-ddThhmmss_adv.csv</code>, plus the binned and full cospectra, and FCC continues from them.</p>
+<h2 id="re-running-only-the-flux-correction">Re-running only the flux correction<a class="headerlink" href="#re-running-only-the-flux-correction" title="Permanent link">&para;</a></h2>
+<p>When only flux-correction settings changed since the last run, RP would compute the same intermediate results again. EddyFlow can then skip it and re-run only FCC on the results the previous run left in the output folder. Examples of such settings are the spectral assessment limits and periods, the low-frequency correction, the footprint model, the quality flagging scheme and the result files.</p>
+<p>Every time you start a run in Advanced mode, the <strong>Advanced run</strong> dialog asks how to treat the previous run in the output folder. If date subsets are set, the same dialog also shows them. In its <strong>Previous run</strong> section:</p>
+<ul>
+<li><strong>Flux correction only (reuse the raw-processing results)</strong> is selected when it is possible. A note reminds you that EddyFlow compares the settings, not the contents of the metadata, biomet or raw data files. Use this option only if those files are unchanged since the previous run.</li>
+<li><strong>Full re-run (raw processing and flux correction)</strong> processes the raw data again.</li>
+<li>When <strong>Flux correction only</strong> is not possible, it is greyed out and the dialog lists the reasons. It names any setting that requires raw processing again, and explains how to keep the raw-processing results next time.</li>
+<li>When the output folder holds no previous run, both choices are greyed out and the run is a full run.</li>
+</ul>
+<p>The buttons decide what happens to the files the chosen run makes obsolete:</p>
+<ul>
+<li><strong>Keep and run</strong> (the default) leaves every earlier file in place.</li>
+<li><strong>Delete and run</strong> removes them before the run starts. With <strong>Flux correction only</strong>, these are the files of earlier flux corrections over the same raw processing (full output, FLUXNET and metadata files, spectral analysis files, log and <code>processing_*.eddyflow</code> copy). The raw-processing results are kept. With <strong>Full re-run</strong>, they are all files that earlier runs of this project wrote under EddyFlow's own names, including the binned and full cospectra. Other files in the output folder are never touched. <strong>Show files</strong> lists what would be deleted.</li>
+</ul>
+<p>Clearing the cospectra folders before a full re-run also matters for the results. The flux correction reads every file in those folders, so cospectra left there by an earlier run would be read together with the new ones.</p>
+<h2 id="when-a-correction-only-run-is-possible">When a correction-only run is possible<a class="headerlink" href="#when-a-correction-only-run-is-possible" title="Permanent link">&para;</a></h2>
+<p>EddyFlow offers <strong>Flux correction only</strong> when all of the following hold:</p>
+<ul>
+<li><strong>Previous run is on record.</strong> The output folder holds the <code>processing_yyyy-mm-ddThhmmss_adv.eddyflow</code> copy of an earlier Advanced run of this project, as written at the end of every flux correction.</li>
+<li><strong>Intermediate file kept.</strong> The intermediate FLUXNET file it names is still there, and was written by a version whose flux correction can read it. The flux correction deletes this file when it finishes, unless <strong>Keep raw-processing results for a faster correction-only re-run</strong> is checked in <a href="output-files.html#keep-raw-processing-results">Output files</a>. That box is checked by default.</li>
+<li><strong>No raw-processing setting changed.</strong> None of the settings raw processing reads has changed since that run. These are everything on <strong>Project Creation</strong> and <strong>Basic Settings</strong>, the raw processing options and statistical tests, and among others the random uncertainty, limit of detection, WPL terms and the spectral correction method. Paths to files are compared, not the files' contents.</li>
+<li><strong>Flux correction needed.</strong> The current settings need the flux correction at all: an <em>in situ</em> spectral correction method (Horst, Ibrom, Fratini), or ensemble-averaged spectra or cospectra outputs.</li>
+<li><strong>Spectra available.</strong> The binned cospectra (and, for Fratini et al. 2012, the full cospectra) that the current settings need were written by that raw processing, and no other run's files are mixed in with them.</li>
+</ul>
+<p>If a flux correction that followed its raw processing fails or is stopped, EddyFlow records the raw processing in the output folder, so that the flux correction alone can be run again.</p>
 
 
 

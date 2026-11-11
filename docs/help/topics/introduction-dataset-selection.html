@@ -284,6 +284,8 @@
       
         
       
+        
+      
     
     
     
@@ -400,6 +402,34 @@
     
   
     Importing EddyPro and EddyUH Projects
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="exporting-eddypro-projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exporting a Project to EddyPro
   
 
     
@@ -550,10 +580,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
         
           
-          <label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
             
   
   
@@ -571,8 +601,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_8">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -713,10 +743,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_10" >
         
           
-          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_10" id="__nav_3_10_label" tabindex="0">
             
   
   
@@ -734,8 +764,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_9">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_10">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -4547,7 +4577,7 @@
 <p><strong>Raw file name format:</strong> For raw files other than .ghg, your entry in this field should indicate which parts of the file name are the year, month (mm if using dd for day, omit if using ddd), day (dd for day of month or ddd for day of year), hour (HH), minute (MM), and the extension of the file. See <a href="raw-file-name-format.html#top">Raw file name format</a>.</p>
 <p><strong>Output directory:</strong> Specify where the output files will be stored. Click the <strong>Browse…</strong> button and navigate to the desired directory. You can also edit it directly from this text box. The software will create subfolders inside the selected output directory. The output directory must be a local folder: it has no <strong>Remote drive...</strong> button, and a shared link pasted into it is refused.</p>
 <p><strong>Output ID:</strong> Enter the ID. This string will be appended to each output file so a short ID is recommended. Again, the graphical interface does not allow the use of characters that result in file names unacceptable to the underlying operating system (for Windows® these include: \ /: @ ? * " &lt; &gt;).</p>
-<p><strong>Previous output directory:</strong> This is the path of a directory containing results from previous run(s). EddyFlow will attempt to speed up the flux computation procedure by checking for any partial results obtained from previous run(s). If they are contained in this folder EddyFlow will check the settings against the current settings to determine if these data are suitable as an intermediate starting point in the current data processing session. See <a href="using-prev-results.html#top">Using results from previous runs</a>.</p>
+<p><strong>Results of a previous run:</strong> There is no separate field for them. When you start an Advanced run, EddyFlow looks in the output directory for the results of an earlier run. If only flux-correction settings have changed since then, it offers to re-run only the flux correction. See <a href="using-prev-results.html#top">Using results from previous runs</a>.</p>
 <p><strong>Missing sample allowance:</strong> Select the maximum percent of missing samples that are allowed in each output file. If the number of missing values exceeds this setting the file will be ignored in the dataset. The maximum is 40%.</p>
 <p><strong>Flux averaging interval:</strong> This is the time span over which fluxes will be averaged. The flux averaging interval can be shorter than, equal to, or longer than the raw file duration. Set to <em>0</em> to use the input file duration as the flux averaging interval, in which case <em>File as is</em> appears in the field.</p>
 <p><strong>North reference:</strong> Indicate whether you want the output data to be referenced to magnetic or geographic north. If you choose geographic north, EddyFlow can retrieve the Magnetic Declination at your site from NOAA (U.S. National Oceanic and Atmospheric Administration) online resources. You can also enter the magnetic declination manually. EddyFlow assumes that north is assessed at the site using the compass, so that everything you provide to the software is with respect to local geographic north. If your measurements are taken with respect to due (magnetic) north, then just select the option <strong>Use magnetic north</strong> or enter a declination of zero degrees.</p>

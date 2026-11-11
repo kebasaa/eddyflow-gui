@@ -554,9 +554,9 @@ class ItIsInTheBuildAndInTheMenu(unittest.TestCase):
 
     def test_the_action_exists_and_is_connected_and_in_the_menu(self):
         self.assertIn("importEddyUhAction", read(MAINWINDOW_H))
-        self.assertIn("Import EddyUH Project...", MW)
+        self.assertIn('importEddyUhAction->setText(tr("EddyUH Project..."));', MW)
         self.assertIn("connect(importEddyUhAction, &QAction::triggered", MW)
-        self.assertIn("fileMenu->addAction(importEddyUhAction);", MW)
+        self.assertIn("fileMenuImport->addAction(importEddyUhAction);", MW)
 
     def test_the_file_dialog_filters_on_the_preproc_prefix(self):
         #> There is no extension to filter on.

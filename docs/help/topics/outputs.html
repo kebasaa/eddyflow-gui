@@ -284,6 +284,8 @@
       
         
       
+        
+      
     
     
     
@@ -400,6 +402,34 @@
     
   
     Importing EddyPro and EddyUH Projects
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="exporting-eddypro-projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exporting a Project to EddyPro
   
 
     
@@ -550,10 +580,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
         
           
-          <label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
             
   
   
@@ -571,8 +601,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_8">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -713,10 +743,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_10" >
         
           
-          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_10" id="__nav_3_10_label" tabindex="0">
             
   
   
@@ -734,8 +764,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_9">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_10">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -4536,15 +4566,15 @@
 <td>Folder containing user statistics files.</td>
 </tr>
 <tr>
-<td>eddyflow_OutputID_essentials_yyyy-mm-ddThhmmss.csv</td>
-<td>Intermediate flux results that have not been corrected. EddyFlow uses this file when you want to quickly reprocess data. See Using results from previous runs for more information.</td>
+<td>eddyflow_OutputID_fluxnet_yyyy-mm-ddThhmmss_adv.csv (raw processing)</td>
+<td>Intermediate results of the raw processing, not yet corrected, which the flux correction reads. It carries the raw processing's timestamp, earlier than the final files'. It is deleted at the end of the run unless <strong>Keep raw-processing results for a faster correction-only re-run</strong> is checked, which lets a later run re-run only the flux correction. See <a href="using-prev-results.html#top">Using results from previous runs</a>.</td>
 </tr>
 <tr>
 <td>eddyflow_OutputID_biomet_yyyy-mm-ddThhmmss.csv</td>
 <td>Summarized output variables.</td>
 </tr>
 <tr>
-<td>eddyflow_OutputID_fluxnet_yyyy-mm-ddThhmmss.txt</td>
+<td>eddyflow_OutputID_fluxnet_yyyy-mm-ddThhmmss.csv</td>
 <td>File conforming FLUXNET and AmeriFlux FP-In Standards for labels, units and format. Features new output variables, including many intermediate results, statistics on all high-frequency variables, covariances between all high-frequency variables, biomet mean values and metadata, as well as results of new implementations See <a href="output-files-full-output.html#columns-and-files-added-or-changed-in-recent-versions">The full output file</a> for the columns added in recent versions (per-gas <code>SPEC_CORR_LI7700_&lt;A|B|C&gt;_&lt;GAS&gt;</code>, <code>&lt;GAS&gt;_DETLIM</code>, always-written <code>*_KID</code>, optional <code>test_rf</code> families).</td>
 </tr>
 <tr>
@@ -4569,7 +4599,7 @@
 </tr>
 <tr>
 <td>processing_yyyy-mm-ddThhmmss.eddyflow</td>
-<td>EddyFlow project file (legacy .eddypro project files can still be imported and are auto-converted).</td>
+<td>EddyFlow project file as the run used it (legacy .eddypro project files can still be imported and are auto-converted). It is also the record EddyFlow reads to decide whether a later run can re-run only the flux correction. See <a href="using-prev-results.html#top">Using results from previous runs</a>.</td>
 </tr>
 </tbody>
 </table>

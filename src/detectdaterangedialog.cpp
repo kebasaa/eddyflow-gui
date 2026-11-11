@@ -28,12 +28,17 @@
 #include <QCheckBox>
 #include <QDateEdit>
 #include <QDesktopServices>
+#include <QDir>
 #include <QFuture>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLocale>
+#include <QPlainTextEdit>
 #include <QPushButton>
+#include <QRadioButton>
 #include <QTimeEdit>
+#include <QVBoxLayout>
 #include <QTimer>
 #include <QtConcurrent>
 
@@ -41,6 +46,7 @@
 #include "defs.h"
 #include "ecproject.h"
 #include "dlproject.h"
+#include "outputspace.h"
 #include "stringutils.h"
 #include "widget_utils.h"
 
@@ -54,12 +60,12 @@ DetectDateRangeDialog::DetectDateRangeDialog(QWidget *parent, EcProject *ecProje
     setWindowTitle(tr("Detect dates"));
     WidgetUtils::removeContextHelpButton(this);
 
-    auto groupTitle = new QLabel;
-    groupTitle->setText(tr("Checking date range of the dataset and it's subsets..."));
+    groupTitle_ = new QLabel;
+    groupTitle_->setText(tr("Checking date range of the dataset and it's subsets..."));
 
-    auto hrLabel = new QLabel;
-    hrLabel->setObjectName(QLatin1String("hrLabel"));
-    hrLabel->setMinimumWidth(400);
+    hrLabel_ = new QLabel;
+    hrLabel_->setObjectName(QLatin1String("hrLabel"));
+    hrLabel_->setMinimumWidth(400);
 
 //    msgLabel = new QLabel(tr("Detect and compare..."));
 //    msgLabel->setStyleSheet(QStringLiteral("QLabel { margin-bottom: 15px; }"));
@@ -72,8 +78,8 @@ DetectDateRangeDialog::DetectDateRangeDialog(QWidget *parent, EcProject *ecProje
     okButton = WidgetUtils::createCommonButton(this, tr("Ok"));
 
     dialogLayout = new QGridLayout(this);
-    dialogLayout->addWidget(groupTitle, 0, 0, 1, -1);
-    dialogLayout->addWidget(hrLabel, 1, 0, 1, -1);
+    dialogLayout->addWidget(groupTitle_, 0, 0, 1, -1);
+    dialogLayout->addWidget(hrLabel_, 1, 0, 1, -1);
 //    dialogLayout->addWidget(msgLabel, 2, 0, 1, -1);
     dialogLayout->addWidget(setAsCurrentRangeButton, 7, 0, 1, 2, Qt::AlignCenter);
     dialogLayout->addWidget(okButton, 8, 0, 1, 2, Qt::AlignCenter);
@@ -610,7 +616,197 @@ void DetectDateRangeDialog::showDateRange(DateRangeType type)
 void DetectDateRangeDialog::setCurrentRange(FileUtils::DateRange currentRange)
 {
     availableDataRange_ = currentRange;
+    datesShown_ = true;
     createCurrentRange();
+}
+
+void DetectDateRangeDialog::showPreviousRun(const PreviousRun::Scan& scan)
+{
+    scan_ = scan;
+    setWindowTitle(tr("Advanced run"));
+
+    //> Without date sections the date heading and its button have nothing
+    //> to stand for.
+    if (!datesShown_)
+    {
+        groupTitle_->hide();
+        hrLabel_->hide();
+        setAsCurrentRangeButton->hide();
+    }
+    okButton->hide();
+    okButton->setDefault(false);
+
+    const int textWidth = 520;
+    const bool anything = !scan.allOutputs.isEmpty() || !scan.recordFile.isEmpty();
+
+    auto title = new QLabel(tr("<b>Previous run</b>"));
+    auto hr = new QLabel;
+    hr->setObjectName(QLatin1String("hrLabel"));
+
+    auto status = new QLabel;
+    status->setWordWrap(true);
+    status->setFixedWidth(textWidth);
+    if (!anything)
+    {
+        status->setText(tr("No previous run was found in the output folder."));
+    }
+    else if (scan.rawProcessingTime.isValid())
+    {
+        status->setText(tr("The output folder holds the results of an earlier run. "
+                           "Its raw processing ran on %1.")
+                            .arg(QLocale().toString(scan.rawProcessingTime,
+                                                    QLocale::ShortFormat)));
+    }
+    else
+    {
+        status->setText(tr("The output folder holds the results of an earlier run."));
+    }
+
+    correctionOnlyRadio_ = new QRadioButton(tr("Flux correction only (reuse the "
+                                               "raw-processing results)"));
+    fullRerunRadio_ = new QRadioButton(tr("Full re-run (raw processing and flux "
+                                          "correction)"));
+    correctionOnlyRadio_->setEnabled(scan.correctionOnly);
+    fullRerunRadio_->setEnabled(anything);
+    if (scan.correctionOnly) { correctionOnlyRadio_->setChecked(true); }
+    else { fullRerunRadio_->setChecked(true); }
+
+    correctionOnlyNote_ = new QLabel;
+    correctionOnlyNote_->setWordWrap(true);
+    correctionOnlyNote_->setFixedWidth(textWidth);
+    correctionOnlyNote_->setTextFormat(Qt::RichText);
+    if (scan.correctionOnly)
+    {
+        correctionOnlyNote_->setText(
+            tr("<p><b>Note:</b> only the flux correction runs, reusing the "
+               "raw-processing results above. Use this only if the metadata, "
+               "biomet and raw data files are unchanged since then: EddyFlow "
+               "compares the settings, not the contents of those files.</p>"));
+    }
+    else if (anything)
+    {
+        QString items;
+        for (const auto& reason : std::as_const(scan.reasons))
+        {
+            items += QStringLiteral("<li>%1</li>").arg(reason.toHtmlEscaped());
+        }
+        correctionOnlyNote_->setText(
+            tr("<p><b>Flux correction only is not available:</b></p>")
+            + QStringLiteral("<ul style=\"margin-left: -20px;\">%1</ul>").arg(items));
+    }
+    correctionOnlyNote_->setVisible(anything);
+
+    obsoleteLabel_ = new QLabel;
+    obsoleteLabel_->setWordWrap(true);
+    obsoleteLabel_->setFixedWidth(textWidth);
+
+    showFilesButton_ = new QPushButton(tr("Show files"));
+    showFilesButton_->setProperty("commonButton2", true);
+    showFilesButton_->setCheckable(true);
+    showFilesButton_->setAutoDefault(false);
+    showFilesButton_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+
+    obsoleteFiles_ = new QPlainTextEdit;
+    obsoleteFiles_->setReadOnly(true);
+    obsoleteFiles_->setLineWrapMode(QPlainTextEdit::NoWrap);
+    obsoleteFiles_->setFixedSize(textWidth, 140);
+    obsoleteFiles_->hide();
+
+    auto section = new QVBoxLayout;
+    section->setSpacing(6);
+    section->addWidget(title);
+    section->addWidget(hr);
+    section->addWidget(status);
+    section->addWidget(correctionOnlyRadio_);
+    section->addWidget(fullRerunRadio_);
+    section->addWidget(correctionOnlyNote_);
+    section->addWidget(obsoleteLabel_);
+    section->addWidget(showFilesButton_, 0, Qt::AlignLeft);
+    section->addWidget(obsoleteFiles_);
+    dialogLayout->addLayout(section, 9, 0, 1, -1);
+
+    deleteAndRunButton_ = WidgetUtils::createCommonButton(this, tr("Delete and run"));
+    auto keepAndRunButton = WidgetUtils::createCommonButton(this, tr("Keep and run"));
+    auto cancelButton = WidgetUtils::createCommonButton(this, tr("Cancel"));
+    //> Deleting is never what Enter does.
+    deleteAndRunButton_->setDefault(false);
+    deleteAndRunButton_->setAutoDefault(false);
+    cancelButton->setDefault(false);
+    cancelButton->setAutoDefault(false);
+    keepAndRunButton->setDefault(true);
+
+    auto buttons = new QHBoxLayout;
+    buttons->addStretch();
+    buttons->addWidget(deleteAndRunButton_);
+    buttons->addWidget(keepAndRunButton);
+    buttons->addWidget(cancelButton);
+    buttons->addStretch();
+    dialogLayout->addLayout(buttons, 10, 0, 1, -1);
+
+    connect(correctionOnlyRadio_, &QRadioButton::toggled,
+            this, &DetectDateRangeDialog::updatePreviousRunChoice);
+    connect(showFilesButton_, &QPushButton::toggled,
+            obsoleteFiles_, &QPlainTextEdit::setVisible);
+    connect(deleteAndRunButton_, &QPushButton::clicked, this, [this]()
+    {
+        deleteRequested_ = true;
+        accept();
+    });
+    connect(keepAndRunButton, &QPushButton::clicked, this, [this]()
+    {
+        deleteRequested_ = false;
+        accept();
+    });
+    connect(cancelButton, &QPushButton::clicked, this, &QDialog::reject);
+
+    updatePreviousRunChoice();
+    keepAndRunButton->setFocus();
+}
+
+DetectDateRangeDialog::RunKind DetectDateRangeDialog::runKind() const
+{
+    if (correctionOnlyRadio_ && correctionOnlyRadio_->isChecked()
+        && scan_.correctionOnly)
+    {
+        return RunKind::CorrectionOnly;
+    }
+    return RunKind::Full;
+}
+
+void DetectDateRangeDialog::updatePreviousRunChoice()
+{
+    const bool correctionOnly = runKind() == RunKind::CorrectionOnly;
+    const auto& files = correctionOnly ? scan_.correctionOutputs : scan_.allOutputs;
+
+    if (files.isEmpty())
+    {
+        obsoleteLabel_->setText(tr("No earlier files become obsolete with this run."));
+    }
+    else if (correctionOnly)
+    {
+        obsoleteLabel_->setText(
+            tr("%n file(s) (%1) from earlier flux corrections become obsolete. "
+               "\"Delete and run\" removes them before the run starts; the "
+               "raw-processing results are kept.", nullptr, int(files.paths.size()))
+                .arg(OutputSpace::sizeText(files.bytes)));
+    }
+    else
+    {
+        obsoleteLabel_->setText(
+            tr("%n file(s) (%1) from earlier runs of this project become "
+               "obsolete. \"Delete and run\" removes them before the run starts.",
+               nullptr, int(files.paths.size()))
+                .arg(OutputSpace::sizeText(files.bytes)));
+    }
+
+    QStringList shown;
+    shown.reserve(files.paths.size());
+    for (const auto& path : files.paths) { shown << QDir::toNativeSeparators(path); }
+    obsoleteFiles_->setPlainText(shown.join(QLatin1Char('\n')));
+
+    showFilesButton_->setVisible(!files.isEmpty());
+    if (files.isEmpty()) { showFilesButton_->setChecked(false); }
+    deleteAndRunButton_->setEnabled(!files.isEmpty());
 }
 
 bool DetectDateRangeDialog::dateRangesOverlap(FileUtils::DateRange availableDataset,

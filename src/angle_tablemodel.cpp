@@ -279,6 +279,7 @@ bool AngleTableModel::setData(const QModelIndex &index,
 bool AngleTableModel::insertRows(int row, int count, const QModelIndex&)
 {
     if (count != 1) return false;
+    if (angles_->count() + count > MaxSectors) return false;
     if ((row < 0) || (row >= angles_->count()))
         row = angles_->count();
 

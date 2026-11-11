@@ -284,6 +284,8 @@
       
         
       
+        
+      
     
     
     
@@ -400,6 +402,34 @@
     
   
     Importing EddyPro and EddyUH Projects
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="exporting-eddypro-projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exporting a Project to EddyPro
   
 
     
@@ -550,10 +580,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
         
           
-          <label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
             
   
   
@@ -571,8 +601,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_8">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -713,10 +743,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_10" >
         
           
-          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_10" id="__nav_3_10_label" tabindex="0">
             
   
   
@@ -734,8 +764,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_9">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_10">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -5036,7 +5066,7 @@
 </ul>
 <h4 id="water-vapor-time-lag-as-a-function-of-relative-humidity">Water vapor time lag as a function of relative humidity<a class="headerlink" href="#water-vapor-time-lag-as-a-function-of-relative-humidity" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>Number of RH classes:</strong> Select the number of relative humidity classes, to assess water vapor time lag as a function of RH. The whole range of RH variation (0-100%) will be evenly divided according to the selected number of classes. For example, selecting 10 classes causes EddyFlow to assess water vapor time lags for the classes 0-10%, 10-20%,…, 90-100%. Selecting 1 class, the label <em>Do not sort in RH classes</em> appears and will cause EddyFlow to treat water vapor exactly like other passive gases. This option is only suitable for open path systems or closed path systems with short, heated sampling lines.</li>
+<li><strong>Number of RH classes:</strong> Select the number of relative humidity classes, to assess water vapor time lag as a function of RH. The whole range of RH variation (0-100%) will be evenly divided according to the selected number of classes. For example, selecting 10 classes causes EddyFlow to assess water vapor time lags for the classes 0-10%, 10-20%,…, 90-100%. Selecting 1 class, the label <em>Do not sort in RH classes</em> appears and will cause EddyFlow to treat water vapor exactly like other passive gases. This option is only suitable for open path systems or closed path systems with short, heated sampling lines. Time lags found at the edge of the search window are not used. If no relative humidity class gets enough water vapor time lags, water vapor uses a single window from all its time lags (or the window of the metadata, if there are too few), while the other gases keep their optimized windows.</li>
 <li><strong>Minimum latent heat flux:</strong> H2O time lags corresponding to latent heat fluxes smaller than this value will not be considered in the time lag optimization. Selecting high-enough fluxes assures that well developed turbulent conditions are met and the correlation function is well characterized.</li>
 </ul>
 <h4 id="passive-gasses">Passive gasses<a class="headerlink" href="#passive-gasses" title="Permanent link">&para;</a></h4>

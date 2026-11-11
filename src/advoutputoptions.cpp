@@ -210,7 +210,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
            "only the main spectral slopes are evidenced. Select this option "
            "to output binned spectra and cospectra for all available "
            "variables for each flux averaging interval. Results files are "
-           "stored in a separate sub-folder \"\\EddyFlow_binned_cospectra\" "
+           "stored in a separate sub-folder \"\\eddyflow_binned_cospectra\" "
            "inside the selected output folder.");
     outBinSpectraCheckBox->setToolTip(tooltipStr);
     outBinSpectraRequiredIcon = new QLabel;
@@ -227,7 +227,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
                "attain the value of 1 at the lower frequency. Select this "
                "option to output binned ogives for all available variables, "
                "for each flux averaging interval. Results files are stored "
-               "in a separate sub-folder \"\\EddyFlow_binned_ogives\" inside "
+               "in a separate sub-folder \"\\eddyflow_binned_ogives\" inside "
                "the selected output folder.");
     outBinOgivesCheckBox->setToolTip(tooltipStr);
 
@@ -344,6 +344,21 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
            "EddyFlow results. All other variables are solely averaged "
            "and provided on output.");
     outBiometCheckBox->setToolTip(tooltipStr);
+
+    keepRawResultsCheckBox = new QCheckBox;
+    keepRawResultsCheckBox->setText(tr("Keep raw-processing results for a "
+                                       "faster correction-only re-run"));
+    tooltipStr =
+        tr("<b>Keep raw-processing results:</b> The flux correction step "
+           "reads an intermediate FLUXNET file written by the raw "
+           "processing, and deletes it when it is done unless this box "
+           "is checked. Keeping it costs one extra file in the output "
+           "folder, next to the binned and full cospectra. In exchange, a "
+           "later Advanced run in which only flux-correction settings "
+           "changed (spectral assessment and corrections, footprint, "
+           "quality flagging, result files) can skip the raw processing "
+           "and re-run only the flux correction.");
+    keepRawResultsCheckBox->setToolTip(tooltipStr);
 
     createDatasetCheckBox = new QCheckBox;
     createDatasetCheckBox->setText(tr("Build continuous dataset "
@@ -467,7 +482,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     tooltipStr =
         tr("<b>Full length spectra:</b> Spectra calculated for each variable, "
            "for each flux averaging interval. Results files are stored in "
-           "a separate sub-folder \"\\EddyFlow_full_cospectra\" inside the "
+           "a separate sub-folder \"\\eddyflow_full_cospectra\" inside the "
            "selected output folder.");
     title_3->setToolTip(tooltipStr);
 
@@ -476,7 +491,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
         tr("<b>Full length cospectra:</b> Cospectra with the vertical wind "
            "component, calculated for each variable, for each flux averaging "
            "interval. Result files are stored in a separate sub-folder "
-           "\"\\EddyFlow_full_cospectra\" inside the selected output folder.");
+           "\"\\eddyflow_full_cospectra\" inside the selected output folder.");
     title_4->setToolTip(tooltipStr);
 
     auto title_5 = new QLabel;
@@ -608,7 +623,15 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     outputLayout->addLayout(minSelectionLayout, 0, 0, 1, -1);
     outputLayout->addLayout(typicalSelectionLayout, 1, 0, 1, -1);
     outputLayout->addLayout(fullSelectionLayout, 2, 0, 1, -1);
-    outputLayout->addWidget(hrLabel_1, 3, 0, 1, -1);
+    //> One row of the grid for the separator, the keep box and a second
+    //> separator, so the rows below keep their numbers.
+    auto hrLabelKeep = new QLabel;
+    hrLabelKeep->setObjectName(QStringLiteral("hrLabel"));
+    auto keepRawResultsLayout = new QVBoxLayout;
+    keepRawResultsLayout->addWidget(hrLabel_1);
+    keepRawResultsLayout->addWidget(keepRawResultsCheckBox);
+    keepRawResultsLayout->addWidget(hrLabelKeep);
+    outputLayout->addLayout(keepRawResultsLayout, 3, 0, 1, -1);
     outputLayout->addWidget(titlePreprocessing, 4, 0);
     outputLayout->addLayout(assessmentFileOutputsLayout, 5, 0, 1, 4);
     outputLayout->addWidget(hrLabelPreprocessing, 6, 0, 1, -1);
@@ -742,6 +765,8 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
             { ecProject_->setGeneralOutMd(checked); });
     connect(outBiometCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setGeneralOutBiomet(checked); });
+    connect(keepRawResultsCheckBox, &QCheckBox::toggled, [=](bool checked)
+            { ecProject_->setSpectraKeepParentFluxnetFile(checked); });
     connect(createDatasetCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setGeneralMakeDataset(checked); });
     connect(fluxnetErrLabelCheckBox, &QCheckBox::toggled, [=](bool checked)
@@ -889,6 +914,7 @@ void AdvOutputOptions::setSmartfluxUI()
                       << fluxnetBiometCheckBox
                       << outBiometCheckBox
                       << outMdCheckBox
+                      << keepRawResultsCheckBox
                       << outFullSpectraCheckBoxU
                       << outFullSpectraCheckBoxV
                       << outFullSpectraCheckBoxW
@@ -1105,6 +1131,7 @@ void AdvOutputOptions::reset()
     ecProject_->setSpectraFluxRunMode(0);
     timelagAssessmentOnlyCheckBox->setChecked(false);
     planarFitAssessmentOnlyCheckBox->setChecked(false);
+    keepRawResultsCheckBox->setChecked(true);
 
     if (ecProject_->generalUseBiomet())
     {
@@ -1192,6 +1219,7 @@ void AdvOutputOptions::refresh()
     outDetailsCheckBox->setChecked(ecProject_->screenOutDetails());
     outMdCheckBox->setChecked(ecProject_->generalOutMd());
     outBiometCheckBox->setChecked(ecProject_->generalOutBiomet());
+    keepRawResultsCheckBox->setChecked(ecProject_->spectraKeepParentFluxnetFile());
     createDatasetCheckBox->setChecked(ecProject_->generalMakeDataset());
 
     outputFormatRadioGroup->buttons().at(ecProject_->generalFixedOutFormat())->setChecked(true);

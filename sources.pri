@@ -31,6 +31,8 @@ HEADERS += \
     src/dlprojectstate.h \
     src/matfile.h \
     src/eddyuhimport.h \
+    src/eddyproexport.h \
+    src/eddyprogasslotdialog.h \
     src/dlrawfiledesctab.h \
     src/dlsitetab.h \
     src/despikearena.h \
@@ -62,6 +64,8 @@ HEADERS += \
     src/mystyle.h \
     src/mytabwidget.h \
     src/nonzerodoublespinbox.h \
+    src/outputspace.h \
+    src/previousrun.h \
     src/planarfitsettingsdialog.h \
     src/pwbtimelagsettingsdialog.h \
     src/engineprogress.h \
@@ -162,6 +166,8 @@ SOURCES +=  \
     src/dlproject.cpp \
     src/matfile.cpp \
     src/eddyuhimport.cpp \
+    src/eddyproexport.cpp \
+    src/eddyprogasslotdialog.cpp \
     src/dlrawfiledesctab.cpp \
     src/dlsitetab.cpp \
     src/despikearena.cpp \
@@ -188,6 +194,8 @@ SOURCES +=  \
     src/matrixrain.cpp \
     src/rawplayback.cpp \
     src/nonzerodoublespinbox.cpp \
+    src/outputspace.cpp \
+    src/previousrun.cpp \
     src/planarfitsettingsdialog.cpp \
     src/pwbtimelagsettingsdialog.cpp \
     src/lagstats.cpp \

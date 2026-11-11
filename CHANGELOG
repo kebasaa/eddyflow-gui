@@ -1,3 +1,107 @@
+8.1.10 (2026-11-06)
+
+    GUI:
+	- Version bump to match EddyFlow engine 8.1.10.
+	- New: Room on the output disk is checked before a run. Below 1 GB free -
+	       the point at which the engine now stops - the run is refused with
+	       the disk and the room left. When raw datasets are written, their
+	       size is estimated from the levels and variables chosen, the
+	       acquisition frequency and the averaging period, over the subset or
+	       the raw files' own span; if that will not fit, the dialog says how
+	       much a period and the run will take against what is free, and
+	       where to write fewer levels, and asks before starting. On CH-LAE
+	       all seven levels at 20 Hz came to 77 MB a period, about 2 TB over
+	       the run, and filled the network share the run wrote to.
+	- New: A run the engine stops for lack of room ends with "Stopped: the
+	       output disk is full." and what to do, instead of "Oops, an error has
+	       occurred". The interface recognises the engine's own wording, on
+	       either output stream and from a worker as well as the parent.
+	       Pinned by tests/test_output_space_static.py, which also holds the
+	       interface's threshold to the engine's.
+	- New: An Advanced run can re-run only the flux correction. When the
+	       output folder holds an earlier run whose raw-processing results
+	       are still there, and no setting raw processing reads has changed
+	       since, the dialog an Advanced run now always shows offers "Flux
+	       correction only" besides "Full re-run". Its record is the
+	       processing_*.eddyflow copy FCC writes, and only [Project] and the
+	       [RawProcess*] sections are compared, minus the [Project] keys RP
+	       does not use when FCC follows it. Changing the spectral correction
+	       method still needs a full run: FCC copies RP's method code into its
+	       output. When it is not offered, the dialog says why: which settings
+	       changed, or that the results were not kept. Settings are compared,
+	       not the metadata, biomet or raw files, and the dialog says that too.
+	       A chained FCC that fails or is stopped leaves a record of its raw
+	       processing, so the correction can be retried on its own.
+	- New: "Delete and run" in the same dialog removes, before the run starts,
+	       what the chosen run makes obsolete: earlier correction passes over
+	       the same raw processing, or for a full re-run everything earlier
+	       runs of the project wrote, cospectra included, since FCC reads
+	       those folders whole. Only files under the engine's own names are
+	       touched. "Keep and run" is the default button. Looking for the
+	       earlier run and deleting its files both happen in the background
+	       behind a progress dialog that can stop them: on a network share,
+	       listing the cospectra folders takes seconds and deleting them
+	       minutes, and the window looked hung meanwhile.
+	- New: Advanced Settings > Output Files > "Keep raw-processing results
+	       for a faster correction-only re-run" (keep_parent_fluxnet_file).
+	       FCC deleted the intermediate FLUXNET file it reads at the end of
+	       every run, so nothing could ever be re-corrected. On by default,
+	       also for older projects; left out of SmartFlux packages.
+	- Remove: The "previous output directory" search, which looked for
+	       "essentials" files the engine no longer writes, and the run page's
+	       watch for the "Essentials file path:" line.
+	- Fix: The binned and full cospectra folders are named as the engine
+	       names them, in lower case, so they are found on file systems that
+	       tell case apart.
+	- Change: The EddyPro and EddyUH importers moved to File > Import.
+	- New: File > Export > EddyPro Project writes the open project as an
+	       EddyPro 7 project and a <name>_EP.metadata beside it, leaving the
+	       EddyFlow project untouched. A dialog first asks which metadata
+	       column goes in each of EddyPro's four gas slots (CO2, H2O, CH4,
+	       fourth gas; any can be None). What EddyPro cannot express is
+	       replaced, not refused: an instrument it does not know becomes its
+	       generic anemometer or open- or closed-path analyser with the
+	       measured geometry kept; the PWB time lag becomes its automatic
+	       time lag optimization, the closest method it has; any other
+	       method it lacks (Eugster and Senn, Vitale QC, Billesbach or
+	       Lenschow random error, consecutive-difference despiking) becomes
+	       its default; options
+	       it does not have are removed; a fourth gas other than N2O is
+	       written as n2o with its own molecular weight and diffusivity; and
+	       pmol/mol columns are rescaled to ppb. A report lists only what
+	       changed, from what to what, with warnings for what EddyPro may
+	       still refuse, and is saved beside the export as
+	       <name>_EP_export_report.txt. SmartFlux packages are unchanged.
+	- Fix: A gas record with no raw column no longer takes an EddyPro gas
+	       slot ahead of the column the user chose, in SmartFlux packages
+	       too.
+	- Fix: SmartFlux packages are refused, with where to change the
+	       setting, for projects LI-COR's embedded EddyPro would misread
+	       without a word: two gases for one of its four slots (a second
+	       CO2 analyser, or COS beside N2O), Vitale et al. (2020) quality
+	       flags (read as Mauder and Foken), Billesbach or Lenschow random
+	       uncertainty (read as none) and consecutive-difference despiking
+	       while despiking is on (read as Mauder 2013). The refused methods
+	       are held to the ones File > Export replaces by
+	       tests/test_smartflux_guard_static.py.
+	- Fix: A fourth gas other than N2O that left its molecular weight and
+	       diffusivity at the species default was packaged with gas_mw=-1,
+	       which EddyPro reads as N2O's constants. The species' own values
+	       are written now, and a species with none known is refused.
+	- Fix: The wind-direction filter's first excluded sector was never
+	       applied. Sectors were saved as wdf_sect_0_*, wdf_sect_1_*, ...,
+	       but the engine, like EddyPro, reads them from wdf_sect_1_*, so
+	       sector 0 matched nothing and its data went into the fluxes - in
+	       every run and every EddyPro export. Sectors are now saved from 1.
+	       A project saved the old way still opens with all its sectors and
+	       is marked modified, so the next run saves it renumbered; saving
+	       also clears the keys of sectors since removed. Pinned by
+	       tests/test_wind_filter_sectors_static.py.
+	- Fix: The planar-fit sector table stops at 36 sectors, the most the
+	       engine reads (pf_sect_1_* .. pf_sect_36_*). A 37th was saved and
+	       silently left out of the fit. Their numbering was already right.
+	       Pinned by tests/test_wind_filter_sectors_static.py.
+
 8.1.9 (2026-11-05)
 
     GUI:

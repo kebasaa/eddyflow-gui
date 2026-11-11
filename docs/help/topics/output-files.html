@@ -284,6 +284,8 @@
       
         
       
+        
+      
     
     
     
@@ -400,6 +402,34 @@
     
   
     Importing EddyPro and EddyUH Projects
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="exporting-eddypro-projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exporting a Project to EddyPro
   
 
     
@@ -550,10 +580,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
         
           
-          <label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
             
   
   
@@ -571,8 +601,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_8">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -713,10 +743,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_10" >
         
           
-          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_10" id="__nav_3_10_label" tabindex="0">
             
   
   
@@ -734,8 +764,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_9">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_10">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1677,6 +1707,17 @@
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#keep-raw-processing-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keep raw-processing results
+      
+    </span>
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#assessment-file-outputs" class="md-nav__link">
@@ -4411,6 +4452,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#keep-raw-processing-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keep raw-processing results
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#assessment-file-outputs" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4516,6 +4568,8 @@
 <p><strong>Set Minimal:</strong> Click this button to select a minimal set of output files, providing you with the essential results while speeding up the computation process. Suggested for processing long datasets without a need for an in-depth analysis and validation of the computations. Choosing a preset only pre-selects checkboxes; you can add or remove any item afterwards. The two <strong>Fluxnet output settings</strong> checkboxes stay on.</p>
 <p><strong>Set Typical:</strong> Click this button to select a balanced set of output files, providing you with the essential results as well as diagnostic information. The computation time increases with respect to the minimal output configuration.</p>
 <p><strong>Set Thorough:</strong> Click this button to select a complete set of output files, providing you with all the results as well as complete diagnostic information. The computation time may increase considerably with this option. The same applies to the <strong>Fluxnet output settings</strong> checkboxes, which stay on.</p>
+<h2 id="keep-raw-processing-results">Keep raw-processing results<a class="headerlink" href="#keep-raw-processing-results" title="Permanent link">&para;</a></h2>
+<p><strong>Keep raw-processing results for a faster correction-only re-run</strong> (<code>keep_parent_fluxnet_file</code>, section <code>[FluxCorrection_SpectralAnalysis_General]</code>) keeps the intermediate FLUXNET file that raw processing hands to the flux correction. Without it, the flux correction deletes that file when it finishes. Keeping it costs one extra file in the output folder, next to the binned and full cospectra. In exchange, a later Advanced run in which only flux-correction settings changed can skip the raw processing and re-run only the flux correction. See <a href="using-prev-results.html#top">Using results from previous runs</a>. The box is checked by default, also for projects saved by earlier versions. It is greyed out in SmartFlux configuration mode, and the key is left out of SmartFlux packages.</p>
 <h2 id="assessment-file-outputs">Assessment file outputs<a class="headerlink" href="#assessment-file-outputs" title="Permanent link">&para;</a></h2>
 <p>These three radio buttons choose how the whole run is set up around producing or consuming a spectral assessment file. They do not adjust one output checkbox: choosing one applies a coordinated group of settings on this page and on <strong>Spectral Analysis and Corrections</strong>, and locks the ones that must stay fixed. Whatever a mode applies is applied <strong>in one go</strong>, as a single change to the project, and each setting a mode touches is changed only if its value actually differs. The pages refresh once at the end. Before this was fixed, choosing a mode opened a stack of warning windows, one for every setting being changed. Since 8.1.2 any informational warning that would only announce a setting changed on your behalf goes to the interface's message log instead of opening a window.</p>
 <div class="admonition note">

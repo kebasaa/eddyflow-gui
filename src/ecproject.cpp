@@ -29,6 +29,7 @@
 #include <cmath>
 
 #include <QDebug>
+#include <QLocale>
 #include <QRegularExpression>
 #include <QSet>
 #include <QSettings>
@@ -37,6 +38,7 @@
 #include "dlproject.h"
 #include "ecinidefs.h"
 #include "fileutils.h"
+#include "eddyproexport.h"
 #include "gas_metadata.h"
 #include "ini_file.h"
 #include "mainwindow.h"
@@ -1299,6 +1301,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.spectraSettings.use_foken_mid = defaultEcProjectState.spectraSettings.use_foken_mid;
     ec_project_state_.spectraSettings.flux_run_mode = defaultEcProjectState.spectraSettings.flux_run_mode;
     ec_project_state_.spectraSettings.automatic_spectra_config = defaultEcProjectState.spectraSettings.automatic_spectra_config;
+    ec_project_state_.spectraSettings.keep_parent_fluxnet_file = defaultEcProjectState.spectraSettings.keep_parent_fluxnet_file;
 
     ec_project_state_.screenTilt.start_date = QDate(2000, 1, 1).toString(Qt::ISODate);
     ec_project_state_.screenTilt.end_date = QDate::currentDate().toString(Qt::ISODate);
@@ -1369,8 +1372,8 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
 /// the site does not have.
 ///
 /// Every gas_*, cell_* and diag_* key is removed first. Shrinking a list
-/// otherwise leaves orphaned keys behind for the reader to pick back up -
-/// which is exactly what pf_sect_* and wdf_sect_* do today.
+/// otherwise leaves orphaned keys behind for the reader to pick back up, as
+/// wdf_sect_* used to. (pf_sect_* never did: its whole group is emptied first.)
 /// Build records from the legacy col_* fields, for a project written before
 /// records existed.
 ///
@@ -1811,6 +1814,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_49, ec_project_state_.spectraSettings.use_foken_mid);
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_52, ec_project_state_.spectraSettings.flux_run_mode);
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_53, ec_project_state_.spectraSettings.automatic_spectra_config);
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_54, ec_project_state_.spectraSettings.keep_parent_fluxnet_file);
 
         //> The three SA-group tables that used to be written here as
         //> placeholders - sa_co2_g1_start/stop and the ch4 and gas4 pairs,
@@ -2411,9 +2415,22 @@ bool EcProject::saveEcProject(const QString &filename)
     // wind direction filter section
     project_ini.beginGroup(EcIni::INIGROUP_WIND_FILTER);
         project_ini.setValue(EcIni::INI_WIND_FILTER_APPLY, ec_project_state_.windFilter.apply);
+        //> Every wdf_sect_* key goes first. A removed sector would otherwise
+        //> stay in the file for the reader to find again, and so would the
+        //> wdf_sect_0_* that earlier versions wrote: kept beside the
+        //> renumbered keys, it would load as a duplicate first sector.
+        {
+            const auto staleSectors = project_ini.childKeys().filter(
+                QRegularExpression(QStringLiteral("^wdf_sect_\\d+_")));
+            for (const auto& key : staleSectors) { project_ini.remove(key); }
+        }
+        //> Numbered from 1, as the engine's SNTags are (wdf_sect_1_start ..
+        //> wdf_sect_16_end in m_rp_global_var.f90) and as EddyPro writes
+        //> them. A wdf_sect_0_* key matches no tag, so the engine never sees
+        //> that sector.
         const auto &sectors = ec_project_state_.windFilter.sectors;
         for (int i = 0; i < sectors.size(); ++i) {
-            const QString prefix = EcIni::INI_WIND_FILTER_PREFIX + QString::number(i) + QLatin1Char('_');
+            const QString prefix = EcIni::INI_WIND_FILTER_PREFIX + QString::number(i + 1) + QLatin1Char('_');
             project_ini.setValue(prefix + EcIni::INI_WIND_FILTER_START_SUFFIX, sectors.at(i).startAngle_);
             project_ini.setValue(prefix + EcIni::INI_WIND_FILTER_END_SUFFIX,   sectors.at(i).endAngle_);
         }
@@ -2509,6 +2526,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
     wasUpgradedOnLoad_ = false;
 
     bool isVersionCompatible = true;
+    //> Set by the wind-direction-filter section: the file counts its sectors
+    //> from wdf_sect_0_*, as earlier versions wrote them.
+    bool windFilterZeroBased = false;
 
     // open file
     QFile datafile(filename);
@@ -3134,6 +3154,11 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.spectraSettings.automatic_spectra_config
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_53,
                                     defaultEcProjectState.spectraSettings.automatic_spectra_config).toInt();
+        //> A project from before this key keeps the results too: the default
+        //> is on, and an older file has no say either way.
+        ec_project_state_.spectraSettings.keep_parent_fluxnet_file
+                = project_ini.value(EcIni::INI_SPEC_SETTINGS_54,
+                                    defaultEcProjectState.spectraSettings.keep_parent_fluxnet_file).toInt();
 
         //> Per-gas spectral settings. Read after the gas records exist, so the
         //> loop can address them; an absent key leaves the record's sentinel
@@ -4424,6 +4449,11 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
                     sectorIndices.insert(remainder.left(sep).toInt());
             }
         }
+        //> Any index loads, in order, so a project written by an earlier
+        //> version - which counted from wdf_sect_0_* - keeps every sector.
+        //> Such a file is marked modified below: until it is saved back from
+        //> 1, the engine does not see its first sector.
+        windFilterZeroBased = sectorIndices.contains(0);
         QList<int> orderedIndices = sectorIndices.values();
         std::sort(orderedIndices.begin(), orderedIndices.end());
         for (int idx : orderedIndices) {
@@ -4452,6 +4482,10 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
     //> when the silent upgrade made this the signal a save depends on.
     if (!isVersionCompatible && modified != nullptr)
         *modified = true;
+
+    //> A run saves only a modified project, so without this an old file would
+    //> go on reaching the engine one sector short.
+    if (windFilterZeroBased && modified != nullptr) { *modified = true; }
 
     //> An upgraded project must be saved back, or the next run still reads
     //> the legacy shape - which nothing writes any more.
@@ -5064,6 +5098,31 @@ bool EcProject::importEddyProProject(const QString &filename, bool updateMode, b
     return loadEcProject(tmpFile.fileName(), updateMode, modified);
 }
 
+//> The molecular weight and diffusivity EddyPro should read for the gas in its
+//> fourth slot, or -1 where it should keep its own.
+//>
+//> EddyPro has one constant for that slot and it is N2O's: a gas_mw or
+//> gas_diff of -1, or anything not above zero, makes it use 44.01 g/mol
+//> (write_processing_project_variables.f90). That is right for N2O and wrong
+//> for everything else. A record leaving the species default in place carries
+//> -1 too, since this program looks the default up as it goes, so for any
+//> other species the default is resolved here and written out. An N2O record
+//> keeps what it has: the sentinel is what the reference package holds.
+static void eddyProFourthGasConstants(const GasRecord* rec, qreal* mw, qreal* diff)
+{
+    *mw = -1.0;
+    *diff = -1.0;
+    if (!rec) { return; }
+    *mw = rec->mw;
+    *diff = rec->diff;
+    if (rec->slug == QLatin1String("n2o")) { return; }
+
+    const auto* entry = GasMetadata::findSpecies(rec->slug);
+    if (!entry) { return; }
+    if (*mw <= 0.0 && entry->molecularWeight > 0.0) { *mw = entry->molecularWeight; }
+    if (*diff <= 0.0 && entry->diffusivity > 0.0) { *diff = entry->diffusivity; }
+}
+
 /// Turn a freshly copied native project into an EddyPro one, in place.
 ///
 /// Three jobs: rebuild the flat per-slot keys the record format replaced, drop
@@ -5072,7 +5131,9 @@ bool EcProject::importEddyProProject(const QString &filename, bool updateMode, b
 /// fluxnet_standardize_biomet, fluxnet_err_label, wdf_apply and the ru_* trio
 /// in [Project] all look like this fork's work and are not: EddyPro 7.0.9
 /// writes every one of them, as the reference package shows.
-void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
+void EcProject::writeEddyProCompatibleKeys(QSettings& ini,
+                                           const EddyProGasSlots* choice,
+                                           QVector<EddyProExportChange>* dropped) const
 {
     const auto& g = ec_project_state_.projectGeneral;
     const auto& gases = g.gasColumns;
@@ -5092,13 +5153,20 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
     //> would file COS under `ch4` and hand the engine a methane flux.
     //>
     //> Only one gas per slot: EddyPro's keys cannot express a second CO2
-    //> analyser, and smartfluxBlockReason() refuses such a project before this
-    //> runs, so first match is the whole rule.
+    //> analyser. Left to itself the first match takes the slot, which is all
+    //> a SmartFlux package ever gets - it is refused before it gets here if
+    //> that would lose a gas. File > Export asks the user instead and hands
+    //> the answer in as \a choice, which overrides the match slot by slot.
+    //>
+    //> A record naming no column takes no slot. It describes nothing the
+    //> engine could read, and letting it in first would hand EddyPro col_co2=0
+    //> while the column the user did choose went unexported.
     int slotOf[kEddyProGasSlots] = { -1, -1, -1, -1 };
     {
         const char* pinned[3] = { "co2", "h2o", "ch4" };
         for (int i = 0; i < gases.size(); ++i)
         {
+            if (gases.at(i).rawColumn <= 0) { continue; }
             const auto& slug = gases.at(i).slug;
             int slot = 3;
             for (int s = 0; s < 3; ++s)
@@ -5106,6 +5174,53 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
                 if (slug == QLatin1String(pinned[s])) { slot = s; break; }
             }
             if (slotOf[slot] < 0) { slotOf[slot] = i; }
+        }
+    }
+
+    //> The column each slot reads. Usually its record's, but a choice can name
+    //> a metadata column no record describes - a second CO2 analyser the
+    //> project never selected - and that slot then takes the species defaults
+    //> through kUnfilledSlot below, exactly as an empty slot does.
+    int slotCol[kEddyProGasSlots] = { 0, 0, 0, 0 };
+    for (int s = 0; s < kEddyProGasSlots; ++s)
+    {
+        if (choice && choice->column[s] >= 0)
+        {
+            slotCol[s] = choice->column[s];
+            slotOf[s] = -1;
+            for (int i = 0; i < gases.size() && slotCol[s] > 0; ++i)
+            {
+                if (gases.at(i).rawColumn == slotCol[s]) { slotOf[s] = i; break; }
+            }
+        }
+        else
+        {
+            slotCol[s] = slotOf[s] >= 0 ? gases.at(slotOf[s]).rawColumn : 0;
+        }
+    }
+
+    //> Every gas the project measures that ended up in no slot, so the user
+    //> learns which of their gases EddyPro will not see.
+    if (dropped)
+    {
+        for (int i = 0; i < gases.size(); ++i)
+        {
+            const auto& rec = gases.at(i);
+            if (rec.rawColumn <= 0) { continue; }
+            bool placed = false;
+            for (int s = 0; s < kEddyProGasSlots; ++s)
+            {
+                if (slotCol[s] == rec.rawColumn) { placed = true; break; }
+            }
+            if (placed) { continue; }
+            const auto* entry = GasMetadata::findSpecies(rec.slug);
+            const auto species = entry ? entry->displayFormula : rec.slug.toUpper();
+            dropped->append({
+                tr("Gases"),
+                tr("%1, column %2").arg(species).arg(rec.rawColumn),
+                tr("processed"),
+                tr("not exported"),
+                tr("Not assigned to any of EddyPro's four gas slots.") });
         }
     }
     const int n = kEddyProGasSlots;
@@ -5138,11 +5253,14 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
     //> Slot one is water by construction now, since slotRecord finds it by
     //> species. Kept as a table so the exclusions below read the same way they
     //> did, and so an empty slot answers false rather than indexing nothing.
+    //> A chosen column with no record behind it can only be water in slot
+    //> one: the choice offers nothing else there.
     bool isWater[kEddyProGasSlots];
     for (int s = 0; s < kEddyProGasSlots; ++s)
     {
         isWater[s] = slotOf[s] >= 0
-                && gases.at(slotOf[s]).slug == QLatin1String("h2o");
+                ? gases.at(slotOf[s]).slug == QLatin1String("h2o")
+                : (s == 1 && slotCol[s] > 0);
     }
 
     // ---- [Project] -------------------------------------------------------
@@ -5153,8 +5271,7 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
         const char* colKey[4] = { "col_co2", "col_h2o", "col_ch4", "col_n2o" };
         for (int i = 0; i < kEddyProGasSlots; ++i)
         {
-            const int col = slotOf[i] >= 0 ? gases.at(slotOf[i]).rawColumn : 0;
-            ini.setValue(QLatin1String(colKey[i]), col);
+            ini.setValue(QLatin1String(colKey[i]), slotCol[i]);
         }
 
         //> Cell and diagnostic columns are found by slug, not by position:
@@ -5181,14 +5298,17 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
         ini.setValue(QStringLiteral("col_diag_anem"), columnForSlug(g.diagColumns, "diag_anem"));
 
         //> EddyPro carries one molecular weight and diffusivity, for the open
-        //> slot; -1 is its "use the built-in constant" sentinel, which is what
-        //> the reference package contains.
-        const qreal openMw = slotOf[3] >= 0 ? gases.at(slotOf[3]).mw : -1.0;
-        const qreal openDiff = slotOf[3] >= 0 ? gases.at(slotOf[3]).diff : -1.0;
+        //> slot. -1 is its "use the built-in constant" sentinel and what the
+        //> reference package contains, but the built-in constant is N2O's, so
+        //> any other species has its own values written.
+        qreal openMw = -1.0;
+        qreal openDiff = -1.0;
+        eddyProFourthGasConstants(slotOf[3] >= 0 ? &gases.at(slotOf[3]) : nullptr,
+                                  &openMw, &openDiff);
         ini.setValue(QStringLiteral("gas_mw"),
-                     QString::number(openMw >= 0.0 ? openMw : -1.0, 'f', 4));
+                     QString::number(openMw > 0.0 ? openMw : -1.0, 'f', 4));
         ini.setValue(QStringLiteral("gas_diff"),
-                     QString::number(openDiff >= 0.0 ? openDiff : -1.0, 'f', 5));
+                     QString::number(openDiff > 0.0 ? openDiff : -1.0, 'f', 5));
 
         //> The file says it was written by the program that can read it. A
         //> module checking either of these against its own build must not be
@@ -5233,6 +5353,9 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
         removeMatchingKeys(ini, QStringLiteral("^gas_\\d+_sa_"));
         ini.remove(EcIni::INI_SPEC_SETTINGS_52);   // flux_run_mode
         ini.remove(EcIni::INI_SPEC_SETTINGS_53);   // automatic_spectra_config
+        //> A module keeps no earlier runs to re-correct, and its card has
+        //> no room for the file; without the key the engine deletes it.
+        ini.remove(EcIni::INI_SPEC_SETTINGS_54);   // keep_parent_fluxnet_file
         for (int i = 0; i < n; ++i)
         {
             const auto& p = procFor(i);
@@ -5413,6 +5536,74 @@ QString EcProject::smartfluxBlockReason() const
                 .arg(configured);
     }
 
+    //> One gas per slot. EddyPro has a column for CO2, one for H2O, one for
+    //> CH4 and one for everything else, and writeEddyProCompatibleKeys keeps
+    //> the first record that fits each. Four gases can still be too many for
+    //> that layout: a second CO2 analyser, or COS beside N2O, would be left
+    //> out of the package and the module would never say so.
+    QVector<int> inSlot[kEddyProGasSlots];
+    for (int i = 0; i < g.gasColumns.size(); ++i)
+    {
+        const auto& rec = g.gasColumns.at(i);
+        if (rec.rawColumn <= 0) { continue; }
+        inSlot[legacySlotOfSpecies(rec.slug)] << i;
+    }
+    const auto speciesName = [&g](int i)
+    {
+        const auto& slug = g.gasColumns.at(i).slug;
+        const auto* entry = GasMetadata::findSpecies(slug);
+        return entry ? entry->displayFormula : slug.toUpper();
+    };
+    for (int s = 0; s < kEddyProGasSlots - 1; ++s)
+    {
+        if (inSlot[s].size() > 1)
+        {
+            return tr("This project measures %1 in %2 columns, and EddyPro "
+                      "provides for one. A SmartFlux package would process "
+                      "only the first. Deselect the others in Basic Settings.")
+                    .arg(speciesName(inSlot[s].first()))
+                    .arg(inSlot[s].size());
+        }
+    }
+    if (inSlot[3].size() > 1)
+    {
+        QStringList names;
+        for (const int i : inSlot[3]) { names << speciesName(i); }
+        return tr("This project measures %1, and EddyPro provides one slot "
+                  "for every gas other than CO2, H2O and CH4. A SmartFlux "
+                  "package would process only %2. Deselect the others in "
+                  "Basic Settings.")
+                .arg(QLocale().createSeparatedList(names), names.first());
+    }
+
+    //> The fourth gas needs its own constants: without them EddyPro computes
+    //> it with N2O's. eddyProFourthGasConstants resolves the species default,
+    //> so this is only a species this program has no value for either and
+    //> the user left blank.
+    if (!inSlot[3].isEmpty())
+    {
+        const int i = inSlot[3].first();
+        qreal mw = -1.0;
+        qreal diff = -1.0;
+        eddyProFourthGasConstants(&g.gasColumns.at(i), &mw, &diff);
+        if (g.gasColumns.at(i).slug != QLatin1String("n2o"))
+        {
+            if (mw <= 0.0)
+            {
+                return tr("No molecular weight is known for %1, and without "
+                          "one a SmartFlux module would compute it as N2O. "
+                          "Enter it in Basic Settings.").arg(speciesName(i));
+            }
+            if (diff <= 0.0)
+            {
+                return tr("No diffusivity is known for %1, and without one a "
+                          "SmartFlux module would correct its spectra as "
+                          "N2O's. Enter it in Basic Settings.")
+                        .arg(speciesName(i));
+            }
+        }
+    }
+
     //> One cell block, not one record: EddyPro has a single set of cell slots,
     //> so two analysers each reporting their own cell temperature cannot both
     //> be described.
@@ -5461,11 +5652,45 @@ QString EcProject::smartfluxBlockReason() const
                   "Advanced Settings > Spectral Corrections.");
     }
 
+    //> Methods this fork added to options EddyPro also has. The module does
+    //> not refuse a value it lacks: it reads it as one of its own, so each of
+    //> these would run as something else without a word.
+    if (ec_project_state_.projectGeneral.qcflag_meth == 4)
+    {
+        return tr("The Vitale et al. (2020) quality flagging policy is not "
+                  "available on a SmartFlux module, which would flag with "
+                  "Mauder and Foken (2004) instead. Choose another policy in "
+                  "Advanced Settings > Processing Options.");
+    }
+    if (ec_project_state_.randomError.ru_method == 4
+            || ec_project_state_.randomError.ru_method == 5)
+    {
+        return tr("The %1 random uncertainty method is not available on a "
+                  "SmartFlux module, which would estimate no random "
+                  "uncertainty at all. Choose another method in Advanced "
+                  "Settings > Statistical Analysis.")
+                .arg(ec_project_state_.randomError.ru_method == 4
+                     ? QStringLiteral("Billesbach (2011)")
+                     : QStringLiteral("Lenschow et al. (2000)"));
+    }
+    //> Only while despiking runs: with the spike test off the method is
+    //> never read, and nothing would change.
+    if (ec_project_state_.screenTest.test_sr != 0
+            && ec_project_state_.screenParam.despike_vm == 2)
+    {
+        return tr("Consecutive-difference despiking is not available on a "
+                  "SmartFlux module, which would despike with Mauder et al. "
+                  "(2013) instead. Choose another method in Advanced "
+                  "Settings > Statistical Analysis.");
+    }
+
     return QString();
 }
 
 bool EcProject::exportEddyProProject(const QString& sourceFile,
-                                     const QString& targetFile) const
+                                     const QString& targetFile,
+                                     const EddyProGasSlots* choice,
+                                     QVector<EddyProExportChange>* dropped) const
 {
     //> The tag is a line, not a key, so it cannot be rewritten through
     //> QSettings. Dropped here and put back at the end, which also means the
@@ -5490,7 +5715,7 @@ bool EcProject::exportEddyProProject(const QString& sourceFile,
 
     {
         QSettings ini(targetFile, QSettings::IniFormat);
-        writeEddyProCompatibleKeys(ini);
+        writeEddyProCompatibleKeys(ini, choice, dropped);
         ini.sync();
         if (ini.status() != QSettings::NoError) { return false; }
     }
@@ -7858,6 +8083,14 @@ void EcProject::setSpectraFluxRunMode(int n)
 void EcProject::setSpectraAutomaticConfig(int n)
 {
     ec_project_state_.spectraSettings.automatic_spectra_config = n;
+    setModified(true);
+}
+
+void EcProject::setSpectraKeepParentFluxnetFile(int n)
+{
+    if (ec_project_state_.spectraSettings.keep_parent_fluxnet_file == n) { return; }
+
+    ec_project_state_.spectraSettings.keep_parent_fluxnet_file = n;
     setModified(true);
 }
 
