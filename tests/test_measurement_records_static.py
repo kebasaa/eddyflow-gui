@@ -96,8 +96,8 @@ class MeasurementRecordContract(unittest.TestCase):
     def test_writer_clears_stale_keys_before_writing(self):
         """Shrinking a list must not leave orphaned keys behind.
 
-        pf_sect_* and wdf_sect_* have this bug today: remove a sector and the
-        old keys stay in the file for the reader to find again.
+        wdf_sect_* had this bug until 8.1.10: remove a sector and the
+        old keys stayed in the file for the reader to find again.
         """
         body = _read(EC_PROJECT)
         start = body.index("void EcProject::writeMeasurementRecords")

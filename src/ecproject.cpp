@@ -1372,8 +1372,8 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
 /// the site does not have.
 ///
 /// Every gas_*, cell_* and diag_* key is removed first. Shrinking a list
-/// otherwise leaves orphaned keys behind for the reader to pick back up -
-/// which is exactly what pf_sect_* and wdf_sect_* do today.
+/// otherwise leaves orphaned keys behind for the reader to pick back up, as
+/// wdf_sect_* used to. (pf_sect_* never did: its whole group is emptied first.)
 /// Build records from the legacy col_* fields, for a project written before
 /// records existed.
 ///
@@ -2415,9 +2415,22 @@ bool EcProject::saveEcProject(const QString &filename)
     // wind direction filter section
     project_ini.beginGroup(EcIni::INIGROUP_WIND_FILTER);
         project_ini.setValue(EcIni::INI_WIND_FILTER_APPLY, ec_project_state_.windFilter.apply);
+        //> Every wdf_sect_* key goes first. A removed sector would otherwise
+        //> stay in the file for the reader to find again, and so would the
+        //> wdf_sect_0_* that earlier versions wrote: kept beside the
+        //> renumbered keys, it would load as a duplicate first sector.
+        {
+            const auto staleSectors = project_ini.childKeys().filter(
+                QRegularExpression(QStringLiteral("^wdf_sect_\\d+_")));
+            for (const auto& key : staleSectors) { project_ini.remove(key); }
+        }
+        //> Numbered from 1, as the engine's SNTags are (wdf_sect_1_start ..
+        //> wdf_sect_16_end in m_rp_global_var.f90) and as EddyPro writes
+        //> them. A wdf_sect_0_* key matches no tag, so the engine never sees
+        //> that sector.
         const auto &sectors = ec_project_state_.windFilter.sectors;
         for (int i = 0; i < sectors.size(); ++i) {
-            const QString prefix = EcIni::INI_WIND_FILTER_PREFIX + QString::number(i) + QLatin1Char('_');
+            const QString prefix = EcIni::INI_WIND_FILTER_PREFIX + QString::number(i + 1) + QLatin1Char('_');
             project_ini.setValue(prefix + EcIni::INI_WIND_FILTER_START_SUFFIX, sectors.at(i).startAngle_);
             project_ini.setValue(prefix + EcIni::INI_WIND_FILTER_END_SUFFIX,   sectors.at(i).endAngle_);
         }
@@ -2513,6 +2526,9 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
     wasUpgradedOnLoad_ = false;
 
     bool isVersionCompatible = true;
+    //> Set by the wind-direction-filter section: the file counts its sectors
+    //> from wdf_sect_0_*, as earlier versions wrote them.
+    bool windFilterZeroBased = false;
 
     // open file
     QFile datafile(filename);
@@ -4433,6 +4449,11 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
                     sectorIndices.insert(remainder.left(sep).toInt());
             }
         }
+        //> Any index loads, in order, so a project written by an earlier
+        //> version - which counted from wdf_sect_0_* - keeps every sector.
+        //> Such a file is marked modified below: until it is saved back from
+        //> 1, the engine does not see its first sector.
+        windFilterZeroBased = sectorIndices.contains(0);
         QList<int> orderedIndices = sectorIndices.values();
         std::sort(orderedIndices.begin(), orderedIndices.end());
         for (int idx : orderedIndices) {
@@ -4461,6 +4482,10 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
     //> when the silent upgrade made this the signal a save depends on.
     if (!isVersionCompatible && modified != nullptr)
         *modified = true;
+
+    //> A run saves only a modified project, so without this an old file would
+    //> go on reaching the engine one sector short.
+    if (windFilterZeroBased && modified != nullptr) { *modified = true; }
 
     //> An upgraded project must be saved back, or the next run still reads
     //> the legacy shape - which nothing writes any more.

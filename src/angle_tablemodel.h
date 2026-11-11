@@ -36,6 +36,10 @@ class AngleTableModel : public QAbstractTableModel
 public:
     enum Column { DEGREES };
 
+    //> The engine reads pf_sect_1_* .. pf_sect_36_* (MaxNumWSect) and
+    //> nothing past them, so a 37th sector would be saved and never used.
+    static constexpr int MaxSectors = 36;
+
     explicit AngleTableModel(QObject *parent, QList<AngleItem> *angles);
 
     Qt::ItemFlags flags(const QModelIndex &index) const;
