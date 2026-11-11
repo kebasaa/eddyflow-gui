@@ -45,7 +45,7 @@ PAGE = read(SRC / "advstatisticaloptions.cpp")
 INIDEFS = read(SRC / "ecinidefs.h")
 STATE = read(SRC / "ecprojectstate.h")
 PROJECT = read(SRC / "ecproject.cpp")
-SOURCES = read(GUI_ROOT / "sources.pri")
+SOURCES = read(GUI_ROOT / "CMakeLists.txt")
 
 
 class TheLabelsCiteTheirPapers(unittest.TestCase):

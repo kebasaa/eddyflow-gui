@@ -92,9 +92,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Extracting WinLibs failed" }
           & "$env:ENGINE_MINGW_BIN\gfortran.exe" --version
 
-      # The engine's Windows Makefile uses cmd syntax (if exist ... del), and
-      # mingw32-make switches to sh as soon as an sh.exe is on PATH. Git puts
-      # one there on the runner, so those folders are dropped for this step.
+      # The GUI and the engine build with CMake and Ninja, from WinLibs.
+      #
+      # An engine tag from before CMake still builds with its Makefile, which
+      # uses cmd syntax (if exist ... del), and mingw32-make switches to sh as
+      # soon as an sh.exe is on PATH. Git puts one there on the runner, so
+      # those folders are dropped for this step until no such tag needs
+      # rebuilding. CMake and Ninja do not care either way.
       - name: Build the portable .7z
         run: |
           $env:PATH = ($env:PATH -split ';' |

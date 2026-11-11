@@ -33,7 +33,38 @@ EddyFlow checks for a new release when it starts, and under Help > Check for Upd
 
 ## Building EddyFlow from source
 
-The GUI is a Qt6 project, built with qmake from `EddyFlow_win.pro`, `EddyFlow_lin.pro` or `EddyFlow_mac.pro`, and needs [QuaZIP](https://github.com/stachenov/quazip). The release packages are built with the scripts in [eddyflow-build-script](https://github.com/kebasaa/eddyflow-build-script), which also builds the engine and puts both together.
+The GUI is a Qt 6 project (Qt 6.7 or later), built with CMake 3.21 or later and Ninja. It needs [QuaZIP](https://github.com/stachenov/quazip) and zlib. The release packages are built with the scripts in [eddyflow-build-script](https://github.com/kebasaa/eddyflow-build-script), which also builds the engine and puts both together.
+
+`CMakePresets.json` has a release and a debug preset for each platform: `windows-mingw-*`, `linux-*` and `macos-*`. Each preset builds in `build/<preset>`, and the binary lands in its `release/` or `debug/` folder:
+
+```bash
+cmake --preset linux-release
+```
+
+```bash
+cmake --build --preset linux-release
+```
+
+The presets don't say where Qt, QuaZIP and zlib are. When they aren't on the compiler's default search path, which is the usual case on Windows, put the paths in a `CMakeUserPresets.json` next to `CMakePresets.json`. Git ignores that file. For example:
+
+```json
+{
+  "version": 3,
+  "configurePresets": [{
+    "name": "local-release",
+    "inherits": "windows-mingw-release",
+    "environment": { "PATH": "C:/Qt/Tools/mingw1310_64/bin;$penv{PATH}" },
+    "cacheVariables": {
+      "CMAKE_CXX_COMPILER": "C:/Qt/Tools/mingw1310_64/bin/g++.exe",
+      "CMAKE_MAKE_PROGRAM": "C:/Qt/Tools/Ninja/ninja.exe",
+      "CMAKE_PREFIX_PATH": "C:/Qt/6.11.1/mingw_64;C:/deps/quazip/install;C:/deps/zlib/install"
+    }
+  }],
+  "buildPresets": [{ "name": "local-release", "configurePreset": "local-release" }]
+}
+```
+
+On Windows, use the MinGW that came with the Qt kit. Qt's prebuilt libraries need the C runtime they were built against. The build compiles the translation file `tra/EddyFlow_en.ts` and copies the file templates, and on Windows and macOS the QuaZIP library, next to the binary. On macOS it also copies `docs/` into the app bundle. Deploying the Qt runtime, the engine and 7-Zip is left to eddyflow-build-script.
 
 Publishing a release here runs the workflows in `.github/workflows` (`windows-release.yml`, `linux-release.yml` and `macos-release.yml`). They build the packages on GitHub runners, using the eddyflow-engine tag with the same name, and attach them to the release. They need the repository secret `BUILD_SCRIPT_TOKEN`, a token with read-only access to the eddyflow-build-script repository. To rebuild an existing release, run the workflow from the Actions tab and enter the tag.
 

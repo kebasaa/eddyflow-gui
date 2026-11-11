@@ -39,7 +39,7 @@ class PwbGuiStaticIntegrationTests(unittest.TestCase):
         state = read("src/ecprojectstate.h")
         project = read("src/ecproject.cpp")
         defs = read("src/ecinidefs.h")
-        sources = read("sources.pri")
+        sources = read("CMakeLists.txt")
         self.assertIn("struct PwbTimelagState", state)
         self.assertIn("PwbTimelagState pwbTimelag", state)
         self.assertIn("INIGROUP_PWB_TIMELAG", defs)

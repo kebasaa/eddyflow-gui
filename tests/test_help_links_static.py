@@ -129,8 +129,8 @@ class TheHelpMenuReachesTheSite(unittest.TestCase):
 class HelpOpensInAReleaseBuild(unittest.TestCase):
     """The page has to be opened outside the qDebug() statement.
 
-    A release build defines QT_NO_DEBUG_OUTPUT (see the else branch of
-    EddyFlow_win.pro), and Qt then expands qDebug to
+    A release build defines QT_NO_DEBUG_OUTPUT (see the compile definitions
+    in CMakeLists.txt), and Qt then expands qDebug to
     "while (false) QMessageLogger().noDebug", so nothing in the statement
     runs - a call nested in its arguments included. Written as
     qDebug() << url << QDesktopServices::openUrl(url), every question mark

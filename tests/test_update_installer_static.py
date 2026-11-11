@@ -192,7 +192,7 @@ class InPlace(unittest.TestCase):
         self.assertIn('QStringLiteral("--args")', restart)
 
     def test_built(self):
-        sources = (ROOT / "sources.pri").read_text(encoding="utf-8")
+        sources = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
         self.assertIn("src/updateinstaller.h", sources)
         self.assertIn("src/updateinstaller.cpp", sources)
 

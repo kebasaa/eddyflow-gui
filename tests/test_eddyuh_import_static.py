@@ -40,7 +40,7 @@ IMPORT_H = GUI_ROOT / "src" / "eddyuhimport.h"
 IMPORT_CPP = GUI_ROOT / "src" / "eddyuhimport.cpp"
 MAINWINDOW = GUI_ROOT / "src" / "mainwindow.cpp"
 MAINWINDOW_H = GUI_ROOT / "src" / "mainwindow.h"
-SOURCES_PRI = GUI_ROOT / "sources.pri"
+CMAKELISTS = GUI_ROOT / "CMakeLists.txt"
 
 EDDYUH_SRC = (GUI_ROOT.parent / "EddyUH_testing" / "EddyUH" / "EddyUH_1.7b_COS")
 SC_PREPROC = EDDYUH_SRC / "EC_Software_Preproc" / "EddyUH_SC_Preproc.m"
@@ -548,9 +548,9 @@ class TheEncodingsMatchEddyUHs(unittest.TestCase):
 class ItIsInTheBuildAndInTheMenu(unittest.TestCase):
 
     def test_both_files_are_listed(self):
-        pri = read(SOURCES_PRI)
-        self.assertIn("src/eddyuhimport.h", pri)
-        self.assertIn("src/eddyuhimport.cpp", pri)
+        build = read(CMAKELISTS)
+        self.assertIn("src/eddyuhimport.h", build)
+        self.assertIn("src/eddyuhimport.cpp", build)
 
     def test_the_action_exists_and_is_connected_and_in_the_menu(self):
         self.assertIn("importEddyUhAction", read(MAINWINDOW_H))

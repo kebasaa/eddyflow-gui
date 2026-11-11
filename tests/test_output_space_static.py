@@ -25,7 +25,7 @@ def read(path):
 HEADER = read(GUI_ROOT / "src" / "outputspace.h")
 SPACE = read(GUI_ROOT / "src" / "outputspace.cpp")
 MAIN = read(GUI_ROOT / "src" / "mainwindow.cpp")
-SOURCES = read(GUI_ROOT / "sources.pri")
+SOURCES = read(GUI_ROOT / "CMakeLists.txt")
 
 
 def body(src, signature):

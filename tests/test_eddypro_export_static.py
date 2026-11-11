@@ -39,7 +39,7 @@ MAINWINDOW_H = SRC / "mainwindow.h"
 DLPROJECT_CPP = SRC / "dlproject.cpp"
 ECPROJECT_CPP = SRC / "ecproject.cpp"
 SMARTFLUX_BAR = SRC / "smartfluxbar.cpp"
-SOURCES_PRI = GUI_ROOT / "sources.pri"
+CMAKELISTS = GUI_ROOT / "CMakeLists.txt"
 
 #: eddypro-gui src/dlproject.cpp, ANEM_MODEL / IRGA_MODEL strings.
 UPSTREAM_SONICS = {
@@ -127,10 +127,10 @@ class MenuTest(unittest.TestCase):
                         body.index("QFileDialog::getSaveFileName"))
 
     def test_new_files_are_built(self):
-        pri = read(SOURCES_PRI)
+        build = read(CMAKELISTS)
         for name in ("eddyproexport", "eddyprogasslotdialog"):
-            self.assertIn("src/%s.h" % name, pri)
-            self.assertIn("src/%s.cpp" % name, pri)
+            self.assertIn("src/%s.h" % name, build)
+            self.assertIn("src/%s.cpp" % name, build)
 
 
 class VocabularyTest(unittest.TestCase):
