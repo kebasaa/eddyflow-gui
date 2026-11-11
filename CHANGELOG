@@ -1,3 +1,20 @@
+8.1.10 (2026-11-06)
+
+    GUI:
+	- Fix: The wind-direction filter's first excluded sector was never
+	       applied. Sectors were saved as wdf_sect_0_*, wdf_sect_1_*, ...,
+	       but the engine, like EddyPro, reads them from wdf_sect_1_*, so
+	       sector 0 matched nothing and its data went into the fluxes - in
+	       every run and every EddyPro export. Sectors are now saved from 1.
+	       A project saved the old way still opens with all its sectors and
+	       is marked modified, so the next run saves it renumbered; saving
+	       also clears the keys of sectors since removed. Pinned by
+	       tests/test_wind_filter_sectors_static.py.
+	- Fix: The planar-fit sector table stops at 36 sectors, the most the
+	       engine reads (pf_sect_1_* .. pf_sect_36_*). A 37th was saved and
+	       silently left out of the fit. Their numbering was already right.
+	       Pinned by tests/test_wind_filter_sectors_static.py.
+
 8.1.9 (2026-11-05)
 
     GUI:
