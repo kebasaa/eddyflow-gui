@@ -15,7 +15,7 @@ cmake_minimum_required(VERSION 3.21)
 set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "macOS architectures to build for")
 
 # The version also lives in src/defs.h (APP_VERSION, APP_VERSION_STR). Bump both.
-project(EddyFlow VERSION 8.1.10 LANGUAGES CXX)
+project(EddyFlow VERSION 8.2.0 LANGUAGES CXX)
 
 if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Debug or Release" FORCE)
