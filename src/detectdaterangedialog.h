@@ -28,9 +28,12 @@
 #include <QDialog>
 
 #include "fileutils.h"
+#include "previousrun.h"
 
 class QGridLayout;
 class QLabel;
+class QPlainTextEdit;
+class QRadioButton;
 
 class EcProject;
 class DlProject;
@@ -44,10 +47,18 @@ public:
 
     enum class DateRangeType { RawData, Spectra, PlanarFit, TimeLag };
     enum class DateRangeOverlapping { Overlap, NoOverlap };
+    enum class RunKind { CorrectionOnly, Full };
 
 //    void setLabel(const QString& label);
     void showDateRange(DateRangeType type);
     void setCurrentRange(FileUtils::DateRange currentRange);
+
+    /// Adds the choice between a correction-only and a full re-run, and
+    /// whether to delete what the chosen run makes obsolete. Always shown for
+    /// an Advanced run; what does not apply is greyed out.
+    void showPreviousRun(const PreviousRun::Scan& scan);
+    RunKind runKind() const;
+    bool deleteRequested() const { return deleteRequested_; }
 
 signals:
     void alignDeclinationRequest(const QDate& d);
@@ -83,10 +94,24 @@ private:
                             const QTime &end_time);
     void createCurrentRange();
     bool isSpectraSubsetPosssible();
+    void updatePreviousRunChoice();
 
     FileUtils::DateRange availableDataRange_;
+    QLabel *groupTitle_;
+    QLabel *hrLabel_;
     QPushButton *setAsCurrentRangeButton;
     QPushButton *okButton;
+    bool datesShown_ = false;
+
+    PreviousRun::Scan scan_;
+    QRadioButton *correctionOnlyRadio_ = nullptr;
+    QRadioButton *fullRerunRadio_ = nullptr;
+    QLabel *correctionOnlyNote_ = nullptr;
+    QLabel *obsoleteLabel_ = nullptr;
+    QPushButton *showFilesButton_ = nullptr;
+    QPlainTextEdit *obsoleteFiles_ = nullptr;
+    QPushButton *deleteAndRunButton_ = nullptr;
+    bool deleteRequested_ = false;
 //    QLabel *msgLabel;
     QGridLayout *dialogLayout;
 

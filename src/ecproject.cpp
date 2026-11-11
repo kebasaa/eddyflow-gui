@@ -37,6 +37,7 @@
 #include "dlproject.h"
 #include "ecinidefs.h"
 #include "fileutils.h"
+#include "eddyproexport.h"
 #include "gas_metadata.h"
 #include "ini_file.h"
 #include "mainwindow.h"
@@ -1299,6 +1300,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.spectraSettings.use_foken_mid = defaultEcProjectState.spectraSettings.use_foken_mid;
     ec_project_state_.spectraSettings.flux_run_mode = defaultEcProjectState.spectraSettings.flux_run_mode;
     ec_project_state_.spectraSettings.automatic_spectra_config = defaultEcProjectState.spectraSettings.automatic_spectra_config;
+    ec_project_state_.spectraSettings.keep_parent_fluxnet_file = defaultEcProjectState.spectraSettings.keep_parent_fluxnet_file;
 
     ec_project_state_.screenTilt.start_date = QDate(2000, 1, 1).toString(Qt::ISODate);
     ec_project_state_.screenTilt.end_date = QDate::currentDate().toString(Qt::ISODate);
@@ -1811,6 +1813,7 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_49, ec_project_state_.spectraSettings.use_foken_mid);
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_52, ec_project_state_.spectraSettings.flux_run_mode);
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_53, ec_project_state_.spectraSettings.automatic_spectra_config);
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_54, ec_project_state_.spectraSettings.keep_parent_fluxnet_file);
 
         //> The three SA-group tables that used to be written here as
         //> placeholders - sa_co2_g1_start/stop and the ch4 and gas4 pairs,
@@ -3134,6 +3137,11 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.spectraSettings.automatic_spectra_config
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_53,
                                     defaultEcProjectState.spectraSettings.automatic_spectra_config).toInt();
+        //> A project from before this key keeps the results too: the default
+        //> is on, and an older file has no say either way.
+        ec_project_state_.spectraSettings.keep_parent_fluxnet_file
+                = project_ini.value(EcIni::INI_SPEC_SETTINGS_54,
+                                    defaultEcProjectState.spectraSettings.keep_parent_fluxnet_file).toInt();
 
         //> Per-gas spectral settings. Read after the gas records exist, so the
         //> loop can address them; an absent key leaves the record's sentinel
@@ -5072,7 +5080,9 @@ bool EcProject::importEddyProProject(const QString &filename, bool updateMode, b
 /// fluxnet_standardize_biomet, fluxnet_err_label, wdf_apply and the ru_* trio
 /// in [Project] all look like this fork's work and are not: EddyPro 7.0.9
 /// writes every one of them, as the reference package shows.
-void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
+void EcProject::writeEddyProCompatibleKeys(QSettings& ini,
+                                           const EddyProGasSlots* choice,
+                                           QVector<EddyProExportChange>* dropped) const
 {
     const auto& g = ec_project_state_.projectGeneral;
     const auto& gases = g.gasColumns;
@@ -5092,13 +5102,20 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
     //> would file COS under `ch4` and hand the engine a methane flux.
     //>
     //> Only one gas per slot: EddyPro's keys cannot express a second CO2
-    //> analyser, and smartfluxBlockReason() refuses such a project before this
-    //> runs, so first match is the whole rule.
+    //> analyser. Left to itself the first match takes the slot, which is all
+    //> a SmartFlux package ever gets - it is refused before it gets here if
+    //> that would lose a gas. File > Export asks the user instead and hands
+    //> the answer in as \a choice, which overrides the match slot by slot.
+    //>
+    //> A record naming no column takes no slot. It describes nothing the
+    //> engine could read, and letting it in first would hand EddyPro col_co2=0
+    //> while the column the user did choose went unexported.
     int slotOf[kEddyProGasSlots] = { -1, -1, -1, -1 };
     {
         const char* pinned[3] = { "co2", "h2o", "ch4" };
         for (int i = 0; i < gases.size(); ++i)
         {
+            if (gases.at(i).rawColumn <= 0) { continue; }
             const auto& slug = gases.at(i).slug;
             int slot = 3;
             for (int s = 0; s < 3; ++s)
@@ -5106,6 +5123,53 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
                 if (slug == QLatin1String(pinned[s])) { slot = s; break; }
             }
             if (slotOf[slot] < 0) { slotOf[slot] = i; }
+        }
+    }
+
+    //> The column each slot reads. Usually its record's, but a choice can name
+    //> a metadata column no record describes - a second CO2 analyser the
+    //> project never selected - and that slot then takes the species defaults
+    //> through kUnfilledSlot below, exactly as an empty slot does.
+    int slotCol[kEddyProGasSlots] = { 0, 0, 0, 0 };
+    for (int s = 0; s < kEddyProGasSlots; ++s)
+    {
+        if (choice && choice->column[s] >= 0)
+        {
+            slotCol[s] = choice->column[s];
+            slotOf[s] = -1;
+            for (int i = 0; i < gases.size() && slotCol[s] > 0; ++i)
+            {
+                if (gases.at(i).rawColumn == slotCol[s]) { slotOf[s] = i; break; }
+            }
+        }
+        else
+        {
+            slotCol[s] = slotOf[s] >= 0 ? gases.at(slotOf[s]).rawColumn : 0;
+        }
+    }
+
+    //> Every gas the project measures that ended up in no slot, so the user
+    //> learns which of their gases EddyPro will not see.
+    if (dropped)
+    {
+        for (int i = 0; i < gases.size(); ++i)
+        {
+            const auto& rec = gases.at(i);
+            if (rec.rawColumn <= 0) { continue; }
+            bool placed = false;
+            for (int s = 0; s < kEddyProGasSlots; ++s)
+            {
+                if (slotCol[s] == rec.rawColumn) { placed = true; break; }
+            }
+            if (placed) { continue; }
+            const auto* entry = GasMetadata::findSpecies(rec.slug);
+            const auto species = entry ? entry->displayFormula : rec.slug.toUpper();
+            dropped->append({
+                tr("Gases"),
+                tr("%1, column %2").arg(species).arg(rec.rawColumn),
+                tr("processed"),
+                tr("not exported"),
+                tr("Not assigned to any of EddyPro's four gas slots.") });
         }
     }
     const int n = kEddyProGasSlots;
@@ -5138,11 +5202,14 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
     //> Slot one is water by construction now, since slotRecord finds it by
     //> species. Kept as a table so the exclusions below read the same way they
     //> did, and so an empty slot answers false rather than indexing nothing.
+    //> A chosen column with no record behind it can only be water in slot
+    //> one: the choice offers nothing else there.
     bool isWater[kEddyProGasSlots];
     for (int s = 0; s < kEddyProGasSlots; ++s)
     {
         isWater[s] = slotOf[s] >= 0
-                && gases.at(slotOf[s]).slug == QLatin1String("h2o");
+                ? gases.at(slotOf[s]).slug == QLatin1String("h2o")
+                : (s == 1 && slotCol[s] > 0);
     }
 
     // ---- [Project] -------------------------------------------------------
@@ -5153,8 +5220,7 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
         const char* colKey[4] = { "col_co2", "col_h2o", "col_ch4", "col_n2o" };
         for (int i = 0; i < kEddyProGasSlots; ++i)
         {
-            const int col = slotOf[i] >= 0 ? gases.at(slotOf[i]).rawColumn : 0;
-            ini.setValue(QLatin1String(colKey[i]), col);
+            ini.setValue(QLatin1String(colKey[i]), slotCol[i]);
         }
 
         //> Cell and diagnostic columns are found by slug, not by position:
@@ -5233,6 +5299,9 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini) const
         removeMatchingKeys(ini, QStringLiteral("^gas_\\d+_sa_"));
         ini.remove(EcIni::INI_SPEC_SETTINGS_52);   // flux_run_mode
         ini.remove(EcIni::INI_SPEC_SETTINGS_53);   // automatic_spectra_config
+        //> A module keeps no earlier runs to re-correct, and its card has
+        //> no room for the file; without the key the engine deletes it.
+        ini.remove(EcIni::INI_SPEC_SETTINGS_54);   // keep_parent_fluxnet_file
         for (int i = 0; i < n; ++i)
         {
             const auto& p = procFor(i);
@@ -5465,7 +5534,9 @@ QString EcProject::smartfluxBlockReason() const
 }
 
 bool EcProject::exportEddyProProject(const QString& sourceFile,
-                                     const QString& targetFile) const
+                                     const QString& targetFile,
+                                     const EddyProGasSlots* choice,
+                                     QVector<EddyProExportChange>* dropped) const
 {
     //> The tag is a line, not a key, so it cannot be rewritten through
     //> QSettings. Dropped here and put back at the end, which also means the
@@ -5490,7 +5561,7 @@ bool EcProject::exportEddyProProject(const QString& sourceFile,
 
     {
         QSettings ini(targetFile, QSettings::IniFormat);
-        writeEddyProCompatibleKeys(ini);
+        writeEddyProCompatibleKeys(ini, choice, dropped);
         ini.sync();
         if (ini.status() != QSettings::NoError) { return false; }
     }
@@ -7858,6 +7929,14 @@ void EcProject::setSpectraFluxRunMode(int n)
 void EcProject::setSpectraAutomaticConfig(int n)
 {
     ec_project_state_.spectraSettings.automatic_spectra_config = n;
+    setModified(true);
+}
+
+void EcProject::setSpectraKeepParentFluxnetFile(int n)
+{
+    if (ec_project_state_.spectraSettings.keep_parent_fluxnet_file == n) { return; }
+
+    ec_project_state_.spectraSettings.keep_parent_fluxnet_file = n;
     setModified(true);
 }
 

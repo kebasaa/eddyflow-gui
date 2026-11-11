@@ -32,6 +32,8 @@
 #include <QDir>
 #include <QDockWidget>
 #include <QElapsedTimer>
+#include <QEventLoop>
+#include <QFutureWatcher>
 #include <QErrorMessage>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -40,11 +42,13 @@
 #include <QMenuBar>
 #include <QNetworkProxyFactory>
 #include <QPlainTextEdit>
+#include <QProgressDialog>
 #include <QPushButton>
 #include <QSettings>
 #include <QScreen>
 #include <QScrollBar>
 #include <QStatusBar>
+#include <QTemporaryDir>
 #include <QTextDocumentFragment>
 #include <QThread>
 #include <QTimer>
@@ -68,6 +72,8 @@
 #include "eastereggkeyfilter.h"
 #include "eastereggpage.h"
 #include "ecproject.h"
+#include "eddyproexport.h"
+#include "eddyprogasslotdialog.h"
 #include "eddyuhimport.h"
 #include "globalsettings.h"
 #include "infomessage.h"
@@ -797,6 +803,101 @@ void MainWindow::importEddyUhFile(const QString& fileName)
         detail);
 }
 
+/// Write the open project as an EddyPro one, beside wherever the user says.
+///
+/// The open documents are untouched: EddyProExport works from copies, so an
+/// unsaved project exports as it is shown and stays unsaved, and nothing
+/// about the EddyFlow project changes. What EddyPro cannot express is
+/// replaced rather than refused, and the report that follows lists every
+/// replacement - it is saved beside the export too, so the record stays with
+/// the files.
+///
+/// The gas columns are asked first. EddyPro has one slot per species and a
+/// site may measure CO2 with two analysers; which one EddyPro gets is the
+/// user's call, not the export's.
+void MainWindow::exportEddyProFile()
+{
+    auto dl = mainWidget_->projectPage()->dlIniDialog()->dlProject();
+    if (!dl) { return; }
+
+    EddyProGasSlots choice = EddyProExport::defaultSlots(*ecProject_);
+    if (EddyProGasSlotDialog::hasGasColumns(*dl))
+    {
+        EddyProGasSlotDialog slotDialog(this, *dl, choice);
+        if (slotDialog.exec() != QDialog::Accepted) { return; }
+        choice = slotDialog.choice();
+    }
+
+    //> Beside the project by default, under the project's own name.
+    const QFileInfo current(currentProjectFile());
+    QString start = WidgetUtils::getDialogPathHint(QStringLiteral("export_eddypro_project"));
+    if (!currentProjectFile().isEmpty() && current.dir().exists())
+    {
+        start = current.absolutePath() + QLatin1Char('/')
+                + current.completeBaseName() + QStringLiteral(".eddypro");
+    }
+
+    QString fileStr = QFileDialog::getSaveFileName(this,
+                        tr("Export as an EddyPro Project"),
+                        start,
+                        tr("EddyPro Project Files (*.eddypro)"),
+                        nullptr);
+    if (fileStr.isEmpty()) { return; }
+    if (!fileStr.endsWith(QStringLiteral(".eddypro"), Qt::CaseInsensitive))
+    {
+        fileStr += QStringLiteral(".eddypro");
+    }
+    WidgetUtils::rememberDialogPath(QStringLiteral("export_eddypro_project"), fileStr, true);
+
+    //> The file dialog has asked about the project. These two are named
+    //> after it and would be replaced without a word otherwise.
+    const QString mdFile = EddyProExport::metadataFileFor(fileStr);
+    if (ecProject_->generalUseAltMdFile() && QFile::exists(mdFile)
+        && !WidgetUtils::okToOverwrite(this, mdFile))
+    {
+        return;
+    }
+    const QString reportFile = EddyProExport::reportFileFor(fileStr);
+    if (QFile::exists(reportFile) && !WidgetUtils::okToOverwrite(this, reportFile))
+    {
+        return;
+    }
+
+    EddyProExport exporter;
+    QString error;
+    if (!exporter.exportTo(ecProject_, *dl, choice, fileStr, &error))
+    {
+        WidgetUtils::warning(this,
+            tr("EddyPro Project Not Exported"),
+            tr("The project could not be written in EddyPro format."),
+            error);
+        return;
+    }
+
+    QStringList written { QFileInfo(fileStr).fileName() };
+    if (!exporter.metadataFile().isEmpty())
+    {
+        written << QFileInfo(exporter.metadataFile()).fileName();
+    }
+    written << QFileInfo(reportFile).fileName();
+
+    showStatusTip(tr("Project exported"));
+
+    const QString detail = tr("Written to <b>%1</b>: %2")
+                               .arg(QDir::toNativeSeparators(QFileInfo(fileStr).absolutePath()),
+                                    written.join(QStringLiteral(", ")))
+                           + QStringLiteral("<br><br>")
+                           + exporter.reportHtml();
+
+    WidgetUtils::information(this,
+        tr("EddyPro Project Exported"),
+        exporter.changes().isEmpty()
+            ? tr("The project was exported in EddyPro format.")
+            : tr("The project was exported in EddyPro format. These settings "
+                 "were changed, because EddyPro does not support them:"),
+        detail);
+}
+
 //
 bool MainWindow::openFile(const QString& filename)
 {
@@ -1340,13 +1441,20 @@ void MainWindow::createActions()
     openAction->setToolTip(tr("Open an existing project. (%1)")
                            .arg((openAction->shortcut().toString())));
 
+    //> The File > Import submenu supplies the verb, so the items name only
+    //> what is imported.
     importEddyProAction = new QAction(this);
-    importEddyProAction->setText(tr("Import EddyPro Project..."));
+    importEddyProAction->setText(tr("EddyPro Project..."));
     importEddyProAction->setToolTip(tr("Import an EddyPro project file and convert it to EddyFlow format."));
 
     importEddyUhAction = new QAction(this);
-    importEddyUhAction->setText(tr("Import EddyUH Project..."));
+    importEddyUhAction->setText(tr("EddyUH Project..."));
     importEddyUhAction->setToolTip(tr("Import an EddyUH project - choose its preproc_ file - and convert it to EddyFlow format."));
+
+    exportEddyProAction = new QAction(this);
+    exportEddyProAction->setText(tr("EddyPro Project..."));
+    exportEddyProAction->setToolTip(tr("Write this project as an EddyPro 7 project and metadata, replacing what EddyPro does not support."));
+    exportEddyProAction->setEnabled(false);
 
     closeAction = new QAction(this);
     closeAction->setText(tr("&Close"));
@@ -1557,6 +1665,7 @@ void MainWindow::connectActions()
     connect(openAction, &QAction::triggered, this, [this](){ fileOpen(); });
     connect(importEddyProAction, &QAction::triggered, this, [this]{ importEddyProFile(); });
     connect(importEddyUhAction, &QAction::triggered, this, [this]{ importEddyUhFile(); });
+    connect(exportEddyProAction, &QAction::triggered, this, [this]{ exportEddyProFile(); });
     connect(closeAction, &QAction::triggered, this, &MainWindow::fileClose);
     connect(saveAction, &QAction::triggered, this, &MainWindow::fileSave);
     connect(saveAsAction, &QAction::triggered, this, [this](){ fileSaveAs(); });
@@ -1642,19 +1751,26 @@ void MainWindow::createMenus()
     fileMenu = menuBar()->addMenu(tr("&File"));
     fileMenu->addAction(newAction);
     fileMenu->addAction(openAction);
-    fileMenu->addAction(importEddyProAction);
-    fileMenu->addAction(importEddyUhAction);
 
     // submenu open recent file
     fileMenuOpenRecent = fileMenu->addMenu(tr("&Open Recent"));
     fileMenuOpenRecent->addAction(recentOpenAction);
     fileMenuOpenRecent->setIcon(QIcon(QStringLiteral(":/icons/img/fileopen.png")));
     fileMenuOpenRecent->setEnabled(false);
+
+    //> Other programs' projects, in and out. Import beside Open because it
+    //> opens something; Export beside Save As because it writes the project
+    //> somewhere else.
+    fileMenuImport = fileMenu->addMenu(tr("&Import"));
+    fileMenuImport->addAction(importEddyProAction);
+    fileMenuImport->addAction(importEddyUhAction);
     fileMenu->addSeparator();
     fileMenu->addAction(closeAction);
     fileMenu->addSeparator();
     fileMenu->addAction(saveAction);
     fileMenu->addAction(saveAsAction);
+    fileMenuExport = fileMenu->addMenu(tr("&Export"));
+    fileMenuExport->addAction(exportEddyProAction);
     fileMenu->addSeparator();
     fileMenu->addAction(smartfluxAction);
     fileMenu->addSeparator();
@@ -2456,6 +2572,7 @@ void MainWindow::updateMenuActionStatus(Defs::CurrPage page)
         closeAction->setEnabled(loadedProject);
         saveAction->setEnabled(loadedProject && modifiedFlag_);
         saveAsAction->setEnabled(loadedProject);
+        exportEddyProAction->setEnabled(loadedProject);
         fileMenuOpenRecent->setEnabled(true);
 
         if (configState_.project.smartfluxMode)
@@ -2507,6 +2624,7 @@ void MainWindow::updateMenuActionStatus(Defs::CurrPage page)
         closeAction->setEnabled(true);
         saveAction->setEnabled(modifiedFlag_);
         saveAsAction->setEnabled(true);
+        exportEddyProAction->setEnabled(true);
         fileMenuOpenRecent->setEnabled(true);
         setWindowModified(modifiedFlag_);
 
@@ -2555,6 +2673,7 @@ void MainWindow::updateMenuActionStatus(Defs::CurrPage page)
         closeAction->setEnabled(true);
         saveAction->setEnabled(modifiedFlag_);
         saveAsAction->setEnabled(true);
+        exportEddyProAction->setEnabled(true);
         fileMenuOpenRecent->setEnabled(true);
         setWindowModified(modifiedFlag_);
 
@@ -2603,6 +2722,7 @@ void MainWindow::updateMenuActionStatus(Defs::CurrPage page)
         closeAction->setEnabled(true);
         saveAction->setEnabled(modifiedFlag_);
         saveAsAction->setEnabled(true);
+        exportEddyProAction->setEnabled(true);
         fileMenuOpenRecent->setEnabled(true);
         setWindowModified(modifiedFlag_);
 
@@ -2652,6 +2772,7 @@ void MainWindow::updateMenuActionStatus(Defs::CurrPage page)
         closeAction->setEnabled(true);
         saveAction->setEnabled(modifiedFlag_);
         saveAsAction->setEnabled(true);
+        exportEddyProAction->setEnabled(true);
         fileMenuOpenRecent->setEnabled(true);
         setWindowModified(modifiedFlag_);
 
@@ -3572,96 +3693,38 @@ int MainWindow::testBeforeRunningPassed(int step)
         changePage(Defs::CurrPage::BasicSettings);
     }
 
-    if (step == 0 && !ecProject_->spectraExDir().isEmpty())
+    //> The choice made in the dates dialog, spent here: an Advanced run
+    //> deletes what it was asked to, then either starts from the raw files
+    //> (Yes) or re-runs only the flux correction (No).
+    if (step == 0 && advancedClicked_ && pendingRerun_.active)
     {
-        if (expressClicked_)
-        {
-            if (testForPreviousData())
-            {
-                if (!WidgetUtils::yesNoQuestion(QApplication::activeWindow(),
-                    tr("Previous Results Available"),
-                    tr("Previous results available!"),
-                    tr("Most likely results of this run will be identical "
-                       "to results of a previous run available in the \"Previous "
-                       "Output Directory\", so you wouldn't need to proceed.\n\n"
-                       "Do you prefer to proceed anyway?")))
-                {
-                    expressClicked_ = false;
-                    showStatusTip(tr("Canceled..."));
-                    fileSaveSilently();
-                    return QMessageBox::Cancel;
-                }
-            }
-            else
-            {
-                int ret = QMessageBox::warning(QApplication::activeWindow(),
-                              tr("No Previous Results Available"),
-                              tr("It is not possible to use results from any previous run. "
-                                 "EddyFlow will start the processing from the raw files."),
-                              QMessageBox::Ok | QMessageBox::Cancel, QMessageBox::Ok);
+        const auto rerun = pendingRerun_;
+        pendingRerun_ = PendingRerun();
+        //> Nothing from a run that was cancelled before it started.
+        correctionOnlyStart_ = false;
+        deferredRecordRemoval_.clear();
 
-                switch (ret)
-                {
-                    case QMessageBox::Ok:
-                        break;
-                    case QMessageBox::Cancel:
-                        expressClicked_ = false;
-                        showStatusTip(tr("Canceled..."));
-                        fileSaveSilently();
-                        return ret;
-                }
-            }
-        }
-        else if (advancedClicked_)
+        //> The record a correction-only run builds on stays until the new
+        //> pass has written its own, so a failed run can be tried again.
+        if (rerun.deleteFiles
+            && !deleteObsoleteOutputs(rerun.files,
+                                      rerun.correctionOnly ? rerun.recordFile : QString()))
         {
-            if (testForPreviousData())
-            {
-                int ret = QMessageBox::question(QApplication::activeWindow(),
-                                     tr("Previous Results Available"),
-                                     tr("Previous results available!\n\n"
-                                        "Do you want to proceed using results "
-                                        "from a previous run? (Recommended)\n"),
-                                     QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel,
-                                     QMessageBox::Yes);
-                switch (ret)
-                {
-                    case QMessageBox::Yes:
-                        returnValue = QMessageBox::No;
-                        break;
-                    case QMessageBox::No:
-                        advancedClicked_ = false;
-                        returnValue = QMessageBox::Yes;
-                        break;
-                    case QMessageBox::Cancel:
-                        advancedClicked_ = false;
-                        showStatusTip(tr("Canceled..."));
-                        fileSaveSilently();
-                        return ret;
-                }
-            }
-            else
-            {
-                int ret = QMessageBox::warning(QApplication::activeWindow(),
-                              tr("No Previous Results Available"),
-                              tr("It is not possible to use results from any previous run. "
-                                 "EddyFlow will start the processing from the raw files."),
-                              QMessageBox::Ok | QMessageBox::Cancel, QMessageBox::Ok);
+            deferredRecordRemoval_.clear();
+            advancedClicked_ = false;
+            showStatusTip(tr("Canceled..."));
+            fileSaveSilently();
+            return QMessageBox::Cancel;
+        }
 
-                switch (ret)
-                {
-                    case QMessageBox::Ok:
-                        break;
-                    case QMessageBox::Cancel:
-                        advancedClicked_ = false;
-                        showStatusTip(tr("Canceled..."));
-                        fileSaveSilently();
-                        return ret;
-                }
-            }
-        }
-        else if (retrieverClicked_)
+        if (rerun.correctionOnly)
         {
-            // nothing to do
+            updateSpectraPathFromPreviousData(rerun.exFile);
+            //> setSpectraExFile does not mark the project modified, and
+            //> runAdvancedStep_2() reads the project back from disk.
+            ecProject_->setModified(true);
+            correctionOnlyStart_ = true;
+            returnValue = QMessageBox::No;
         }
     }
 
@@ -3801,14 +3864,18 @@ FileUtils::DateRange MainWindow::getCurrentDateRange()
     return dates;
 }
 
-bool MainWindow::showDatesRangeDialog(Defs::CurrRunMode mode)
+bool MainWindow::showDatesRangeDialog(Defs::CurrRunMode mode, bool withDates)
 {
     // TODO: complete management of this persistent setting
-    auto showDialog
-        = GlobalSettings::getAppPersistentSettings(Defs::CONFGROUP_WINDOW,
-                                                   Defs::CONF_WIN_DATES_CHECK_MSG,
-                                                   true).toBool();
-    if (!showDialog) { return true; }
+    const auto showDates
+        = withDates
+          && GlobalSettings::getAppPersistentSettings(Defs::CONFGROUP_WINDOW,
+                                                      Defs::CONF_WIN_DATES_CHECK_MSG,
+                                                      true).toBool();
+    //> An Advanced run always asks how to treat the previous run; the
+    //> preference above only decides whether the dates are asked too.
+    const bool advanced = mode == Defs::CurrRunMode::Advanced;
+    if (!showDates && !advanced) { return true; }
 
     DetectDateRangeDialog detectDateRangeDialog(this, ecProject_, dlProject_);
 
@@ -3823,25 +3890,257 @@ bool MainWindow::showDatesRangeDialog(Defs::CurrRunMode mode)
     connect(&detectDateRangeDialog, &DetectDateRangeDialog::refreshSpRequest,
             mainWidget_->spectralOptions(), &AdvSpectralOptions::partialRefresh);
 
-    // detect the actual range and compare with the subsets
-    detectDateRangeDialog.setCurrentRange(getCurrentDateRange());
-
-    if (mode == Defs::CurrRunMode::Express)
+    if (showDates)
     {
-        if (ecProject_->generalSubset())
+        // detect the actual range and compare with the subsets
+        detectDateRangeDialog.setCurrentRange(getCurrentDateRange());
+
+        if (mode == Defs::CurrRunMode::Express)
+        {
+            if (ecProject_->generalSubset())
+            {
+                detectDateRangeDialog.showDateRange(DetectDateRangeDialog::DateRangeType::RawData);
+            }
+        }
+        else
         {
             detectDateRangeDialog.showDateRange(DetectDateRangeDialog::DateRangeType::RawData);
+            detectDateRangeDialog.showDateRange(DetectDateRangeDialog::DateRangeType::Spectra);
+            detectDateRangeDialog.showDateRange(DetectDateRangeDialog::DateRangeType::PlanarFit);
+            detectDateRangeDialog.showDateRange(DetectDateRangeDialog::DateRangeType::TimeLag);
         }
     }
-    else
+
+    pendingRerun_ = PendingRerun();
+    PreviousRun::Scan scan;
+    if (advanced)
     {
-        detectDateRangeDialog.showDateRange(DetectDateRangeDialog::DateRangeType::RawData);
-        detectDateRangeDialog.showDateRange(DetectDateRangeDialog::DateRangeType::Spectra);
-        detectDateRangeDialog.showDateRange(DetectDateRangeDialog::DateRangeType::PlanarFit);
-        detectDateRangeDialog.showDateRange(DetectDateRangeDialog::DateRangeType::TimeLag);
+        bool cancelled = false;
+        scan = scanPreviousRun(&cancelled);
+        if (cancelled)
+        {
+            showStatusTip(tr("Canceled..."));
+            return false;
+        }
+        detectDateRangeDialog.showPreviousRun(scan);
     }
 
-    return detectDateRangeDialog.exec();
+    if (detectDateRangeDialog.exec() != QDialog::Accepted) { return false; }
+
+    if (advanced)
+    {
+        const bool correctionOnly = detectDateRangeDialog.runKind()
+                                    == DetectDateRangeDialog::RunKind::CorrectionOnly;
+        pendingRerun_.active = true;
+        pendingRerun_.correctionOnly = correctionOnly;
+        pendingRerun_.deleteFiles = detectDateRangeDialog.deleteRequested();
+        pendingRerun_.files = correctionOnly ? scan.correctionOutputs.paths
+                                             : scan.allOutputs.paths;
+        pendingRerun_.recordFile = scan.recordFile;
+        pendingRerun_.exFile = scan.exFile;
+    }
+    return true;
+}
+
+namespace {
+
+//> Waits for `future` with `dialog` up, calling `update` every tenth of a
+//> second so the dialog can say how far the work has got. The GUI stays
+//> live meanwhile, which is what lets Cancel reach the worker.
+template <typename T, typename Update>
+T waitWithProgress(QProgressDialog& dialog, const QFuture<T>& future, Update update)
+{
+    QFutureWatcher<T> watcher;
+    QEventLoop loop;
+    QObject::connect(&watcher, &QFutureWatcherBase::finished, &loop, &QEventLoop::quit);
+    QTimer timer;
+    timer.setInterval(100);
+    QObject::connect(&timer, &QTimer::timeout, &dialog, update);
+    watcher.setFuture(future);
+    timer.start();
+    if (!future.isFinished()) { loop.exec(); }
+    timer.stop();
+    //> reset() also stops the dialog's own timer, which would otherwise
+    //> show it after its delay - over a message box that follows, say.
+    dialog.reset();
+    dialog.hide();
+    return future.result();
+}
+
+QProgressDialog* progressDialog(QWidget* parent, const QString& title, int maximum)
+{
+    auto dialog = new QProgressDialog(parent);
+    dialog->setWindowTitle(title);
+    dialog->setWindowModality(Qt::WindowModal);
+    dialog->setRange(0, maximum);
+    dialog->setAutoClose(false);
+    dialog->setAutoReset(false);
+    //> Not for a quick look at a local folder; seconds on a network share.
+    dialog->setMinimumDuration(400);
+    dialog->setMinimumWidth(460);
+    WidgetUtils::removeContextHelpButton(dialog);
+    return dialog;
+}
+
+} // namespace
+
+PreviousRun::Scan MainWindow::scanPreviousRun(bool* cancelled)
+{
+    *cancelled = false;
+
+    //> Compared as the project stands now, saved or not: the run that
+    //> follows saves it before the engine reads it.
+    QTemporaryDir dir;
+    const auto copy = dir.path() + QStringLiteral("/current.") + Defs::PROJECT_FILE_EXT;
+    if (!dir.isValid() || !ecProject_->saveEcProjectCopy(copy))
+    {
+        PreviousRun::Scan scan;
+        scan.reasons << tr("The project could not be compared with the previous run.");
+        return scan;
+    }
+
+    const bool fccNeeded = ecProject_->isEngineStep2Needed();
+    PreviousRun::Progress progress;
+    const auto future = QtConcurrent::run([copy, fccNeeded, &progress]()
+    {
+        return PreviousRun::scan(copy, fccNeeded, &progress);
+    });
+
+    //> No maximum: how many files the folders hold is only known once they
+    //> have been listed, so the bar moves without a goal and the label counts.
+    QScopedPointer<QProgressDialog> dialog(
+        progressDialog(this, tr("Advanced run"), 0));
+    dialog->setLabelText(tr("Looking for an earlier run in the output folder..."));
+    dialog->setCancelButtonText(tr("Cancel"));
+    connect(dialog.data(), &QProgressDialog::canceled, this, [&progress]()
+    {
+        progress.cancelled = true;
+    });
+
+    const auto& folders = PreviousRun::engineSubFolders();
+    auto scan = waitWithProgress(*dialog, future, [&]()
+    {
+        const int folder = progress.folder;
+        const auto where = folder < 0 ? tr("the output folder")
+                                      : folders.value(folder);
+        dialog->setLabelText(tr("Looking for an earlier run in %1...\n"
+                                "%2 files checked")
+                                 .arg(where, QLocale().toString(qint64(progress.files))));
+        dialog->setValue(0);
+    });
+
+    *cancelled = progress.cancelled;
+    return scan;
+}
+
+bool MainWindow::deleteObsoleteOutputs(const QStringList& files, const QString& deferred)
+{
+    QStringList toDelete;
+    toDelete.reserve(files.size());
+    for (const auto& file : files)
+    {
+        if (!deferred.isEmpty() && file == deferred)
+        {
+            deferredRecordRemoval_ = deferred;
+            continue;
+        }
+        toDelete << file;
+    }
+    if (toDelete.isEmpty()) { return true; }
+
+    //> Off the GUI thread: tens of thousands of files on a network share
+    //> take minutes, and the window would look hung all that time.
+    std::atomic<int> done { 0 };
+    std::atomic<bool> stop { false };
+    const auto future = QtConcurrent::run([toDelete, &done, &stop]()
+    {
+        QStringList failed;
+        for (const auto& file : toDelete)
+        {
+            if (stop) { break; }
+            if (QFileInfo::exists(file) && !QFile::remove(file))
+            {
+                failed << QDir::toNativeSeparators(file);
+            }
+            ++done;
+        }
+        return failed;
+    });
+
+    const int total = int(toDelete.size());
+    QScopedPointer<QProgressDialog> dialog(
+        progressDialog(this, tr("Delete Previous Results"), total));
+    dialog->setLabelText(tr("Deleting files from earlier runs..."));
+    dialog->setCancelButtonText(tr("Stop"));
+    connect(dialog.data(), &QProgressDialog::canceled, this, [&stop]() { stop = true; });
+
+    const auto failed = waitWithProgress(*dialog, future, [&]()
+    {
+        const int n = done;
+        dialog->setLabelText(tr("Deleting files from earlier runs...\n"
+                                "%1 of %2 deleted")
+                                 .arg(QLocale().toString(n), QLocale().toString(total)));
+        dialog->setValue(n);
+    });
+
+    //> Stopped part-way: what is gone is gone, and the run does not start
+    //> on a folder left half cleared.
+    if (stop)
+    {
+        WidgetUtils::information(this,
+            tr("Delete Previous Results"),
+            tr("Deleting was stopped and the run was not started."),
+            tr("%1 of %2 files were deleted.")
+                .arg(QLocale().toString(int(done)), QLocale().toString(total)));
+        return false;
+    }
+    if (failed.isEmpty()) { return true; }
+
+    constexpr int shown = 10;
+    auto list = QStringList(failed.mid(0, shown)).join(QLatin1Char('\n'));
+    if (failed.size() > shown)
+    {
+        list += tr("\n... and %n more", nullptr, int(failed.size() - shown));
+    }
+    return WidgetUtils::yesNoQuestion(this,
+                tr("Delete Previous Results"),
+                tr("%n file(s) could not be deleted. Run anyway?", nullptr,
+                   int(failed.size())),
+                tr("They may be open in another program, or you may not have "
+                   "permission to delete them:\n\n%1").arg(list),
+                QString(),
+                tr("Run"),
+                tr("Cancel"));
+}
+
+void MainWindow::finishCorrectionPass(bool success)
+{
+    const auto pass = correctionPass_;
+    correctionPass_ = CorrectionPass::None;
+    const auto deferred = deferredRecordRemoval_;
+    deferredRecordRemoval_.clear();
+    if (pass == CorrectionPass::None) { return; }
+
+    if (success)
+    {
+        //> FCC has written its own record; the one it replaced is now just
+        //> an earlier pass's file.
+        if (!deferred.isEmpty()) { QFile::remove(deferred); }
+        return;
+    }
+
+    //> A chained pass that did not finish leaves no record. Raw processing
+    //> did, and wrote ex_file into the project: the project on disk is the
+    //> record of what it ran with, under its own tag.
+    if (pass == CorrectionPass::Chained)
+    {
+        const auto exFile = ecProject_->spectraExFile();
+        const auto record = PreviousRun::rawProcessingRecordFor(exFile);
+        if (!record.isEmpty() && QFileInfo::exists(exFile) && !QFileInfo::exists(record))
+        {
+            QFile::copy(ecProject_->generalFileName(), record);
+        }
+    }
 }
 
 bool MainWindow::getDatesRangeDialog(Defs::CurrRunMode mode)
@@ -3865,9 +4164,16 @@ bool MainWindow::getDatesRangeDialog(Defs::CurrRunMode mode)
 
     // if there are subperiods and we are not in paused run,
     // notify with a blocking dialog
-    if (isSubperiodSet && currentStatus() == Defs::CurrStatus::Ready)
+    if (currentStatus() != Defs::CurrStatus::Ready) { return true; }
+
+    //> Advanced always: the dialog also asks about the previous run.
+    if (mode == Defs::CurrRunMode::Advanced)
     {
-        auto dialogAccepted = showDatesRangeDialog(mode);
+        return showDatesRangeDialog(mode, isSubperiodSet);
+    }
+    if (isSubperiodSet)
+    {
+        auto dialogAccepted = showDatesRangeDialog(mode, true);
         return dialogAccepted;
     }
     return true;
@@ -4121,6 +4427,10 @@ void MainWindow::runAdvancedStep_2()
     Defs::CurrStatus status = currentStatus();
 
     advancedClicked_ = true;
+    //> Set by testBeforeRunningPassed() for a run that skips raw processing;
+    //> a call from displayExitMsg2() is the second half of a full run.
+    const bool correctionOnly = correctionOnlyStart_;
+    correctionOnlyStart_ = false;
 
     if (status == Defs::CurrStatus::Ready)
     {
@@ -4182,6 +4492,9 @@ void MainWindow::runAdvancedStep_2()
             mainWidget_->runPage()->startRun(Defs::CurrRunStatus::Advanced_FCC);
             setRunAdvIcon2Pause();
             neededEngineStep2_ = false;
+            correctionPass_ = correctionOnly ? CorrectionPass::CorrectionOnly
+                                             : CorrectionPass::Chained;
+            if (!correctionOnly) { deferredRecordRemoval_.clear(); }
         }
     }
 }
@@ -4471,6 +4784,7 @@ void MainWindow::displayExitDialog()
     mainWidget_->runPage()->engineExited(
         engineProcess_->processExit() == Process::ExitStatus::Success);
     mainWidget_->runPage()->stopRun();
+    finishCorrectionPass(engineProcess_->processExit() == Process::ExitStatus::Success);
 
     if (!neededEngineStep2_)
     {
@@ -4929,7 +5243,7 @@ void MainWindow::updateSpectraPaths()
         }
         else
         {
-            ecProject_->setSpectraFullSpectra(ecProject_->generalOutPath() + QStringLiteral("/EddyFlow_full_cospectra"));
+            ecProject_->setSpectraFullSpectra(ecProject_->generalOutPath() + Defs::OUT_FULL_COSPECTRA_DIR);
         }
 
         fileSaveSilently();
@@ -5026,88 +5340,6 @@ void MainWindow::installUpdate()
         updateInstalled_ = true;
         close();
     }
-}
-
-bool MainWindow::testForPreviousData()
-{
-    bool test = false;
-
-    // first preliminary test
-    if ((ecProject_->generalHfMethod() == 2 || ecProject_->generalHfMethod() == 3)
-        && (ecProject_->spectraMode() == 1 && ecProject_->generalBinSpectraAvail() == 0))
-    {
-        return test;
-    }
-
-    // second preliminary test
-    if (ecProject_->generalHfMethod() == 4
-        && ((ecProject_->spectraMode() == 1 && ecProject_->generalBinSpectraAvail() == 0)
-        || ecProject_->generalFullSpectraAvail() == 0))
-    {
-        return test;
-    }
-
-    QString epFormat = QStringLiteral("*.") + Defs::APP_NAME_LCASE;
-    QString csvFormat = QStringLiteral("*.") + Defs::CSV_NATIVE_DATA_FILE_EXT;
-
-    auto recurse = true;
-    QStringList previousRunList(FileUtils::getFiles(ecProject_->spectraExDir(),
-                                         epFormat,
-                                         recurse));
-    QStringList previousEssentialList(FileUtils::getFiles(ecProject_->spectraExDir(),
-                                         csvFormat,
-                                         recurse));
-    previousEssentialList = previousEssentialList.filter(QStringLiteral("essentials"));
-
-    // prunes the previousRunList if there are no corresponding essential files
-    for (const auto & processingFile : previousRunList)
-    {
-        QFileInfo info(processingFile);
-        QString filenameDate = info.fileName().mid(11, 17);
-
-        if (!StringUtils::isISODateTimeString(filenameDate)
-            || previousEssentialList.filter(filenameDate).isEmpty())
-        {
-            previousRunList.removeOne(processingFile);
-        }
-    }
-
-    // load and compare each old project found with the current project
-    ConfigState currConfigState;
-
-    QScopedPointer<EcProject> currEcProject(new EcProject(this, currConfigState.project));
-    QScopedPointer<EcProject> prevEcProject(new EcProject(this, currConfigState.project));
-    int i = 0;
-    for (const auto &processingFile : previousRunList)
-    {
-        bool modified; // not necessary in this case
-
-        if (currEcProject->loadEcProject(ecProject_->generalFileName(), false, &modified)
-            && prevEcProject->loadEcProject(processingFile, false, &modified)
-            && prevEcProject->generalRunMode() == Defs::CurrRunMode::Advanced)
-        {
-            if (currEcProject->fuzzyCompare(*prevEcProject))
-            {
-                test = true;
-                QFileInfo info(processingFile);
-                QString exFilePath = previousEssentialList.filter(info.fileName().mid(11, 17)).first();
-                updateSpectraPathFromPreviousData(exFilePath);
-                break;
-            }
-            else
-            {
-                qDebug() << "fuzzyCompare: FAIL";
-            }
-        }
-        else
-        {
-            // NOTE: for testing only
-            qDebug() << "loading FAIL";
-        }
-        ++i;
-    }
-
-    return test;
 }
 
 void MainWindow::checkInternetConnection()

@@ -298,7 +298,12 @@ void RunPage::startRun(Defs::CurrRunStatus mode)
                             << WidgetUtils::PropertyList("retRun", false);
 
             progressText = tr("Initializing flux computation processing...");
-            errorEdit_->append(QStringLiteral("\n"));
+            //> After its own raw processing the log carries on; a run that
+            //> re-runs only the flux correction starts a log of its own.
+            if (continuing)
+                errorEdit_->append(QStringLiteral("\n"));
+            else
+                errorEdit_->clear();
             break;
         }
     case Defs::CurrRunStatus::Retriever:
@@ -1288,27 +1293,9 @@ void RunPage::parseEngineOutput(const QByteArray &data)
 
         return;
     }
-    // get essential file path
-    if (cleanLine.contains(QByteArrayLiteral("Essentials file path:")))
-    {
-        auto ex_file_path_ = QString();
-        QByteArrayList path_components = cleanLine.trimmed().split(':');
-
-        // one semicolon only (mac)
-        if (path_components.size() < 3)
-        {
-            ex_file_path_ = QLatin1String(path_components.last().trimmed().constData());
-        }
-        // two semicolons (windows)
-        else
-        {
-            // preserve the drive letter
-            auto full_path_ = path_components.mid(1).join(':');
-            ex_file_path_ = QLatin1String(full_path_.trimmed().constData());
-        }
-        ecProject_->setSpectraExFile(ex_file_path_);
-        return;
-    }
+    //> The path of the file FCC reads is not taken from here: raw processing
+    //> writes it into the project file itself (ex_file), and
+    //> MainWindow::updateSpectraPaths() reads it back before FCC starts.
 
     // start flux computation
     if (cleanLine.contains(QByteArrayLiteral("Starting flux computation and correction")))

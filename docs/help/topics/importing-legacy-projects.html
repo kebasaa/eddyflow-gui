@@ -16,7 +16,7 @@
         <link rel="prev" href="processing-ascii-and-tob1-files.html">
       
       
-        <link rel="next" href="remote-folders.html">
+        <link rel="next" href="exporting-eddypro-projects.html">
       
       
         
@@ -267,6 +267,8 @@
   
     
     
+      
+        
       
         
       
@@ -552,6 +554,34 @@
   
   
     <li class="md-nav__item">
+      <a href="exporting-eddypro-projects.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exporting a Project to EddyPro
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="remote-folders.html" class="md-nav__link">
         
   
@@ -682,10 +712,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
         
           
-          <label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
             
   
   
@@ -703,8 +733,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_8">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -845,10 +875,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_10" >
         
           
-          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_10" id="__nav_3_10_label" tabindex="0">
             
   
   
@@ -866,8 +896,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_9">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_10">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -4512,13 +4542,14 @@
 
 <h1 id="importing-eddypro-and-eddyuh-projects">Importing EddyPro and EddyUH projects<a class="headerlink" href="#importing-eddypro-and-eddyuh-projects" title="Permanent link">&para;</a></h1>
 <p>If you have an existing project from LI-COR's EddyPro or from EddyUH, you do not need to rebuild it from scratch in EddyFlow. EddyFlow can import a legacy project file and convert it to the current EddyFlow formats: Processing Project file (.eddyflow, format version 5.1.0) and metadata file (.metadata, format version 3.2.2). Because the current formats are newer than the legacy ones, imported settings are upgraded during conversion, not simply read as-is, so it is worth reviewing the result before running a full dataset through it.</p>
-<p>Both importers are reached from the <strong>File</strong> menu:</p>
-<p><img alt="The File menu, showing the Import EddyPro Project and Import EddyUH Project items" src="../assets/file-menu-import-projects.png" /></p>
+<p>Both importers are reached from the <strong>File &gt; Import</strong> submenu:</p>
+<p><img alt="The File &gt; Import submenu, showing the EddyPro Project and EddyUH Project items" src="../assets/file-menu-import-projects.png" /></p>
+<p>To go the other way and write an EddyFlow project for EddyPro, see <a href="exporting-eddypro-projects.html#top">Exporting a project to EddyPro</a>.</p>
 <h2 id="importing-an-eddypro-project">Importing an EddyPro project<a class="headerlink" href="#importing-an-eddypro-project" title="Permanent link">&para;</a></h2>
 <p>The engine (v8.0.0 and later) can ingest a legacy <strong>.eddypro</strong> project file directly and auto-convert it into an .eddyflow/.metadata pair.</p>
 <p><strong>From the GUI:</strong></p>
 <ol>
-<li>Click <strong>File &gt; Import EddyPro Project...</strong>.</li>
+<li>Click <strong>File &gt; Import &gt; EddyPro Project...</strong>.</li>
 <li>Select the <strong>.eddypro</strong> file to import.</li>
 <li>
 <p>EddyFlow converts the project to the current .eddyflow (5.1.0) and .metadata (3.2.2) formats, opens it for review, and confirms that nothing has been written to disk yet:</p>
@@ -4542,7 +4573,7 @@
 <p>The auto-conversion from <code>eddyflow_rp</code> happens once, on that first invocation. Subsequent runs should reference the converted .eddyflow project rather than the original .eddypro file.</p>
 </div>
 <h2 id="importing-an-eddyuh-project">Importing an EddyUH project<a class="headerlink" href="#importing-an-eddyuh-project" title="Permanent link">&para;</a></h2>
-<p><strong>File &gt; Import EddyUH Project...</strong> converts an EddyUH project into a new, unsaved EddyFlow project.</p>
+<p><strong>File &gt; Import &gt; EddyUH Project...</strong> converts an EddyUH project into a new, unsaved EddyFlow project.</p>
 <p><strong>What you select.</strong> Choose the project's <code>preproc_&lt;stem&gt;</code> file. The file dialog is titled <strong>Import an EddyUH Project</strong> and offers the filter **EddyUH Preprocessing Setup (preproc_*)**; the file has no extension. It is a MATLAB level-5 MAT-file, which EddyFlow reads directly, including compressed variables, so no MATLAB installation is needed. A file that is not a MAT-file, or a MAT-file that holds neither <code>set_sonic</code> nor <code>Columnorder</code>, is refused with the warning <strong>Not an EddyUH Project</strong> or <strong>EddyUH Project Not Imported</strong>.</p>
 <p><strong>Sibling files.</strong> An EddyUH project is several files. After you pick the <code>preproc_</code> file, EddyFlow looks in the same folder for the lag file (<code>lag_&lt;stem&gt;*</code>), the planar fit file (<code>planar_fit_&lt;stem&gt;*</code>) and the response time file (<code>resptime_&lt;stem&gt;*</code>). They are matched on the stem because the suffix changes with every EddyUH run (for example <code>lag_&lt;stem&gt;.10cl</code>, <code>.1cl</code>, <code>.8cl</code>). The names found are listed in the confirmation dialog under <strong>Found beside it</strong>. The siblings are only reported: their contents are not read into the project, and a project without them converts just as well.</p>
 <p><strong>Nothing is written until you save.</strong> The conversion happens in memory. EddyFlow opens the Project Creation page and names the file it would create, <code>eddyuh_&lt;stem&gt;.eddyflow</code>, beside the <code>preproc_</code> file. The .eddyflow file and its metadata file are written only when you save.</p>

@@ -210,6 +210,9 @@ struct SpectraSettingsState
     int use_foken_mid = 0;
     int flux_run_mode = 0;
     int automatic_spectra_config = 0;
+    //> FCC deletes the raw-processing FLUXNET file it read unless this is set;
+    //> keeping it is what lets a later run re-run the flux correction alone.
+    int keep_parent_fluxnet_file = 1;
 };
 
 /// \struct ScreenGeneralState

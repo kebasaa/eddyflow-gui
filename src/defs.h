@@ -251,7 +251,11 @@ namespace Defs
     const auto TRANSLATION_FILE_DIR = QStringLiteral("tra");
     const auto DOC_DIR              = QStringLiteral("docs");
     const auto TEMPLATE_FILE_DIR    = QStringLiteral("file-templates/");
-    const auto OUT_BINNED_COSPECTRA_DIR    = QStringLiteral("/EddyFlow_binned_cospectra");
+    //> The engine's names, SubDirBinCospectra and SubDirCospectra in
+    //> m_common_global_var.f90. Lower case: the output folder may be on a
+    //> file system that tells the two apart.
+    const auto OUT_BINNED_COSPECTRA_DIR    = QStringLiteral("/eddyflow_binned_cospectra");
+    const auto OUT_FULL_COSPECTRA_DIR      = QStringLiteral("/eddyflow_full_cospectra");
 
 #if defined(Q_OS_WIN)
     const auto EDDYFLOW_ENV_DIR     = QStringLiteral(".eddyflow");

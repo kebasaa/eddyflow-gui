@@ -191,6 +191,7 @@ namespace EcIni
     const auto INI_SPEC_SETTINGS_51    = QStringLiteral("sa_end_time");
     const auto INI_SPEC_SETTINGS_52    = QStringLiteral("flux_run_mode");
     const auto INI_SPEC_SETTINGS_53    = QStringLiteral("automatic_spectra_config");
+    const auto INI_SPEC_SETTINGS_54    = QStringLiteral("keep_parent_fluxnet_file");
 
     const auto INIGROUP_SCREEN_GENERAL = QStringLiteral("RawProcess_General");
     const auto INI_SCREEN_GENERAL_4    = QStringLiteral("data_path");

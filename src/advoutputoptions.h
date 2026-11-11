@@ -231,6 +231,7 @@ private:
     QCheckBox* outDetailsCheckBox;
     QCheckBox* outMdCheckBox;
     QCheckBox* outBiometCheckBox;
+    QCheckBox* keepRawResultsCheckBox;
     QCheckBox* createDatasetCheckBox;
     QCheckBox* outFullCheckBox;
     ClickLabel* fullOutformatLabel;
