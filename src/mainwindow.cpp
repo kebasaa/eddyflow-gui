@@ -3872,10 +3872,27 @@ bool MainWindow::showDatesRangeDialog(Defs::CurrRunMode mode, bool withDates)
           && GlobalSettings::getAppPersistentSettings(Defs::CONFGROUP_WINDOW,
                                                       Defs::CONF_WIN_DATES_CHECK_MSG,
                                                       true).toBool();
-    //> An Advanced run always asks how to treat the previous run; the
-    //> preference above only decides whether the dates are asked too.
+    //> An Advanced run asks how to treat a previous run whenever the output
+    //> folder holds one; the preference above only decides whether the
+    //> dates are asked too.
     const bool advanced = mode == Defs::CurrRunMode::Advanced;
     if (!showDates && !advanced) { return true; }
+
+    pendingRerun_ = PendingRerun();
+    PreviousRun::Scan scan;
+    if (advanced)
+    {
+        bool cancelled = false;
+        scan = scanPreviousRun(&cancelled);
+        if (cancelled)
+        {
+            showStatusTip(tr("Canceled..."));
+            return false;
+        }
+    }
+    //> Nothing to ask about: no earlier run, and no dates to check.
+    const bool askPreviousRun = advanced && scan.found();
+    if (!showDates && !askPreviousRun) { return true; }
 
     DetectDateRangeDialog detectDateRangeDialog(this, ecProject_, dlProject_);
 
@@ -3911,23 +3928,11 @@ bool MainWindow::showDatesRangeDialog(Defs::CurrRunMode mode, bool withDates)
         }
     }
 
-    pendingRerun_ = PendingRerun();
-    PreviousRun::Scan scan;
-    if (advanced)
-    {
-        bool cancelled = false;
-        scan = scanPreviousRun(&cancelled);
-        if (cancelled)
-        {
-            showStatusTip(tr("Canceled..."));
-            return false;
-        }
-        detectDateRangeDialog.showPreviousRun(scan);
-    }
+    if (askPreviousRun) { detectDateRangeDialog.showPreviousRun(scan); }
 
     if (detectDateRangeDialog.exec() != QDialog::Accepted) { return false; }
 
-    if (advanced)
+    if (askPreviousRun)
     {
         const bool correctionOnly = detectDateRangeDialog.runKind()
                                     == DetectDateRangeDialog::RunKind::CorrectionOnly;

@@ -637,7 +637,7 @@ void DetectDateRangeDialog::showPreviousRun(const PreviousRun::Scan& scan)
     okButton->setDefault(false);
 
     const int textWidth = 520;
-    const bool anything = !scan.allOutputs.isEmpty() || !scan.recordFile.isEmpty();
+    const bool anything = scan.found();
 
     auto title = new QLabel(tr("<b>Previous run</b>"));
     auto hr = new QLabel;

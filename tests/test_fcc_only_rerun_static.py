@@ -174,11 +174,19 @@ class TheDialogAsks(unittest.TestCase):
                      'tr("Full re-run (raw processing and flux "'):
             self.assertIn(text, DIALOG)
 
-    def test_an_advanced_run_always_shows_it(self):
+    def test_an_advanced_run_shows_it_when_there_was_a_run(self):
         fn = body(MAIN, "bool MainWindow::getDatesRangeDialog(Defs::CurrRunMode mode)")
         self.assertIn("return showDatesRangeDialog(mode, isSubperiodSet);", fn)
         fn = body(MAIN, "bool MainWindow::showDatesRangeDialog(Defs::CurrRunMode mode, bool withDates)")
-        self.assertIn("detectDateRangeDialog.showPreviousRun(scan);", fn)
+        self.assertIn("const bool askPreviousRun = advanced && scan.found();", fn)
+        self.assertIn("if (askPreviousRun) { detectDateRangeDialog.showPreviousRun(scan); }", fn)
+
+    def test_an_empty_output_folder_goes_straight_to_the_run(self):
+        """Nothing to keep or delete and no dates to check: no dialog."""
+        fn = body(MAIN, "bool MainWindow::showDatesRangeDialog(Defs::CurrRunMode mode, bool withDates)")
+        skip = fn.index("if (!showDates && !askPreviousRun) { return true; }")
+        self.assertLess(fn.index("scan = scanPreviousRun(&cancelled);"), skip)
+        self.assertLess(skip, fn.index("DetectDateRangeDialog detectDateRangeDialog("))
 
 
 class TheRunStartsWhereItAlwaysDid(unittest.TestCase):
