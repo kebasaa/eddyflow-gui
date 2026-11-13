@@ -1,3 +1,32 @@
+Unreleased
+
+    GUI:
+	- New: Advanced Settings > Spectral Corrections > "Gas Sources...", beside
+	       the spectral assessment file choice. Gas by gas, it chooses whose
+	       fitted transfer function the gas is corrected with: Automatic, its
+	       own assessment, or another gas on the same analyser. On CH-LAE the
+	       MIRO's COS and N2O fits came out at fc 0.002 and 0.035 Hz with Fn
+	       0.04-0.07 - noise, not attenuation - beside 0.54 Hz and Fn 0.46 for
+	       the MIRO's own CO2. Tube, cell and sensor response belong to the
+	       analyser, so the noisy gases can take the CO2 fit. Only gases on
+	       the same named analyser are offered, and water takes no part: its
+	       cut-off depends on humidity through wall sorption. With a spectral
+	       assessment file selected, each row shows the gas's own Fn and fc
+	       from the file and marks an implausible fit. Saved per gas as
+	       gas_<i>_sa_source (absent automatic, 0 own, otherwise the donor's
+	       record), carried through every reordering of the gas list like the
+	       time-lag donor.
+	- New: "Automatically use a donor gas for implausible transfer functions"
+	       (sa_auto_source), off by default. A gas left on Automatic then takes
+	       the best-resolved gas on its analyser when its own fit has Fn below
+	       0.2 or a cut-off more than four times off - the engine's rule, with
+	       its thresholds, which tests/test_sa_source_contract_static.py holds
+	       to the engine's. Off and greyed while the run creates the spectral
+	       assessment, where each gas's own fit is made. With a file selected,
+	       a line beside the button names the gases whose fit looks
+	       implausible. Changing either setting keeps "Flux correction only"
+	       re-runs available. Neither goes into SmartFlux packages.
+
 8.2.0 (2026-11-11)
 
     GUI:

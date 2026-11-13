@@ -1732,6 +1732,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#taking-a-gass-transfer-function-from-another-gas-on-the-same-analyser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Taking a gas's transfer function from another gas on the same analyser
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#spectra-cospectra-qaqc-and-attenuation-assessment" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4498,6 +4509,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#taking-a-gass-transfer-function-from-another-gas-on-the-same-analyser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Taking a gas's transfer function from another gas on the same analyser
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#spectra-cospectra-qaqc-and-attenuation-assessment" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4605,6 +4627,35 @@
 <p class="admonition-title">Remote drive</p>
 <p>The <strong>Spectral assessment file</strong>, the <strong>binned cospectra folder</strong> and the <strong>full cospectra folder</strong> fields have a <strong>Remote drive...</strong> button beside <strong>Browse...</strong> / <strong>Load...</strong>. It lets you pick the file or folder from a Google Drive or Dropbox folder shared with "Anyone with the link"; see <a href="remote-folders.html#top">Remote folders</a>.</p>
 </div>
+<h3 id="taking-a-gass-transfer-function-from-another-gas-on-the-same-analyser">Taking a gas's transfer function from another gas on the same analyser<a class="headerlink" href="#taking-a-gass-transfer-function-from-another-gas-on-the-same-analyser" title="Permanent link">&para;</a></h3>
+<p>The in situ transfer function of a gas is fitted to the ratio of its ensemble spectrum to the temperature spectrum. For a gas whose spectra are dominated by noise, such as carbonyl sulfide (COS) or nitrous oxide (N2O) measured by a laser analyser, that fit follows the noise rather than the attenuation. At CH-LAE the assessment gave COS a cut-off of 0.002 Hz with <code>Fn</code> 0.036 and N2O 0.035 Hz with <code>Fn</code> 0.069. CO2 measured by the same analyser gave 0.54 Hz with <code>Fn</code> 0.46. A closed-path analyser does not attenuate below 0.01 Hz, and an <code>Fn</code> far below 1 means the gas-to-temperature ratio is already wrong at the low frequencies where the fit normalises it.</p>
+<p>What the fit measures (tube attenuation, cell flushing, and the sensor's response and averaging) belongs to the analyser and its inlet, not to the species. Sensor separation is corrected separately. Gases drawn through one analyser therefore share one transfer function, and a noisy gas can be corrected with the fit of a gas on the same analyser that can be fitted. The one property that does depend on the species is wall sorption. It is strong for water vapour, which is why water's cut-off falls with relative humidity, negligible for CO2, CH4, N2O and CO, and small for COS. Two rules follow:</p>
+<ul>
+<li><strong>Same analyser only.</strong> A gas on another analyser has another tube, flow and cell, so its fit says nothing about this gas. The analyser has to be named in the metadata.</li>
+<li><strong>No water on either side.</strong> Water's transfer function comes from its humidity regression, and a passive gas has no such dependence.</li>
+</ul>
+<p><strong>Gas Sources...</strong> (beside the two assessment-file options) opens a list with one row per gas that has at least one such gas beside it. Each row offers:</p>
+<ul>
+<li><strong>Automatic</strong> (default): the gas's own fit, unless automatic selection (below) is on and the fit looks implausible.</li>
+<li><strong>Own assessment:</strong> always the gas's own fit, also when it looks implausible. This is how a suggestion is overruled.</li>
+<li><strong>Another gas on the same analyser:</strong> always that gas's fit.</li>
+</ul>
+<p>With a spectral assessment file selected, each row also shows the gas's own <code>Fn</code> and <code>fc</code> from the file, and marks the fit when it looks implausible. A line beside the button names those gases.</p>
+<p><strong>Automatically use a donor gas for implausible transfer functions:</strong> (<code>sa_auto_source</code>, off by default) A gas left on <strong>Automatic</strong> takes the fit of the best-resolved gas on its analyser (the one with the highest <code>Fn</code>) when its own fit looks implausible:</p>
+<ul>
+<li>it has no positive cut-off, or <code>Fn</code> is below 0.2, or</li>
+<li>its cut-off is more than four times higher or lower than that gas's.</li>
+</ul>
+<p>One analyser gives one response, so the cut-offs of its gases should agree. The rule is applied for each month class. The option is off and greyed while the run creates the spectral assessment (the pre-processing run of the <a href="#assessment-run-mode">Assessment run mode</a>), because that run is where each gas's own fit is made and judged.</p>
+<p>In both cases:</p>
+<ul>
+<li>The choice applies when the fluxes are corrected, whether the fits come from the assessment file or are computed in the same run.</li>
+<li>The spectral assessment file always keeps each gas's own fit.</li>
+<li>A gas whose chosen source has no fit for a month is corrected with the analytic method for that month, not with its own fit.</li>
+<li>A gas keeps its own flux limits for the Fratini et al. (2012) method.</li>
+</ul>
+<p>Each setting is stored per gas as <code>gas_&lt;i&gt;_sa_source</code> in <code>[FluxCorrection_SpectralAnalysis_General]</code>: absent for automatic, <code>0</code> for the gas's own fit, and otherwise the gas record it takes the fit from.</p>
+<p>The run log lists every gas that takes another gas's fit, or would, with both fits. The run then ends with a <strong>Suggested settings</strong> block. It is the last message before "Program EddyFlow executed gracefully" and gathers every suggestion the run made: the transfer-function sources and the flux limits for the spectral assessment. Only <code>fc</code> enters the correction; <code>Fn</code> is shown because the rule uses it to judge the fit. A source that automatic selection applied in every month is saved into the <code>processing_*.eddyflow</code> project in the output folder as <code>gas_&lt;i&gt;_sa_source</code>, so the project kept with the results names what corrected them. With <strong>Automatically configure spectral assessment after this run</strong> on, the sources that would have been taken are written there too, as they are for flux limits.</p>
 <h3 id="spectra-cospectra-qaqc-and-attenuation-assessment">Spectra, cospectra QA/QC, and attenuation assessment<a class="headerlink" href="#spectra-cospectra-qaqc-and-attenuation-assessment" title="Permanent link">&para;</a></h3>
 <p>This table sets, for every quantity and gas of the project, which spectra and cospectra enter the ensemble averages and over which frequency range the transfer function is fitted. <strong>Restore Default Values</strong> on the title row resets the whole table; each gas returns to the default for its own species. Rows: <strong>Friction velocity</strong>, <strong>Latent heat flux</strong> (only if the project measures water vapour), <strong>Sensible heat flux</strong>, and one row <code>&lt;gas&gt; flux</code> for every gas record that has a column in the raw data (two analysers measuring CO2 get two rows, labelled with the analyser). Columns:</p>
 <ul>
@@ -4640,7 +4691,7 @@
 <h2 id="assessment-run-mode">Assessment run mode<a class="headerlink" href="#assessment-run-mode" title="Permanent link">&para;</a></h2>
 <p>The three radio buttons of the Output Files page configure the whole run around producing or consuming a spectral assessment file. Selecting one applies all its settings together as a single change.</p>
 <ul>
-<li><strong>Pre-processing run (Create Spectral Assessment File if possible):</strong> Prepares a run that creates a new spectral assessment file if enough data are available. It selects an in situ low-pass method if none is selected (Fratini et al. 2012 by default), sets <strong>Binned spectra files not available</strong>, turns on the binned (co)spectra and the full w/Ts cospectra outputs, sets <strong>Full w/Ts cospectra files not available</strong>, and turns off the Vickers and Mahrt filter and the Foken filter for moderate quality, so that the assessment sees all spectra that pass the flux limits. It locks settings that must stay fixed during the run. It is refused with a warning titled "Create Spectral Assessment File" if there are no raw data, the assessment period is invalid, the period holds fewer averaging periods than <strong>Minimum number of (co)spectra for valid averages</strong>, or a chosen binned or full cospectra folder is not valid.</li>
+<li><strong>Pre-processing run (Create Spectral Assessment File if possible):</strong> Prepares a run that creates a new spectral assessment file if enough data are available. It selects an in situ low-pass method if none is selected (Fratini et al. 2012 by default), sets <strong>Binned spectra files not available</strong>, turns on the binned (co)spectra and the full w/Ts cospectra outputs, sets <strong>Full w/Ts cospectra files not available</strong>, and turns off the Vickers and Mahrt filter and the Foken filter for moderate quality, so that the assessment sees all spectra that pass the flux limits. It locks settings that must stay fixed during the run, and turns off <strong>Automatically use a donor gas for implausible transfer functions</strong> (see <a href="#taking-a-gass-transfer-function-from-another-gas-on-the-same-analyser">Taking a gas's transfer function from another gas on the same analyser</a>). It is refused with a warning titled "Create Spectral Assessment File" if there are no raw data, the assessment period is invalid, the period holds fewer averaging periods than <strong>Minimum number of (co)spectra for valid averages</strong>, or a chosen binned or full cospectra folder is not valid.</li>
 <li><strong>Production run:</strong> Prepares a normal run that uses existing assessment inputs and production QA/QC defaults: an in situ low-pass method is selected (Fratini by default if none), <strong>Binned spectra files available</strong> and <strong>Full w/Ts cospectra files available</strong> are set, the assessment file option is set to use an existing file, and the (co)spectra filters of Vickers and Mahrt and of Foken (low and moderate quality) are turned on. Ensemble spectra and cospectra and full-spectra outputs are turned off. Normal output choices remain available.</li>
 <li><strong>Default, all options available:</strong> Applies no preset; everything is controlled manually from the Output Files page and this page.</li>
 </ul>

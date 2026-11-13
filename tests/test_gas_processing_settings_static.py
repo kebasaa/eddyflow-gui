@@ -40,7 +40,12 @@ SUFFIXES = ("sr_lim", "step_lim", "al_min", "al_max", "ds_hf", "ds_sf",
 #: number, and the only FCC per-gas TEXT tag. It replaced three flat tables of
 #: twelve start/stop pairs each, labelled for CO2, CH4 and the fourth gas,
 #: which is why every gas past the fourth used to inherit CO2's grouping.
-SA_SUFFIXES = ("fmin", "fmax", "hfn_fmin", "min_st", "min_un", "max", "months")
+#:
+#: `source` is whose fitted transfer function the gas is corrected with: absent
+#: automatic, 0 its own, otherwise a tube-mate's record. Written from the
+#: record's saSource rather than from proc, but in the same per-gas block.
+SA_SUFFIXES = ("fmin", "fmax", "hfn_fmin", "min_st", "min_un", "max", "months",
+               "source")
 #: The Output Files page, written in a RawProcess* section.
 OUT_SUFFIXES = ("full_sp", "full_cosp_w", "raw")
 

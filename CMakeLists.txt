@@ -173,6 +173,8 @@ set(EDDYFLOW_HEADERS
     src/table_delegate_utils.h
     src/timelagsettingsdialog.h
     src/tlagdonordialog.h
+    src/sasourcedialog.h
+    src/spectralassessmentfile.h
     src/tooltipfilter.h
     src/variable_delegate.h
     src/variable_desc.h
@@ -303,6 +305,8 @@ set(EDDYFLOW_SOURCES
     src/stringutils.cpp
     src/timelagsettingsdialog.cpp
     src/tlagdonordialog.cpp
+    src/sasourcedialog.cpp
+    src/spectralassessmentfile.cpp
     src/tooltipfilter.cpp
     src/variable_delegate.cpp
     src/variable_desc.cpp

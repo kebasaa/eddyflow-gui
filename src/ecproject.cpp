@@ -1302,6 +1302,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.spectraSettings.flux_run_mode = defaultEcProjectState.spectraSettings.flux_run_mode;
     ec_project_state_.spectraSettings.automatic_spectra_config = defaultEcProjectState.spectraSettings.automatic_spectra_config;
     ec_project_state_.spectraSettings.keep_parent_fluxnet_file = defaultEcProjectState.spectraSettings.keep_parent_fluxnet_file;
+    ec_project_state_.spectraSettings.sa_auto_source = defaultEcProjectState.spectraSettings.sa_auto_source;
 
     ec_project_state_.screenTilt.start_date = QDate(2000, 1, 1).toString(Qt::ISODate);
     ec_project_state_.screenTilt.end_date = QDate::currentDate().toString(Qt::ISODate);
@@ -1815,6 +1816,12 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_52, ec_project_state_.spectraSettings.flux_run_mode);
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_53, ec_project_state_.spectraSettings.automatic_spectra_config);
         project_ini.setValue(EcIni::INI_SPEC_SETTINGS_54, ec_project_state_.spectraSettings.keep_parent_fluxnet_file);
+        //> Never on in the run that creates the spectral assessment: that
+        //> pass is where each gas's own fit is made and judged, before any
+        //> gas is handed another's.
+        project_ini.setValue(EcIni::INI_SPEC_SETTINGS_55,
+                             ec_project_state_.spectraSettings.flux_run_mode == 1
+                                 ? 0 : ec_project_state_.spectraSettings.sa_auto_source);
 
         //> The three SA-group tables that used to be written here as
         //> placeholders - sa_co2_g1_start/stop and the ch4 and gas4 pairs,
@@ -1887,6 +1894,20 @@ bool EcProject::saveEcProject(const QString &filename)
                 {
                     project_ini.setValue(p + QStringLiteral("months"),
                                          proc.saMonths);
+                }
+                //> Whose fitted transfer function this gas is corrected with.
+                //> Absent is automatic, 0 its own, otherwise the 1-based
+                //> record of a tube-mate - checked again here because the
+                //> records can change on another page after the choice.
+                const int source = gases.at(i).saSource;
+                if (source == kSaSourceOwn)
+                {
+                    project_ini.setValue(p + QStringLiteral("source"), 0);
+                }
+                else if (source > 0
+                         && MeasurementRecords::isSaSourceFor(gases, i, source - 1))
+                {
+                    project_ini.setValue(p + QStringLiteral("source"), source);
                 }
             }
         }
@@ -3159,6 +3180,10 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.spectraSettings.keep_parent_fluxnet_file
                 = project_ini.value(EcIni::INI_SPEC_SETTINGS_54,
                                     defaultEcProjectState.spectraSettings.keep_parent_fluxnet_file).toInt();
+        //> Off for older projects, which never asked for it.
+        ec_project_state_.spectraSettings.sa_auto_source
+                = project_ini.value(EcIni::INI_SPEC_SETTINGS_55,
+                                    defaultEcProjectState.spectraSettings.sa_auto_source).toInt() == 1 ? 1 : 0;
 
         //> Per-gas spectral settings. Read after the gas records exist, so the
         //> loop can address them; an absent key leaves the record's sentinel
@@ -3185,6 +3210,34 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
             //> record stating nothing.
             proc.saMonths
                 = project_ini.value(p + QStringLiteral("months")).toString();
+        }
+
+        //> Whose transfer function each gas takes. Absent is automatic, 0 the
+        //> gas's own fit, j the record of a tube-mate. A record that is not
+        //> a tube-mate, or does not parse, is dropped rather than guessed at,
+        //> and the gas stays automatic - which is also what the engine does.
+        {
+            auto& gases = ec_project_state_.projectGeneral.gasColumns;
+            for (auto& gas : gases) { gas.saSource = 0; }
+            for (int i = 0; i < gases.size(); ++i)
+            {
+                if (gases.at(i).slug == QLatin1String("h2o")) { continue; }
+                const auto p = QStringLiteral("gas_%1_sa_").arg(i + 1);
+                const auto value
+                    = project_ini.value(p + QStringLiteral("source")).toString().trimmed();
+                if (value.isEmpty()) { continue; }
+                bool ok = false;
+                const int source = qRound(value.toDouble(&ok));
+                if (!ok) { continue; }
+                if (source == 0)
+                {
+                    gases[i].saSource = kSaSourceOwn;
+                }
+                else if (MeasurementRecords::isSaSourceFor(gases, i, source - 1))
+                {
+                    gases[i].saSource = source;
+                }
+            }
         }
 
         //> An upgraded project's month grouping, folded out of the three flat
@@ -4536,6 +4589,14 @@ static void remapMoistureRefs(QVector<GasRecord>& gases,
         //> The lag donor is an index into the same list, and goes the same way.
         gas.tlagDonor = gas.tlagDonor > 0 && gas.tlagDonor < remap.size()
                 ? remap.at(gas.tlagDonor) : 0;
+        //> And the spectral transfer-function source. Only a record index
+        //> moves; "own" names no record and passes through, and a source
+        //> that went away becomes automatic.
+        if (gas.saSource > 0)
+        {
+            gas.saSource = gas.saSource < remap.size()
+                    ? remap.at(gas.saSource) : 0;
+        }
     }
 }
 
@@ -5356,6 +5417,9 @@ void EcProject::writeEddyProCompatibleKeys(QSettings& ini,
         //> A module keeps no earlier runs to re-correct, and its card has
         //> no room for the file; without the key the engine deletes it.
         ini.remove(EcIni::INI_SPEC_SETTINGS_54);   // keep_parent_fluxnet_file
+        //> EddyPro has no transfer-function sources; the per-gas
+        //> gas_<i>_sa_source goes with the sweep above.
+        ini.remove(EcIni::INI_SPEC_SETTINGS_55);   // sa_auto_source
         for (int i = 0; i < n; ++i)
         {
             const auto& p = procFor(i);
@@ -8083,6 +8147,14 @@ void EcProject::setSpectraFluxRunMode(int n)
 void EcProject::setSpectraAutomaticConfig(int n)
 {
     ec_project_state_.spectraSettings.automatic_spectra_config = n;
+    setModified(true);
+}
+
+void EcProject::setSpectraAutoSource(int n)
+{
+    if (ec_project_state_.spectraSettings.sa_auto_source == n) { return; }
+
+    ec_project_state_.spectraSettings.sa_auto_source = n;
     setModified(true);
 }
 

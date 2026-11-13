@@ -59,6 +59,7 @@
 #include <cmath>
 
 #include "ancillaryfiletest.h"
+#include "sasourcedialog.h"
 #include "clicklabel.h"
 #include "customcombomodel.h"
 #include "customclearlineedit.h"
@@ -834,6 +835,20 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     spectraRadioGroup->addButton(spectraExistingRadio, 0);
     spectraRadioGroup->addButton(spectraNonExistingRadio, 1);
 
+    //> Whose transfer function each gas is corrected with. Beside the
+    //> assessment-file choice because it applies to whatever fits that choice
+    //> produces - read from the file or computed in this run.
+    spectraAutoSourceCheck = new QCheckBox(tr("Automatically use a donor gas for implausible transfer functions"));
+    spectraAutoSourceCheck->setToolTip(tr("<b>Automatic donor gas:</b> A gas whose fitted transfer function looks implausible - Fn below %1, or a cut-off more than %2 times off the best-resolved gas on the same analyser - is corrected with that gas's transfer function instead. Tube, cell and sensor response belong to the analyser, so gases measured by one analyser share them; a noisy gas such as COS or N2O can take its CO2's. Water never takes part. Choose per gas with <i>Gas Sources...</i>. Not available while the run creates the spectral assessment, where each gas's own fit is made.")
+        .arg(SpectralAssessmentFile::kFnMin)
+        .arg(1.0 / SpectralAssessmentFile::kFcRatioMin));
+    spectraSourcesButton = new QPushButton(tr("Gas Sources..."));
+    spectraSourcesButton->setProperty("mdButton", true);
+    spectraSourcesButton->setMaximumWidth(spectraSourcesButton->sizeHint().width());
+    spectraSourcesButton->setToolTip(tr("<b>Gas sources:</b> Choose, gas by gas, whose transfer function it is corrected with: automatic, its own fit, or that of another gas on the same analyser. With a spectral assessment file selected, each gas's own fit is shown."));
+    spectraSourcesHint = new QLabel;
+    spectraSourcesHint->setVisible(false);
+
     // The per-gas transfer-function windows are generated in
     // rebuildGasSpectralSpins(), one pair per gas record.
     lowestFrequencyTip_ = tr("<b>Lowest frequency:</b> The assessment of the system transfer function implies the frequency-wise ratio of gas concentration to temperature spectra (temperature considered as proxy for un-attenuated atmospheric scalar spectra). This ratio must be taken in the frequency range where the system filtering is expected to occur. At lower frequencies, slow-paced atmospheric and source/sink dynamics may imply a breakdown of the similarity assumption. Default values can be good in most occasions, but the lower frequency should be adapted based mostly on the averaging interval.");
@@ -1058,6 +1073,15 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     settingsLayout->addWidget(spectraExistingRadio, 29, 0, 1, 2);
     settingsLayout->addWidget(spectraFileBrowse, 29, 1, 1, 4);
     settingsLayout->addWidget(spectraNonExistingRadio, 30, 0, 1, 2);
+    {
+        auto sourcesRow = new QHBoxLayout;
+        sourcesRow->setContentsMargins(0, 0, 0, 0);
+        sourcesRow->addWidget(spectraAutoSourceCheck);
+        sourcesRow->addWidget(spectraSourcesButton);
+        sourcesRow->addWidget(spectraSourcesHint);
+        sourcesRow->addStretch();
+        settingsLayout->addLayout(sourcesRow, 30, 2, 1, 3);
+    }
 
     settingsLayout->addWidget(fratiniTitle, 31, 0, 1, -1);
     settingsLayout->addWidget(fullSpectraNonExistingRadio, 32, 0, 1, 2);
@@ -1221,6 +1245,13 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             this, &AdvSpectralOptions::updateSpectraFile);
     connect(spectraFileBrowse, &FileBrowseWidget::pathSelected,
             this, &AdvSpectralOptions::testSelectedSpectraFile);
+    connect(spectraAutoSourceCheck, &QCheckBox::toggled, this, [=](bool checked)
+    {
+        ecProject_->setSpectraAutoSource(checked ? 1 : 0);
+        updateSpectraSourceWidgets();
+    });
+    connect(spectraSourcesButton, &QPushButton::clicked,
+            this, &AdvSpectralOptions::showSaSourceDialog);
     connect(minSmplLabel, &ClickLabel::clicked,
             this, &AdvSpectralOptions::onMinSmplLabelClicked);
     connect(minSmplSpin, QOverload<int>::of(&QSpinBox::valueChanged),
@@ -1255,6 +1286,8 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
 
 AdvSpectralOptions::~AdvSpectralOptions()
 {
+    if (saSourceDialog_)
+        delete saSourceDialog_;
 }
 
 void AdvSpectralOptions::setSmartfluxUI()
@@ -1296,6 +1329,7 @@ void AdvSpectralOptions::setSmartfluxUI()
 //        ecProject_->setModified(oldmod);
 //        ecProject_->blockSignals(false);
 //    }
+    updateSpectraSourceWidgets();
 }
 
 void AdvSpectralOptions::reset()
@@ -1596,6 +1630,9 @@ void AdvSpectralOptions::refreshSpectralAssessmentCreationMode()
     if (refreshingAssessmentMode_) { return; }
     refreshingAssessmentMode_ = true;
     const auto refreshDone = qScopeGuard([this]{ refreshingAssessmentMode_ = false; });
+    //> Whatever this decides - the run mode, the radios - the source widgets
+    //> follow, on every way out of it. reset() and refresh() end here.
+    const auto sourcesDone = qScopeGuard([this]{ updateSpectraSourceWidgets(); });
 
     const auto createAssessment = ecProject_->spectraFluxRunMode() == 1;
     const auto productionRun = ecProject_->spectraFluxRunMode() == 2;
@@ -1780,6 +1817,112 @@ void AdvSpectralOptions::refreshSpectralAssessmentCreationMode()
 void AdvSpectralOptions::updateSpectraFile(const QString &fp)
 {
     ecProject_->setSpectraFile(RemoteSource::cleanPath(fp));
+    updateSpectraSourceWidgets();
+}
+
+void AdvSpectralOptions::refreshSpectraFits(bool allowDownload)
+{
+    const auto path = ecProject_->spectraFile();
+    const bool fileMode = ecProject_->spectraMode() == 0 && !path.isEmpty();
+    if (!fileMode)
+    {
+        spectraFits_.clear();
+        spectraFitsFromFile_ = false;
+        spectraFitsPath_.clear();
+        spectraFitsModified_ = QDateTime();
+        return;
+    }
+
+    QString local;
+    if (!RemoteSource::isRemote(path))
+    {
+        local = path;
+    }
+    else if (allowDownload)
+    {
+        local = RemoteSource::ensureLocal(path, this);
+    }
+    else
+    {
+        //> No download on a page refresh: a shared file keeps the reading it
+        //> had, or none until the dialog is opened.
+        if (spectraFitsPath_ != path)
+        {
+            spectraFits_.clear();
+            spectraFitsFromFile_ = false;
+        }
+        return;
+    }
+
+    const auto modified = QFileInfo(local).lastModified();
+    if (path == spectraFitsPath_ && modified == spectraFitsModified_
+        && !RemoteSource::isRemote(path))
+    {
+        return;
+    }
+    spectraFits_ = SpectralAssessmentFile::readFits(ecProject_->gasColumns(), local);
+    spectraFitsFromFile_ = !spectraFits_.isEmpty();
+    spectraFitsPath_ = path;
+    spectraFitsModified_ = modified;
+}
+
+void AdvSpectralOptions::updateSpectraSourceWidgets()
+{
+    const bool inSitu = hfMethodCheck->isChecked() && isHorstIbromFratini();
+    //> The run that creates the assessment is where each gas's own fit is
+    //> made and judged, so no gas is handed another's there.
+    const bool creatingAssessment = ecProject_->spectraFluxRunMode() == 1;
+    if (creatingAssessment && ecProject_->spectraAutoSource() != 0)
+    {
+        ecProject_->setSpectraAutoSource(0);
+    }
+    {
+        QSignalBlocker blocker(spectraAutoSourceCheck);
+        spectraAutoSourceCheck->setChecked(!creatingAssessment
+                                           && ecProject_->spectraAutoSource() == 1);
+    }
+    spectraAutoSourceCheck->setEnabled(inSitu && !creatingAssessment);
+    spectraSourcesButton->setEnabled(inSitu);
+
+    refreshSpectraFits(false);
+    if (saSourceDialog_) { saSourceDialog_->setFits(spectraFits_, spectraFitsFromFile_); }
+
+    //> Name the gases whose fit in the selected file looks implausible, and
+    //> what would replace it. A suggestion, whatever the switch says.
+    const auto& gases = ecProject_->gasColumns();
+    QStringList flagged;
+    QStringList details;
+    if (inSitu && spectraFitsFromFile_)
+    {
+        for (const int i : MeasurementRecords::gasDisplayOrder(gases))
+        {
+            const int s = SpectralAssessmentFile::suggestedSourceOverall(gases, spectraFits_, i);
+            if (s < 0) { continue; }
+            if (gases.at(i).saSource != 0) { continue; }
+            flagged << gases.at(i).slug.toUpper();
+            details << tr("%1: %2, suggested %3")
+                           .arg(MeasurementRecords::gasLabel(gases, i),
+                                SpectralAssessmentFile::fitSummary(spectraFits_.value(i)),
+                                MeasurementRecords::gasLabel(gases, s));
+        }
+    }
+    spectraSourcesHint->setVisible(!flagged.isEmpty());
+    spectraSourcesHint->setText(tr("Implausible fit: %1").arg(flagged.join(QStringLiteral(", "))));
+    spectraSourcesHint->setToolTip(details.join(QStringLiteral("<br>")));
+}
+
+void AdvSpectralOptions::showSaSourceDialog()
+{
+    //> Opening it is the one moment a shared file may be downloaded.
+    refreshSpectraFits(true);
+    if (!saSourceDialog_)
+    {
+        saSourceDialog_ = new SaSourceDialog(this, ecProject_);
+    }
+    saSourceDialog_->setFits(spectraFits_, spectraFitsFromFile_);
+    saSourceDialog_->show();
+    saSourceDialog_->raise();
+    saSourceDialog_->activateWindow();
 }
 
 void AdvSpectralOptions::updateBinnedSpectraFile(const QString &fp)
@@ -1856,6 +1999,7 @@ void AdvSpectralOptions::spectraRadioClicked(int radioButton)
         setSpectralAssessmentFrequencyCellsEnabled(toEnable);
     }
     refreshSpectralQaQcTableState();
+    updateSpectraSourceWidgets();
     emit updateOutputsRequest(hfMethodForRow(hfMethCombo->currentIndex()));
 }
 
@@ -2018,6 +2162,7 @@ void AdvSpectralOptions::updateHfMethod_1(bool b)
         emit updateOutputsRequest(0);
     }
     refreshEsTauBox();
+    updateSpectraSourceWidgets();
 }
 
 // update project properties and fluxes rotation choices
@@ -2059,6 +2204,7 @@ void AdvSpectralOptions::updateHfMethod_2(int n)
     emit updateOutputsRequest(hfMethodForRow(n));
     maybeWarnMassmanFallback();
     refreshEsTauBox();
+    updateSpectraSourceWidgets();
 }
 
 bool AdvSpectralOptions::isHorstIbromFratini()

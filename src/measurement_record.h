@@ -131,9 +131,22 @@ struct GasRecord : MeasurementRecord
     /// moistureRef. Written to [RawProcess_Settings] as tlag_borrow_pairs,
     /// not to [Project].
     int tlagDonor = 0;
+    /// Whose fitted spectral transfer function this gas is corrected with.
+    /// **0 means automatic**: its own fit, unless automatic selection
+    /// (sa_auto_source) is on and that fit looks implausible beside a
+    /// tube-mate's. kSaSourceOwn asks for its own fit whatever it looks like;
+    /// a positive value is the 1-based record of a tube-mate on the same
+    /// analyser. An index into this list like tlagDonor, and carried by every
+    /// rearrangement the same way. Written to
+    /// [FluxCorrection_SpectralAnalysis_General] as gas_<i>_sa_source: absent
+    /// for automatic, 0 for its own fit, the record otherwise.
+    int saSource = 0;
 
     GasProcessingSettings proc;
 };
+
+/// GasRecord::saSource for "always the gas's own fit".
+constexpr int kSaSourceOwn = -1;
 
 //> One Conditional Eddy Covariance pairing: an octant gas, a water channel,
 //> and any further species partitioned in the octants those two define.
@@ -261,6 +274,23 @@ bool isTlagDonorFor(const QVector<GasRecord>& gases, int gasIndex,
 
 /// Clear every tlagDonor that is no longer a tube-mate of its gas.
 void validateTlagDonors(QVector<GasRecord>& gases);
+
+/// Whether record \a sourceIndex (0-based) may lend its fitted spectral
+/// transfer function to record \a gasIndex: a different, measured, non-water
+/// gas on the same real analyser.
+///
+/// The in-situ transfer function measures the tube, the cell and the sensor's
+/// response, which belong to the analyser, so only a tube-mate's says anything
+/// about this gas. Water is on neither side: its cut-off depends on humidity
+/// through wall sorption. The same rule as isTlagDonorFor today, kept apart
+/// because the two answer different questions and may diverge; mirrors
+/// SpectralTubeMates in the engine's gas_slot_resolution.f90.
+bool isSaSourceFor(const QVector<GasRecord>& gases, int gasIndex,
+                   int sourceIndex);
+
+/// Send every saSource that names a record which can no longer lend its
+/// transfer function back to automatic. kSaSourceOwn is kept.
+void validateSaSources(QVector<GasRecord>& gases);
 
 /// Row label: the species, qualified by the analyser when there is one, so
 /// two CO2 records on different analysers are told apart.

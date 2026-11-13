@@ -213,6 +213,10 @@ struct SpectraSettingsState
     //> FCC deletes the raw-processing FLUXNET file it read unless this is set;
     //> keeping it is what lets a later run re-run the flux correction alone.
     int keep_parent_fluxnet_file = 1;
+    //> Whether a gas left on automatic takes a tube-mate's spectral transfer
+    //> function when its own looks implausible. Off by default, and always
+    //> off while the run creates the spectral assessment (flux_run_mode 1).
+    int sa_auto_source = 0;
 };
 
 /// \struct ScreenGeneralState

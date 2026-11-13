@@ -192,6 +192,11 @@ namespace EcIni
     const auto INI_SPEC_SETTINGS_52    = QStringLiteral("flux_run_mode");
     const auto INI_SPEC_SETTINGS_53    = QStringLiteral("automatic_spectra_config");
     const auto INI_SPEC_SETTINGS_54    = QStringLiteral("keep_parent_fluxnet_file");
+    //> Whether a gas left on automatic takes the best-resolved tube-mate's
+    //> spectral transfer function when its own looks implausible. Which gas
+    //> each one takes it from is the per-gas gas_<i>_sa_source, composed
+    //> where the other gas_<i>_sa_* keys are.
+    const auto INI_SPEC_SETTINGS_55    = QStringLiteral("sa_auto_source");
 
     const auto INIGROUP_SCREEN_GENERAL = QStringLiteral("RawProcess_General");
     const auto INI_SCREEN_GENERAL_4    = QStringLiteral("data_path");

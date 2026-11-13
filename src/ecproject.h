@@ -478,6 +478,7 @@ public:
     void setSpectraFile(const QString& p);
     void setSpectraFluxRunMode(int n);
     void setSpectraAutomaticConfig(int n);
+    void setSpectraAutoSource(int n);
     void setSpectraKeepParentFluxnetFile(int n);
     void setSpectraMinSmpl(int l);
     void setSpectraHorst(int n);
@@ -971,6 +972,7 @@ public:
     int spectraMode() const { return ec_project_state_.spectraSettings.sa_mode; }
     int spectraFluxRunMode() const { return ec_project_state_.spectraSettings.flux_run_mode; }
     int spectraAutomaticConfig() const { return ec_project_state_.spectraSettings.automatic_spectra_config; }
+    int spectraAutoSource() const { return ec_project_state_.spectraSettings.sa_auto_source; }
     int spectraKeepParentFluxnetFile() const { return ec_project_state_.spectraSettings.keep_parent_fluxnet_file; }
     const QString& spectraStartDate() const { return ec_project_state_.spectraSettings.start_sa_date; }
     const QString& spectraEndDate() const { return ec_project_state_.spectraSettings.end_sa_date; }
