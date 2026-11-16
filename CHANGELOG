@@ -26,6 +26,12 @@ Unreleased
 	       a line beside the button names the gases whose fit looks
 	       implausible. Changing either setting keeps "Flux correction only"
 	       re-runs available. Neither goes into SmartFlux packages.
+	- Fixed: A project opened after File > Close came up with an empty
+	       alternative metadata file field when it named the same metadata
+	       file as the project closed before, so the file had to be picked
+	       again. The page still remembered that file as already read and
+	       skipped reading it; it now forgets it whenever the metadata editor
+	       is emptied (closing a project, clearing the field, or Reset).
 
 8.2.0 (2026-11-11)
 

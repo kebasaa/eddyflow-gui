@@ -342,6 +342,11 @@ ProjectPage::ProjectPage(QWidget *parent, DlProject *dlProject, EcProject *ecPro
             this, &ProjectPage::updateMetadataFileBrowse);
     connect(dlIniDialog_, &DlIniDialog::mdFileEditClearRequest,
             metadataFileBrowse, &FileBrowseWidget::clear);
+    //> The editor no longer holds that file, so the next project that names it
+    //> must open it again. Left set, a project reopened after File > Close
+    //> matched it, skipped the read, and came up with an empty field.
+    connect(dlIniDialog_, &DlIniDialog::mdFileEditClearRequest,
+            this, [this]() { lastMetadataRead_.clear(); });
 
     connect(titleLabel, &ClickLabel::clicked,
             this, &ProjectPage::onTitleLabelClicked);
