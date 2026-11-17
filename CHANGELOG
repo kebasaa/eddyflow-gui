@@ -1,6 +1,29 @@
 Unreleased
 
     GUI:
+	- New: A Flatpak of EddyFlow (GUI and engine) for Linux. The workflow
+	       .github/workflows/linux-flatpak.yml builds it on every release
+	       from packaging/flatpak/io.github.kebasaa.EddyFlow.yml (KDE 6.8
+	       runtime; QuaZIP, 7-Zip, the engine and the GUI built from
+	       source). It checks that the engine and 7-Zip run inside the
+	       sandbox and attaches the .flatpak bundle to the release beside
+	       the .deb, .snap and .rpm. Pinned by tests/test_flatpak_static.py.
+	- New: Planar Fit Settings get an "innFLUX extras" box: moving windows
+	       and their width, and bootstrap resamples and seed (pf_mw_num,
+	       pf_mw_width, pf_boot_n, pf_boot_seed). Off by default; the tooltips
+	       name the source (Striednig et al. 2020).
+	- New: Output Files gets a "Cross-covariance functions (innFLUX)" box:
+	       the gases to write them for (none by default, saved per gas as
+	       gas_<i>_out_ccf), the half-width and every n-th lag. The tooltips
+	       name the source (Striednig et al. 2020).
+	- New: "Cumulated covariance (innFLUX, Striednig et al. 2020)" in the time
+	       lag method list (tlag_meth 6). With it selected, Time Lag
+	       Optimization Settings... opens the Cumulated Covariance Time Lag
+	       Settings dialog. It holds the period filters, the segment
+	       boundaries, the clock-drift correction (off by default, after
+	       innFLUX v1.2.0's driftfix, unpublished) and a list of reference
+	       gases, saved per gas as gas_<i>_tlag_drift_ref. innFLUX's values are
+	       the defaults, and every tooltip names the source.
 	- New: Output Files > Fluxnet output settings gets two checkboxes, both
 	       off by default: "Add potential temperature fluxes" (out_theta_flux)
 	       and "Add the detection-limit noise and flux signal-to-noise ratio"

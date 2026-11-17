@@ -1,0 +1,102 @@
+# Flatpak manifest for EddyFlow (GUI and engine), built by
+# .github/workflows/linux-flatpak.yml.
+#
+# Layout inside the sandbox, mirroring /opt/eddyflow of the .deb:
+#   /app/lib/eddyflow/eddyflow            the GUI
+#   /app/lib/eddyflow/bin/eddyflow_rp     the engine, where the GUI looks for it
+#   /app/lib/eddyflow/bin/eddyflow_fcc      (applicationDirPath()/bin)
+#   /app/lib/eddyflow/bin/7z              7-Zip, which the GUI calls by that name
+#   /app/lib/eddyflow/docs, file-templates
+#   /app/bin/eddyflow                     the launcher (symlink)
+#   /app/bin/7za                          7-Zip for the engine, which calls 7za
+#
+# The engine is Fortran. gfortran comes with the freedesktop SDK the KDE SDK
+# is built on; libgfortran and libquadmath are linked statically, as in every
+# other EddyFlow package, so the KDE runtime needs nothing extra.
+#
+# The checkouts are local directories: the workflow checks out eddyflow-gui
+# and eddyflow-engine side by side, and this file lives in
+# eddyflow-gui/packaging/flatpak.
+app-id: io.github.kebasaa.EddyFlow
+runtime: org.kde.Platform
+runtime-version: '6.8'
+sdk: org.kde.Sdk
+command: eddyflow
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # Raw data, projects and outputs live anywhere under the user's home, and
+  # the engine is pointed at those paths, not handed portal file descriptors.
+  - --filesystem=home
+  # Removable and network drives with raw data.
+  - --filesystem=/media
+  - --filesystem=/mnt
+  - --filesystem=/run/media
+  # Remote raw-data sources (shared links) and the documentation's web pages.
+  - --share=network
+
+modules:
+  - name: quazip
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DQUAZIP_QT_MAJOR_VERSION=6
+      - -DQUAZIP_BZIP2=OFF
+    sources:
+      - type: git
+        url: https://github.com/stachenov/quazip.git
+        tag: v1.4
+    cleanup:
+      - /include
+      - /lib/cmake
+      - /lib/pkgconfig
+
+  - name: 7zip
+    buildsystem: simple
+    build-commands:
+      - make -C CPP/7zip/Bundles/Alone2 -f makefile.gcc -j"${FLATPAK_BUILDER_N_JOBS}"
+      - install -Dm755 CPP/7zip/Bundles/Alone2/b/g/7zz /app/bin/7zz
+      - ln -s 7zz /app/bin/7za
+    sources:
+      - type: git
+        url: https://github.com/ip7z/7zip.git
+        tag: '24.09'
+
+  - name: eddyflow-engine
+    buildsystem: simple
+    build-commands:
+      - cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - cmake --build build --parallel "${FLATPAK_BUILDER_N_JOBS}"
+      - install -Dm755 bin/linux/eddyflow_rp /app/lib/eddyflow/bin/eddyflow_rp
+      - install -Dm755 bin/linux/eddyflow_fcc /app/lib/eddyflow/bin/eddyflow_fcc
+    sources:
+      - type: dir
+        path: ../../../eddyflow-engine
+        skip:
+          - build
+          - bin
+          - obj
+          - tests/regression
+
+  - name: eddyflow-gui
+    buildsystem: simple
+    build-commands:
+      - cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/app
+      - cmake --build build --parallel "${FLATPAK_BUILDER_N_JOBS}"
+      - install -Dm755 "$(find build -maxdepth 2 -type f -iname eddyflow -perm -u+x | head -n1)" /app/lib/eddyflow/eddyflow
+      - cp -r docs /app/lib/eddyflow/docs
+      - cp -r file-templates /app/lib/eddyflow/file-templates
+      - ln -s ../../../bin/7zz /app/lib/eddyflow/bin/7z
+      - mkdir -p /app/bin && ln -s ../lib/eddyflow/eddyflow /app/bin/eddyflow
+      - install -Dm644 lin_files/app.png /app/share/icons/hicolor/256x256/apps/io.github.kebasaa.EddyFlow.png
+      - install -Dm644 packaging/flatpak/io.github.kebasaa.EddyFlow.desktop /app/share/applications/io.github.kebasaa.EddyFlow.desktop
+      - install -Dm644 packaging/flatpak/io.github.kebasaa.EddyFlow.metainfo.xml /app/share/metainfo/io.github.kebasaa.EddyFlow.metainfo.xml
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - build
+          - release
+          - debug
