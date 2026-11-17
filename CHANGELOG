@@ -72,6 +72,19 @@ Unreleased
 	       again. The page still remembered that file as already read and
 	       skipped reading it; it now forgets it whenever the metadata editor
 	       is emptied (closing a project, clearing the field, or Reset).
+	- New: "Use nearly all samples, at a fast FFT length", beside "Use
+	       power-of-two samples to speed up the FFT" (Advanced Settings >
+	       Spectral Analysis and Corrections). It saves power_of_two=2: the
+	       (co)spectra use the largest number of samples with no prime factor
+	       above 13, which the FFT handles about as fast as a power of two
+	       while leaving out at most 1 % of a period - a power of two leaves
+	       out 9 % of 30 minutes at 20 Hz and 43 % at 32 Hz. Ticking one box
+	       unticks the other; with neither, every sample is used. Pinned by
+	       tests/test_fft_length_choice_static.py.
+	- Docs: The offline help is rebuilt from the documentation: the (co)spectra
+	       page describes the three choices and the common window, and the
+	       pages changed for the innFLUX options and the 128-gas ceiling are
+	       brought in.
 
 8.2.0 (2026-11-11)
 

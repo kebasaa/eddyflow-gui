@@ -495,6 +495,11 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     fftCheckBox->setToolTip(tr("<b>Use power-of-two samples to speed up the FFT: </b>Check this box to instruct EddyFlow to use a number of samples equal to the power-of-two closest to the currently available samples, for calculating spectra. This option greatly speeds up the FFT procedure and is therefore recommended."));
     fftCheckBox->setStyleSheet(QStringLiteral("QCheckBox { margin-left: 40px; }"));
 
+    // The third choice, beside it: nearly every sample, at a length the FFT
+    // still handles fast. Ticking one unticks the other; neither uses all.
+    fftFastLengthCheckBox = new QCheckBox(tr("Use nearly all samples, at a fast FFT length"));
+    fftFastLengthCheckBox->setToolTip(tr("<b>Use nearly all samples, at a fast FFT length: </b>Check this box to instruct EddyFlow to use the largest number of samples, up to those available, that has no prime factor above 13. The FFT is about as fast as with a power of two, but at most 1% of the samples of a flux averaging period are left out (0.15% on average), where a power of two can leave out up to half of them: 32768 of the 36000 samples of 30 minutes at 20 Hz. Without either option every available sample is used, which can be very slow when that number has a large prime factor."));
+
     // The per-gas noise-frequency spins are generated in
     // rebuildGasSpectralSpins(), one set per gas record.
     noiseFrequencyTip_ = tr("<b>Lowest noise frequency:</b> High-frequency noise (blue noise) can compromise the spectral assessment by modifying the shape of spectra. EddyFlow has an option to eliminate such noise. Set the minimum frequency at which you expect the noise to start being relevant. EddyFlow will linearly (in a log-log sense) interpolate the high frequency portion of the spectra and subtract it from the spectra before calculating transfer functions. Set 0 Hz to instruct EddyFlow to not perform noise elimination. In this case the string <i>Do not remove noise</i> will appear in this field.");
@@ -1030,6 +1035,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     settingsLayout->addWidget(nBinsLabel, 7, 0, Qt::AlignRight);
     settingsLayout->addWidget(nBinsSpin, 7, 1);
     settingsLayout->addWidget(fftCheckBox, 8, 0, 1, 2);
+    settingsLayout->addWidget(fftFastLengthCheckBox, 8, 2, 1, 3);
 
     settingsLayout->addWidget(spectralTableContainer, 9, 0, 1, -1);
     settingsLayout->addWidget(minSmplLabel, 10, 0, Qt::AlignRight);
@@ -1137,8 +1143,26 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
 
     connect(nBinsSpin, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &AdvSpectralOptions::updateNBins);
+    // Either box unticks the other, so the two together are one three-way
+    // choice: all samples, a power of two, or the largest fast length.
     connect(fftCheckBox, &QCheckBox::toggled, [=](bool checked)
-            { ecProject_->setScreenlPowerOfTwo(checked); });
+            {
+                if (checked)
+                {
+                    const QSignalBlocker block(fftFastLengthCheckBox);
+                    fftFastLengthCheckBox->setChecked(false);
+                }
+                updateFftLength();
+            });
+    connect(fftFastLengthCheckBox, &QCheckBox::toggled, [=](bool checked)
+            {
+                if (checked)
+                {
+                    const QSignalBlocker block(fftCheckBox);
+                    fftCheckBox->setChecked(false);
+                }
+                updateFftLength();
+            });
 
     connect(qcMinUnstableUstarSpin,
             static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
@@ -1352,8 +1376,10 @@ void AdvSpectralOptions::reset()
     filterCombo->setEnabled(true);
     nBinsSpin->setValue(ecProject_->defaultSettings.screenSetting.nbins);
     nBinsSpin->setEnabled(true);
-    fftCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.power_of_two);
+    showFftLength(ecProject_->defaultSettings.screenSetting.power_of_two);
+    ecProject_->setScreenlPowerOfTwo(ecProject_->defaultSettings.screenSetting.power_of_two);
     fftCheckBox->setEnabled(true);
+    fftFastLengthCheckBox->setEnabled(true);
 
     spectraExistingRadio->setEnabled(false);
     spectraExistingRadio->setChecked(!ecProject_->defaultSettings.spectraSettings.sa_mode);
@@ -1543,8 +1569,9 @@ void AdvSpectralOptions::refresh()
     filterCombo->setEnabled(!ecProject_->generalBinSpectraAvail());
     nBinsSpin->setValue(ecProject_->screenNBins());
     nBinsSpin->setEnabled(!ecProject_->generalBinSpectraAvail());
-    fftCheckBox->setChecked(ecProject_->screenPowerOfTwo());
+    showFftLength(ecProject_->screenPowerOfTwo());
     fftCheckBox->setEnabled(!ecProject_->generalBinSpectraAvail());
+    fftFastLengthCheckBox->setEnabled(!ecProject_->generalBinSpectraAvail());
 
     horstCheck->setEnabled(isIbrom() || isFratini());
     if (ecProject_->spectraHorst() > 0)
@@ -2011,6 +2038,7 @@ void AdvSpectralOptions::binnedSpectraRadioClicked(int radioButton)
         filterCombo->setEnabled(true);
         nBinsSpin->setEnabled(true);
         fftCheckBox->setEnabled(true);
+        fftFastLengthCheckBox->setEnabled(true);
     }
     else
     {
@@ -2018,6 +2046,7 @@ void AdvSpectralOptions::binnedSpectraRadioClicked(int radioButton)
         filterCombo->setEnabled(false);
         nBinsSpin->setEnabled(false);
         fftCheckBox->setEnabled(false);
+        fftFastLengthCheckBox->setEnabled(false);
     }
     emit updateOutputsRequest(hfMethodForRow(hfMethCombo->currentIndex()));
 }
@@ -2985,5 +3014,29 @@ void AdvSpectralOptions::updateFilter(int n)
 void AdvSpectralOptions::updateNBins(int n)
 {
     ecProject_->setScreenNBins(n);
+}
+
+// power_of_two: 1 a power of two, 2 the largest fast length (no prime factor
+// above 13), 0 every sample. The engine reads the same three values.
+void AdvSpectralOptions::updateFftLength()
+{
+    int value = 0;
+    if (fftCheckBox->isChecked())
+    {
+        value = 1;
+    }
+    else if (fftFastLengthCheckBox->isChecked())
+    {
+        value = 2;
+    }
+    ecProject_->setScreenlPowerOfTwo(value);
+}
+
+void AdvSpectralOptions::showFftLength(int value)
+{
+    const QSignalBlocker blockPow2(fftCheckBox);
+    const QSignalBlocker blockFast(fftFastLengthCheckBox);
+    fftCheckBox->setChecked(value == 1);
+    fftFastLengthCheckBox->setChecked(value == 2);
 }
 

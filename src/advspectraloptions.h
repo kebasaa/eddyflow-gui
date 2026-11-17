@@ -130,8 +130,13 @@ private slots:
 
     void updateFilter(int n);
     void updateNBins(int n);
+    void updateFftLength();
 
 private:
+    //> Show power_of_two (0 all samples, 1 a power of two, 2 the largest
+    //> fast length) on its two checkboxes without writing it back.
+    void showFftLength(int value);
+
     //> The six per-gas spin boxes of one QA/QC table row, generated per gas
     //> record. They are value holders, not laid-out widgets: the table model
     //> reads and writes them through the pointers in SpectralQaQcRow.
@@ -202,6 +207,7 @@ private:
     ClickLabel* nBinsLabel;
     QSpinBox* nBinsSpin;
     QCheckBox* fftCheckBox;
+    QCheckBox* fftFastLengthCheckBox;
 
     QRadioButton* spectraExistingRadio;
     QRadioButton* spectraNonExistingRadio;

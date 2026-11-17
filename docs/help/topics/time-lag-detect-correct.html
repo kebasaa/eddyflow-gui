@@ -3651,6 +3651,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#smoothed-peak-search-innflux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Smoothed peak search (innFLUX)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cumulated-covariance-innflux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cumulated covariance (innFLUX)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cumulated covariance (innFLUX)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#clock-drift-correction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clock-drift correction
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#conditional-lag-borrowing" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4565,6 +4604,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#smoothed-peak-search-innflux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Smoothed peak search (innFLUX)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cumulated-covariance-innflux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cumulated covariance (innFLUX)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cumulated covariance (innFLUX)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#clock-drift-correction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clock-drift correction
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#conditional-lag-borrowing" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4708,6 +4786,126 @@ Cov_{Max}=Cov(j_\tau)=\max_{j=m,..,M}\left(\sum_{i=1}^{N-j} w_i h_{i+j}\right) \
 <li>It does nothing with <strong>Constant</strong>, which does not search.</li>
 <li>A window that is too wide for the lag structure still gives a poor chord; keep the <strong>Minimum</strong> and <strong>Maximum time lags</strong> plausible.</li>
 </ul>
+<h2 id="smoothed-peak-search-innflux">Smoothed peak search (innFLUX)<a class="headerlink" href="#smoothed-peak-search-innflux" title="Permanent link">&para;</a></h2>
+<p><strong>Origin:</strong> innFLUX, <a href="references.html#Striednig2020">Striednig et al. (2020)</a>, Sect. 2.3.2, and its routine <code>find_covariance_peak.m</code> (innFLUX v1.2.0, University of Innsbruck). Smoothing the cross-covariance before the peak is taken follows <a href="references.html#Taipale2010">Taipale et al. (2010)</a>.</p>
+<p>Project-file keys <code>covmax_smooth_len</code> and <code>covmax_peak_sign</code> in <code>[RawProcess_Settings]</code>, interface labels <strong>Peak smoothing</strong> and <strong>Peak sign</strong> under <strong>Subtract the cross-covariance baseline</strong>. <strong>Both are off by default</strong>, and off the lag is chosen exactly as before. Like the baseline subtraction, they modify the two covariance maximization methods; they are not a method of their own.</p>
+<p><strong>Peak smoothing</strong> (<code>covmax_smooth_len</code>, rows; 0 is off) smooths the cross-covariance function with a normalised Hamming window of that many rows before the extremum is taken. The window runs forwards and backwards (MATLAB <code>filtfilt</code>), so it does not move a peak. innFLUX uses 15 rows. A noisy function then gives one clear peak rather than the highest of several spikes.</p>
+<p><strong>Peak sign</strong> (<code>covmax_peak_sign</code>) chooses which extremum is the lag:</p>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Interface</th>
+<th>Lag at</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Largest absolute covariance</td>
+<td>the largest |cov| (default, as before)</td>
+</tr>
+<tr>
+<td>1</td>
+<td>Largest positive covariance</td>
+<td>the largest cov</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Decided by the derivative (innFLUX)</td>
+<td>the largest cov if the function rises to a peak, the most negative cov if it falls to a trough</td>
+</tr>
+</tbody>
+</table>
+<p>For value 2, innFLUX looks at the first difference of the cross-covariance, smoothed by a 100-row moving average: around a positive peak it reaches its maximum before its minimum, around a negative one the other way round. EddyFlow applies the same rule on its own lag axis (a positive lag means the scalar is delayed), on which the ordering reads the same.</p>
+<p><strong>How it is computed.</strong> The cross-covariance is computed a little beyond each end of the search window (the smoothing length, or 100 rows for the derivative rule), so the values searched are never affected by how the smoothing treats the ends of the function. The lags agree exactly with a line-by-line port of innFLUX's routine on 360 test functions (<code>tests/innflux/compare.py</code> in the engine repository).</p>
+<p><strong>Limitations.</strong></p>
+<ul>
+<li>Ignored under stochastic detrending, which detrends each shifted window on its own; the run log says so.</li>
+<li>With <strong>Subtract the cross-covariance baseline</strong> on as well, the chord is subtracted from the smoothed function.</li>
+<li>Where the window comes close to the length of the averaging period, smoothed values near its ends cannot be formed and are not chosen.</li>
+</ul>
+<h2 id="cumulated-covariance-innflux">Cumulated covariance (innFLUX)<a class="headerlink" href="#cumulated-covariance-innflux" title="Permanent link">&para;</a></h2>
+<p><strong>Origin:</strong> innFLUX, <a href="references.html#Striednig2020">Striednig et al. (2020)</a>, Sect. 2.3.2 (<code>innFLUX_step2.m</code>), who credit <a href="references.html#Park2013">Park et al. (2013)</a> with summing covariance functions. The clock-drift correction follows the <code>driftfix</code> tool of <a href="references.html#innFLUX">innFLUX v1.2.0</a> (unpublished; a routine by M. Graus adapted by M. Striednig), with robust LOWESS after <a href="references.html#Cleveland1979">Cleveland (1979)</a>.</p>
+<p>Time lag method 6, <code>tlag_meth=6</code>, interface label <strong>Cumulated covariance (innFLUX, Striednig et al. 2020)</strong>. It is <strong>off by default</strong>, like every method other than the project's own choice. Its settings are under <strong>Time Lag Optimization Settings...</strong> while it is selected.</p>
+<p><strong>Idea.</strong> A weak flux has no peak that a single averaging period can find, and that covers most trace gases a PTR-MS measures. Taking the largest |cov| period by period then picks noise, which also biases the flux upwards. Summed over many periods the noise averages out, and the transport lag stands out. In a closed-path system that lag is nearly constant.</p>
+<p><strong>Procedure.</strong></p>
+<ol>
+<li>A pre-pass over the run computes, for every period and gas, the cross-covariance over the gas's time lag optimization window. Covariance maximization then picks its own lag inside that window. The pre-pass also records four filter values for the period:<ul>
+<li>u*;</li>
+<li>the completeness of the sonic data, as a share of the period's expected records;</li>
+<li>the completeness of the gas at its own sampling rate;</li>
+<li>the steady-state test's relative deviation: the mean of five sub-period covariances against the whole period's, as innFLUX computes it.</li>
+</ul>
+</li>
+<li>For each gas and each date segment, the absolute cross-covariance functions of every period that passes all four filters are summed.</li>
+<li>The sum is smoothed with a Hamming window and the lag at its largest value is taken. That lag is used for every period of the segment.</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default (innFLUX's)</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tlag_cum_filter_len</code></td>
+<td>15 rows</td>
+<td>Hamming smoothing of the summed function (0 off)</td>
+</tr>
+<tr>
+<td><code>tlag_cum_min_ustar</code></td>
+<td>0.3 m/s</td>
+<td>a period is summed only above this u*</td>
+</tr>
+<tr>
+<td><code>tlag_cum_min_compl_sonic</code></td>
+<td>0.95</td>
+<td>and above this sonic completeness</td>
+</tr>
+<tr>
+<td><code>tlag_cum_min_compl_gas</code></td>
+<td>0.5</td>
+<td>and above this gas completeness</td>
+</tr>
+<tr>
+<td><code>tlag_cum_max_sst</code></td>
+<td>0.3</td>
+<td>and below this steady-state deviation</td>
+</tr>
+<tr>
+<td><code>tlag_cum_segments</code></td>
+<td>empty</td>
+<td>segment boundaries, <code>yyyy-mm-ddTHH:MM</code>, comma-separated. Empty means one lag over the whole run. A period belongs to the segment its start time falls in.</td>
+</tr>
+</tbody>
+</table>
+<p>A gas with no period that passes in a segment keeps its nominal lag there, and is flagged as the default.</p>
+<h3 id="clock-drift-correction">Clock-drift correction<a class="headerlink" href="#clock-drift-correction" title="Permanent link">&para;</a></h3>
+<p>When the clock of the data logger drifts against the analyser's, the time lag drifts with it, and it jumps wherever the clock is reset. With <strong>Correct for clock drift</strong> (<code>tlag_drift_meth=1</code>; off by default) the procedure is:</p>
+<ol>
+<li>Collect the per-period lags of the gases marked as references (<code>gas_&lt;i&gt;_tlag_drift_ref=1</code>, the <strong>Reference gases</strong> list). Only periods that pass the filters above are used.</li>
+<li>Smooth them over one day with a robust LOWESS.</li>
+<li>Look for jumps, where that one-day curve rises faster than <code>tlag_drift_jump_thr</code> (default −0.8 s per day).</li>
+<li>Smooth again over <code>tlag_drift_span_d</code> days (default 5) within each stretch between jumps.</li>
+</ol>
+<p>The drift is taken relative to its median. It is applied to every gas on the reference gases' analyser:</p>
+<ul>
+<li>every period's function is shifted by the drift before summing;</li>
+<li>the drift is added back to the summed lag, which is innFLUX's <code>lagtime3</code>.</li>
+</ul>
+<p><code>tlag_drift_max_s</code> (default 10 s) bounds the drift. The pre-pass keeps the functions that much wider, so a larger value costs memory and disk space.</p>
+<p>innFLUX places each jump with MATLAB's <code>risetime</code>. EddyFlow uses the midpoint of the first 10 % and 90 % crossings within two days instead.</p>
+<p><strong>Outputs</strong> (in the output folder):</p>
+<ul>
+<li><code>&lt;id&gt;_cumcov_timelags_&lt;stamp&gt;.csv</code>: one lag per gas and segment, with the number of periods summed.</li>
+<li><code>&lt;id&gt;_cumcov_function_&lt;gas&gt;_&lt;stamp&gt;.csv</code>: the summed absolute and signed functions per segment, by lag.</li>
+<li><code>&lt;id&gt;_tlag_drift_&lt;stamp&gt;.csv</code>, with the drift correction: the drift for every period and gas.</li>
+</ul>
+<p>The method code in the Fluxnet file is 6.</p>
+<p><strong>Checks.</strong> The drift estimate agrees with a port of innFLUX's MATLAB tool to 1e-12 s, and recovers an injected drift and jump to within 0.2 s RMS (<code>tests/innflux/compare.py</code> in the engine repository). A pre-pass split across processes gives the same sums as a serial one, because the records are summed in period order by the parent.</p>
 <h2 id="conditional-lag-borrowing">Conditional lag borrowing<a class="headerlink" href="#conditional-lag-borrowing" title="Permanent link">&para;</a></h2>
 <p>Project-file keys <code>tlag_borrow_meth</code>, <code>tlag_borrow_snr</code>, <code>tlag_borrow_noise</code>, <code>tlag_borrow_donor</code>, <code>tlag_borrow_pairs</code>; interface controls <strong>Borrow a tube-mate's lag below the detection limit</strong>, <strong>Detection limits to clear</strong>, <strong>Judged against</strong>, <strong>Borrow from</strong> (see <a href="raw-processing-options.html#conditional-lag-borrowing">Advanced settings: processing options</a>). Off by default.</p>
 <p><strong>Idea.</strong> Gases drawn through the same intake tube share the same transport delay. A trace gas whose cross-covariance with <em>w</em> cannot be distinguished from noise has no peak of its own to detect, and the lag a maximization returns for it is close to a random draw over the search window. A gas on the same analyser that resolves its peak is measuring that same delay, so its lag is the best estimate available for the weak gas (Nemitz et al., 2018).</p>
