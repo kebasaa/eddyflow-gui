@@ -227,6 +227,9 @@ private:
     QCheckBox* outFullCospectraAll;
     QGroupBox* fluxnetGroupBox;
     QCheckBox* fluxnetBiometCheckBox;
+    //> Optional innFLUX-style columns (Striednig et al. 2020), both off.
+    RichTextCheckBox* outThetaFluxCheckBox;
+    RichTextCheckBox* outLodNoiseCheckBox;
     QCheckBox* fluxnetErrLabelCheckBox;
     QCheckBox* outDetailsCheckBox;
     QCheckBox* outMdCheckBox;

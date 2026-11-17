@@ -355,6 +355,18 @@ namespace EcIni
     //> departure from the chord across the search window, not the largest
     //> absolute covariance.
     const auto INI_SCREEN_SETTINGS_107  = QStringLiteral("covmax_debaseline");
+    //> Smoothed covariance peak search after innFLUX (Striednig et al. 2020,
+    //> find_covariance_peak.m): Hamming window length in rows (0 off) and
+    //> the sign rule (0 largest |cov|, 1 largest cov, 2 innFLUX's derivative
+    //> rule). Both off by default. RP only, RawProcess_Settings.
+    const auto INI_SCREEN_SETTINGS_125  = QStringLiteral("covmax_smooth_len");
+    const auto INI_SCREEN_SETTINGS_126  = QStringLiteral("covmax_peak_sign");
+    //> Optional FLUXNET-file outputs after innFLUX (Striednig et al. 2020),
+    //> each off by default: the potential and virtual potential temperature
+    //> fluxes, and the far-lag noise mean, SD and flux signal-to-noise ratio
+    //> of the Langford limit of detection. RP only, RawProcess_Settings.
+    const auto INI_SCREEN_SETTINGS_127  = QStringLiteral("out_theta_flux");
+    const auto INI_SCREEN_SETTINGS_128  = QStringLiteral("out_lod_noise_stats");
     //> Nemitz et al. (2018) conditional lag borrowing. Needs detlim_meth on,
     //> since there is nothing to compare a covariance against otherwise.
     const auto INI_SCREEN_SETTINGS_108  = QStringLiteral("tlag_borrow_meth");

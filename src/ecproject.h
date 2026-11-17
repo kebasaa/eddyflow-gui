@@ -260,6 +260,10 @@ public:
     void setScreenSpectroMethod(int n);
     void setScreenSpectroWater(int n);
     void setScreenCovmaxDebaseline(int n);
+    void setScreenCovmaxSmoothLen(int n);
+    void setScreenCovmaxPeakSign(int n);
+    void setScreenOutThetaFlux(int n);
+    void setScreenOutLodNoiseStats(int n);
     void setScreenTlagBorrowMethod(int n);
     void setScreenTlagBorrowSnr(double d);
     void setScreenTlagBorrowNoise(int n);
@@ -759,6 +763,10 @@ public:
     int screenSpectroMethod() const { return ec_project_state_.screenSetting.spectro_meth; }
     int screenSpectroWater() const { return ec_project_state_.screenSetting.spectro_water; }
     int screenCovmaxDebaseline() const { return ec_project_state_.screenSetting.covmax_debaseline; }
+    int screenCovmaxSmoothLen() const { return ec_project_state_.screenSetting.covmax_smooth_len; }
+    int screenCovmaxPeakSign() const { return ec_project_state_.screenSetting.covmax_peak_sign; }
+    int screenOutThetaFlux() const { return ec_project_state_.screenSetting.out_theta_flux; }
+    int screenOutLodNoiseStats() const { return ec_project_state_.screenSetting.out_lod_noise_stats; }
     int screenTlagBorrowMethod() const { return ec_project_state_.screenSetting.tlag_borrow_meth; }
     double screenTlagBorrowSnr() const { return ec_project_state_.screenSetting.tlag_borrow_snr; }
     int screenTlagBorrowNoise() const { return ec_project_state_.screenSetting.tlag_borrow_noise; }

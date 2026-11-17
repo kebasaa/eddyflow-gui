@@ -292,10 +292,40 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     fluxnetErrLabelCheckBox = new QCheckBox;
     fluxnetErrLabelCheckBox->setText(tr("Set error label in Fluxnet mode (-9999)"));
 
+    //> Optional columns after innFLUX, at the end of the FLUXNET file. Both
+    //> off by default.
+    outThetaFluxCheckBox = new RichTextCheckBox;
+    outThetaFluxCheckBox->setText(tr("Add potential temperature fluxes (W_THETA, W_THETA_V)"));
+    outThetaFluxCheckBox->setToolTip(tr("<b>Add potential temperature fluxes:</b> "
+        "Write the kinematic potential temperature flux w'Î¸' and the virtual "
+        "potential temperature (buoyancy) flux w'Î¸<sub>v</sub>' [K m s<sup>-1</sup>] "
+        "as W_THETA and W_THETA_V at the end of the Fluxnet file. Potential "
+        "temperature is taken at 1000 hPa. Like innFLUX's, these are computed from "
+        "the uncorrected covariances, with the humidity correction of the sonic "
+        "temperature but no spectral correction. Both need a water flux. Off by "
+        "default."
+        "<br><br><i>Source:</i> innFLUX, Striednig et al. (2020), Atmos. Meas. Tech. "
+        "13, 1447-1465; potential temperature after Stull (1988)."));
+    outLodNoiseCheckBox = new RichTextCheckBox;
+    outLodNoiseCheckBox->setText(tr("Add the detection-limit noise and flux signal-to-noise ratio"));
+    outLodNoiseCheckBox->setToolTip(tr("<b>Add the detection-limit noise and flux "
+        "signal-to-noise ratio:</b> For each variable, write the mean "
+        "(_LOD_NOISE_MEAN) and standard deviation (_LOD_NOISE_SD) of the "
+        "cross-covariance in the far-lag windows of the Langford limit of detection, "
+        "and the flux signal-to-noise ratio |cov(0) - mean| / SD (_FLUX_SNR), at the "
+        "end of the Fluxnet file. In covariance units. Needs the Langford et al. "
+        "(2015) limit of detection under Statistical Analysis; otherwise the columns "
+        "hold the error code. Off by default."
+        "<br><br><i>Source:</i> innFLUX, Striednig et al. (2020), Atmos. Meas. Tech. "
+        "13, 1447-1465; far-lag noise after Wienhold et al. (1994) and Spirig et al. "
+        "(2005)."));
+
     fluxnetGroupBox = new QGroupBox(tr("Fluxnet output settings"));
     auto fluxnetLayout = new QVBoxLayout;
     fluxnetLayout->addWidget(fluxnetBiometCheckBox);
     fluxnetLayout->addWidget(fluxnetErrLabelCheckBox);
+    fluxnetLayout->addWidget(outThetaFluxCheckBox);
+    fluxnetLayout->addWidget(outLodNoiseCheckBox);
     fluxnetGroupBox->setLayout(fluxnetLayout);
 
     outFullCheckBox = new QCheckBox;
@@ -771,6 +801,13 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
             { ecProject_->setGeneralMakeDataset(checked); });
     connect(fluxnetErrLabelCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setFluxnetErrLabel(checked); });
+    //> On the click, not the state change: refresh() blocks the project's
+    //> signals, not the widgets', so a toggled connection would rewrite a
+    //> project the user only opened.
+    connect(outThetaFluxCheckBox, &RichTextCheckBox::clicked, this, [=]()
+            { ecProject_->setScreenOutThetaFlux(outThetaFluxCheckBox->isChecked() ? 1 : 0); });
+    connect(outLodNoiseCheckBox, &RichTextCheckBox::clicked, this, [=]()
+            { ecProject_->setScreenOutLodNoiseStats(outLodNoiseCheckBox->isChecked() ? 1 : 0); });
     connect(fluxnetErrLabelCheckBox, &QCheckBox::toggled,
             this, &AdvOutputOptions::updateFluxnetErrLabelMode);
     connect(outFullCheckBox, &QCheckBox::toggled, [=](bool checked)
@@ -912,6 +949,8 @@ void AdvOutputOptions::setSmartfluxUI()
                       << fluxnetGroupBox
                       << fluxnetErrLabelCheckBox
                       << fluxnetBiometCheckBox
+                      << outThetaFluxCheckBox
+                      << outLodNoiseCheckBox
                       << outBiometCheckBox
                       << outMdCheckBox
                       << keepRawResultsCheckBox
@@ -1191,6 +1230,8 @@ void AdvOutputOptions::refresh()
 
     fluxnetBiometCheckBox->setChecked(ecProject_->fluxnetStandardizeBiomet());
     fluxnetErrLabelCheckBox->setChecked(ecProject_->fluxnetErrLabel());
+    outThetaFluxCheckBox->setChecked(ecProject_->screenOutThetaFlux() == 1);
+    outLodNoiseCheckBox->setChecked(ecProject_->screenOutLodNoiseStats() == 1);
     updateFluxnetErrLabelMode(ecProject_->fluxnetErrLabel());
     outFullCheckBox->setChecked(ecProject_->generalOutRich());
     {

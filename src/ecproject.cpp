@@ -357,6 +357,10 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.spectro_meth == previousProject.ec_project_state_.screenSetting.spectro_meth);
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.spectro_water == previousProject.ec_project_state_.screenSetting.spectro_water);
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.covmax_debaseline == previousProject.ec_project_state_.screenSetting.covmax_debaseline);
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.covmax_smooth_len == previousProject.ec_project_state_.screenSetting.covmax_smooth_len);
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.covmax_peak_sign == previousProject.ec_project_state_.screenSetting.covmax_peak_sign);
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.out_theta_flux == previousProject.ec_project_state_.screenSetting.out_theta_flux);
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.out_lod_noise_stats == previousProject.ec_project_state_.screenSetting.out_lod_noise_stats);
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.tlag_borrow_meth == previousProject.ec_project_state_.screenSetting.tlag_borrow_meth);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.tlag_borrow_snr, previousProject.ec_project_state_.screenSetting.tlag_borrow_snr);
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.tlag_borrow_noise == previousProject.ec_project_state_.screenSetting.tlag_borrow_noise);
@@ -1069,6 +1073,10 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenSetting.spectro_meth = defaultEcProjectState.screenSetting.spectro_meth;
     ec_project_state_.screenSetting.spectro_water = defaultEcProjectState.screenSetting.spectro_water;
     ec_project_state_.screenSetting.covmax_debaseline = defaultEcProjectState.screenSetting.covmax_debaseline;
+    ec_project_state_.screenSetting.covmax_smooth_len = defaultEcProjectState.screenSetting.covmax_smooth_len;
+    ec_project_state_.screenSetting.covmax_peak_sign = defaultEcProjectState.screenSetting.covmax_peak_sign;
+    ec_project_state_.screenSetting.out_theta_flux = defaultEcProjectState.screenSetting.out_theta_flux;
+    ec_project_state_.screenSetting.out_lod_noise_stats = defaultEcProjectState.screenSetting.out_lod_noise_stats;
     ec_project_state_.screenSetting.test_stor_clean = defaultEcProjectState.screenSetting.test_stor_clean;
     ec_project_state_.screenSetting.tlag_borrow_meth = defaultEcProjectState.screenSetting.tlag_borrow_meth;
     ec_project_state_.screenSetting.tlag_borrow_snr = defaultEcProjectState.screenSetting.tlag_borrow_snr;
@@ -1977,6 +1985,10 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_105, ec_project_state_.screenSetting.spectro_meth);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_106, ec_project_state_.screenSetting.spectro_water);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_107, ec_project_state_.screenSetting.covmax_debaseline);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_125, ec_project_state_.screenSetting.covmax_smooth_len);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_126, ec_project_state_.screenSetting.covmax_peak_sign);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_127, ec_project_state_.screenSetting.out_theta_flux);
+        project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_128, ec_project_state_.screenSetting.out_lod_noise_stats);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_108, ec_project_state_.screenSetting.tlag_borrow_meth);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_109, ec_project_state_.screenSetting.tlag_borrow_snr);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_110, ec_project_state_.screenSetting.tlag_borrow_noise);
@@ -3503,6 +3515,21 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenSetting.covmax_debaseline
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_107,
                                     defaultEcProjectState.screenSetting.covmax_debaseline).toInt();
+        {
+            //> Sanitised as the engine reads them: a window shorter than two
+            //> rows is no smoothing, and an unknown sign rule is the default.
+            int n = project_ini.value(EcIni::INI_SCREEN_SETTINGS_125,
+                                      defaultEcProjectState.screenSetting.covmax_smooth_len).toInt();
+            ec_project_state_.screenSetting.covmax_smooth_len = (n < 2 || n > 999) ? 0 : n;
+            n = project_ini.value(EcIni::INI_SCREEN_SETTINGS_126,
+                                  defaultEcProjectState.screenSetting.covmax_peak_sign).toInt();
+            ec_project_state_.screenSetting.covmax_peak_sign = (n < 0 || n > 2) ? 0 : n;
+            //> On only when it says 1, as the engine reads them.
+            ec_project_state_.screenSetting.out_theta_flux
+                    = project_ini.value(EcIni::INI_SCREEN_SETTINGS_127, 0).toInt() == 1 ? 1 : 0;
+            ec_project_state_.screenSetting.out_lod_noise_stats
+                    = project_ini.value(EcIni::INI_SCREEN_SETTINGS_128, 0).toInt() == 1 ? 1 : 0;
+        }
         ec_project_state_.screenSetting.tlag_borrow_meth
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_108,
                                     defaultEcProjectState.screenSetting.tlag_borrow_meth).toInt();
@@ -6468,6 +6495,30 @@ void EcProject::setScreenHeadCorrDir(const QString& s)
 void EcProject::setScreenCovmaxDebaseline(int n)
 {
     ec_project_state_.screenSetting.covmax_debaseline = n;
+    setModified(true);
+}
+
+void EcProject::setScreenCovmaxSmoothLen(int n)
+{
+    ec_project_state_.screenSetting.covmax_smooth_len = n;
+    setModified(true);
+}
+
+void EcProject::setScreenCovmaxPeakSign(int n)
+{
+    ec_project_state_.screenSetting.covmax_peak_sign = n;
+    setModified(true);
+}
+
+void EcProject::setScreenOutThetaFlux(int n)
+{
+    ec_project_state_.screenSetting.out_theta_flux = n;
+    setModified(true);
+}
+
+void EcProject::setScreenOutLodNoiseStats(int n)
+{
+    ec_project_state_.screenSetting.out_lod_noise_stats = n;
     setModified(true);
 }
 

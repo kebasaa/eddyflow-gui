@@ -398,6 +398,12 @@ struct ScreenSettingState
     //> Baseline-subtracted time-lag selection. Off: it changes which lag is
     //> picked for every gas.
     int covmax_debaseline = 0;
+    //> Smoothed peak search after innFLUX (Striednig et al. 2020). Both off.
+    int covmax_smooth_len = 0;
+    int covmax_peak_sign = 0;
+    //> Optional innFLUX-style FLUXNET columns (Striednig et al. 2020). Off.
+    int out_theta_flux = 0;
+    int out_lod_noise_stats = 0;
     //> Conditional lag borrowing, and how many detection limits a covariance
     //> must clear to keep its own lag. Three is Nemitz et al.
     int tlag_borrow_meth = 0;

@@ -1,6 +1,21 @@
 Unreleased
 
     GUI:
+	- New: Output Files > Fluxnet output settings gets two checkboxes, both
+	       off by default: "Add potential temperature fluxes" (out_theta_flux)
+	       and "Add the detection-limit noise and flux signal-to-noise ratio"
+	       (out_lod_noise_stats). They add the engine's optional
+	       innFLUX-derived columns (Striednig et al. 2020) at the end of the
+	       Fluxnet file. No preset switches them on. Each tooltip names the
+	       source.
+	- New: Advanced Settings > Processing Options, under "Subtract the
+	       cross-covariance baseline": "Peak smoothing" and "Peak sign", the
+	       smoothed covariance peak search after innFLUX (Striednig et al.
+	       2020; find_covariance_peak.m, innFLUX v1.2.0), smoothing after
+	       Taipale et al. 2010. Both off by default, which is the search as
+	       before. Saved as covmax_smooth_len and covmax_peak_sign in
+	       [RawProcess_Settings]; greyed unless the time-lag method maximises
+	       the covariance. Every tooltip names the source.
 	- New: Advanced Settings > Spectral Corrections > "Gas Sources...", beside
 	       the spectral assessment file choice. Gas by gas, it chooses whose
 	       fitted transfer function the gas is corrected with: Automatic, its

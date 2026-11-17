@@ -31,12 +31,14 @@
 #include <QComboBox>
 #include <QDebug>
 #include <QDoubleSpinBox>
+#include <QHBoxLayout>
 #include <QIcon>
 #include <QPixmap>
 #include <QSize>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScrollArea>
+#include <QSignalBlocker>
 #include <QSpinBox>
 #include <QStackedWidget>
 #include <QStyle>
@@ -489,6 +491,41 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
         "lag. For a weak flux that safety net is worth replacing rather than simply "
         "losing."));
 
+    //> Smoothed covariance peak search, after innFLUX. Both controls off by
+    //> default; off, the lag is chosen exactly as before.
+    const auto innfluxPeakCredit = tr("<br><br><i>Source:</i> innFLUX, Striednig et al. "
+        "(2020), Atmos. Meas. Tech. 13, 1447-1465 (code: find_covariance_peak.m, "
+        "innFLUX v1.2.0, University of Innsbruck); smoothing before the peak search "
+        "after Taipale et al. (2010).");
+    covmaxSmoothLabel = new ClickLabel(tr("Peak smoothing :"));
+    covmaxSmoothSpin = new QSpinBox;
+    covmaxSmoothSpin->setRange(0, 999);
+    covmaxSmoothSpin->setSpecialValueText(tr("Off"));
+    covmaxSmoothSpin->setSuffix(tr(" [rows]", "Number of samples"));
+    covmaxSmoothSpin->setToolTip(tr("<b>Peak smoothing:</b> Smooth the cross-covariance "
+        "with a normalised Hamming window of this many rows, run forwards and backwards "
+        "so the peak does not move, before the time lag is taken from it. innFLUX uses "
+        "15 rows. Off (0) by default, which is the search EddyFlow has always made. "
+        "Ignored under stochastic detrending.") + innfluxPeakCredit);
+    covmaxPeakSignLabel = new ClickLabel(tr("Peak sign :"));
+    covmaxPeakSignCombo = new QComboBox;
+    covmaxPeakSignCombo->addItem(tr("Largest absolute covariance"));
+    covmaxPeakSignCombo->addItem(tr("Largest positive covariance"));
+    covmaxPeakSignCombo->addItem(tr("Decided by the derivative (innFLUX)"));
+    covmaxPeakSignCombo->setItemData(0, tr("<b>Largest absolute covariance:</b> "
+        "EddyFlow's default."), Qt::ToolTipRole);
+    covmaxPeakSignCombo->setItemData(1, QString(tr("<b>Largest positive covariance:</b> "
+        "Only a positive peak can be chosen. innFLUX uses this on summed absolute "
+        "cross-covariances.") + innfluxPeakCredit), Qt::ToolTipRole);
+    covmaxPeakSignCombo->setItemData(2, QString(tr("<b>Decided by the derivative:</b> "
+        "The cross-covariance's first difference, smoothed over 100 rows, rises to its "
+        "maximum before it falls to its minimum around a positive peak. If it does, the "
+        "largest covariance is taken, otherwise the most negative one.")
+        + innfluxPeakCredit), Qt::ToolTipRole);
+    covmaxPeakSignCombo->setToolTip(tr("<b>Peak sign:</b> Which extremum of the "
+        "(smoothed) cross-covariance is the time lag. The default, the largest absolute "
+        "value, is the search EddyFlow has always made.") + innfluxPeakCredit);
+
     tlagBorrowCheckBox = new RichTextCheckBox;
     tlagBorrowCheckBox->setText(tr("Borrow a tube-mate's lag below the detection limit"));
     tlagBorrowCheckBox->setToolTip(tr("<b>Borrow a tube-mate's lag below the "
@@ -765,7 +802,21 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     //> moves.
     settingsLayout->addWidget(tlPreassessButton, 13, 4);
     //> Indented under the method it modifies, in the combo's own column.
-    settingsLayout->addWidget(covmaxDebaselineCheckBox, 14, 2, 1, 2);
+    {
+        //> The innFLUX peak options share row 14 with the baseline box, so no
+        //> row below moves.
+        auto covmaxBox = new QVBoxLayout;
+        covmaxBox->setContentsMargins(0, 0, 0, 0);
+        covmaxBox->addWidget(covmaxDebaselineCheckBox);
+        auto peakBox = new QHBoxLayout;
+        peakBox->addWidget(covmaxSmoothLabel);
+        peakBox->addWidget(covmaxSmoothSpin);
+        peakBox->addWidget(covmaxPeakSignLabel);
+        peakBox->addWidget(covmaxPeakSignCombo);
+        peakBox->addStretch();
+        covmaxBox->addLayout(peakBox);
+        settingsLayout->addLayout(covmaxBox, 14, 2, 1, 2);
+    }
     settingsLayout->addWidget(tlagBorrowCheckBox, 15, 2, 1, 2);
     settingsLayout->addWidget(tlagBorrowSnrLabel, 16, 1, Qt::AlignRight);
     settingsLayout->addWidget(tlagBorrowSnrSpin, 16, 2);
@@ -997,6 +1048,18 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             {
                 ecProject_->setScreenCovmaxDebaseline(
                     covmaxDebaselineCheckBox->isChecked() ? 1 : 0);
+            });
+    //> On the user's edit only: refresh() sets these with signals blocked.
+    connect(covmaxSmoothSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [=](int n)
+            {
+                //> One row is no smoothing; it is stored as off.
+                ecProject_->setScreenCovmaxSmoothLen(n < 2 ? 0 : n);
+            });
+    connect(covmaxPeakSignCombo, QOverload<int>::of(&QComboBox::activated),
+            this, [=](int n)
+            {
+                ecProject_->setScreenCovmaxPeakSign(n);
             });
     //> Straight into the application preferences. Unlike every other control
     //> on this page this one is not part of the project, so it neither dirties
@@ -1382,6 +1445,10 @@ void AdvProcessingOptions::updateCovmaxDebaselineAvailability()
 {
     const auto meth = ecProject_->screenTlagMeth();
     covmaxDebaselineCheckBox->setEnabled(meth == 2 || meth == 3);
+    covmaxSmoothLabel->setEnabled(meth == 2 || meth == 3);
+    covmaxSmoothSpin->setEnabled(meth == 2 || meth == 3);
+    covmaxPeakSignLabel->setEnabled(meth == 2 || meth == 3);
+    covmaxPeakSignCombo->setEnabled(meth == 2 || meth == 3);
 }
 
 void AdvProcessingOptions::onClickDetrendCombo(int newDetrendMethod)
@@ -1667,6 +1734,12 @@ void AdvProcessingOptions::refresh()
     tlSettingsButton->setEnabled(ecProject_->screenTlagMeth() == 4 || ecProject_->screenTlagMeth() == 5);
     tlPreassessButton->setEnabled(ecProject_->screenTlagMeth() != 0);
     covmaxDebaselineCheckBox->setChecked(ecProject_->screenCovmaxDebaseline());
+    {
+        const QSignalBlocker b1(covmaxSmoothSpin);
+        const QSignalBlocker b2(covmaxPeakSignCombo);
+        covmaxSmoothSpin->setValue(ecProject_->screenCovmaxSmoothLen());
+        covmaxPeakSignCombo->setCurrentIndex(ecProject_->screenCovmaxPeakSign());
+    }
     parallelPrepassCheckBox->setChecked(configState_->general.parallelPrepass);
     tlagBorrowCheckBox->setChecked(ecProject_->screenTlagBorrowMethod());
     tlagBorrowSnrSpin->setValue(ecProject_->screenTlagBorrowSnr());
