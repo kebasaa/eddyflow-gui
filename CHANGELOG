@@ -1,6 +1,8 @@
 Unreleased
 
     GUI:
+	- Change: Up to 128 gases per project (Defs::MAX_GASES 64 -> 128),
+	          matching the engine.
 	- New: A Flatpak of EddyFlow (GUI and engine) for Linux. The workflow
 	       .github/workflows/linux-flatpak.yml builds it on every release
 	       from packaging/flatpak/io.github.kebasaa.EddyFlow.yml (KDE 6.8

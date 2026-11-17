@@ -227,7 +227,7 @@ namespace Defs
     //> and gas analysers one shared counter, so two sonics leave room for six
     //> analysers, not eight.
     const int MAX_INSTRUMENTS = 8;
-    const int MAX_GASES = 64;
+    const int MAX_GASES = 128;
     //> Not an engine limit. The engine declares MaxGasesPerInstrument but never
     //> reads it - no array is sized by it and no loop bounded by it - so this
     //> only ever gated the interface. One analyser may carry the project's full
