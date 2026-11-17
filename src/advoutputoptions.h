@@ -46,6 +46,9 @@ class ClickLabel;
 struct ConfigState;
 class EcProject;
 class RichTextCheckBox;
+class QSpinBox;
+class QDoubleSpinBox;
+class QListWidget;
 
 class AdvOutputOptions : public QWidget
 {
@@ -230,6 +233,12 @@ private:
     //> Optional innFLUX-style columns (Striednig et al. 2020), both off.
     RichTextCheckBox* outThetaFluxCheckBox;
     RichTextCheckBox* outLodNoiseCheckBox;
+    //> Per-period cross-covariance functions (innFLUX), by gas. Off.
+    QGroupBox* ccfGroupBox;
+    QListWidget* ccfGasList;
+    QDoubleSpinBox* ccfMaxLagSpin;
+    QSpinBox* ccfDecimSpin;
+    bool ccfRefreshing_ = false;
     QCheckBox* fluxnetErrLabelCheckBox;
     QCheckBox* outDetailsCheckBox;
     QCheckBox* outMdCheckBox;

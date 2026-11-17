@@ -269,6 +269,42 @@ struct ScreenGeneralState
     int flag10_policy = 1;
 };
 
+/// Cumulated-covariance time lag (tlag_meth 6) and its clock-drift correction,
+/// after innFLUX (Striednig et al. 2020; driftfix from innFLUX v1.2.0,
+/// unpublished), and the per-period cross-covariance output. innFLUX's own
+/// values as defaults; all of it is read by the engine only when the method
+/// or the output is chosen.
+struct CumCovSettings
+{
+    int filter_len = 15;
+    qreal min_ustar = 0.3;
+    qreal min_compl_sonic = 0.95;
+    qreal min_compl_gas = 0.5;
+    qreal max_sst = 0.3;
+    QString segments;
+    int drift_meth = 0;
+    qreal drift_span_d = 5.0;
+    qreal drift_jump_thr = -0.8;
+    qreal drift_max_s = 10.0;
+    qreal ccf_max_lag_s = 200.0;
+    int ccf_decim = 1;
+
+    bool operator==(const CumCovSettings& o) const
+    {
+        return filter_len == o.filter_len && qFuzzyCompare(min_ustar, o.min_ustar)
+               && qFuzzyCompare(min_compl_sonic, o.min_compl_sonic)
+               && qFuzzyCompare(min_compl_gas, o.min_compl_gas)
+               && qFuzzyCompare(max_sst, o.max_sst) && segments == o.segments
+               && drift_meth == o.drift_meth
+               && qFuzzyCompare(drift_span_d, o.drift_span_d)
+               && qFuzzyCompare(drift_jump_thr, o.drift_jump_thr)
+               && qFuzzyCompare(drift_max_s, o.drift_max_s)
+               && qFuzzyCompare(ccf_max_lag_s, o.ccf_max_lag_s)
+               && ccf_decim == o.ccf_decim;
+    }
+    bool operator!=(const CumCovSettings& o) const { return !(*this == o); }
+};
+
 /// \struct ScreenSettingState
 /// \brief Raw processing settings information for the INI processing file
 struct ScreenSettingState
@@ -404,6 +440,7 @@ struct ScreenSettingState
     //> Optional innFLUX-style FLUXNET columns (Striednig et al. 2020). Off.
     int out_theta_flux = 0;
     int out_lod_noise_stats = 0;
+    CumCovSettings cumcov;
     //> Conditional lag borrowing, and how many detection limits a covariance
     //> must clear to keep its own lag. Three is Nemitz et al.
     int tlag_borrow_meth = 0;
@@ -538,6 +575,11 @@ struct ScreenTiltState
     QList<AngleItem> angles = QList<AngleItem>();
     int subset = 0;
     int assessment_only = 0;
+    //> innFLUX-derived extras, off: moving windows and the tilt bootstrap.
+    int mw_num = 0;
+    qreal mw_width = 30.0;
+    int boot_n = 0;
+    int boot_seed = 1;
 };
 
 struct TimelagOptState

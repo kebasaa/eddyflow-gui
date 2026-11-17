@@ -39,6 +39,10 @@
 #include <QSize>
 #include <QGridLayout>
 #include <QGroupBox>
+#include <QDoubleSpinBox>
+#include <QFormLayout>
+#include <QListWidget>
+#include <QSpinBox>
 #include <QPushButton>
 #include <QStringList>
 #include <QRadioButton>
@@ -745,6 +749,69 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     rawVarsGrid_->setContentsMargins(0, 0, 0, 0);
     outputLayout->addLayout(rawVarsGrid_, 32, 3, 6, 3);
     outputLayout->addWidget(outVarsAllCheckBox, 38, 3, 1, 3);
+
+    //> Per-period cross-covariance functions, after innFLUX's step 1 files
+    //> (Striednig et al. 2020). Nothing is written unless a gas is ticked.
+    {
+        const auto ccfCredit = tr("<br><br><i>Source:</i> innFLUX's per-period "
+            "covariance files (step 1), Striednig et al. (2020), Atmos. Meas. Tech. "
+            "13, 1447-1465.");
+        ccfGasList = new QListWidget;
+        ccfGasList->setMaximumHeight(110);
+        ccfGasList->setToolTip(tr("<b>Cross-covariance functions:</b> for each gas "
+            "ticked here, write the cross-covariance of w and the gas at every lag "
+            "within the half-width below, one file per averaging period in the "
+            "eddyflow_ccf folder, taken before the time lag is applied. For checking "
+            "lag problems or redoing a lag analysis without reprocessing the raw "
+            "data. None ticked by default.") + ccfCredit);
+        ccfMaxLagSpin = new QDoubleSpinBox;
+        ccfMaxLagSpin->setRange(0.0, 3600.0);
+        ccfMaxLagSpin->setDecimals(1);
+        ccfMaxLagSpin->setSuffix(tr(" [s]"));
+        ccfMaxLagSpin->setToolTip(tr("<b>Half-width:</b> the lags written run from "
+            "minus this to plus this. Default 200 s.") + ccfCredit);
+        ccfDecimSpin = new QSpinBox;
+        ccfDecimSpin->setRange(1, 1000);
+        ccfDecimSpin->setToolTip(tr("<b>Every n-th lag:</b> keep one lag in n, to "
+            "keep the files small. About 35 MB per gas and year at +/-200 s, 10 Hz "
+            "and n = 10. Default 1, every lag.") + ccfCredit);
+        auto form = new QFormLayout;
+        form->addRow(tr("Gases :"), ccfGasList);
+        form->addRow(tr("Half-width :"), ccfMaxLagSpin);
+        form->addRow(tr("Every n-th lag :"), ccfDecimSpin);
+        ccfGroupBox = new QGroupBox(tr("Cross-covariance functions (innFLUX)"));
+        ccfGroupBox->setLayout(form);
+        outputLayout->addWidget(ccfGroupBox, 39, 0, 1, 6);
+
+        connect(ccfGasList, &QListWidget::itemChanged, this, [=]()
+        {
+            if (ccfRefreshing_) { return; }
+            auto gases = ecProject_->gasColumns();
+            for (int i = 0; i < gases.size() && i < ccfGasList->count(); ++i)
+            {
+                //> Unticked is "not stated", which the engine reads as off.
+                gases[i].proc.outCcf
+                    = ccfGasList->item(i)->checkState() == Qt::Checked ? 1 : -1;
+            }
+            ecProject_->setGasColumns(gases);
+        });
+        connect(ccfMaxLagSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                this, [=](double v)
+        {
+            if (ccfRefreshing_) { return; }
+            auto c = ecProject_->screenCumCov();
+            c.ccf_max_lag_s = v;
+            ecProject_->setScreenCumCov(c);
+        });
+        connect(ccfDecimSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+                this, [=](int v)
+        {
+            if (ccfRefreshing_) { return; }
+            auto c = ecProject_->screenCumCov();
+            c.ccf_decim = v;
+            ecProject_->setScreenCumCov(c);
+        });
+    }
     outputLayout->setRowStretch(39, 1);
     outputLayout->setColumnStretch(8, 1);
     outputLayout->setColumnMinimumWidth(4, 60);
@@ -1231,6 +1298,22 @@ void AdvOutputOptions::refresh()
     fluxnetBiometCheckBox->setChecked(ecProject_->fluxnetStandardizeBiomet());
     fluxnetErrLabelCheckBox->setChecked(ecProject_->fluxnetErrLabel());
     outThetaFluxCheckBox->setChecked(ecProject_->screenOutThetaFlux() == 1);
+    {
+        ccfRefreshing_ = true;
+        ccfGasList->clear();
+        const auto& gases = ecProject_->gasColumns();
+        for (int i = 0; i < gases.size(); ++i)
+        {
+            auto item = new QListWidgetItem(tr("Gas %1: %2 (%3)").arg(i + 1)
+                .arg(gases.at(i).slug, gases.at(i).instrumentId));
+            item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+            item->setCheckState(gases.at(i).proc.outCcf == 1 ? Qt::Checked : Qt::Unchecked);
+            ccfGasList->addItem(item);
+        }
+        ccfMaxLagSpin->setValue(ecProject_->screenCumCov().ccf_max_lag_s);
+        ccfDecimSpin->setValue(ecProject_->screenCumCov().ccf_decim);
+        ccfRefreshing_ = false;
+    }
     outLodNoiseCheckBox->setChecked(ecProject_->screenOutLodNoiseStats() == 1);
     updateFluxnetErrLabelMode(ecProject_->fluxnetErrLabel());
     outFullCheckBox->setChecked(ecProject_->generalOutRich());

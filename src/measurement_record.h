@@ -102,6 +102,12 @@ struct GasProcessingSettings
     int outFullSp = -1;
     int outFullCospW = -1;
     int outRaw = -1;
+    //> innFLUX-derived per-gas switches (Striednig et al. 2020), -1 for "not
+    //> stated", which the engine reads as off: a reference gas for the
+    //> clock-drift correction of the cumulated-covariance lag, and the
+    //> per-period cross-covariance output.
+    int tlagDriftRef = -1;
+    int outCcf = -1;
 };
 
 /// A measured gas.

@@ -367,6 +367,21 @@ namespace EcIni
     //> of the Langford limit of detection. RP only, RawProcess_Settings.
     const auto INI_SCREEN_SETTINGS_127  = QStringLiteral("out_theta_flux");
     const auto INI_SCREEN_SETTINGS_128  = QStringLiteral("out_lod_noise_stats");
+    //> Cumulated-covariance time lag (tlag_meth 6) and its clock-drift
+    //> correction after innFLUX (Striednig et al. 2020; driftfix of innFLUX
+    //> v1.2.0, unpublished), and the per-period cross-covariance output.
+    const auto INI_SCREEN_SETTINGS_129  = QStringLiteral("tlag_cum_filter_len");
+    const auto INI_SCREEN_SETTINGS_130  = QStringLiteral("tlag_cum_min_ustar");
+    const auto INI_SCREEN_SETTINGS_131  = QStringLiteral("tlag_cum_min_compl_sonic");
+    const auto INI_SCREEN_SETTINGS_132  = QStringLiteral("tlag_cum_min_compl_gas");
+    const auto INI_SCREEN_SETTINGS_133  = QStringLiteral("tlag_cum_max_sst");
+    const auto INI_SCREEN_SETTINGS_134  = QStringLiteral("tlag_cum_segments");
+    const auto INI_SCREEN_SETTINGS_135  = QStringLiteral("tlag_drift_meth");
+    const auto INI_SCREEN_SETTINGS_136  = QStringLiteral("tlag_drift_span_d");
+    const auto INI_SCREEN_SETTINGS_137  = QStringLiteral("tlag_drift_jump_thr");
+    const auto INI_SCREEN_SETTINGS_138  = QStringLiteral("tlag_drift_max_s");
+    const auto INI_SCREEN_SETTINGS_139  = QStringLiteral("out_ccf_max_lag_s");
+    const auto INI_SCREEN_SETTINGS_140  = QStringLiteral("out_ccf_decim");
     //> Nemitz et al. (2018) conditional lag borrowing. Needs detlim_meth on,
     //> since there is nothing to compare a covariance against otherwise.
     const auto INI_SCREEN_SETTINGS_108  = QStringLiteral("tlag_borrow_meth");
@@ -520,6 +535,13 @@ namespace EcIni
     const auto INI_SCREEN_TILT_12     = QStringLiteral("pf_start_time");
     const auto INI_SCREEN_TILT_13     = QStringLiteral("pf_end_time");
     const auto INI_SCREEN_TILT_14     = QStringLiteral("rot_pf_assessment_only");
+    //> Planar-fit extras after innFLUX (Striednig et al. 2020), both off:
+    //> moving windows (count, width in degrees) and the bootstrap of the tilt
+    //> angles (resamples, seed). Stored in the planar-fit file when used.
+    const auto INI_SCREEN_TILT_15     = QStringLiteral("pf_mw_num");
+    const auto INI_SCREEN_TILT_16     = QStringLiteral("pf_mw_width");
+    const auto INI_SCREEN_TILT_17     = QStringLiteral("pf_boot_n");
+    const auto INI_SCREEN_TILT_18     = QStringLiteral("pf_boot_seed");
 
     const auto INIGROUP_TIMELAG_OPT = QStringLiteral("RawProcess_TimelagOptimization_Settings");
     const auto INI_TIMELAG_OPT_0    = QStringLiteral("to_start_date");

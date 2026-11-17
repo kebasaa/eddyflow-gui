@@ -168,7 +168,9 @@ class TheSettingInvalidatesAComputedDataset(unittest.TestCase):
         #> re-points every later per-gas setting of every gas.
         gen = read(ENGINE_GEN)
         block = gen[gen.index("RP_GAS_NUMERIC = ["):gen.index("RP_GAS_TEXT")]
-        self.assertRegex(block, r'\+ \["step_lim"\]\s*$')
+        # step_lim keeps its offset; the innFLUX keys came after it, appended.
+        self.assertIn('+ ["step_lim"]', block)
+        self.assertRegex(block, r'\+ \["tlag_drift_ref", "out_ccf"\]\s*$')
 
 
 if __name__ == "__main__":

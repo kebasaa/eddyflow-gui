@@ -264,6 +264,7 @@ public:
     void setScreenCovmaxPeakSign(int n);
     void setScreenOutThetaFlux(int n);
     void setScreenOutLodNoiseStats(int n);
+    void setScreenCumCov(const CumCovSettings& c);
     void setScreenTlagBorrowMethod(int n);
     void setScreenTlagBorrowSnr(double d);
     void setScreenTlagBorrowNoise(int n);
@@ -469,6 +470,7 @@ public:
     void setPlanarFitItemPerSector(int i);
     void setPlanarFitWmax(double d);
     void setPlanarFitUmin(double d);
+    void setPlanarFitExtras(int mwNum, double mwWidth, int bootN, int bootSeed);
     void setPlanarFitFile(const QString& p);
     void setPlanarFitPolicy(int i);
     void setPlanarFitSubset(int n);
@@ -767,6 +769,7 @@ public:
     int screenCovmaxPeakSign() const { return ec_project_state_.screenSetting.covmax_peak_sign; }
     int screenOutThetaFlux() const { return ec_project_state_.screenSetting.out_theta_flux; }
     int screenOutLodNoiseStats() const { return ec_project_state_.screenSetting.out_lod_noise_stats; }
+    const CumCovSettings& screenCumCov() const { return ec_project_state_.screenSetting.cumcov; }
     int screenTlagBorrowMethod() const { return ec_project_state_.screenSetting.tlag_borrow_meth; }
     double screenTlagBorrowSnr() const { return ec_project_state_.screenSetting.tlag_borrow_snr; }
     int screenTlagBorrowNoise() const { return ec_project_state_.screenSetting.tlag_borrow_noise; }
@@ -972,6 +975,10 @@ public:
     int planarFitItemPerSector() const { return ec_project_state_.screenTilt.min_num_per_sec; }
     double planarFitWmax() const { return ec_project_state_.screenTilt.w_max; }
     double planarFitUmin() const { return ec_project_state_.screenTilt.u_min; }
+    int planarFitMwNum() const { return ec_project_state_.screenTilt.mw_num; }
+    double planarFitMwWidth() const { return ec_project_state_.screenTilt.mw_width; }
+    int planarFitBootN() const { return ec_project_state_.screenTilt.boot_n; }
+    int planarFitBootSeed() const { return ec_project_state_.screenTilt.boot_seed; }
     const QString& planarFitFile() const { return ec_project_state_.screenTilt.file; }
     int planarFitFixPolicy() const { return ec_project_state_.screenTilt.fix_policy; }
     int planarFitSubset() const { return ec_project_state_.screenTilt.subset; }

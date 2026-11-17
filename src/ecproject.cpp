@@ -361,6 +361,7 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.covmax_peak_sign == previousProject.ec_project_state_.screenSetting.covmax_peak_sign);
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.out_theta_flux == previousProject.ec_project_state_.screenSetting.out_theta_flux);
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.out_lod_noise_stats == previousProject.ec_project_state_.screenSetting.out_lod_noise_stats);
+    dataSetTest = dataSetTest && (ec_project_state_.screenSetting.cumcov == previousProject.ec_project_state_.screenSetting.cumcov);
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.tlag_borrow_meth == previousProject.ec_project_state_.screenSetting.tlag_borrow_meth);
     dataSetTest = dataSetTest && qFuzzyCompare(ec_project_state_.screenSetting.tlag_borrow_snr, previousProject.ec_project_state_.screenSetting.tlag_borrow_snr);
     dataSetTest = dataSetTest && (ec_project_state_.screenSetting.tlag_borrow_noise == previousProject.ec_project_state_.screenSetting.tlag_borrow_noise);
@@ -771,6 +772,10 @@ bool EcProject::fuzzyCompare(const EcProject& previousProject)
                 && (ec_project_state_.screenTilt.min_num_per_sec == previousProject.ec_project_state_.screenTilt.min_num_per_sec)
                 && qFuzzyCompare(ec_project_state_.screenTilt.w_max, previousProject.ec_project_state_.screenTilt.w_max)
                 && qFuzzyCompare(ec_project_state_.screenTilt.u_min, previousProject.ec_project_state_.screenTilt.u_min)
+                && (ec_project_state_.screenTilt.mw_num == previousProject.ec_project_state_.screenTilt.mw_num)
+                && qFuzzyCompare(ec_project_state_.screenTilt.mw_width, previousProject.ec_project_state_.screenTilt.mw_width)
+                && (ec_project_state_.screenTilt.boot_n == previousProject.ec_project_state_.screenTilt.boot_n)
+                && (ec_project_state_.screenTilt.boot_seed == previousProject.ec_project_state_.screenTilt.boot_seed)
                 && (ec_project_state_.screenTilt.fix_policy == previousProject.ec_project_state_.screenTilt.fix_policy);
 
             subTest = (ec_project_state_.screenTilt.subset == previousProject.ec_project_state_.screenTilt.subset);
@@ -1077,6 +1082,7 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenSetting.covmax_peak_sign = defaultEcProjectState.screenSetting.covmax_peak_sign;
     ec_project_state_.screenSetting.out_theta_flux = defaultEcProjectState.screenSetting.out_theta_flux;
     ec_project_state_.screenSetting.out_lod_noise_stats = defaultEcProjectState.screenSetting.out_lod_noise_stats;
+    ec_project_state_.screenSetting.cumcov = defaultEcProjectState.screenSetting.cumcov;
     ec_project_state_.screenSetting.test_stor_clean = defaultEcProjectState.screenSetting.test_stor_clean;
     ec_project_state_.screenSetting.tlag_borrow_meth = defaultEcProjectState.screenSetting.tlag_borrow_meth;
     ec_project_state_.screenSetting.tlag_borrow_snr = defaultEcProjectState.screenSetting.tlag_borrow_snr;
@@ -1321,6 +1327,10 @@ void EcProject::newEcProject(const ProjConfigState& project_config)
     ec_project_state_.screenTilt.min_num_per_sec = defaultEcProjectState.screenTilt.min_num_per_sec;
     ec_project_state_.screenTilt.w_max = defaultEcProjectState.screenTilt.w_max;
     ec_project_state_.screenTilt.u_min = defaultEcProjectState.screenTilt.u_min;
+    ec_project_state_.screenTilt.mw_num = defaultEcProjectState.screenTilt.mw_num;
+    ec_project_state_.screenTilt.mw_width = defaultEcProjectState.screenTilt.mw_width;
+    ec_project_state_.screenTilt.boot_n = defaultEcProjectState.screenTilt.boot_n;
+    ec_project_state_.screenTilt.boot_seed = defaultEcProjectState.screenTilt.boot_seed;
     ec_project_state_.screenTilt.file.clear();
     ec_project_state_.screenTilt.fix_policy = defaultEcProjectState.screenTilt.fix_policy;
     ec_project_state_.screenTilt.angles.clear();
@@ -1989,6 +1999,21 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_126, ec_project_state_.screenSetting.covmax_peak_sign);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_127, ec_project_state_.screenSetting.out_theta_flux);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_128, ec_project_state_.screenSetting.out_lod_noise_stats);
+        {
+            const auto& c = ec_project_state_.screenSetting.cumcov;
+            project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_129, c.filter_len);
+            project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_130, c.min_ustar);
+            project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_131, c.min_compl_sonic);
+            project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_132, c.min_compl_gas);
+            project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_133, c.max_sst);
+            project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_134, c.segments);
+            project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_135, c.drift_meth);
+            project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_136, c.drift_span_d);
+            project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_137, c.drift_jump_thr);
+            project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_138, c.drift_max_s);
+            project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_139, c.ccf_max_lag_s);
+            project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_140, c.ccf_decim);
+        }
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_108, ec_project_state_.screenSetting.tlag_borrow_meth);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_109, ec_project_state_.screenSetting.tlag_borrow_snr);
         project_ini.setValue(EcIni::INI_SCREEN_SETTINGS_110, ec_project_state_.screenSetting.tlag_borrow_noise);
@@ -2256,6 +2281,16 @@ bool EcProject::saveEcProject(const QString &filename)
                     project_ini.setValue(p + QStringLiteral("tl_def"),
                                          QString::number(proc.tlDef, 'f', 1));
                 }
+                //> innFLUX-derived switches: written only when stated.
+                if (proc.tlagDriftRef >= 0)
+                {
+                    project_ini.setValue(p + QStringLiteral("tlag_drift_ref"),
+                                         proc.tlagDriftRef);
+                }
+                if (proc.outCcf >= 0)
+                {
+                    project_ini.setValue(p + QStringLiteral("out_ccf"), proc.outCcf);
+                }
             }
         }
     project_ini.endGroup();
@@ -2278,6 +2313,10 @@ bool EcProject::saveEcProject(const QString &filename)
         project_ini.setValue(EcIni::INI_SCREEN_TILT_8, ec_project_state_.screenTilt.fix_policy);
         project_ini.setValue(EcIni::INI_SCREEN_TILT_11, ec_project_state_.screenTilt.subset);
         project_ini.setValue(EcIni::INI_SCREEN_TILT_14, ec_project_state_.screenTilt.assessment_only);
+        project_ini.setValue(EcIni::INI_SCREEN_TILT_15, ec_project_state_.screenTilt.mw_num);
+        project_ini.setValue(EcIni::INI_SCREEN_TILT_16, ec_project_state_.screenTilt.mw_width);
+        project_ini.setValue(EcIni::INI_SCREEN_TILT_17, ec_project_state_.screenTilt.boot_n);
+        project_ini.setValue(EcIni::INI_SCREEN_TILT_18, ec_project_state_.screenTilt.boot_seed);
 
         // iterate through angle list
         int k = 0;
@@ -3530,6 +3569,24 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
             ec_project_state_.screenSetting.out_lod_noise_stats
                     = project_ini.value(EcIni::INI_SCREEN_SETTINGS_128, 0).toInt() == 1 ? 1 : 0;
         }
+        {
+            //> innFLUX's values where absent, clamped as the engine clamps.
+            const CumCovSettings d;
+            auto& c = ec_project_state_.screenSetting.cumcov;
+            c.filter_len = qMax(0, project_ini.value(EcIni::INI_SCREEN_SETTINGS_129, d.filter_len).toInt());
+            c.min_ustar = project_ini.value(EcIni::INI_SCREEN_SETTINGS_130, d.min_ustar).toDouble();
+            c.min_compl_sonic = project_ini.value(EcIni::INI_SCREEN_SETTINGS_131, d.min_compl_sonic).toDouble();
+            c.min_compl_gas = project_ini.value(EcIni::INI_SCREEN_SETTINGS_132, d.min_compl_gas).toDouble();
+            c.max_sst = project_ini.value(EcIni::INI_SCREEN_SETTINGS_133, d.max_sst).toDouble();
+            c.segments = project_ini.value(EcIni::INI_SCREEN_SETTINGS_134, d.segments).toString();
+            c.drift_meth = project_ini.value(EcIni::INI_SCREEN_SETTINGS_135, d.drift_meth).toInt() == 1 ? 1 : 0;
+            c.drift_span_d = project_ini.value(EcIni::INI_SCREEN_SETTINGS_136, d.drift_span_d).toDouble();
+            if (c.drift_span_d <= 0.0) { c.drift_span_d = d.drift_span_d; }
+            c.drift_jump_thr = project_ini.value(EcIni::INI_SCREEN_SETTINGS_137, d.drift_jump_thr).toDouble();
+            c.drift_max_s = qMax(0.0, project_ini.value(EcIni::INI_SCREEN_SETTINGS_138, d.drift_max_s).toDouble());
+            c.ccf_max_lag_s = qMax(0.0, project_ini.value(EcIni::INI_SCREEN_SETTINGS_139, d.ccf_max_lag_s).toDouble());
+            c.ccf_decim = qMax(1, project_ini.value(EcIni::INI_SCREEN_SETTINGS_140, d.ccf_decim).toInt());
+        }
         ec_project_state_.screenSetting.tlag_borrow_meth
                 = project_ini.value(EcIni::INI_SCREEN_SETTINGS_108,
                                     defaultEcProjectState.screenSetting.tlag_borrow_meth).toInt();
@@ -4192,6 +4249,15 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
             readInto(QStringLiteral("ds_hf"), proc.dsHf);
             readInto(QStringLiteral("ds_sf"), proc.dsSf);
             readInto(QStringLiteral("tl_def"), proc.tlDef);
+            {
+                const auto readFlag = [&](const QString& key, int& target)
+                {
+                    const auto value = project_ini.value(p + key).toString();
+                    if (!value.isEmpty()) { target = value.toInt() == 1 ? 1 : 0; }
+                };
+                readFlag(QStringLiteral("tlag_drift_ref"), proc.tlagDriftRef);
+                readFlag(QStringLiteral("out_ccf"), proc.outCcf);
+            }
         }
     project_ini.endGroup();
 
@@ -4224,6 +4290,16 @@ bool EcProject::loadEcProject(const QString &filename, bool checkVersion, bool *
         ec_project_state_.screenTilt.u_min
                 = project_ini.value(EcIni::INI_SCREEN_TILT_6,
                                     defaultEcProjectState.screenTilt.u_min).toDouble();
+        {
+            //> Clamped as the engine reads them.
+            const auto& d = defaultEcProjectState.screenTilt;
+            auto& t = ec_project_state_.screenTilt;
+            t.mw_num = qBound(0, project_ini.value(EcIni::INI_SCREEN_TILT_15, d.mw_num).toInt(), 360);
+            t.mw_width = project_ini.value(EcIni::INI_SCREEN_TILT_16, d.mw_width).toDouble();
+            if (t.mw_width <= 0.0 || t.mw_width > 360.0) { t.mw_width = d.mw_width; }
+            t.boot_n = qMax(0, project_ini.value(EcIni::INI_SCREEN_TILT_17, d.boot_n).toInt());
+            t.boot_seed = project_ini.value(EcIni::INI_SCREEN_TILT_18, d.boot_seed).toInt();
+        }
         ec_project_state_.screenTilt.file
                 = project_ini.value(EcIni::INI_SCREEN_TILT_7,
                                     defaultEcProjectState.screenTilt.file).toString();
@@ -6522,6 +6598,13 @@ void EcProject::setScreenOutLodNoiseStats(int n)
     setModified(true);
 }
 
+void EcProject::setScreenCumCov(const CumCovSettings& c)
+{
+    if (ec_project_state_.screenSetting.cumcov == c) { return; }
+    ec_project_state_.screenSetting.cumcov = c;
+    setModified(true);
+}
+
 void EcProject::setScreenSpectroWater(int n)
 {
     ec_project_state_.screenSetting.spectro_water = n;
@@ -8096,6 +8179,16 @@ void EcProject::setPlanarFitWmax(double d)
     ec_project_state_.screenTilt.w_max = d;
     setModified(true);
     emit updateInfo();
+}
+
+void EcProject::setPlanarFitExtras(int mwNum, double mwWidth, int bootN, int bootSeed)
+{
+    auto& t = ec_project_state_.screenTilt;
+    t.mw_num = mwNum;
+    t.mw_width = mwWidth;
+    t.boot_n = bootN;
+    t.boot_seed = bootSeed;
+    setModified(true);
 }
 
 void EcProject::setPlanarFitUmin(double d)

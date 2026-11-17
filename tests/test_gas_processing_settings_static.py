@@ -33,7 +33,10 @@ BASIC_PAGE_SRC = GUI_ROOT / "src" / "basicsettingspage.cpp"
 
 #: The settings the Statistical Analysis page owns, as record suffixes.
 SUFFIXES = ("sr_lim", "step_lim", "al_min", "al_max", "ds_hf", "ds_sf",
-            "tl_def")
+            "tl_def",
+            #: innFLUX-derived switches (Striednig et al. 2020): a clock-drift
+            #: reference gas, and the per-period cross-covariance output.
+            "tlag_drift_ref", "out_ccf")
 #: The Spectral Corrections page, written in a FluxCorrection* section.
 #:
 #: `months` is the odd one out - a group list like `1-6,7-12` rather than a
@@ -320,7 +323,9 @@ class LegacySettingsMigration(unittest.TestCase):
     #:            itself, after the flat keys were retired. Its sentinel means
     #:            "do not despike this column", which is a decision and not a
     #:            missing value.
-    NEVER_HAD_A_FLAT_KEY = {"stepLim"}
+    #: tlagDriftRef and outCcf are new with the innFLUX options and never had
+    #: a flat key either.
+    NEVER_HAD_A_FLAT_KEY = {"stepLim", "tlagDriftRef", "outCcf"}
 
     def test_every_processing_setting_is_migrated(self):
         """The migration must cover all of GasProcessingSettings."""

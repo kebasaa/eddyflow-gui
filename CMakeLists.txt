@@ -106,6 +106,7 @@ set(EDDYFLOW_HEADERS
     src/clicklabel.h
     src/detlimsettingsdialog.h
     src/langfordsettingsdialog.h
+    src/cumcovsettingsdialog.h
     src/configstate.h
     src/customcombomodel.h
     src/customheader.h
@@ -248,6 +249,7 @@ set(EDDYFLOW_SOURCES
     src/clicklabel.cpp
     src/detlimsettingsdialog.cpp
     src/langfordsettingsdialog.cpp
+    src/cumcovsettingsdialog.cpp
     src/customcombomodel.cpp
     src/customheader.cpp
     src/customsplashscreen.cpp

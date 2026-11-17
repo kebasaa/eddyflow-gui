@@ -48,6 +48,7 @@
 #include <QDesktopServices>
 
 #include "cecsettingsdialog.h"
+#include "cumcovsettingsdialog.h"
 #include "clicklabel.h"
 #include "configstate.h"
 #include "customcombomodel.h"
@@ -403,6 +404,14 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     timeLagMethodCombo->addItem(tr("Covariance maximization"));
     timeLagMethodCombo->addItem(tr("Automatic time lag optimization"));
     timeLagMethodCombo->addItem(tr("Pre-whitening block-bootstrap (Vitale et al. 2024)"));
+    timeLagMethodCombo->addItem(tr("Cumulated covariance (innFLUX, Striednig et al. 2020)"));
+    timeLagMethodCombo->setItemData(5, tr("<b>Cumulated covariance:</b> each gas's "
+        "absolute cross-covariance functions are summed over every period that passes "
+        "the filters, per date segment, and the lag at the peak of the sum is used "
+        "for the whole segment, optionally corrected for a drifting clock. For weak "
+        "fluxes whose single-period peaks are noise. Needs a pre-pass over the run."
+        "<br><br><i>Source:</i> innFLUX, Striednig et al. (2020), after Park et al. "
+        "(2013); clock drift after innFLUX v1.2.0 (unpublished)."), Qt::ToolTipRole);
     timeLagMethodCombo->setItemData(0, tr("<b>Constant:</b> EddyFlow will apply constant time lags for all flux averaging intervals, using the <b><i>Nominal time lag</i></b> stored inside the GHG files or in the <b><i>Alternative metadata file</i></b> (for files other than GHG). While it can speed up the computation, this method is not recommended for physically displaced sensors or closed/enclosed path gas analysers. It can be used for closed/enclosed analysers if flow rate in the sampling line is strictly controlled and the sampling tube is actively heated to keep relative humidity low and constant."), Qt::ToolTipRole);
     timeLagMethodCombo->setItemData(1, tr("<b>Covariance maximization with default:</b> Similar to the <i>Covariance maximization</i>, this calculates the most likely time lag based on the circular correlation procedure. However, if a maximum of the covariance is not attained within the window (but at one of its ends), the time lag is set to the <b><i>Nominal time lag</i></b> value stored inside the GHG files or in the <b><i>Alternative metadata file</i></b> (for files other than GHG), for each variable. Recommended in most situations."), Qt::ToolTipRole);
     timeLagMethodCombo->setItemData(2, tr("<b>Covariance maximization:</b> Calculates the most likely time lag within a plausible window, based on the circular correlation procedure. The window is defined by the <i>Minimum time lags</i> and <i>Maximum time lags</i> stored inside the GHG files or in the <i>Alternative metadata file</i> (for files other than GHG), for each variable."), Qt::ToolTipRole);
@@ -1223,6 +1232,9 @@ AdvProcessingOptions::~AdvProcessingOptions()
     if (pwbTlDialog_)
         delete pwbTlDialog_;
 
+    if (cumCovDialog_)
+        delete cumCovDialog_;
+
     if (tlPreassessDialog_)
         delete tlPreassessDialog_;
 
@@ -1304,7 +1316,7 @@ void AdvProcessingOptions::updateTlSettingsButton(bool b)
 {
     int n = timeLagMethodCombo->currentIndex();
     if (b)
-        tlSettingsButton->setEnabled(n == 3 || n == 4);
+        tlSettingsButton->setEnabled(n == 3 || n == 4 || n == 5);
     else
         tlSettingsButton->setEnabled(false);
 }
@@ -1350,7 +1362,7 @@ void AdvProcessingOptions::updateTlagMeth_2(int n)
     ecProject_->setScreenTlagMeth(n + 1);
 
     // timelag optimization button
-    tlSettingsButton->setEnabled(n == 3 || n == 4);
+    tlSettingsButton->setEnabled(n == 3 || n == 4 || n == 5);
     updateCovmaxDebaselineAvailability();
 }
 
@@ -1731,7 +1743,8 @@ void AdvProcessingOptions::refresh()
     {
         timeLagMethodCombo->setCurrentIndex(0);
     }
-    tlSettingsButton->setEnabled(ecProject_->screenTlagMeth() == 4 || ecProject_->screenTlagMeth() == 5);
+    tlSettingsButton->setEnabled(ecProject_->screenTlagMeth() == 4 || ecProject_->screenTlagMeth() == 5
+                                 || ecProject_->screenTlagMeth() == 6);
     tlPreassessButton->setEnabled(ecProject_->screenTlagMeth() != 0);
     covmaxDebaselineCheckBox->setChecked(ecProject_->screenCovmaxDebaseline());
     {
@@ -1896,6 +1909,18 @@ void AdvProcessingOptions::createCecSettingsDialog()
 
 void AdvProcessingOptions::showTlSettingsDialog()
 {
+    if (ecProject_->screenTlagMeth() == 6)
+    {
+        if (!cumCovDialog_)
+        {
+            cumCovDialog_ = new CumCovSettingsDialog(this, ecProject_);
+        }
+        cumCovDialog_->refresh();
+        cumCovDialog_->show();
+        cumCovDialog_->raise();
+        cumCovDialog_->activateWindow();
+        return;
+    }
     if (ecProject_->screenTlagMeth() == 5)
     {
         pwbTlDialog_->refresh();

@@ -64,6 +64,7 @@ class DlProject;
 class EcProject;
 class PlanarFitSettingsDialog;
 class PwbTimelagSettingsDialog;
+class CumCovSettingsDialog;
 class RichTextCheckBox;
 class TimeLagSettingsDialog;
 class TimelagPreassessDialog;
@@ -347,6 +348,7 @@ private:
     PlanarFitSettingsDialog* pfDialog_{};
     TimeLagSettingsDialog* tlDialog_{};
     PwbTimelagSettingsDialog* pwbTlDialog_{};
+    CumCovSettingsDialog* cumCovDialog_{};
     TimelagPreassessDialog* tlPreassessDialog_{};
     CecSettingsDialog* cecDialog_{};
     TlagDonorDialog* tlagDonorDialog_{};
