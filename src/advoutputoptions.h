@@ -204,6 +204,9 @@ private:
     QLabel* spectralAssessmentCreationWarningIcon;
     QCheckBox* timelagAssessmentOnlyCheckBox;
     QCheckBox* planarFitAssessmentOnlyCheckBox;
+    //> automatic_spectra_config: what an on-the-fly spectral assessment
+    //> recommends is written into the output project.
+    QCheckBox* automaticSpectraConfigCheckBox;
 
     QCheckBox* outBinSpectraCheckBox;
     QLabel* outBinSpectraRequiredIcon;

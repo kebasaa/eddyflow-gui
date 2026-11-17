@@ -85,6 +85,13 @@ Unreleased
 	       page describes the three choices and the common window, and the
 	       pages changed for the innFLUX options and the 128-gas ceiling are
 	       brought in.
+	- Change: "Automatically configure spectral assessment after this run"
+	          moves from Spectral Analysis and Corrections to Output Files,
+	          under Assessment File Outputs, beside the run modes. It changes
+	          nothing in the run that has it - it is about what that run writes
+	          into the output project - and sat among the correction options.
+	          The project key, automatic_spectra_config, is unchanged. Pinned by
+	          tests/test_auto_spectra_config_location_static.py.
 
 8.2.0 (2026-11-11)
 

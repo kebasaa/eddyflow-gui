@@ -298,7 +298,6 @@ private:
     QButtonGroup* fullSpectraRadioGroup;
     QLabel* fratiniTitle;
     QCheckBox* addSonicCheck;
-    QCheckBox* automaticSpectraConfigCheck;
     //> Whose spectral transfer function each gas is corrected with: the
     //> switch for automatic selection, the per-gas dialog, and a line naming
     //> the gases whose fit in the selected file looks implausible.

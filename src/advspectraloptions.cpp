@@ -825,10 +825,6 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     spectraNonExistingRadio = new QRadioButton(tr("Spectral assessment file not available"));
     spectraNonExistingRadio->setToolTip(tr("<b>Spectral assessment file not available:</b> Choose this option and provide the following information if you need to calculate cut-off frequencies for your system. The assessment will be performed as an intermediate step, after all binned (co)spectra for the current dataset are calculated and before calculating and correcting fluxes."));
 
-    automaticSpectraConfigCheck = new QCheckBox(tr("Automatically configure spectral assessment after this run"));
-    automaticSpectraConfigCheck->setToolTip(tr("<b>Automatically configure spectral assessment:</b> When an on-the-fly assessment identifies eligible spectra excluded by flux limits, save data-driven flux-limit recommendations to the output processing project. The current run is not changed; rerun using the generated processing project."));
-    automaticSpectraConfigCheck->setStyleSheet(QStringLiteral("QCheckBox { margin-left: 40px; }"));
-
     spectraFileBrowse = new FileBrowseWidget;
     spectraFileBrowse->setRemoteBrowseEnabled(true);
     spectraFileBrowse->setToolTip(tr("<b>Load:</b> Load an existing spectral assessment file"));
@@ -1048,7 +1044,9 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     settingsLayout->addWidget(hrLabel_0, 15, 0, 1, -1);
 
     settingsLayout->addWidget(spectralCorrectionTitle, 16, 0);
-    settingsLayout->addWidget(automaticSpectraConfigCheck, 17, 0, 1, -1);
+    // Row 17 held "Automatically configure spectral assessment after this
+    // run", which writes into the output project and so now lives on Output
+    // Files, under Assessment File Outputs.
     settingsLayout->addLayout(lowFreqLabel, 18, 0);
     settingsLayout->addWidget(lfMethodCheck, 19, 0, 1, 2);
 
@@ -1197,8 +1195,6 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             { ecProject_->setSpectraUseFokenLow(checked); });
     connect(moderateQualityCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setSpectraUseFokenMid(checked); });
-    connect(automaticSpectraConfigCheck, &QCheckBox::toggled, [=](bool checked)
-            { ecProject_->setSpectraAutomaticConfig(checked); });
 
     connect(lfMethodCheck, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setGeneralLfMethod(checked); });
@@ -1370,7 +1366,6 @@ void AdvSpectralOptions::reset()
     vmFlagsCheckBox->setChecked(ecProject_->defaultSettings.spectraSettings.use_vm_flags);
     lowQualityCheckBox->setChecked(ecProject_->defaultSettings.spectraSettings.use_foken_low);
     moderateQualityCheckBox->setChecked(ecProject_->defaultSettings.spectraSettings.use_foken_mid);
-    automaticSpectraConfigCheck->setChecked(ecProject_->defaultSettings.spectraSettings.automatic_spectra_config);
 
     filterCombo->setCurrentIndex(ecProject_->defaultSettings.screenSetting.tap_win);
     filterCombo->setEnabled(true);
@@ -1506,7 +1501,6 @@ void AdvSpectralOptions::refresh()
     vmFlagsCheckBox->setChecked(ecProject_->spectraUseVmFlags());
     lowQualityCheckBox->setChecked(ecProject_->spectraUseFokenLow());
     moderateQualityCheckBox->setChecked(ecProject_->spectraUseFokenMid());
-    automaticSpectraConfigCheck->setChecked(ecProject_->spectraAutomaticConfig());
 
     lfMethodCheck->setChecked(ecProject_->generalLfMethod());
     cospModelCombo->setCurrentIndex(ecProject_->generalCospModel());

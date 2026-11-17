@@ -184,6 +184,13 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     assessmentRunModeRadioGroup->addButton(productionRunRadioButton, 1);
     assessmentRunModeRadioGroup->addButton(defaultRunRadioButton, 2);
 
+    // On this page because it is about what the run writes: what an
+    // on-the-fly spectral assessment recommends goes into the output
+    // project. It used to sit among the spectral correction options.
+    automaticSpectraConfigCheckBox = new QCheckBox;
+    automaticSpectraConfigCheckBox->setText(tr("Automatically configure spectral assessment after this run"));
+    automaticSpectraConfigCheckBox->setToolTip(tr("<b>Automatically configure spectral assessment:</b> When an on-the-fly assessment identifies eligible spectra excluded by flux limits, save data-driven flux-limit recommendations to the output processing project. The current run is not changed; rerun using the generated processing project."));
+
     timelagAssessmentOnlyCheckBox = new QCheckBox;
     timelagAssessmentOnlyCheckBox->setText(tr("Create timelag file only"));
     tooltipStr =
@@ -626,6 +633,14 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     planarFitAssessmentOnlyContainer->setLayout(qBox_16);
     planarFitAssessmentOnlyContainer->setToolTip(planarFitAssessmentOnlyCheckBox->toolTip());
 
+    auto qBox_19 = new QHBoxLayout;
+    qBox_19->addWidget(automaticSpectraConfigCheckBox);
+    qBox_19->addStretch();
+    qBox_19->setContentsMargins(0, 0, 0, 0);
+    auto automaticSpectraConfigContainer = new QWidget;
+    automaticSpectraConfigContainer->setLayout(qBox_19);
+    automaticSpectraConfigContainer->setToolTip(automaticSpectraConfigCheckBox->toolTip());
+
     auto spectralAssessmentCreationRow = new QWidget;
     spectralAssessmentCreationRow->setLayout(qBox_14);
     auto productionRunRow = new QWidget;
@@ -639,6 +654,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     assessmentFileOutputsLayout->addWidget(defaultRunRow);
     assessmentFileOutputsLayout->addWidget(spectralAssessmentCreationRow);
     assessmentFileOutputsLayout->addWidget(productionRunRow);
+    assessmentFileOutputsLayout->addWidget(automaticSpectraConfigContainer);
     assessmentFileOutputsLayout->setContentsMargins(0, 0, 0, 0);
     assessmentFileOutputsLayout->setSpacing(4);
 
@@ -885,6 +901,8 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
             this, &AdvOutputOptions::updateProductionRunMode);
     connect(defaultRunRadioButton, &QRadioButton::toggled,
             this, &AdvOutputOptions::updateDefaultRunMode);
+    connect(automaticSpectraConfigCheckBox, &QCheckBox::toggled, [=](bool checked)
+            { ecProject_->setSpectraAutomaticConfig(checked); });
     connect(timelagAssessmentOnlyCheckBox, &QCheckBox::toggled,
             this, &AdvOutputOptions::updateTimelagAssessmentOnly);
     connect(planarFitAssessmentOnlyCheckBox, &QCheckBox::toggled,
@@ -1237,6 +1255,7 @@ void AdvOutputOptions::reset()
     ecProject_->setSpectraFluxRunMode(0);
     timelagAssessmentOnlyCheckBox->setChecked(false);
     planarFitAssessmentOnlyCheckBox->setChecked(false);
+    automaticSpectraConfigCheckBox->setChecked(ecProject_->defaultSettings.spectraSettings.automatic_spectra_config);
     keepRawResultsCheckBox->setChecked(true);
 
     if (ecProject_->generalUseBiomet())
@@ -1336,6 +1355,7 @@ void AdvOutputOptions::refresh()
     }
     timelagAssessmentOnlyCheckBox->setChecked(ecProject_->timelagAssessmentOnly());
     planarFitAssessmentOnlyCheckBox->setChecked(ecProject_->planarFitAssessmentOnly());
+    automaticSpectraConfigCheckBox->setChecked(ecProject_->spectraAutomaticConfig());
     if (ecProject_->timelagAssessmentOnly() || ecProject_->planarFitAssessmentOnly())
     {
         clearRunModeRadios();
