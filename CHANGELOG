@@ -92,6 +92,18 @@ Unreleased
 	          into the output project - and sat among the correction options.
 	          The project key, automatic_spectra_config, is unchanged. Pinned by
 	          tests/test_auto_spectra_config_location_static.py.
+	- New: Before an Advanced run, the planar fit, time lag and spectral
+	       assessment files the run will read are checked. When one has been
+	       moved or renamed, an "Input Files Not Found" window opens instead
+	       of letting the engine start and stop on it: one line per file, with
+	       the same Browse and Remote drive buttons as the settings pages,
+	       pre-filled with a similar file found nearby (the same name with
+	       another timestamp, in its folder, the output folder, the folders
+	       beside it, or the project's folder), and greyed out where the file
+	       is not used. A path that is not the one saved in the project is
+	       highlighted. Continue saves the project with the new paths; Cancel
+	       Run leaves it untouched. Remote files are not checked.
+	       Pinned by tests/test_missing_input_files_static.py.
 
 8.2.0 (2026-11-11)
 

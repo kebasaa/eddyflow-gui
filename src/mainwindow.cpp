@@ -77,6 +77,8 @@
 #include "eddyuhimport.h"
 #include "globalsettings.h"
 #include "infomessage.h"
+#include "inputfilecheck.h"
+#include "inputfilesdialog.h"
 #include "mainwidget.h"
 #include "mymenu.h"
 #include "outputspace.h"
@@ -3738,6 +3740,103 @@ int MainWindow::testBeforeRunningPassed(int step)
     }
 }
 
+bool MainWindow::resolveMissingInputFiles()
+{
+    using Kind = InputFilesDialog::Kind;
+    InputFilesDialog::Line lines[InputFilesDialog::KindCount];
+
+    //> When each file is read: the same conditions testBeforeRunningPassed
+    //> applies when it asks for one to be loaded.
+    lines[Kind::PlanarFit].applies = ecProject_->screenRotMethod() >= 3
+                                     && ecProject_->planarFitMode() == 0;
+    lines[Kind::PlanarFit].saved = ecProject_->planarFitFile();
+
+    const int tlagMeth = ecProject_->screenTlagMeth();
+    lines[Kind::Timelag].applies = (tlagMeth == 4 || tlagMeth == 5)
+                                   && ecProject_->timelagOptMode() == 0;
+    lines[Kind::Timelag].saved = ecProject_->timelagOptFile();
+
+    lines[Kind::SpectralAssessment].applies = ecProject_->generalHfMethod() > 1
+                                              && ecProject_->generalHfMethod() < 5
+                                              && ecProject_->spectraMode() == 0;
+    lines[Kind::SpectralAssessment].saved = ecProject_->spectraFile();
+
+    //> Missing: used, named, local and not there. An empty path is the
+    //> "Load a ... file" message's business; a remote one the engine fetches.
+    bool anyMissing = false;
+    for (auto& line : lines)
+    {
+        if (!line.applies || line.saved.trimmed().isEmpty()) { continue; }
+        if (RemoteSource::isRemote(line.saved)) { continue; }
+        if (QFileInfo(line.saved).isFile()) { continue; }
+        anyMissing = true;
+    }
+    if (!anyMissing) { return true; }
+
+    //> A similar file for each missing one: the same name with another
+    //> timestamp, nearby. A PWB table is never offered the summary written
+    //> beside it, nor a plain time lag file a PWB one.
+    const QString paddings[InputFilesDialog::KindCount] = {
+        QLatin1String(InputFileCheck::PlanarFitPadding),
+        QLatin1String(tlagMeth == 5 ? InputFileCheck::PwbTimelagPadding
+                                    : InputFileCheck::TimelagOptPadding),
+        QLatin1String(InputFileCheck::SpectralAssessmentPadding)
+    };
+    const QString excludes[InputFilesDialog::KindCount] = {
+        QString(),
+        tlagMeth == 5 ? QStringLiteral("_pwb_timelag_opt_") : QStringLiteral("_pwb_"),
+        QString()
+    };
+    for (int k = 0; k < InputFilesDialog::KindCount; ++k)
+    {
+        auto& line = lines[k];
+        if (!line.applies || line.saved.trimmed().isEmpty()) { continue; }
+        if (RemoteSource::isRemote(line.saved) || QFileInfo(line.saved).isFile()) { continue; }
+        const auto dirs = InputFileCheck::searchDirs(line.saved,
+                                                     ecProject_->generalOutPath(),
+                                                     ecProject_->generalFileName());
+        line.suggestion = InputFileCheck::findSimilar(
+            InputFileCheck::similarPattern(line.saved, paddings[k]), dirs, excludes[k]);
+    }
+
+    InputFilesDialog dialog(this, lines);
+    if (dialog.exec() != QDialog::Accepted) { return false; }
+
+    //> Written only now, every line settled: a run cancelled halfway leaves
+    //> the project as it was.
+    bool anyChanged = false;
+    if (dialog.changed(Kind::PlanarFit))
+    {
+        ecProject_->setPlanarFitFile(RemoteSource::cleanPath(dialog.path(Kind::PlanarFit)));
+        anyChanged = true;
+    }
+    if (dialog.changed(Kind::Timelag))
+    {
+        ecProject_->setTimelagOptFile(RemoteSource::cleanPath(dialog.path(Kind::Timelag)));
+        anyChanged = true;
+    }
+    if (dialog.changed(Kind::SpectralAssessment))
+    {
+        ecProject_->setSpectraFile(RemoteSource::cleanPath(dialog.path(Kind::SpectralAssessment)));
+        anyChanged = true;
+    }
+    if (!anyChanged) { return true; }
+
+    for (int k = 0; k < InputFilesDialog::KindCount; ++k)
+    {
+        const auto kind = static_cast<Kind>(k);
+        if (dialog.changed(kind))
+        {
+            qInfo().noquote() << "Input file replaced:" << lines[k].saved
+                              << "->" << dialog.path(kind);
+        }
+    }
+    //> The Spectral page's field and the Planar Fit / Time Lag dialogs
+    //> (refreshed on show) read the new paths from the project.
+    ecProject_->announceProjectChanged();
+    return fileSaveSilently();
+}
+
 bool MainWindow::confirmOutputSpace(bool fromRaw)
 {
     const auto outDir = ecProject_->generalOutPath();
@@ -4338,6 +4437,14 @@ void MainWindow::getRunAdvanced()
             return;
         }
     }
+
+    //> Before anything reads the project for the run: a planar fit, time lag
+    //> or spectral assessment file that is gone made the engine stop.
+    if (currentStatus() == Defs::CurrStatus::Ready && !resolveMissingInputFiles())
+    {
+        return;
+    }
+
     emit updateMetadataReadRequest();
 
     // detect date range and verify date subset intersection

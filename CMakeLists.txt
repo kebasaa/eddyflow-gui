@@ -140,6 +140,8 @@ set(EDDYFLOW_HEADERS
     src/ini_file.h
     src/gas_metadata.h
     src/infomessage.h
+    src/inputfilecheck.h
+    src/inputfilesdialog.h
     src/irga_delegate.h
     src/irga_desc.h
     src/irga_model.h
@@ -276,6 +278,8 @@ set(EDDYFLOW_SOURCES
     src/ini_file.cpp
     src/gas_metadata.cpp
     src/infomessage.cpp
+    src/inputfilecheck.cpp
+    src/inputfilesdialog.cpp
     src/irga_delegate.cpp
     src/irga_desc.cpp
     src/irga_model.cpp
