@@ -104,6 +104,16 @@ Unreleased
 	       highlighted. Continue saves the project with the new paths; Cancel
 	       Run leaves it untouched. Remote files are not checked.
 	       Pinned by tests/test_missing_input_files_static.py.
+	- Change: The "Cross-covariance functions (innFLUX)" section of Output
+	          Files is laid out like the rest of the page: a separator, a
+	          group title, one checkbox per gas with the page's own gas names
+	          and order (two columns, like the processed raw data variables),
+	          and right-aligned labels for the half-width and every n-th lag.
+	          It was a framed box with a list of "Gas 1: slug (instrument)"
+	          entries. What it saves is unchanged.
+	- Fixed: The tooltip of "Add potential temperature fluxes" showed
+	         "w'Î¸'" for w'θ': the θ had been saved encoded twice.
+	         Pinned by tests/test_cumcov_settings_static.py.
 
 8.2.0 (2026-11-11)
 

@@ -40,8 +40,6 @@
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QDoubleSpinBox>
-#include <QFormLayout>
-#include <QListWidget>
 #include <QSpinBox>
 #include <QPushButton>
 #include <QStringList>
@@ -308,8 +306,8 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     outThetaFluxCheckBox = new RichTextCheckBox;
     outThetaFluxCheckBox->setText(tr("Add potential temperature fluxes (W_THETA, W_THETA_V)"));
     outThetaFluxCheckBox->setToolTip(tr("<b>Add potential temperature fluxes:</b> "
-        "Write the kinematic potential temperature flux w'Î¸' and the virtual "
-        "potential temperature (buoyancy) flux w'Î¸<sub>v</sub>' [K m s<sup>-1</sup>] "
+        "Write the kinematic potential temperature flux w'&theta;' and the virtual "
+        "potential temperature (buoyancy) flux w'&theta;<sub>v</sub>' [K m s<sup>-1</sup>] "
         "as W_THETA and W_THETA_V at the end of the Fluxnet file. Potential "
         "temperature is taken at 1000 hPa. Like innFLUX's, these are computed from "
         "the uncorrected covariances, with the humidity correction of the sonic "
@@ -768,18 +766,30 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
 
     //> Per-period cross-covariance functions, after innFLUX's step 1 files
     //> (Striednig et al. 2020). Nothing is written unless a gas is ticked.
+    //> Laid out as the page's other sections are - a separator, a group
+    //> title, one box per gas, right-aligned labels - not in a frame of its
+    //> own.
     {
         const auto ccfCredit = tr("<br><br><i>Source:</i> innFLUX's per-period "
             "covariance files (step 1), Striednig et al. (2020), Atmos. Meas. Tech. "
             "13, 1447-1465.");
-        ccfGasList = new QListWidget;
-        ccfGasList->setMaximumHeight(110);
-        ccfGasList->setToolTip(tr("<b>Cross-covariance functions:</b> for each gas "
+        const auto ccfTip = tr("<b>Cross-covariance functions:</b> for each gas "
             "ticked here, write the cross-covariance of w and the gas at every lag "
             "within the half-width below, one file per averaging period in the "
             "eddyflow_ccf folder, taken before the time lag is applied. For checking "
             "lag problems or redoing a lag analysis without reprocessing the raw "
-            "data. None ticked by default.") + ccfCredit);
+            "data. None ticked by default.") + ccfCredit;
+        auto hrLabelCcf = new QLabel;
+        hrLabelCcf->setObjectName(QStringLiteral("hrLabel"));
+        auto titleCcf = new QLabel(tr("Cross-covariance functions (innFLUX)"));
+        titleCcf->setProperty("groupLabel", true);
+        titleCcf->setToolTip(ccfTip);
+        auto gasesLabel = WidgetUtils::createBlueLabel(this, tr("Gases"));
+        gasesLabel->setToolTip(ccfTip);
+        //> Filled in rebuildGasRows(), two columns like the raw variables.
+        ccfGasGrid_ = new QGridLayout;
+        ccfGasGrid_->setContentsMargins(0, 0, 0, 0);
+
         ccfMaxLagSpin = new QDoubleSpinBox;
         ccfMaxLagSpin->setRange(0.0, 3600.0);
         ccfMaxLagSpin->setDecimals(1);
@@ -791,26 +801,22 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
         ccfDecimSpin->setToolTip(tr("<b>Every n-th lag:</b> keep one lag in n, to "
             "keep the files small. About 35 MB per gas and year at +/-200 s, 10 Hz "
             "and n = 10. Default 1, every lag.") + ccfCredit);
-        auto form = new QFormLayout;
-        form->addRow(tr("Gases :"), ccfGasList);
-        form->addRow(tr("Half-width :"), ccfMaxLagSpin);
-        form->addRow(tr("Every n-th lag :"), ccfDecimSpin);
-        ccfGroupBox = new QGroupBox(tr("Cross-covariance functions (innFLUX)"));
-        ccfGroupBox->setLayout(form);
-        outputLayout->addWidget(ccfGroupBox, 39, 0, 1, 6);
+        auto halfWidthLabel = new ClickLabel(tr("Half-width :"));
+        halfWidthLabel->setToolTip(ccfMaxLagSpin->toolTip());
+        auto decimLabel = new ClickLabel(tr("Every n-th lag :"));
+        decimLabel->setToolTip(ccfDecimSpin->toolTip());
+        connect(halfWidthLabel, &ClickLabel::clicked, this, [this]() { ccfMaxLagSpin->setFocus(); });
+        connect(decimLabel, &ClickLabel::clicked, this, [this]() { ccfDecimSpin->setFocus(); });
 
-        connect(ccfGasList, &QListWidget::itemChanged, this, [=]()
-        {
-            if (ccfRefreshing_) { return; }
-            auto gases = ecProject_->gasColumns();
-            for (int i = 0; i < gases.size() && i < ccfGasList->count(); ++i)
-            {
-                //> Unticked is "not stated", which the engine reads as off.
-                gases[i].proc.outCcf
-                    = ccfGasList->item(i)->checkState() == Qt::Checked ? 1 : -1;
-            }
-            ecProject_->setGasColumns(gases);
-        });
+        outputLayout->addWidget(hrLabelCcf, 39, 0, 1, -1);
+        outputLayout->addWidget(titleCcf, 40, 0);
+        outputLayout->addWidget(gasesLabel, 41, 1, 1, 2, Qt::AlignLeft);
+        outputLayout->addLayout(ccfGasGrid_, 42, 1, 1, 4);
+        outputLayout->addWidget(halfWidthLabel, 43, 0, Qt::AlignRight);
+        outputLayout->addWidget(ccfMaxLagSpin, 43, 1, Qt::AlignLeft);
+        outputLayout->addWidget(decimLabel, 44, 0, Qt::AlignRight);
+        outputLayout->addWidget(ccfDecimSpin, 44, 1, Qt::AlignLeft);
+
         connect(ccfMaxLagSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
                 this, [=](double v)
         {
@@ -828,7 +834,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
             ecProject_->setScreenCumCov(c);
         });
     }
-    outputLayout->setRowStretch(39, 1);
+    outputLayout->setRowStretch(45, 1);
     outputLayout->setColumnStretch(8, 1);
     outputLayout->setColumnMinimumWidth(4, 60);
 
@@ -1318,17 +1324,8 @@ void AdvOutputOptions::refresh()
     fluxnetErrLabelCheckBox->setChecked(ecProject_->fluxnetErrLabel());
     outThetaFluxCheckBox->setChecked(ecProject_->screenOutThetaFlux() == 1);
     {
+        //> The per-gas boxes were set by rebuildGasRows() above.
         ccfRefreshing_ = true;
-        ccfGasList->clear();
-        const auto& gases = ecProject_->gasColumns();
-        for (int i = 0; i < gases.size(); ++i)
-        {
-            auto item = new QListWidgetItem(tr("Gas %1: %2 (%3)").arg(i + 1)
-                .arg(gases.at(i).slug, gases.at(i).instrumentId));
-            item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
-            item->setCheckState(gases.at(i).proc.outCcf == 1 ? Qt::Checked : Qt::Unchecked);
-            ccfGasList->addItem(item);
-        }
         ccfMaxLagSpin->setValue(ecProject_->screenCumCov().ccf_max_lag_s);
         ccfDecimSpin->setValue(ecProject_->screenCumCov().ccf_decim);
         ccfRefreshing_ = false;
@@ -2134,6 +2131,16 @@ void AdvOutputOptions::onGasRawToggled(int gasIndex, bool checked)
     updateVarsAvailable();
 }
 
+void AdvOutputOptions::onGasCcfToggled(int gasIndex, bool checked)
+{
+    if (ccfRefreshing_) { return; }
+    auto gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size()) { return; }
+    //> Unticked is "not stated", which the engine reads as off.
+    gases[gasIndex].proc.outCcf = checked ? 1 : -1;
+    ecProject_->setGasColumns(gases);
+}
+
 /// The generated boxes, for the two collections that enable or disable the
 /// whole page.
 QWidgetList AdvOutputOptions::gasOutputCheckBoxes() const
@@ -2144,6 +2151,7 @@ QWidgetList AdvOutputOptions::gasOutputCheckBoxes() const
         if (row.spectra) { list << row.spectra; }
         if (row.cospectra) { list << row.cospectra; }
         if (row.raw) { list << row.raw; }
+        if (row.ccf) { list << row.ccf; }
     }
     return list;
 }
@@ -2156,7 +2164,8 @@ QWidgetList AdvOutputOptions::gasOutputCheckBoxes() const
 /// back into the project.
 void AdvOutputOptions::rebuildGasRows()
 {
-    if (!ecProject_ || !spectraGrid_ || !cospectraGrid_ || !rawVarsGrid_)
+    if (!ecProject_ || !spectraGrid_ || !cospectraGrid_ || !rawVarsGrid_
+        || !ccfGasGrid_)
     {
         return;
     }
@@ -2172,6 +2181,7 @@ void AdvOutputOptions::rebuildGasRows()
         dropBox(row.spectra);
         dropBox(row.cospectra);
         dropBox(row.raw);
+        dropBox(row.ccf);
     }
     gasRows_.clear();
 
@@ -2188,6 +2198,7 @@ void AdvOutputOptions::rebuildGasRows()
     const auto& gases = ecProject_->gasColumns();
     QList<RichTextCheckBox*> rawOrder = { outRawUCheckBox, outRawVCheckBox,
                                           outRawWCheckBox, outRawTsCheckBox };
+    QList<RichTextCheckBox*> ccfOrder;
 
     int spectraRow = 5;      // after qBox_6 and the four fixed boxes
     int cospectraRow = 4;    // after qBox_7 and the three fixed entries
@@ -2217,12 +2228,19 @@ void AdvOutputOptions::rebuildGasRows()
         row.raw->setChecked(gasRawFor(i));
         rawOrder << row.raw;
 
+        row.ccf = new RichTextCheckBox;
+        row.ccf->setText(name);
+        row.ccf->setChecked(i < gases.size() && gases.at(i).proc.outCcf == 1);
+        ccfOrder << row.ccf;
+
         connect(row.spectra, &RichTextCheckBox::toggled, this,
                 [=](bool checked) { onGasSpectraToggled(idx, checked); });
         connect(row.cospectra, &RichTextCheckBox::toggled, this,
                 [=](bool checked) { onGasCospectraToggled(idx, checked); });
         connect(row.raw, &RichTextCheckBox::toggled, this,
                 [=](bool checked) { onGasRawToggled(idx, checked); });
+        connect(row.ccf, &RichTextCheckBox::toggled, this,
+                [=](bool checked) { onGasCcfToggled(idx, checked); });
 
         gasRows_.append(row);
     }
@@ -2234,6 +2252,12 @@ void AdvOutputOptions::rebuildGasRows()
     for (int i = 0; i < rawOrder.size(); ++i)
     {
         rawVarsGrid_->addWidget(rawOrder.at(i), i % perColumn, i / perColumn);
+    }
+    // The cross-covariance gases the same way: two columns, column by column.
+    const int ccfPerColumn = qMax(1, static_cast<int>((ccfOrder.size() + 1) / 2));
+    for (int i = 0; i < ccfOrder.size(); ++i)
+    {
+        ccfGasGrid_->addWidget(ccfOrder.at(i), i % ccfPerColumn, i / ccfPerColumn);
     }
 
     gasSignature_ = gasSignature();
@@ -2304,6 +2328,7 @@ void AdvOutputOptions::updateGasOutputAvailability()
         {
             row.raw->setEnabled(available && timeSeriesAvailable && !smartfluxOn);
         }
+        if (row.ccf) { row.ccf->setEnabled(available && !smartfluxOn); }
 
         //> A gas whose column has gone leaves nothing to output, so its
         //> selections are cleared rather than left set on a dead record.
@@ -2312,6 +2337,7 @@ void AdvOutputOptions::updateGasOutputAvailability()
             if (row.spectra) { row.spectra->setChecked(false); }
             if (row.cospectra) { row.cospectra->setChecked(false); }
             if (row.raw) { row.raw->setChecked(false); }
+            if (row.ccf) { row.ccf->setChecked(false); }
         }
     }
 

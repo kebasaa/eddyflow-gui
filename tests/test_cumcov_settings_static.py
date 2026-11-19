@@ -90,14 +90,30 @@ class TheCcfOutput(unittest.TestCase):
     def setUp(self):
         self.page = read("src", "advoutputoptions.cpp")
 
-    def test_list_half_width_and_decimation(self):
-        self.assertIn("ccfGasList = new QListWidget", self.page)
+    def test_gases_half_width_and_decimation(self):
+        #> One box per gas, built with the page's other per-gas boxes.
+        self.assertIn("row.ccf = new RichTextCheckBox;", self.page)
+        self.assertIn("ccfGasGrid_->addWidget(ccfOrder.at(i)", self.page)
         self.assertIn("c.ccf_max_lag_s = v;", self.page)
         self.assertIn("c.ccf_decim = v;", self.page)
 
     def test_unticked_is_not_stated(self):
-        self.assertIn("== Qt::Checked ? 1 : -1;", self.page)
+        self.assertIn("gases[gasIndex].proc.outCcf = checked ? 1 : -1;", self.page)
         self.assertIn('QStringLiteral("out_ccf")', PROJECT)
+
+    def test_laid_out_like_the_rest_of_the_page(self):
+        """A separator, a group title and one box per gas, as every other
+        section of Output Files - not a framed box with a list of its own."""
+        block = self.page[self.page.index("auto hrLabelCcf = new QLabel;"):]
+        block = block[:block.index("connect(ccfMaxLagSpin")]
+        self.assertIn('titleCcf->setProperty("groupLabel", true);', block)
+        self.assertNotIn("QGroupBox", block)
+        self.assertNotIn("QListWidget", self.page)
+
+    def test_no_double_encoded_text(self):
+        raw = (GUI_ROOT / "src" / "advoutputoptions.cpp").read_bytes()
+        self.assertNotIn(b"\xc3\x8e\xc2\xb8", raw)  # a theta encoded twice
+        self.assertNotIn(b"\xc3\xa2\xe2\x82\xac", raw)  # a dash encoded twice
 
     def test_loading_writes_nothing(self):
         self.assertGreaterEqual(self.page.count("if (ccfRefreshing_) { return; }"), 3)
