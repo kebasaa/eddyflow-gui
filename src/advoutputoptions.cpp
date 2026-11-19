@@ -400,10 +400,11 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     keepRawResultsCheckBox->setToolTip(tooltipStr);
 
     createDatasetCheckBox = new QCheckBox;
-    createDatasetCheckBox->setText(tr("Build continuous dataset "
-                                      "(This is not gap-filling!\n"
-                                      "Missing flux averaging period "
-                                      "are filled with error codes)"));
+    //> Three short lines rather than two long ones: the longer line set the
+    //> width of this whole column, and with it of the page.
+    createDatasetCheckBox->setText(tr("Build continuous dataset\n"
+                                      "(This is not gap-filling! Missing flux\n"
+                                      "averaging periods are filled with error codes)"));
 
     fullOutformatLabel = new ClickLabel;
     fullOutformatLabel->setText(tr("Output format :"));

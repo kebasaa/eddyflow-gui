@@ -629,6 +629,18 @@ AdvStatisticalOptions::~AdvStatisticalOptions()
 {
 }
 
+//> The picture of each test, at most 280 px wide. At their own 320 px
+//> they set the width of every tab, and the absolute limits tab - a
+//> minimum and a maximum per gas beside it - did not fit a 1920 px
+//> screen at 125 %.
+static QPixmap testGraph(const QString& resource)
+{
+    const QPixmap full(resource);
+    return full.width() > 280
+        ? full.scaledToWidth(280, Qt::SmoothTransformation)
+        : full;
+}
+
 void AdvStatisticalOptions::createTabWidget()
 {
     tab0 = new QWidget;
@@ -717,7 +729,7 @@ void AdvStatisticalOptions::createTabWidget()
     despFilterCheckBox->setText(tr("Replace spikes with linear interpolation"));
 
     spikeGraphLabel = new QLabel;
-    spikeGraphLabel->setPixmap(QPixmap(QStringLiteral(":/icons/spike")));
+    spikeGraphLabel->setPixmap(testGraph(QStringLiteral(":/icons/spike")));
 
     auto plausibilityLabel = WidgetUtils::createBlueLabel(this, tr("Plausibility ranges (<tt>%1%2n%3</tt>, where you set <tt>n</tt>)").arg(Defs::MICRO, Defs::PLUSMINUS, Defs::SIGMA));
     plausibilityLabel->setToolTip(tr("<b>Plausibility range:</b> A plausibility range is defined in a window of fixed length that moves throughout the time series, to detect outliers. The plausibility range is defined as the mean value in the window, %1 <i>n</i> times the standard deviation of the window. Specify here n. Note that default values differ for different variables. Note also that wind components, as well as fast temperature measurements, are included in <b><i>All other variables</i></b>.").arg(Defs::PLUSMINUS));
@@ -753,18 +765,12 @@ void AdvStatisticalOptions::createTabWidget()
     tab0Grid->addWidget(despSpin_8, 0, 3);
     tab0Grid->addWidget(mauderDespikingRadio, 1, 0, 1, 2);
     tab0Grid->addWidget(despFilterCheckBox, 1, 3);
-    //> Its own column pair, because its numbers are absolute limits and the
-    //> ones to the left are sigma multipliers. Side by side in the same
-    //> column would invite reading one as the other.
-    tab0Grid->addWidget(stepDespikingRadio, 0, 4, 1, 2);
-    tab0Grid->addWidget(stepLabel_u, 1, 4, Qt::AlignRight);
-    tab0Grid->addWidget(stepSpin_u, 1, 5);
-    tab0Grid->addWidget(stepLabel_v, 2, 4, Qt::AlignRight);
-    tab0Grid->addWidget(stepSpin_v, 2, 5);
-    tab0Grid->addWidget(stepLabel_w, 3, 4, Qt::AlignRight);
-    tab0Grid->addWidget(stepSpin_w, 3, 5);
-    tab0Grid->addWidget(stepLabel_ts, 4, 4, Qt::AlignRight);
-    tab0Grid->addWidget(stepSpin_ts, 4, 5);
+    //> The consecutive-difference settings (stepDespikingRadio, the four
+    //> sonic step limits and one per gas) are placed by rebuildGasRows(),
+    //> below the sigma table under their own radio button: their numbers are
+    //> absolute limits and the ones above are sigma multipliers, so they get
+    //> a block of their own. They used to sit beside the sigma table in a
+    //> second column pair, which made the tab too wide for a laptop.
     tab0Grid->addWidget(questionMark_2, 2, 0);
     tab0Grid->addWidget(spikeGraphLabel, 2, 1, -1, 1, Qt::AlignTop);
     tab0Grid->addWidget(spikeGraphLabel, 2, 1, -1, 1, Qt::AlignTop);
@@ -778,8 +784,6 @@ void AdvStatisticalOptions::createTabWidget()
     tab0Grid->setColumnStretch(1, 0);
     tab0Grid->setColumnStretch(2, 1);
     tab0Grid->setColumnStretch(3, 0);
-    tab0Grid->setColumnStretch(4, 1);
-    tab0Grid->setColumnStretch(5, 0);
     tab0Grid->setContentsMargins(10, 10, 10, 10);
     tab0->setLayout(tab0Grid);
     tab0->setEnabled(false);
@@ -815,7 +819,7 @@ void AdvStatisticalOptions::createTabWidget()
     amplResSpin_3->setToolTip(amplResLabel_3->toolTip());
 
     amplResGraphLabel = new QLabel;
-    amplResGraphLabel->setPixmap(QPixmap(QStringLiteral(":/icons/amplitude")));
+    amplResGraphLabel->setPixmap(testGraph(QStringLiteral(":/icons/amplitude")));
 
     auto tab1Grid = new QGridLayout;
     tab1Grid->addWidget(questionMark_3, 0, 0);
@@ -867,7 +871,7 @@ void AdvStatisticalOptions::createTabWidget()
     dropoutsSpin_3->setToolTip(dropoutsLabel_3->toolTip());
 
     dropoutsGraphLabel = new QLabel;
-    dropoutsGraphLabel->setPixmap(QPixmap(QStringLiteral(":/icons/dropout")));
+    dropoutsGraphLabel->setPixmap(testGraph(QStringLiteral(":/icons/dropout")));
 
     auto tab2Grid = new QGridLayout;
     tab2Grid->addWidget(questionMark_4, 0, 0);
@@ -957,7 +961,7 @@ void AdvStatisticalOptions::createTabWidget()
     absLimFilterCheckBox->setToolTip(tr("<b>Filter outranged values:</b> Check this option to instruct EddyFlow to eliminate values outside the plausibility range. When values are eliminated, all other variables are preserved and a lag is avoided by replacing the value with EddyFlow\'s error code."));
 
     absLimGraphLabel = new QLabel;
-    absLimGraphLabel->setPixmap(QPixmap(QStringLiteral(":/icons/range")));
+    absLimGraphLabel->setPixmap(testGraph(QStringLiteral(":/icons/range")));
 
     auto lockedIcon_1 = new QLabel;
     auto pixmap_1 = QPixmap(QStringLiteral(":/icons/link"));
@@ -1074,7 +1078,7 @@ void AdvStatisticalOptions::createTabWidget()
     skewnessSpin_8->setToolTip(softFlagLabel->toolTip());
 
     skewnessGraphLabel = new QLabel;
-    skewnessGraphLabel->setPixmap(QPixmap(QStringLiteral(":/icons/skewkurt")));
+    skewnessGraphLabel->setPixmap(testGraph(QStringLiteral(":/icons/skewkurt")));
 
     auto tab4Grid = new QGridLayout;
     tab4Grid->addWidget(questionMark_6, 0, 0);
@@ -1176,7 +1180,7 @@ void AdvStatisticalOptions::createTabWidget()
     discontSpin_16->setToolTip(softFlagLabel_2->toolTip());
 
     discontGraphLabel = new QLabel;
-    discontGraphLabel->setPixmap(QPixmap(QStringLiteral(":/icons/discont")));
+    discontGraphLabel->setPixmap(testGraph(QStringLiteral(":/icons/discont")));
 
     auto tab5Grid = new QGridLayout;
     tab5Grid_ = tab5Grid;
@@ -1231,7 +1235,7 @@ void AdvStatisticalOptions::createTabWidget()
     // so two nominal lags.
 
     timelagGraphLabel = new QLabel;
-    timelagGraphLabel->setPixmap(QPixmap(QStringLiteral(":/icons/timelag")));
+    timelagGraphLabel->setPixmap(testGraph(QStringLiteral(":/icons/timelag")));
 
     auto tab6Grid = new QGridLayout;
     tab6Grid_ = tab6Grid;
@@ -1284,7 +1288,7 @@ void AdvStatisticalOptions::createTabWidget()
     attackAngleSpin_3->setToolTip(attackAngleLabel_3->toolTip());
 
     attackAngleGraphLabel = new QLabel;
-    attackAngleGraphLabel->setPixmap(QPixmap(QStringLiteral(":/icons/aoa")));
+    attackAngleGraphLabel->setPixmap(testGraph(QStringLiteral(":/icons/aoa")));
 
     auto tab7Grid = new QGridLayout;
     tab7Grid->addWidget(questionMark_9, 0, 0);
@@ -1317,7 +1321,7 @@ void AdvStatisticalOptions::createTabWidget()
     nonSteadySpin_1->setToolTip(nonSteadyLabel_1->toolTip());
 
     nonSteadyGraphLabel = new QLabel;
-    nonSteadyGraphLabel->setPixmap(QPixmap(QStringLiteral(":/icons/instat")));
+    nonSteadyGraphLabel->setPixmap(testGraph(QStringLiteral(":/icons/instat")));
 
     auto tab8Grid = new QGridLayout;
     tab8Grid->addWidget(questionMark_10, 0, 0);
@@ -1691,10 +1695,6 @@ void AdvStatisticalOptions::rebuildGasRows()
     // First free row of each grid, after the fixed rows laid out in
     // createTabWidget().
     int srRow = 5;
-    //> The step column starts level with its own four sonic spins above it,
-    //> not with the sigma column, so the two tables read as the separate
-    //> settings they are.
-    int stepRow = 5;
     int alRow = 4;
     int dsRow = 4;
     int tlRow = 2;
@@ -1753,10 +1753,7 @@ void AdvStatisticalOptions::rebuildGasRows()
             row.spin->setSpecialValueText(tr("not despiked"));
             row.spin->setToolTip(stepGasTip_);
             row.spin->setValue(gasParamFor(i, GasParam::StepLim));
-
-            tab0Grid_->addWidget(row.label, stepRow, 4, Qt::AlignRight);
-            tab0Grid_->addWidget(row.spin, stepRow, 5);
-            ++stepRow;
+            //> Placed after the loop, below the sigma table.
 
             auto spin = row.spin;
             connect(row.label, &ClickLabel::clicked, this, [=]()
@@ -1889,7 +1886,29 @@ void AdvStatisticalOptions::rebuildGasRows()
     // The rows that sit below each table move with the gas count.
     tab0Grid_->addWidget(despLabel_2, srRow, 2, Qt::AlignRight);
     tab0Grid_->addWidget(despSpin_2, srRow, 3);
-    setTrailingStretch(tab0Grid_, srRow + 1, srStretchRow_);
+
+    //> The consecutive-difference block, below the sigma table in the same
+    //> two columns, under its own radio button: absolute step limits, kept
+    //> apart from the sigma multipliers above by that heading rather than by
+    //> a second column pair the tab had no room for.
+    int stepRow = srRow + 1;
+    tab0Grid_->addWidget(stepDespikingRadio, stepRow++, 2, 1, 2);
+    const std::pair<ClickLabel*, QDoubleSpinBox*> sonicSteps[] = {
+        { stepLabel_u, stepSpin_u }, { stepLabel_v, stepSpin_v },
+        { stepLabel_w, stepSpin_w }, { stepLabel_ts, stepSpin_ts } };
+    for (const auto& step : sonicSteps)
+    {
+        tab0Grid_->addWidget(step.first, stepRow, 2, Qt::AlignRight);
+        tab0Grid_->addWidget(step.second, stepRow, 3);
+        ++stepRow;
+    }
+    for (const auto& row : stepRows_)
+    {
+        tab0Grid_->addWidget(row.label, stepRow, 2, Qt::AlignRight);
+        tab0Grid_->addWidget(row.spin, stepRow, 3);
+        ++stepRow;
+    }
+    setTrailingStretch(tab0Grid_, stepRow, srStretchRow_);
 
     tab3Grid_->addWidget(absLimFilterCheckBox, alRow, 3, 1, 2);
     setTrailingStretch(tab3Grid_, alRow + 1, alStretchRow_);

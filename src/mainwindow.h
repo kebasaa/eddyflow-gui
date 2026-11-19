@@ -68,6 +68,12 @@ public:
     bool queryEcProjectImport(const QString &filename);
     bool queryDlProjectImport();
 
+    //> Developer's tool: with EDDYFLOW_LAYOUT_REPORT=<file> set, show the
+    //> Advanced Settings at the screen width in EDDYFLOW_LAYOUT_WIDTH (default
+    //> 1536), write which pages would scroll sideways and why, and quit.
+    //> Nothing happens without the variable. See layoutreport.h.
+    void scheduleLayoutReport();
+
 protected:
     void closeEvent(QCloseEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;

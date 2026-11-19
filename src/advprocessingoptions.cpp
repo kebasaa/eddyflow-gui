@@ -95,9 +95,9 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     uOffsetSpin->setValue(0.0);
     uOffsetSpin->setAccelerated(true);
     uOffsetSpin->setSuffix(tr("  [m/s]", "Velocity"));
-#if defined(Q_OS_WIN)
-    uOffsetSpin->setMinimumWidth(uOffsetSpin->sizeHint().width() * 1.3);
-#elif defined (Q_OS_MACOS)
+//> No 1.3x widening on Windows: the natural width shows the value
+//> and its unit, and the three together set how wide the page is.
+#if defined (Q_OS_MACOS)
     uOffsetSpin->setMinimumWidth(102);
 #endif
     uOffsetSpin->setToolTip(windOffsetLabel->toolTip());
@@ -111,9 +111,9 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     vOffsetSpin->setValue(0.0);
     vOffsetSpin->setAccelerated(true);
     vOffsetSpin->setSuffix(tr("  [m/s]", "Velocity"));
-#if defined(Q_OS_WIN)
-    vOffsetSpin->setMinimumWidth(vOffsetSpin->sizeHint().width() * 1.3);
-#elif defined(Q_OS_MACOS)
+//> No 1.3x widening on Windows: the natural width shows the value
+//> and its unit, and the three together set how wide the page is.
+#if defined(Q_OS_MACOS)
     vOffsetSpin->setMinimumWidth(102);
 #endif
     vOffsetSpin->setToolTip(windOffsetLabel->toolTip());
@@ -127,9 +127,9 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     wOffsetSpin->setValue(0.0);
     wOffsetSpin->setAccelerated(true);
     wOffsetSpin->setSuffix(tr("  [m/s]", "Velocity"));
-#if defined(Q_OS_WIN)
-    wOffsetSpin->setMinimumWidth(wOffsetSpin->sizeHint().width() * 1.3);
-#elif defined(Q_OS_MACOS)
+//> No 1.3x widening on Windows: the natural width shows the value
+//> and its unit, and the three together set how wide the page is.
+#if defined(Q_OS_MACOS)
     wOffsetSpin->setMinimumWidth(102);
 #endif
     wOffsetSpin->setToolTip(windOffsetLabel->toolTip());
@@ -806,10 +806,18 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     settingsLayout->addWidget(timeLagCheckBox, 13, 0);
     settingsLayout->addWidget(timeLagMethodLabel, 13, 1, Qt::AlignRight);
     settingsLayout->addWidget(timeLagMethodCombo, 13, 2);
-    settingsLayout->addWidget(tlSettingsButton, 13, 3);
-    //> Beside the settings button, in a column of its own, so no row below
-    //> moves.
-    settingsLayout->addWidget(tlPreassessButton, 13, 4);
+    //> The two time-lag buttons stacked in the settings button's column. The
+    //> assessment button used to have a column of its own beside it, which
+    //> alone made the page about 210 px wider than a 1920 px laptop screen at
+    //> 125 % leaves room for.
+    {
+        auto tlButtons = new QVBoxLayout;
+        tlButtons->setContentsMargins(0, 0, 0, 0);
+        tlButtons->setSpacing(2);
+        tlButtons->addWidget(tlSettingsButton);
+        tlButtons->addWidget(tlPreassessButton);
+        settingsLayout->addLayout(tlButtons, 13, 3);
+    }
     //> Indented under the method it modifies, in the combo's own column.
     {
         //> The innFLUX peak options share row 14 with the baseline box, so no
@@ -897,6 +905,13 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
 
     auto settingsGroupLayout = new QHBoxLayout;
     settingsGroupLayout->addWidget(WidgetUtils::getContainerScrollArea(this, settingsLayout));
+    //> Long option labels wrap rather than set the page's width: on a
+    //> 1920 px screen at 125 % they made it scroll sideways. Only now, with
+    //> the layout on its widget, are the boxes children to be found.
+    for (auto box : findChildren<RichTextCheckBox*>())
+    {
+        box->setWordWrap(true);
+    }
 
     auto settingsGroupTitle = new QLabel(tr("Raw Processing Options"));
     settingsGroupTitle->setProperty("groupTitle2", true);

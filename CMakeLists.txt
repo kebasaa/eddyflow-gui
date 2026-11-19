@@ -142,6 +142,7 @@ set(EDDYFLOW_HEADERS
     src/infomessage.h
     src/inputfilecheck.h
     src/inputfilesdialog.h
+    src/layoutreport.h
     src/irga_delegate.h
     src/irga_desc.h
     src/irga_model.h
@@ -280,6 +281,7 @@ set(EDDYFLOW_SOURCES
     src/infomessage.cpp
     src/inputfilecheck.cpp
     src/inputfilesdialog.cpp
+    src/layoutreport.cpp
     src/irga_delegate.cpp
     src/irga_desc.cpp
     src/irga_model.cpp

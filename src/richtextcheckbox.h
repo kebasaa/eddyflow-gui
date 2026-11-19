@@ -56,6 +56,11 @@ public:
 
     void setQuestionMark(const QString& url);
 
+    /// Let the text run onto a second line when the page is narrower than
+    /// it. Off by default; where it is on, a long label no longer sets the
+    /// width of the column it is in.
+    void setWordWrap(bool on);
+
 signals:
     void toggled(bool on);
     void clicked();

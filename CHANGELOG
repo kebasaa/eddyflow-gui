@@ -114,6 +114,28 @@ Unreleased
 	- Fixed: The tooltip of "Add potential temperature fluxes" showed
 	         "w'Î¸'" for w'θ': the θ had been saved encoded twice.
 	         Pinned by tests/test_cumcov_settings_static.py.
+	- Fixed: The Advanced Settings pages no longer need sideways scrolling on
+	         a 1920 px laptop screen at 125 % (1536 logical px), with 8 gases
+	         or 80. Measured, not guessed, with the layout report below:
+	         Processing Options 1547 -> 1048 px of the 1218 it has (the two
+	         time-lag buttons stacked in one column, the wind offset boxes
+	         at their natural width, long option labels wrap); the spike tab
+	         of Statistical Analysis 1213 -> 829 of 958 (the consecutive-
+	         difference limits below the sigma table, under their own radio
+	         button, rather than in a second column pair); its absolute
+	         limits tab 962 -> 922 (the test pictures at 280 px instead of
+	         320); Output Files 1272 -> 1209 of 1218 (the continuous-dataset
+	         label on three short lines; it also says "periods" now).
+	- New: A layout report for developers. With EDDYFLOW_LAYOUT_REPORT=<file>
+	       (and optionally EDDYFLOW_LAYOUT_WIDTH, default 1536) and a project
+	       on the command line, EddyFlow shows the Advanced Settings at that
+	       screen width, writes for every page - and every tab of the
+	       statistics tool box - whether it scrolls sideways, by how much,
+	       and the widgets, layouts and grid columns that set its width, then
+	       quits. With QT_QPA_PLATFORM=offscreen it runs without a window.
+	       Its settings go to a folder beside the report, never to the
+	       user's own. Without the variable nothing happens.
+	       Pinned by tests/test_advanced_page_widths_static.py.
 
 8.2.0 (2026-11-11)
 

@@ -79,6 +79,9 @@
 #include "infomessage.h"
 #include "inputfilecheck.h"
 #include "inputfilesdialog.h"
+#include "layoutreport.h"
+
+#include <cstdlib>
 #include "mainwidget.h"
 #include "mymenu.h"
 #include "outputspace.h"
@@ -3738,6 +3741,31 @@ int MainWindow::testBeforeRunningPassed(int step)
     {
         return returnValue;
     }
+}
+
+void MainWindow::scheduleLayoutReport()
+{
+    const QString path = qEnvironmentVariable("EDDYFLOW_LAYOUT_REPORT");
+    if (path.isEmpty()) { return; }
+    bool ok = false;
+    int screenWidth = qEnvironmentVariableIntValue("EDDYFLOW_LAYOUT_WIDTH", &ok);
+    if (!ok || screenWidth < 640) { screenWidth = 1536; }
+
+    //> After the project has loaded and the window has been laid out once.
+    QTimer::singleShot(2000, this, [this, path, screenWidth]()
+    {
+        changePage(Defs::CurrPage::AdvancedSettings, false);
+        //> The window frame takes about 16 logical px of the screen's width.
+        showNormal();
+        resize(screenWidth - 16, std::max(height(), 900));
+        const bool written = LayoutReport::write(path, this,
+            mainWidget_->advancedPage()->advancedSettingPages());
+        qInfo().noquote() << (written ? "Layout report written to" : "Could not write")
+                          << path;
+        //> A dialog's own event loop would swallow a plain exit(), and the
+        //> report has nothing left to save: leave at once.
+        std::_Exit(written ? 0 : 1);
+    });
 }
 
 bool MainWindow::resolveMissingInputFiles()
