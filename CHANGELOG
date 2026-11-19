@@ -1,3 +1,148 @@
+Unreleased
+
+    GUI:
+	- Change: Up to 128 gases per project (Defs::MAX_GASES 64 -> 128),
+	          matching the engine.
+	- New: A Flatpak of EddyFlow (GUI and engine) for Linux. The workflow
+	       .github/workflows/linux-flatpak.yml builds it on every release
+	       from packaging/flatpak/io.github.kebasaa.EddyFlow.yml (KDE 6.8
+	       runtime; QuaZIP, 7-Zip, the engine and the GUI built from
+	       source). It checks that the engine and 7-Zip run inside the
+	       sandbox and attaches the .flatpak bundle to the release beside
+	       the .deb, .snap and .rpm. Pinned by tests/test_flatpak_static.py.
+	- New: Planar Fit Settings get an "innFLUX extras" box: moving windows
+	       and their width, and bootstrap resamples and seed (pf_mw_num,
+	       pf_mw_width, pf_boot_n, pf_boot_seed). Off by default; the tooltips
+	       name the source (Striednig et al. 2020).
+	- New: Output Files gets a "Cross-covariance functions (innFLUX)" box:
+	       the gases to write them for (none by default, saved per gas as
+	       gas_<i>_out_ccf), the half-width and every n-th lag. The tooltips
+	       name the source (Striednig et al. 2020).
+	- New: "Cumulated covariance (innFLUX, Striednig et al. 2020)" in the time
+	       lag method list (tlag_meth 6). With it selected, Time Lag
+	       Optimization Settings... opens the Cumulated Covariance Time Lag
+	       Settings dialog. It holds the period filters, the segment
+	       boundaries, the clock-drift correction (off by default, after
+	       innFLUX v1.2.0's driftfix, unpublished) and a list of reference
+	       gases, saved per gas as gas_<i>_tlag_drift_ref. innFLUX's values are
+	       the defaults, and every tooltip names the source.
+	- New: Output Files > Fluxnet output settings gets two checkboxes, both
+	       off by default: "Add potential temperature fluxes" (out_theta_flux)
+	       and "Add the detection-limit noise and flux signal-to-noise ratio"
+	       (out_lod_noise_stats). They add the engine's optional
+	       innFLUX-derived columns (Striednig et al. 2020) at the end of the
+	       Fluxnet file. No preset switches them on. Each tooltip names the
+	       source.
+	- New: Advanced Settings > Processing Options, under "Subtract the
+	       cross-covariance baseline": "Peak smoothing" and "Peak sign", the
+	       smoothed covariance peak search after innFLUX (Striednig et al.
+	       2020; find_covariance_peak.m, innFLUX v1.2.0), smoothing after
+	       Taipale et al. 2010. Both off by default, which is the search as
+	       before. Saved as covmax_smooth_len and covmax_peak_sign in
+	       [RawProcess_Settings]; greyed unless the time-lag method maximises
+	       the covariance. Every tooltip names the source.
+	- New: Advanced Settings > Spectral Corrections > "Gas Sources...", beside
+	       the spectral assessment file choice. Gas by gas, it chooses whose
+	       fitted transfer function the gas is corrected with: Automatic, its
+	       own assessment, or another gas on the same analyser. On CH-LAE the
+	       MIRO's COS and N2O fits came out at fc 0.002 and 0.035 Hz with Fn
+	       0.04-0.07 - noise, not attenuation - beside 0.54 Hz and Fn 0.46 for
+	       the MIRO's own CO2. Tube, cell and sensor response belong to the
+	       analyser, so the noisy gases can take the CO2 fit. Only gases on
+	       the same named analyser are offered, and water takes no part: its
+	       cut-off depends on humidity through wall sorption. With a spectral
+	       assessment file selected, each row shows the gas's own Fn and fc
+	       from the file and marks an implausible fit. Saved per gas as
+	       gas_<i>_sa_source (absent automatic, 0 own, otherwise the donor's
+	       record), carried through every reordering of the gas list like the
+	       time-lag donor.
+	- New: "Automatically use a donor gas for implausible transfer functions"
+	       (sa_auto_source), off by default. A gas left on Automatic then takes
+	       the best-resolved gas on its analyser when its own fit has Fn below
+	       0.2 or a cut-off more than four times off - the engine's rule, with
+	       its thresholds, which tests/test_sa_source_contract_static.py holds
+	       to the engine's. Off and greyed while the run creates the spectral
+	       assessment, where each gas's own fit is made. With a file selected,
+	       a line beside the button names the gases whose fit looks
+	       implausible. Changing either setting keeps "Flux correction only"
+	       re-runs available. Neither goes into SmartFlux packages.
+	- Fixed: A project opened after File > Close came up with an empty
+	       alternative metadata file field when it named the same metadata
+	       file as the project closed before, so the file had to be picked
+	       again. The page still remembered that file as already read and
+	       skipped reading it; it now forgets it whenever the metadata editor
+	       is emptied (closing a project, clearing the field, or Reset).
+	- New: "Use nearly all samples, at a fast FFT length", beside "Use
+	       power-of-two samples to speed up the FFT" (Advanced Settings >
+	       Spectral Analysis and Corrections). It saves power_of_two=2: the
+	       (co)spectra use the largest number of samples with no prime factor
+	       above 13, which the FFT handles about as fast as a power of two
+	       while leaving out at most 1 % of a period - a power of two leaves
+	       out 9 % of 30 minutes at 20 Hz and 43 % at 32 Hz. Ticking one box
+	       unticks the other; with neither, every sample is used. Pinned by
+	       tests/test_fft_length_choice_static.py.
+	- Docs: The offline help is rebuilt from the documentation: the (co)spectra
+	       page describes the three choices and the common window, and the
+	       pages changed for the innFLUX options and the 128-gas ceiling are
+	       brought in.
+	- Change: "Automatically configure spectral assessment after this run"
+	          moves from Spectral Analysis and Corrections to Output Files,
+	          under Assessment File Outputs, beside the run modes. It changes
+	          nothing in the run that has it - it is about what that run writes
+	          into the output project - and sat among the correction options.
+	          The project key, automatic_spectra_config, is unchanged. Pinned by
+	          tests/test_auto_spectra_config_location_static.py.
+	- New: Before an Advanced run, the planar fit, time lag and spectral
+	       assessment files the run will read are checked. When one has been
+	       moved or renamed, an "Input Files Not Found" window opens instead
+	       of letting the engine start and stop on it: one line per file, with
+	       the same Browse and Remote drive buttons as the settings pages,
+	       pre-filled with a similar file found nearby (the same name with
+	       another timestamp, in its folder, the output folder, the folders
+	       beside it, or the project's folder), and greyed out where the file
+	       is not used. A path that is not the one saved in the project is
+	       highlighted. Continue saves the project with the new paths; Cancel
+	       Run leaves it untouched. Remote files are not checked.
+	       Pinned by tests/test_missing_input_files_static.py.
+	- Change: The "Cross-covariance functions (innFLUX)" section of Output
+	          Files is laid out like the rest of the page: a separator, a
+	          group title, one checkbox per gas with the page's own gas names
+	          and order (two columns, like the processed raw data variables),
+	          and right-aligned labels for the half-width and every n-th lag.
+	          It was a framed box with a list of "Gas 1: slug (instrument)"
+	          entries. What it saves is unchanged.
+	- Fixed: The tooltip of "Add potential temperature fluxes" showed
+	         "w'Î¸'" for w'θ': the θ had been saved encoded twice.
+	         Pinned by tests/test_cumcov_settings_static.py.
+	- Fixed: The Advanced Settings pages no longer need sideways scrolling on
+	         a 1920 px laptop screen at 125 % (1536 logical px), with 8 gases
+	         or 80. Measured, not guessed, with the layout report below:
+	         Processing Options 1547 -> 1048 px of the 1218 it has (the two
+	         time-lag buttons stacked in one column, the wind offset boxes
+	         at their natural width, long option labels wrap); the spike tab
+	         of Statistical Analysis 1213 -> 829 of 958 (the consecutive-
+	         difference limits below the sigma table, under their own radio
+	         button, rather than in a second column pair); its absolute
+	         limits tab 962 -> 922 (the test pictures at 280 px instead of
+	         320); Output Files 1272 -> 1209 of 1218 (the continuous-dataset
+	         label on three short lines; it also says "periods" now).
+	- New: A layout report for developers. With EDDYFLOW_LAYOUT_REPORT=<file>
+	       (and optionally EDDYFLOW_LAYOUT_WIDTH, default 1536) and a project
+	       on the command line, EddyFlow shows the Advanced Settings at that
+	       screen width, writes for every page - and every tab of the
+	       statistics tool box - whether it scrolls sideways, by how much,
+	       and the widgets, layouts and grid columns that set its width, then
+	       quits. With QT_QPA_PLATFORM=offscreen it runs without a window.
+	       Its settings go to a folder beside the report, never to the
+	       user's own. Without the variable nothing happens.
+	       Pinned by tests/test_advanced_page_widths_static.py.
+
+8.2.0 (2026-11-11)
+
+    GUI:
+	- Version bump to match EddyFlow engine 8.2.0. Nothing in the interface
+	  changes.
+
 8.1.10 (2026-11-06)
 
     GUI:

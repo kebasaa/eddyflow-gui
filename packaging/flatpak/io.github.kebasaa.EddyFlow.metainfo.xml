@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.kebasaa.EddyFlow</id>
+  <name>EddyFlow</name>
+  <summary>Process eddy covariance data into fluxes</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <developer id="ch.ethz">
+    <name>ETH Zurich</name>
+  </developer>
+  <description>
+    <p>
+      EddyFlow processes raw high-frequency eddy covariance data into fluxes of
+      water vapour, carbon dioxide, trace gases and energy. It is an open-source
+      fork of LI-COR EddyPro, maintained at ETH Zurich.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.kebasaa.EddyFlow.desktop</launchable>
+  <url type="homepage">https://github.com/kebasaa/eddyflow-gui</url>
+  <url type="help">https://kebasaa.github.io/eddyflow-documentation/</url>
+  <content_rating type="oars-1.1"/>
+  <categories>
+    <category>Science</category>
+    <category>Geoscience</category>
+  </categories>
+</component>

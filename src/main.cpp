@@ -29,10 +29,12 @@
 #include <QBitmap>
 #include <QDebug>
 #include <QFile>
+#include <QFileInfo>
 #include <QFontDatabase>
 #include <QGuiApplication>
 #include <QPainter>
 #include <QPalette>
+#include <QSettings>
 #include <QStyleHints>
 #include <QSvgRenderer>
 #include <QtGlobal>
@@ -153,6 +155,16 @@ int main(int argc, char *argv[])
     app.setApplicationDisplayName(Defs::APP_NAME);
     app.setOrganizationName(Defs::ORG_NAME);
     app.setOrganizationDomain(Defs::ORG_DOMAIN);
+    //> The layout report (layoutreport.h) opens a project and resizes the
+    //> window, both of which the GUI remembers. Its settings go to a folder
+    //> beside the report instead, so the user's own are never touched.
+    if (!qEnvironmentVariable("EDDYFLOW_LAYOUT_REPORT").isEmpty())
+    {
+        QSettings::setDefaultFormat(QSettings::IniFormat);
+        QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
+                           QFileInfo(qEnvironmentVariable("EDDYFLOW_LAYOUT_REPORT"))
+                               .absolutePath() + QStringLiteral("/layout-report-settings"));
+    }
 #if defined(Q_OS_LINUX)
     // Wayland compositors take the window's icon from the desktop entry this
     // names, not from setWindowIcon(). A snap installs that entry as
@@ -410,6 +422,8 @@ int main(int argc, char *argv[])
         splash.setProgressValue(60);
     }
     mainWin.show();
+    //> Does nothing unless EDDYFLOW_LAYOUT_REPORT is set; see layoutreport.h.
+    mainWin.scheduleLayoutReport();
 
     if (show_splash)
     {

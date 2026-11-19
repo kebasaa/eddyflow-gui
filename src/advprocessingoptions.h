@@ -64,6 +64,7 @@ class DlProject;
 class EcProject;
 class PlanarFitSettingsDialog;
 class PwbTimelagSettingsDialog;
+class CumCovSettingsDialog;
 class RichTextCheckBox;
 class TimeLagSettingsDialog;
 class TimelagPreassessDialog;
@@ -233,6 +234,11 @@ private:
     //> Modifier on covariance maximisation. Greyed unless the time-lag method
     //> is one of the two that maximise a covariance.
     RichTextCheckBox* covmaxDebaselineCheckBox;
+    //> Smoothed peak search after innFLUX (Striednig et al. 2020).
+    ClickLabel* covmaxSmoothLabel;
+    QSpinBox* covmaxSmoothSpin;
+    ClickLabel* covmaxPeakSignLabel;
+    QComboBox* covmaxPeakSignCombo;
     RichTextCheckBox* parallelPrepassCheckBox;
     //> Conditional lag borrowing and its threshold. Greyed together with the
     //> flux detection limit, which they have nothing to test against without.
@@ -342,6 +348,7 @@ private:
     PlanarFitSettingsDialog* pfDialog_{};
     TimeLagSettingsDialog* tlDialog_{};
     PwbTimelagSettingsDialog* pwbTlDialog_{};
+    CumCovSettingsDialog* cumCovDialog_{};
     TimelagPreassessDialog* tlPreassessDialog_{};
     CecSettingsDialog* cecDialog_{};
     TlagDonorDialog* tlagDonorDialog_{};

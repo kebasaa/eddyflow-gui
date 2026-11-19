@@ -134,6 +134,15 @@ class TheMetadataIsReReadOnlyWhenItChanges(unittest.TestCase):
     def test_what_was_read_is_remembered(self):
         self.assertIn("QString lastMetadataRead_;", read("projectpage.h"))
 
+    def test_a_reset_editor_forgets_what_it_read(self):
+        # File > Close empties the editor and the field; a remembered file
+        # outliving that made the next project naming it skip the read and
+        # come up with an empty field
+        impl = body(read("projectpage.cpp"), "ProjectPage::ProjectPage(")
+        clear = impl.index("lastMetadataRead_.clear();")
+        connect = impl.rindex("&DlIniDialog::mdFileEditClearRequest", 0, clear)
+        self.assertLess(clear - connect, 120)
+
     def test_the_suffix_box_is_validated_when_the_user_has_finished(self):
         # the same shape the Output Files error label was fixed out of
         text = read("projectpage.cpp")

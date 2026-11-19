@@ -28,8 +28,11 @@
 #include <QVector>
 #include <QWidget>
 
+#include <QDateTime>
+
 #include "configstate.h"
 #include "flux_units.h"
+#include "spectralassessmentfile.h"
 
 class QButtonGroup;
 class QAbstractTableModel;
@@ -55,6 +58,7 @@ class DirBrowseWidget;
 class DlProject;
 class EcProject;
 class FileBrowseWidget;
+class SaSourceDialog;
 
 class AdvSpectralOptions : public QWidget
 {
@@ -92,6 +96,7 @@ private slots:
     void binnedSpectraDirSelected(const QString &dir_path);
     void fullSpectraDirSelected(const QString &dir_path);
     void spectraRadioClicked(int radioButton);
+    void showSaSourceDialog();
     void binnedSpectraRadioClicked(int radioButton);
     void fullSpectraRadioClicked(int radioButton);
 
@@ -125,8 +130,13 @@ private slots:
 
     void updateFilter(int n);
     void updateNBins(int n);
+    void updateFftLength();
 
 private:
+    //> Show power_of_two (0 all samples, 1 a power of two, 2 the largest
+    //> fast length) on its two checkboxes without writing it back.
+    void showFftLength(int value);
+
     //> The six per-gas spin boxes of one QA/QC table row, generated per gas
     //> record. They are value holders, not laid-out widgets: the table model
     //> reads and writes them through the pointers in SpectralQaQcRow.
@@ -197,6 +207,7 @@ private:
     ClickLabel* nBinsLabel;
     QSpinBox* nBinsSpin;
     QCheckBox* fftCheckBox;
+    QCheckBox* fftFastLengthCheckBox;
 
     QRadioButton* spectraExistingRadio;
     QRadioButton* spectraNonExistingRadio;
@@ -287,7 +298,13 @@ private:
     QButtonGroup* fullSpectraRadioGroup;
     QLabel* fratiniTitle;
     QCheckBox* addSonicCheck;
-    QCheckBox* automaticSpectraConfigCheck;
+    //> Whose spectral transfer function each gas is corrected with: the
+    //> switch for automatic selection, the per-gas dialog, and a line naming
+    //> the gases whose fit in the selected file looks implausible.
+    QCheckBox* spectraAutoSourceCheck;
+    QPushButton* spectraSourcesButton;
+    QLabel* spectraSourcesHint;
+    SaSourceDialog* saSourceDialog_{};
     QAbstractTableModel* spectralQaQcModel;
     QTableView* spectralQaQcTable;
 
@@ -308,6 +325,22 @@ private:
     bool spectraNonExistingRadioOldEnabled = false;
     bool massmanFallbackWarningShown_ = false;
     bool refreshingAssessmentMode_ = false;
+
+    //> The fits of the selected assessment file, for the sources dialog and
+    //> the hint. Read again only when the path or the file changes: the page
+    //> refreshes on every project change.
+    SpectralAssessmentFile::Fits spectraFits_;
+    bool spectraFitsFromFile_ = false;
+    QString spectraFitsPath_;
+    QDateTime spectraFitsModified_;
+
+    /// Enable the source widgets with the SA radios - an in-situ method - and
+    /// keep automatic selection off while the run creates the assessment.
+    void updateSpectraSourceWidgets();
+    /// Re-read spectraFits_ when the selected file changed. A file on a shared
+    /// drive is downloaded only when \a allowDownload, i.e. when the user
+    /// opens the dialog; otherwise its last reading stands.
+    void refreshSpectraFits(bool allowDownload);
 };
 
 #endif // ADVSPECTRALOPTIONS_H

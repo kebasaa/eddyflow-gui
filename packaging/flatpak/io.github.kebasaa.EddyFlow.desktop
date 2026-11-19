@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=EddyFlow
+GenericName=Eddy covariance processing
+Comment=Process eddy covariance data into fluxes of water vapour, CO2, trace gases and energy
+Exec=eddyflow
+Icon=io.github.kebasaa.EddyFlow
+Terminal=false
+Categories=Science;Geoscience;
+Keywords=eddy;covariance;flux;EddyPro;
+StartupWMClass=EddyFlow

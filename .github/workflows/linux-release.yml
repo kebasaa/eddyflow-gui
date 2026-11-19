@@ -1,14 +1,27 @@
 name: Linux release build
 
-# Builds the Ubuntu .deb and .snap and the Fedora .rpm with
+# Builds the Ubuntu .deb, the .snap and the Fedora .rpm with
 # build_eddyflow_linux.sh from the private eddyflow-build-script repository,
 # installs and checks each, and attaches them to the release, next to the
 # Windows .7z and the macOS .dmg.
 #
-# The ubuntu job runs on Ubuntu 26.04: the .deb links that release's
-# libraries, and the snap's core26 base must match the host it is packed on.
-# GitHub has no Fedora runners, so the fedora job builds the .rpm in the
-# current Fedora release's container, against Fedora's own Qt and QuaZIP.
+# Three jobs, each building on the distribution it packages for:
+#
+#   deb     in an Ubuntu 26.04 container: the .deb links that release's
+#           libraries.
+#   snap    on the Ubuntu 26.04 runner itself: snapcraft needs snapd, which
+#           a container has not got, and the snap's core26 base must match
+#           the host it is packed on.
+#   fedora  in the current Fedora release's container (GitHub has no Fedora
+#           runners), against Fedora's own Qt and QuaZIP.
+#
+# The .deb was built on the runner too, until the runner's own DNS stopped
+# resolving the Ubuntu mirrors for a whole run: apt then tried every package
+# against every mirror, waiting out a lookup each time, and the job crawled
+# into its 60-minute timeout. A container resolves through Docker, which
+# kept working while the host did not - the fedora job never noticed. The
+# snap job cannot move into one, so it checks the names it needs first and
+# fails in minutes, saying so, instead of an hour later.
 #
 # Needs the repository secret BUILD_SCRIPT_TOKEN: a fine-grained token with
 # read-only Contents access to kebasaa/eddyflow-build-script.
@@ -29,13 +42,23 @@ permissions:
   contents: write
 
 jobs:
-  ubuntu:
+  deb:
     runs-on: ubuntu-26.04
-    timeout-minutes: 60
+    container: ubuntu:26.04
+    timeout-minutes: 45
     env:
       TAG: ${{ github.event.release.tag_name || inputs.tag }}
       ENGINE_REF: ${{ inputs.engine_ref || github.event.release.tag_name || inputs.tag }}
+      DEBIAN_FRONTEND: noninteractive
     steps:
+      # git so the checkouts are real clones (the maintainer comes from the
+      # log), sudo because the script installs with it, gh for the upload.
+      - name: Install the tools the job itself needs
+        timeout-minutes: 10
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git sudo gh ca-certificates
+
       # The build script expects the three repositories side by side, with its
       # own folder named eddyflow-build-script.
       - name: Check out eddyflow-gui at ${{ env.TAG }}
@@ -59,30 +82,30 @@ jobs:
           token: ${{ secrets.BUILD_SCRIPT_TOKEN }}
           path: eddyflow-build-script
 
-      # The script installs its own build dependencies (apt packages and the
-      # snapcraft snap) with sudo. The runner has no git identity, so the
-      # package maintainer is the author of the tagged commit.
-      - name: Build the .deb and .snap
+      # The workspace belongs to the runner's user, not to the container's
+      # root, so git needs it marked safe before reading the log.
+      - name: Build the .deb
+        timeout-minutes: 30
         run: |
+          git config --global --add safe.directory '*'
           maintainer=$(git -C eddyflow-gui log -1 --format='%an <%ae>')
-          bash eddyflow-build-script/build_eddyflow_linux.sh --install-deps --maintainer "$maintainer"
+          bash eddyflow-build-script/build_eddyflow_linux.sh --no-snap --install-deps --maintainer "$maintainer"
 
-      - name: Keep the packages with the run
+      - name: Keep the package with the run
         uses: actions/upload-artifact@v7
         with:
-          name: eddyflow-linux-amd64
-          path: |
-            dist/eddyflow_v*_linux_ubuntu*.deb
-            dist/eddyflow_v*_linux_*.snap
+          name: eddyflow-linux-amd64-deb
+          path: dist/eddyflow_v*_linux_ubuntu*.deb
           if-no-files-found: error
           retention-days: 14
 
       - name: Check the .deb
+        timeout-minutes: 15
         run: |
           deb=$(ls dist/eddyflow_v*_linux_ubuntu*.deb)
           dpkg-deb --info "$deb"
           # apt resolves the package's dependencies as on a user's machine.
-          sudo apt-get install -y "./$deb" xvfb
+          apt-get install -y "./$deb" xvfb
 
           app=/opt/eddyflow
           missing=0
@@ -113,7 +136,86 @@ jobs:
           kill "$pid"
           wait "$pid" 2>/dev/null || true
 
+      # --clobber replaces a package of the same name when a release is rebuilt.
+      - name: Attach the .deb to release ${{ env.TAG }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" dist/eddyflow_v*_linux_ubuntu*.deb --clobber --repo "$GITHUB_REPOSITORY"
+
+  snap:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 45
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      ENGINE_REF: ${{ inputs.engine_ref || github.event.release.tag_name || inputs.tag }}
+    steps:
+      # Everything this job downloads comes from these. When the runner's
+      # resolver has lost them, restarting systemd-resolved is tried once;
+      # if they still do not resolve, the job stops here, in a few minutes,
+      # rather than letting apt crawl through every package.
+      - name: Check that the package servers resolve
+        timeout-minutes: 5
+        run: |
+          hosts="azure.archive.ubuntu.com archive.ubuntu.com security.ubuntu.com api.snapcraft.io"
+          unresolved() {
+            for host in $hosts; do
+              timeout 20 getent hosts "$host" >/dev/null || echo "$host"
+            done
+          }
+          bad=$(unresolved)
+          if [ -n "$bad" ]; then
+            echo "::warning::the runner does not resolve: $bad - restarting systemd-resolved"
+            sudo systemctl restart systemd-resolved
+            sleep 5
+            bad=$(unresolved)
+          fi
+          if [ -n "$bad" ]; then
+            echo "::error::the runner's DNS does not resolve $bad, so apt and the snap store cannot be reached. Re-run the job."
+            exit 1
+          fi
+
+      # The build script expects the three repositories side by side, with its
+      # own folder named eddyflow-build-script.
+      - name: Check out eddyflow-gui at ${{ env.TAG }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+          path: eddyflow-gui
+
+      - name: Check out eddyflow-engine at ${{ env.ENGINE_REF }}
+        uses: actions/checkout@v7
+        with:
+          repository: kebasaa/eddyflow-engine
+          ref: ${{ env.ENGINE_REF }}
+          path: eddyflow-engine
+
+      - name: Check out eddyflow-build-script
+        uses: actions/checkout@v7
+        with:
+          repository: kebasaa/eddyflow-build-script
+          ref: main
+          token: ${{ secrets.BUILD_SCRIPT_TOKEN }}
+          path: eddyflow-build-script
+
+      # The script installs its own build dependencies (apt packages and the
+      # snapcraft snap) with sudo. The runner has no git identity, so the
+      # package maintainer is the author of the tagged commit.
+      - name: Build the .snap
+        timeout-minutes: 30
+        run: |
+          maintainer=$(git -C eddyflow-gui log -1 --format='%an <%ae>')
+          bash eddyflow-build-script/build_eddyflow_linux.sh --no-deb --install-deps --maintainer "$maintainer"
+
+      - name: Keep the package with the run
+        uses: actions/upload-artifact@v7
+        with:
+          name: eddyflow-linux-amd64-snap
+          path: dist/eddyflow_v*_linux_*.snap
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Check the .snap
+        timeout-minutes: 15
         run: |
           snap=$(ls dist/eddyflow_v*_linux_*.snap)
           # --dangerous: a locally built snap carries no store signature.
@@ -121,6 +223,7 @@ jobs:
           snap list eddyflow
 
           # The GUI must start inside the snap and keep running for 15 s.
+          sudo apt-get install -y xvfb
           xvfb-run -a /snap/bin/eddyflow &
           pid=$!
           sleep 15
@@ -132,11 +235,11 @@ jobs:
           kill "$pid"
           wait "$pid" 2>/dev/null || true
 
-      # --clobber replaces packages of the same name when a release is rebuilt.
-      - name: Attach the packages to release ${{ env.TAG }}
+      # --clobber replaces a package of the same name when a release is rebuilt.
+      - name: Attach the .snap to release ${{ env.TAG }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$TAG" dist/eddyflow_v*_linux_ubuntu*.deb dist/eddyflow_v*_linux_*.snap --clobber --repo "$GITHUB_REPOSITORY"
+        run: gh release upload "$TAG" dist/eddyflow_v*_linux_*.snap --clobber --repo "$GITHUB_REPOSITORY"
 
   fedora:
     runs-on: ubuntu-26.04

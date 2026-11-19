@@ -4554,6 +4554,14 @@
 <td>Folder containing full cospectra files (see Full cospectra).</td>
 </tr>
 <tr>
+<td>eddyflow_ccf</td>
+<td>Only when a gas is ticked under <strong>Cross-covariance functions (innFLUX)</strong> (off by default). One file per averaging period, <code>yyyymmdd-HHMM_ccf_&lt;stamp&gt;.csv</code>: the cross-covariance of w and each selected gas at every lag within the chosen half-width (<code>out_ccf_max_lag_s</code>, default 200 s), keeping every n-th lag (<code>out_ccf_decim</code>, default 1). Positive lag means the gas is delayed. Taken before the time lag is applied. After innFLUX's per-period covariance files (<a href="references.html#Striednig2020">Striednig et al. 2020</a>).</td>
+</tr>
+<tr>
+<td>eddyflow_OutputID_cumcov_timelags / <em>cumcov_function</em>&lt;gas&gt; / _tlag_drift</td>
+<td>Only with the <a href="time-lag-detect-correct.html#cumulated-covariance-innflux">cumulated covariance time lag</a>: one lag per gas and segment, the summed functions, and, with the clock-drift correction, the drift for every period.</td>
+</tr>
+<tr>
 <td>eddyflow_spectral_analysis</td>
 <td>Folder containing spectral analysis files (see Spectral analysis).</td>
 </tr>

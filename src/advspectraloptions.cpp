@@ -59,6 +59,7 @@
 #include <cmath>
 
 #include "ancillaryfiletest.h"
+#include "sasourcedialog.h"
 #include "clicklabel.h"
 #include "customcombomodel.h"
 #include "customclearlineedit.h"
@@ -494,6 +495,11 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     fftCheckBox->setToolTip(tr("<b>Use power-of-two samples to speed up the FFT: </b>Check this box to instruct EddyFlow to use a number of samples equal to the power-of-two closest to the currently available samples, for calculating spectra. This option greatly speeds up the FFT procedure and is therefore recommended."));
     fftCheckBox->setStyleSheet(QStringLiteral("QCheckBox { margin-left: 40px; }"));
 
+    // The third choice, beside it: nearly every sample, at a length the FFT
+    // still handles fast. Ticking one unticks the other; neither uses all.
+    fftFastLengthCheckBox = new QCheckBox(tr("Use nearly all samples, at a fast FFT length"));
+    fftFastLengthCheckBox->setToolTip(tr("<b>Use nearly all samples, at a fast FFT length: </b>Check this box to instruct EddyFlow to use the largest number of samples, up to those available, that has no prime factor above 13. The FFT is about as fast as with a power of two, but at most 1% of the samples of a flux averaging period are left out (0.15% on average), where a power of two can leave out up to half of them: 32768 of the 36000 samples of 30 minutes at 20 Hz. Without either option every available sample is used, which can be very slow when that number has a large prime factor."));
+
     // The per-gas noise-frequency spins are generated in
     // rebuildGasSpectralSpins(), one set per gas record.
     noiseFrequencyTip_ = tr("<b>Lowest noise frequency:</b> High-frequency noise (blue noise) can compromise the spectral assessment by modifying the shape of spectra. EddyFlow has an option to eliminate such noise. Set the minimum frequency at which you expect the noise to start being relevant. EddyFlow will linearly (in a log-log sense) interpolate the high frequency portion of the spectra and subtract it from the spectra before calculating transfer functions. Set 0 Hz to instruct EddyFlow to not perform noise elimination. In this case the string <i>Do not remove noise</i> will appear in this field.");
@@ -819,10 +825,6 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     spectraNonExistingRadio = new QRadioButton(tr("Spectral assessment file not available"));
     spectraNonExistingRadio->setToolTip(tr("<b>Spectral assessment file not available:</b> Choose this option and provide the following information if you need to calculate cut-off frequencies for your system. The assessment will be performed as an intermediate step, after all binned (co)spectra for the current dataset are calculated and before calculating and correcting fluxes."));
 
-    automaticSpectraConfigCheck = new QCheckBox(tr("Automatically configure spectral assessment after this run"));
-    automaticSpectraConfigCheck->setToolTip(tr("<b>Automatically configure spectral assessment:</b> When an on-the-fly assessment identifies eligible spectra excluded by flux limits, save data-driven flux-limit recommendations to the output processing project. The current run is not changed; rerun using the generated processing project."));
-    automaticSpectraConfigCheck->setStyleSheet(QStringLiteral("QCheckBox { margin-left: 40px; }"));
-
     spectraFileBrowse = new FileBrowseWidget;
     spectraFileBrowse->setRemoteBrowseEnabled(true);
     spectraFileBrowse->setToolTip(tr("<b>Load:</b> Load an existing spectral assessment file"));
@@ -833,6 +835,20 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     spectraRadioGroup = new QButtonGroup(this);
     spectraRadioGroup->addButton(spectraExistingRadio, 0);
     spectraRadioGroup->addButton(spectraNonExistingRadio, 1);
+
+    //> Whose transfer function each gas is corrected with. Beside the
+    //> assessment-file choice because it applies to whatever fits that choice
+    //> produces - read from the file or computed in this run.
+    spectraAutoSourceCheck = new QCheckBox(tr("Automatically use a donor gas for implausible transfer functions"));
+    spectraAutoSourceCheck->setToolTip(tr("<b>Automatic donor gas:</b> A gas whose fitted transfer function looks implausible - Fn below %1, or a cut-off more than %2 times off the best-resolved gas on the same analyser - is corrected with that gas's transfer function instead. Tube, cell and sensor response belong to the analyser, so gases measured by one analyser share them; a noisy gas such as COS or N2O can take its CO2's. Water never takes part. Choose per gas with <i>Gas Sources...</i>. Not available while the run creates the spectral assessment, where each gas's own fit is made.")
+        .arg(SpectralAssessmentFile::kFnMin)
+        .arg(1.0 / SpectralAssessmentFile::kFcRatioMin));
+    spectraSourcesButton = new QPushButton(tr("Gas Sources..."));
+    spectraSourcesButton->setProperty("mdButton", true);
+    spectraSourcesButton->setMaximumWidth(spectraSourcesButton->sizeHint().width());
+    spectraSourcesButton->setToolTip(tr("<b>Gas sources:</b> Choose, gas by gas, whose transfer function it is corrected with: automatic, its own fit, or that of another gas on the same analyser. With a spectral assessment file selected, each gas's own fit is shown."));
+    spectraSourcesHint = new QLabel;
+    spectraSourcesHint->setVisible(false);
 
     // The per-gas transfer-function windows are generated in
     // rebuildGasSpectralSpins(), one pair per gas record.
@@ -1015,6 +1031,7 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     settingsLayout->addWidget(nBinsLabel, 7, 0, Qt::AlignRight);
     settingsLayout->addWidget(nBinsSpin, 7, 1);
     settingsLayout->addWidget(fftCheckBox, 8, 0, 1, 2);
+    settingsLayout->addWidget(fftFastLengthCheckBox, 8, 2, 1, 3);
 
     settingsLayout->addWidget(spectralTableContainer, 9, 0, 1, -1);
     settingsLayout->addWidget(minSmplLabel, 10, 0, Qt::AlignRight);
@@ -1027,7 +1044,9 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     settingsLayout->addWidget(hrLabel_0, 15, 0, 1, -1);
 
     settingsLayout->addWidget(spectralCorrectionTitle, 16, 0);
-    settingsLayout->addWidget(automaticSpectraConfigCheck, 17, 0, 1, -1);
+    // Row 17 held "Automatically configure spectral assessment after this
+    // run", which writes into the output project and so now lives on Output
+    // Files, under Assessment File Outputs.
     settingsLayout->addLayout(lowFreqLabel, 18, 0);
     settingsLayout->addWidget(lfMethodCheck, 19, 0, 1, 2);
 
@@ -1058,6 +1077,15 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
     settingsLayout->addWidget(spectraExistingRadio, 29, 0, 1, 2);
     settingsLayout->addWidget(spectraFileBrowse, 29, 1, 1, 4);
     settingsLayout->addWidget(spectraNonExistingRadio, 30, 0, 1, 2);
+    {
+        auto sourcesRow = new QHBoxLayout;
+        sourcesRow->setContentsMargins(0, 0, 0, 0);
+        sourcesRow->addWidget(spectraAutoSourceCheck);
+        sourcesRow->addWidget(spectraSourcesButton);
+        sourcesRow->addWidget(spectraSourcesHint);
+        sourcesRow->addStretch();
+        settingsLayout->addLayout(sourcesRow, 30, 2, 1, 3);
+    }
 
     settingsLayout->addWidget(fratiniTitle, 31, 0, 1, -1);
     settingsLayout->addWidget(fullSpectraNonExistingRadio, 32, 0, 1, 2);
@@ -1113,8 +1141,26 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
 
     connect(nBinsSpin, QOverload<int>::of(&QSpinBox::valueChanged),
             this, &AdvSpectralOptions::updateNBins);
+    // Either box unticks the other, so the two together are one three-way
+    // choice: all samples, a power of two, or the largest fast length.
     connect(fftCheckBox, &QCheckBox::toggled, [=](bool checked)
-            { ecProject_->setScreenlPowerOfTwo(checked); });
+            {
+                if (checked)
+                {
+                    const QSignalBlocker block(fftFastLengthCheckBox);
+                    fftFastLengthCheckBox->setChecked(false);
+                }
+                updateFftLength();
+            });
+    connect(fftFastLengthCheckBox, &QCheckBox::toggled, [=](bool checked)
+            {
+                if (checked)
+                {
+                    const QSignalBlocker block(fftCheckBox);
+                    fftCheckBox->setChecked(false);
+                }
+                updateFftLength();
+            });
 
     connect(qcMinUnstableUstarSpin,
             static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
@@ -1149,8 +1195,6 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             { ecProject_->setSpectraUseFokenLow(checked); });
     connect(moderateQualityCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setSpectraUseFokenMid(checked); });
-    connect(automaticSpectraConfigCheck, &QCheckBox::toggled, [=](bool checked)
-            { ecProject_->setSpectraAutomaticConfig(checked); });
 
     connect(lfMethodCheck, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setGeneralLfMethod(checked); });
@@ -1221,6 +1265,13 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             this, &AdvSpectralOptions::updateSpectraFile);
     connect(spectraFileBrowse, &FileBrowseWidget::pathSelected,
             this, &AdvSpectralOptions::testSelectedSpectraFile);
+    connect(spectraAutoSourceCheck, &QCheckBox::toggled, this, [=](bool checked)
+    {
+        ecProject_->setSpectraAutoSource(checked ? 1 : 0);
+        updateSpectraSourceWidgets();
+    });
+    connect(spectraSourcesButton, &QPushButton::clicked,
+            this, &AdvSpectralOptions::showSaSourceDialog);
     connect(minSmplLabel, &ClickLabel::clicked,
             this, &AdvSpectralOptions::onMinSmplLabelClicked);
     connect(minSmplSpin, QOverload<int>::of(&QSpinBox::valueChanged),
@@ -1255,6 +1306,8 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
 
 AdvSpectralOptions::~AdvSpectralOptions()
 {
+    if (saSourceDialog_)
+        delete saSourceDialog_;
 }
 
 void AdvSpectralOptions::setSmartfluxUI()
@@ -1296,6 +1349,7 @@ void AdvSpectralOptions::setSmartfluxUI()
 //        ecProject_->setModified(oldmod);
 //        ecProject_->blockSignals(false);
 //    }
+    updateSpectraSourceWidgets();
 }
 
 void AdvSpectralOptions::reset()
@@ -1312,14 +1366,15 @@ void AdvSpectralOptions::reset()
     vmFlagsCheckBox->setChecked(ecProject_->defaultSettings.spectraSettings.use_vm_flags);
     lowQualityCheckBox->setChecked(ecProject_->defaultSettings.spectraSettings.use_foken_low);
     moderateQualityCheckBox->setChecked(ecProject_->defaultSettings.spectraSettings.use_foken_mid);
-    automaticSpectraConfigCheck->setChecked(ecProject_->defaultSettings.spectraSettings.automatic_spectra_config);
 
     filterCombo->setCurrentIndex(ecProject_->defaultSettings.screenSetting.tap_win);
     filterCombo->setEnabled(true);
     nBinsSpin->setValue(ecProject_->defaultSettings.screenSetting.nbins);
     nBinsSpin->setEnabled(true);
-    fftCheckBox->setChecked(ecProject_->defaultSettings.screenSetting.power_of_two);
+    showFftLength(ecProject_->defaultSettings.screenSetting.power_of_two);
+    ecProject_->setScreenlPowerOfTwo(ecProject_->defaultSettings.screenSetting.power_of_two);
     fftCheckBox->setEnabled(true);
+    fftFastLengthCheckBox->setEnabled(true);
 
     spectraExistingRadio->setEnabled(false);
     spectraExistingRadio->setChecked(!ecProject_->defaultSettings.spectraSettings.sa_mode);
@@ -1446,7 +1501,6 @@ void AdvSpectralOptions::refresh()
     vmFlagsCheckBox->setChecked(ecProject_->spectraUseVmFlags());
     lowQualityCheckBox->setChecked(ecProject_->spectraUseFokenLow());
     moderateQualityCheckBox->setChecked(ecProject_->spectraUseFokenMid());
-    automaticSpectraConfigCheck->setChecked(ecProject_->spectraAutomaticConfig());
 
     lfMethodCheck->setChecked(ecProject_->generalLfMethod());
     cospModelCombo->setCurrentIndex(ecProject_->generalCospModel());
@@ -1509,8 +1563,9 @@ void AdvSpectralOptions::refresh()
     filterCombo->setEnabled(!ecProject_->generalBinSpectraAvail());
     nBinsSpin->setValue(ecProject_->screenNBins());
     nBinsSpin->setEnabled(!ecProject_->generalBinSpectraAvail());
-    fftCheckBox->setChecked(ecProject_->screenPowerOfTwo());
+    showFftLength(ecProject_->screenPowerOfTwo());
     fftCheckBox->setEnabled(!ecProject_->generalBinSpectraAvail());
+    fftFastLengthCheckBox->setEnabled(!ecProject_->generalBinSpectraAvail());
 
     horstCheck->setEnabled(isIbrom() || isFratini());
     if (ecProject_->spectraHorst() > 0)
@@ -1596,6 +1651,9 @@ void AdvSpectralOptions::refreshSpectralAssessmentCreationMode()
     if (refreshingAssessmentMode_) { return; }
     refreshingAssessmentMode_ = true;
     const auto refreshDone = qScopeGuard([this]{ refreshingAssessmentMode_ = false; });
+    //> Whatever this decides - the run mode, the radios - the source widgets
+    //> follow, on every way out of it. reset() and refresh() end here.
+    const auto sourcesDone = qScopeGuard([this]{ updateSpectraSourceWidgets(); });
 
     const auto createAssessment = ecProject_->spectraFluxRunMode() == 1;
     const auto productionRun = ecProject_->spectraFluxRunMode() == 2;
@@ -1780,6 +1838,112 @@ void AdvSpectralOptions::refreshSpectralAssessmentCreationMode()
 void AdvSpectralOptions::updateSpectraFile(const QString &fp)
 {
     ecProject_->setSpectraFile(RemoteSource::cleanPath(fp));
+    updateSpectraSourceWidgets();
+}
+
+void AdvSpectralOptions::refreshSpectraFits(bool allowDownload)
+{
+    const auto path = ecProject_->spectraFile();
+    const bool fileMode = ecProject_->spectraMode() == 0 && !path.isEmpty();
+    if (!fileMode)
+    {
+        spectraFits_.clear();
+        spectraFitsFromFile_ = false;
+        spectraFitsPath_.clear();
+        spectraFitsModified_ = QDateTime();
+        return;
+    }
+
+    QString local;
+    if (!RemoteSource::isRemote(path))
+    {
+        local = path;
+    }
+    else if (allowDownload)
+    {
+        local = RemoteSource::ensureLocal(path, this);
+    }
+    else
+    {
+        //> No download on a page refresh: a shared file keeps the reading it
+        //> had, or none until the dialog is opened.
+        if (spectraFitsPath_ != path)
+        {
+            spectraFits_.clear();
+            spectraFitsFromFile_ = false;
+        }
+        return;
+    }
+
+    const auto modified = QFileInfo(local).lastModified();
+    if (path == spectraFitsPath_ && modified == spectraFitsModified_
+        && !RemoteSource::isRemote(path))
+    {
+        return;
+    }
+    spectraFits_ = SpectralAssessmentFile::readFits(ecProject_->gasColumns(), local);
+    spectraFitsFromFile_ = !spectraFits_.isEmpty();
+    spectraFitsPath_ = path;
+    spectraFitsModified_ = modified;
+}
+
+void AdvSpectralOptions::updateSpectraSourceWidgets()
+{
+    const bool inSitu = hfMethodCheck->isChecked() && isHorstIbromFratini();
+    //> The run that creates the assessment is where each gas's own fit is
+    //> made and judged, so no gas is handed another's there.
+    const bool creatingAssessment = ecProject_->spectraFluxRunMode() == 1;
+    if (creatingAssessment && ecProject_->spectraAutoSource() != 0)
+    {
+        ecProject_->setSpectraAutoSource(0);
+    }
+    {
+        QSignalBlocker blocker(spectraAutoSourceCheck);
+        spectraAutoSourceCheck->setChecked(!creatingAssessment
+                                           && ecProject_->spectraAutoSource() == 1);
+    }
+    spectraAutoSourceCheck->setEnabled(inSitu && !creatingAssessment);
+    spectraSourcesButton->setEnabled(inSitu);
+
+    refreshSpectraFits(false);
+    if (saSourceDialog_) { saSourceDialog_->setFits(spectraFits_, spectraFitsFromFile_); }
+
+    //> Name the gases whose fit in the selected file looks implausible, and
+    //> what would replace it. A suggestion, whatever the switch says.
+    const auto& gases = ecProject_->gasColumns();
+    QStringList flagged;
+    QStringList details;
+    if (inSitu && spectraFitsFromFile_)
+    {
+        for (const int i : MeasurementRecords::gasDisplayOrder(gases))
+        {
+            const int s = SpectralAssessmentFile::suggestedSourceOverall(gases, spectraFits_, i);
+            if (s < 0) { continue; }
+            if (gases.at(i).saSource != 0) { continue; }
+            flagged << gases.at(i).slug.toUpper();
+            details << tr("%1: %2, suggested %3")
+                           .arg(MeasurementRecords::gasLabel(gases, i),
+                                SpectralAssessmentFile::fitSummary(spectraFits_.value(i)),
+                                MeasurementRecords::gasLabel(gases, s));
+        }
+    }
+    spectraSourcesHint->setVisible(!flagged.isEmpty());
+    spectraSourcesHint->setText(tr("Implausible fit: %1").arg(flagged.join(QStringLiteral(", "))));
+    spectraSourcesHint->setToolTip(details.join(QStringLiteral("<br>")));
+}
+
+void AdvSpectralOptions::showSaSourceDialog()
+{
+    //> Opening it is the one moment a shared file may be downloaded.
+    refreshSpectraFits(true);
+    if (!saSourceDialog_)
+    {
+        saSourceDialog_ = new SaSourceDialog(this, ecProject_);
+    }
+    saSourceDialog_->setFits(spectraFits_, spectraFitsFromFile_);
+    saSourceDialog_->show();
+    saSourceDialog_->raise();
+    saSourceDialog_->activateWindow();
 }
 
 void AdvSpectralOptions::updateBinnedSpectraFile(const QString &fp)
@@ -1856,6 +2020,7 @@ void AdvSpectralOptions::spectraRadioClicked(int radioButton)
         setSpectralAssessmentFrequencyCellsEnabled(toEnable);
     }
     refreshSpectralQaQcTableState();
+    updateSpectraSourceWidgets();
     emit updateOutputsRequest(hfMethodForRow(hfMethCombo->currentIndex()));
 }
 
@@ -1867,6 +2032,7 @@ void AdvSpectralOptions::binnedSpectraRadioClicked(int radioButton)
         filterCombo->setEnabled(true);
         nBinsSpin->setEnabled(true);
         fftCheckBox->setEnabled(true);
+        fftFastLengthCheckBox->setEnabled(true);
     }
     else
     {
@@ -1874,6 +2040,7 @@ void AdvSpectralOptions::binnedSpectraRadioClicked(int radioButton)
         filterCombo->setEnabled(false);
         nBinsSpin->setEnabled(false);
         fftCheckBox->setEnabled(false);
+        fftFastLengthCheckBox->setEnabled(false);
     }
     emit updateOutputsRequest(hfMethodForRow(hfMethCombo->currentIndex()));
 }
@@ -2018,6 +2185,7 @@ void AdvSpectralOptions::updateHfMethod_1(bool b)
         emit updateOutputsRequest(0);
     }
     refreshEsTauBox();
+    updateSpectraSourceWidgets();
 }
 
 // update project properties and fluxes rotation choices
@@ -2059,6 +2227,7 @@ void AdvSpectralOptions::updateHfMethod_2(int n)
     emit updateOutputsRequest(hfMethodForRow(n));
     maybeWarnMassmanFallback();
     refreshEsTauBox();
+    updateSpectraSourceWidgets();
 }
 
 bool AdvSpectralOptions::isHorstIbromFratini()
@@ -2839,5 +3008,29 @@ void AdvSpectralOptions::updateFilter(int n)
 void AdvSpectralOptions::updateNBins(int n)
 {
     ecProject_->setScreenNBins(n);
+}
+
+// power_of_two: 1 a power of two, 2 the largest fast length (no prime factor
+// above 13), 0 every sample. The engine reads the same three values.
+void AdvSpectralOptions::updateFftLength()
+{
+    int value = 0;
+    if (fftCheckBox->isChecked())
+    {
+        value = 1;
+    }
+    else if (fftFastLengthCheckBox->isChecked())
+    {
+        value = 2;
+    }
+    ecProject_->setScreenlPowerOfTwo(value);
+}
+
+void AdvSpectralOptions::showFftLength(int value)
+{
+    const QSignalBlocker blockPow2(fftCheckBox);
+    const QSignalBlocker blockFast(fftFastLengthCheckBox);
+    fftCheckBox->setChecked(value == 1);
+    fftFastLengthCheckBox->setChecked(value == 2);
 }
 

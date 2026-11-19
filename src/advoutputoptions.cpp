@@ -39,6 +39,8 @@
 #include <QSize>
 #include <QGridLayout>
 #include <QGroupBox>
+#include <QDoubleSpinBox>
+#include <QSpinBox>
 #include <QPushButton>
 #include <QStringList>
 #include <QRadioButton>
@@ -180,6 +182,13 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     assessmentRunModeRadioGroup->addButton(productionRunRadioButton, 1);
     assessmentRunModeRadioGroup->addButton(defaultRunRadioButton, 2);
 
+    // On this page because it is about what the run writes: what an
+    // on-the-fly spectral assessment recommends goes into the output
+    // project. It used to sit among the spectral correction options.
+    automaticSpectraConfigCheckBox = new QCheckBox;
+    automaticSpectraConfigCheckBox->setText(tr("Automatically configure spectral assessment after this run"));
+    automaticSpectraConfigCheckBox->setToolTip(tr("<b>Automatically configure spectral assessment:</b> When an on-the-fly assessment identifies eligible spectra excluded by flux limits, save data-driven flux-limit recommendations to the output processing project. The current run is not changed; rerun using the generated processing project."));
+
     timelagAssessmentOnlyCheckBox = new QCheckBox;
     timelagAssessmentOnlyCheckBox->setText(tr("Create timelag file only"));
     tooltipStr =
@@ -292,10 +301,40 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     fluxnetErrLabelCheckBox = new QCheckBox;
     fluxnetErrLabelCheckBox->setText(tr("Set error label in Fluxnet mode (-9999)"));
 
+    //> Optional columns after innFLUX, at the end of the FLUXNET file. Both
+    //> off by default.
+    outThetaFluxCheckBox = new RichTextCheckBox;
+    outThetaFluxCheckBox->setText(tr("Add potential temperature fluxes (W_THETA, W_THETA_V)"));
+    outThetaFluxCheckBox->setToolTip(tr("<b>Add potential temperature fluxes:</b> "
+        "Write the kinematic potential temperature flux w'&theta;' and the virtual "
+        "potential temperature (buoyancy) flux w'&theta;<sub>v</sub>' [K m s<sup>-1</sup>] "
+        "as W_THETA and W_THETA_V at the end of the Fluxnet file. Potential "
+        "temperature is taken at 1000 hPa. Like innFLUX's, these are computed from "
+        "the uncorrected covariances, with the humidity correction of the sonic "
+        "temperature but no spectral correction. Both need a water flux. Off by "
+        "default."
+        "<br><br><i>Source:</i> innFLUX, Striednig et al. (2020), Atmos. Meas. Tech. "
+        "13, 1447-1465; potential temperature after Stull (1988)."));
+    outLodNoiseCheckBox = new RichTextCheckBox;
+    outLodNoiseCheckBox->setText(tr("Add the detection-limit noise and flux signal-to-noise ratio"));
+    outLodNoiseCheckBox->setToolTip(tr("<b>Add the detection-limit noise and flux "
+        "signal-to-noise ratio:</b> For each variable, write the mean "
+        "(_LOD_NOISE_MEAN) and standard deviation (_LOD_NOISE_SD) of the "
+        "cross-covariance in the far-lag windows of the Langford limit of detection, "
+        "and the flux signal-to-noise ratio |cov(0) - mean| / SD (_FLUX_SNR), at the "
+        "end of the Fluxnet file. In covariance units. Needs the Langford et al. "
+        "(2015) limit of detection under Statistical Analysis; otherwise the columns "
+        "hold the error code. Off by default."
+        "<br><br><i>Source:</i> innFLUX, Striednig et al. (2020), Atmos. Meas. Tech. "
+        "13, 1447-1465; far-lag noise after Wienhold et al. (1994) and Spirig et al. "
+        "(2005)."));
+
     fluxnetGroupBox = new QGroupBox(tr("Fluxnet output settings"));
     auto fluxnetLayout = new QVBoxLayout;
     fluxnetLayout->addWidget(fluxnetBiometCheckBox);
     fluxnetLayout->addWidget(fluxnetErrLabelCheckBox);
+    fluxnetLayout->addWidget(outThetaFluxCheckBox);
+    fluxnetLayout->addWidget(outLodNoiseCheckBox);
     fluxnetGroupBox->setLayout(fluxnetLayout);
 
     outFullCheckBox = new QCheckBox;
@@ -361,10 +400,11 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     keepRawResultsCheckBox->setToolTip(tooltipStr);
 
     createDatasetCheckBox = new QCheckBox;
-    createDatasetCheckBox->setText(tr("Build continuous dataset "
-                                      "(This is not gap-filling!\n"
-                                      "Missing flux averaging period "
-                                      "are filled with error codes)"));
+    //> Three short lines rather than two long ones: the longer line set the
+    //> width of this whole column, and with it of the page.
+    createDatasetCheckBox->setText(tr("Build continuous dataset\n"
+                                      "(This is not gap-filling! Missing flux\n"
+                                      "averaging periods are filled with error codes)"));
 
     fullOutformatLabel = new ClickLabel;
     fullOutformatLabel->setText(tr("Output format :"));
@@ -592,6 +632,14 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     planarFitAssessmentOnlyContainer->setLayout(qBox_16);
     planarFitAssessmentOnlyContainer->setToolTip(planarFitAssessmentOnlyCheckBox->toolTip());
 
+    auto qBox_19 = new QHBoxLayout;
+    qBox_19->addWidget(automaticSpectraConfigCheckBox);
+    qBox_19->addStretch();
+    qBox_19->setContentsMargins(0, 0, 0, 0);
+    auto automaticSpectraConfigContainer = new QWidget;
+    automaticSpectraConfigContainer->setLayout(qBox_19);
+    automaticSpectraConfigContainer->setToolTip(automaticSpectraConfigCheckBox->toolTip());
+
     auto spectralAssessmentCreationRow = new QWidget;
     spectralAssessmentCreationRow->setLayout(qBox_14);
     auto productionRunRow = new QWidget;
@@ -605,6 +653,7 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     assessmentFileOutputsLayout->addWidget(defaultRunRow);
     assessmentFileOutputsLayout->addWidget(spectralAssessmentCreationRow);
     assessmentFileOutputsLayout->addWidget(productionRunRow);
+    assessmentFileOutputsLayout->addWidget(automaticSpectraConfigContainer);
     assessmentFileOutputsLayout->setContentsMargins(0, 0, 0, 0);
     assessmentFileOutputsLayout->setSpacing(4);
 
@@ -715,7 +764,78 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
     rawVarsGrid_->setContentsMargins(0, 0, 0, 0);
     outputLayout->addLayout(rawVarsGrid_, 32, 3, 6, 3);
     outputLayout->addWidget(outVarsAllCheckBox, 38, 3, 1, 3);
-    outputLayout->setRowStretch(39, 1);
+
+    //> Per-period cross-covariance functions, after innFLUX's step 1 files
+    //> (Striednig et al. 2020). Nothing is written unless a gas is ticked.
+    //> Laid out as the page's other sections are - a separator, a group
+    //> title, one box per gas, right-aligned labels - not in a frame of its
+    //> own.
+    {
+        const auto ccfCredit = tr("<br><br><i>Source:</i> innFLUX's per-period "
+            "covariance files (step 1), Striednig et al. (2020), Atmos. Meas. Tech. "
+            "13, 1447-1465.");
+        const auto ccfTip = tr("<b>Cross-covariance functions:</b> for each gas "
+            "ticked here, write the cross-covariance of w and the gas at every lag "
+            "within the half-width below, one file per averaging period in the "
+            "eddyflow_ccf folder, taken before the time lag is applied. For checking "
+            "lag problems or redoing a lag analysis without reprocessing the raw "
+            "data. None ticked by default.") + ccfCredit;
+        auto hrLabelCcf = new QLabel;
+        hrLabelCcf->setObjectName(QStringLiteral("hrLabel"));
+        auto titleCcf = new QLabel(tr("Cross-covariance functions (innFLUX)"));
+        titleCcf->setProperty("groupLabel", true);
+        titleCcf->setToolTip(ccfTip);
+        auto gasesLabel = WidgetUtils::createBlueLabel(this, tr("Gases"));
+        gasesLabel->setToolTip(ccfTip);
+        //> Filled in rebuildGasRows(), two columns like the raw variables.
+        ccfGasGrid_ = new QGridLayout;
+        ccfGasGrid_->setContentsMargins(0, 0, 0, 0);
+
+        ccfMaxLagSpin = new QDoubleSpinBox;
+        ccfMaxLagSpin->setRange(0.0, 3600.0);
+        ccfMaxLagSpin->setDecimals(1);
+        ccfMaxLagSpin->setSuffix(tr(" [s]"));
+        ccfMaxLagSpin->setToolTip(tr("<b>Half-width:</b> the lags written run from "
+            "minus this to plus this. Default 200 s.") + ccfCredit);
+        ccfDecimSpin = new QSpinBox;
+        ccfDecimSpin->setRange(1, 1000);
+        ccfDecimSpin->setToolTip(tr("<b>Every n-th lag:</b> keep one lag in n, to "
+            "keep the files small. About 35 MB per gas and year at +/-200 s, 10 Hz "
+            "and n = 10. Default 1, every lag.") + ccfCredit);
+        auto halfWidthLabel = new ClickLabel(tr("Half-width :"));
+        halfWidthLabel->setToolTip(ccfMaxLagSpin->toolTip());
+        auto decimLabel = new ClickLabel(tr("Every n-th lag :"));
+        decimLabel->setToolTip(ccfDecimSpin->toolTip());
+        connect(halfWidthLabel, &ClickLabel::clicked, this, [this]() { ccfMaxLagSpin->setFocus(); });
+        connect(decimLabel, &ClickLabel::clicked, this, [this]() { ccfDecimSpin->setFocus(); });
+
+        outputLayout->addWidget(hrLabelCcf, 39, 0, 1, -1);
+        outputLayout->addWidget(titleCcf, 40, 0);
+        outputLayout->addWidget(gasesLabel, 41, 1, 1, 2, Qt::AlignLeft);
+        outputLayout->addLayout(ccfGasGrid_, 42, 1, 1, 4);
+        outputLayout->addWidget(halfWidthLabel, 43, 0, Qt::AlignRight);
+        outputLayout->addWidget(ccfMaxLagSpin, 43, 1, Qt::AlignLeft);
+        outputLayout->addWidget(decimLabel, 44, 0, Qt::AlignRight);
+        outputLayout->addWidget(ccfDecimSpin, 44, 1, Qt::AlignLeft);
+
+        connect(ccfMaxLagSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                this, [=](double v)
+        {
+            if (ccfRefreshing_) { return; }
+            auto c = ecProject_->screenCumCov();
+            c.ccf_max_lag_s = v;
+            ecProject_->setScreenCumCov(c);
+        });
+        connect(ccfDecimSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+                this, [=](int v)
+        {
+            if (ccfRefreshing_) { return; }
+            auto c = ecProject_->screenCumCov();
+            c.ccf_decim = v;
+            ecProject_->setScreenCumCov(c);
+        });
+    }
+    outputLayout->setRowStretch(45, 1);
     outputLayout->setColumnStretch(8, 1);
     outputLayout->setColumnMinimumWidth(4, 60);
 
@@ -771,6 +891,13 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
             { ecProject_->setGeneralMakeDataset(checked); });
     connect(fluxnetErrLabelCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setFluxnetErrLabel(checked); });
+    //> On the click, not the state change: refresh() blocks the project's
+    //> signals, not the widgets', so a toggled connection would rewrite a
+    //> project the user only opened.
+    connect(outThetaFluxCheckBox, &RichTextCheckBox::clicked, this, [=]()
+            { ecProject_->setScreenOutThetaFlux(outThetaFluxCheckBox->isChecked() ? 1 : 0); });
+    connect(outLodNoiseCheckBox, &RichTextCheckBox::clicked, this, [=]()
+            { ecProject_->setScreenOutLodNoiseStats(outLodNoiseCheckBox->isChecked() ? 1 : 0); });
     connect(fluxnetErrLabelCheckBox, &QCheckBox::toggled,
             this, &AdvOutputOptions::updateFluxnetErrLabelMode);
     connect(outFullCheckBox, &QCheckBox::toggled, [=](bool checked)
@@ -781,6 +908,8 @@ AdvOutputOptions::AdvOutputOptions(QWidget* parent,
             this, &AdvOutputOptions::updateProductionRunMode);
     connect(defaultRunRadioButton, &QRadioButton::toggled,
             this, &AdvOutputOptions::updateDefaultRunMode);
+    connect(automaticSpectraConfigCheckBox, &QCheckBox::toggled, [=](bool checked)
+            { ecProject_->setSpectraAutomaticConfig(checked); });
     connect(timelagAssessmentOnlyCheckBox, &QCheckBox::toggled,
             this, &AdvOutputOptions::updateTimelagAssessmentOnly);
     connect(planarFitAssessmentOnlyCheckBox, &QCheckBox::toggled,
@@ -912,6 +1041,8 @@ void AdvOutputOptions::setSmartfluxUI()
                       << fluxnetGroupBox
                       << fluxnetErrLabelCheckBox
                       << fluxnetBiometCheckBox
+                      << outThetaFluxCheckBox
+                      << outLodNoiseCheckBox
                       << outBiometCheckBox
                       << outMdCheckBox
                       << keepRawResultsCheckBox
@@ -1131,6 +1262,7 @@ void AdvOutputOptions::reset()
     ecProject_->setSpectraFluxRunMode(0);
     timelagAssessmentOnlyCheckBox->setChecked(false);
     planarFitAssessmentOnlyCheckBox->setChecked(false);
+    automaticSpectraConfigCheckBox->setChecked(ecProject_->defaultSettings.spectraSettings.automatic_spectra_config);
     keepRawResultsCheckBox->setChecked(true);
 
     if (ecProject_->generalUseBiomet())
@@ -1191,6 +1323,15 @@ void AdvOutputOptions::refresh()
 
     fluxnetBiometCheckBox->setChecked(ecProject_->fluxnetStandardizeBiomet());
     fluxnetErrLabelCheckBox->setChecked(ecProject_->fluxnetErrLabel());
+    outThetaFluxCheckBox->setChecked(ecProject_->screenOutThetaFlux() == 1);
+    {
+        //> The per-gas boxes were set by rebuildGasRows() above.
+        ccfRefreshing_ = true;
+        ccfMaxLagSpin->setValue(ecProject_->screenCumCov().ccf_max_lag_s);
+        ccfDecimSpin->setValue(ecProject_->screenCumCov().ccf_decim);
+        ccfRefreshing_ = false;
+    }
+    outLodNoiseCheckBox->setChecked(ecProject_->screenOutLodNoiseStats() == 1);
     updateFluxnetErrLabelMode(ecProject_->fluxnetErrLabel());
     outFullCheckBox->setChecked(ecProject_->generalOutRich());
     {
@@ -1212,6 +1353,7 @@ void AdvOutputOptions::refresh()
     }
     timelagAssessmentOnlyCheckBox->setChecked(ecProject_->timelagAssessmentOnly());
     planarFitAssessmentOnlyCheckBox->setChecked(ecProject_->planarFitAssessmentOnly());
+    automaticSpectraConfigCheckBox->setChecked(ecProject_->spectraAutomaticConfig());
     if (ecProject_->timelagAssessmentOnly() || ecProject_->planarFitAssessmentOnly())
     {
         clearRunModeRadios();
@@ -1990,6 +2132,16 @@ void AdvOutputOptions::onGasRawToggled(int gasIndex, bool checked)
     updateVarsAvailable();
 }
 
+void AdvOutputOptions::onGasCcfToggled(int gasIndex, bool checked)
+{
+    if (ccfRefreshing_) { return; }
+    auto gases = ecProject_->gasColumns();
+    if (gasIndex < 0 || gasIndex >= gases.size()) { return; }
+    //> Unticked is "not stated", which the engine reads as off.
+    gases[gasIndex].proc.outCcf = checked ? 1 : -1;
+    ecProject_->setGasColumns(gases);
+}
+
 /// The generated boxes, for the two collections that enable or disable the
 /// whole page.
 QWidgetList AdvOutputOptions::gasOutputCheckBoxes() const
@@ -2000,6 +2152,7 @@ QWidgetList AdvOutputOptions::gasOutputCheckBoxes() const
         if (row.spectra) { list << row.spectra; }
         if (row.cospectra) { list << row.cospectra; }
         if (row.raw) { list << row.raw; }
+        if (row.ccf) { list << row.ccf; }
     }
     return list;
 }
@@ -2012,7 +2165,8 @@ QWidgetList AdvOutputOptions::gasOutputCheckBoxes() const
 /// back into the project.
 void AdvOutputOptions::rebuildGasRows()
 {
-    if (!ecProject_ || !spectraGrid_ || !cospectraGrid_ || !rawVarsGrid_)
+    if (!ecProject_ || !spectraGrid_ || !cospectraGrid_ || !rawVarsGrid_
+        || !ccfGasGrid_)
     {
         return;
     }
@@ -2028,6 +2182,7 @@ void AdvOutputOptions::rebuildGasRows()
         dropBox(row.spectra);
         dropBox(row.cospectra);
         dropBox(row.raw);
+        dropBox(row.ccf);
     }
     gasRows_.clear();
 
@@ -2044,6 +2199,7 @@ void AdvOutputOptions::rebuildGasRows()
     const auto& gases = ecProject_->gasColumns();
     QList<RichTextCheckBox*> rawOrder = { outRawUCheckBox, outRawVCheckBox,
                                           outRawWCheckBox, outRawTsCheckBox };
+    QList<RichTextCheckBox*> ccfOrder;
 
     int spectraRow = 5;      // after qBox_6 and the four fixed boxes
     int cospectraRow = 4;    // after qBox_7 and the three fixed entries
@@ -2073,12 +2229,19 @@ void AdvOutputOptions::rebuildGasRows()
         row.raw->setChecked(gasRawFor(i));
         rawOrder << row.raw;
 
+        row.ccf = new RichTextCheckBox;
+        row.ccf->setText(name);
+        row.ccf->setChecked(i < gases.size() && gases.at(i).proc.outCcf == 1);
+        ccfOrder << row.ccf;
+
         connect(row.spectra, &RichTextCheckBox::toggled, this,
                 [=](bool checked) { onGasSpectraToggled(idx, checked); });
         connect(row.cospectra, &RichTextCheckBox::toggled, this,
                 [=](bool checked) { onGasCospectraToggled(idx, checked); });
         connect(row.raw, &RichTextCheckBox::toggled, this,
                 [=](bool checked) { onGasRawToggled(idx, checked); });
+        connect(row.ccf, &RichTextCheckBox::toggled, this,
+                [=](bool checked) { onGasCcfToggled(idx, checked); });
 
         gasRows_.append(row);
     }
@@ -2090,6 +2253,12 @@ void AdvOutputOptions::rebuildGasRows()
     for (int i = 0; i < rawOrder.size(); ++i)
     {
         rawVarsGrid_->addWidget(rawOrder.at(i), i % perColumn, i / perColumn);
+    }
+    // The cross-covariance gases the same way: two columns, column by column.
+    const int ccfPerColumn = qMax(1, static_cast<int>((ccfOrder.size() + 1) / 2));
+    for (int i = 0; i < ccfOrder.size(); ++i)
+    {
+        ccfGasGrid_->addWidget(ccfOrder.at(i), i % ccfPerColumn, i / ccfPerColumn);
     }
 
     gasSignature_ = gasSignature();
@@ -2160,6 +2329,7 @@ void AdvOutputOptions::updateGasOutputAvailability()
         {
             row.raw->setEnabled(available && timeSeriesAvailable && !smartfluxOn);
         }
+        if (row.ccf) { row.ccf->setEnabled(available && !smartfluxOn); }
 
         //> A gas whose column has gone leaves nothing to output, so its
         //> selections are cleared rather than left set on a dead record.
@@ -2168,6 +2338,7 @@ void AdvOutputOptions::updateGasOutputAvailability()
             if (row.spectra) { row.spectra->setChecked(false); }
             if (row.cospectra) { row.cospectra->setChecked(false); }
             if (row.raw) { row.raw->setChecked(false); }
+            if (row.ccf) { row.ccf->setChecked(false); }
         }
     }
 

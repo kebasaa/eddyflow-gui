@@ -1,0 +1,89 @@
+name: Linux Flatpak build
+
+# Builds EddyFlow (GUI and engine) as a Flatpak bundle with
+# packaging/flatpak/io.github.kebasaa.EddyFlow.yml, checks that the engine
+# inside it runs, and attaches the bundle to the release, next to the .deb,
+# .snap and .rpm from linux-release.yml.
+#
+# Built in the Flathub infrastructure's KDE image, which carries
+# flatpak-builder and the org.kde.Sdk the manifest names. The container runs
+# privileged, so the bundle can also be installed and run in the same job.
+#
+# Unlike linux-release.yml this needs no build script and no secret: the
+# manifest builds QuaZIP, 7-Zip, the engine and the GUI from their sources.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build and attach the bundle to, e.g. v8.2.1
+        required: true
+      engine_ref:
+        description: eddyflow-engine branch, tag or commit (default the same tag)
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  flatpak:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.8
+      options: --privileged
+    timeout-minutes: 90
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      ENGINE_REF: ${{ inputs.engine_ref || github.event.release.tag_name || inputs.tag }}
+      APP_ID: io.github.kebasaa.EddyFlow
+    steps:
+      # The manifest expects eddyflow-gui and eddyflow-engine side by side.
+      - name: Check out eddyflow-gui at ${{ env.TAG }}
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+          path: eddyflow-gui
+
+      - name: Check out eddyflow-engine at ${{ env.ENGINE_REF }}
+        uses: actions/checkout@v7
+        with:
+          repository: kebasaa/eddyflow-engine
+          ref: ${{ env.ENGINE_REF }}
+          path: eddyflow-engine
+
+      - name: Build the Flatpak bundle
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          manifest-path: eddyflow-gui/packaging/flatpak/io.github.kebasaa.EddyFlow.yml
+          bundle: eddyflow_${{ env.TAG }}_linux_x86_64.flatpak
+          cache-key: flatpak-builder-${{ github.sha }}
+          upload-artifact: false
+
+      - name: Keep the bundle with the run
+        uses: actions/upload-artifact@v7
+        with:
+          name: eddyflow-linux-x86_64-flatpak
+          path: eddyflow_${{ env.TAG }}_linux_x86_64.flatpak
+          if-no-files-found: error
+          retention-days: 14
+
+      # The engine must run inside the sandbox, from where the GUI calls it,
+      # and 7-Zip must be where the GUI and the engine look for it.
+      - name: Check the bundle
+        timeout-minutes: 15
+        run: |
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y --noninteractive "eddyflow_${TAG}_linux_x86_64.flatpak"
+          flatpak run --command=/app/lib/eddyflow/bin/eddyflow_rp "$APP_ID" --version
+          flatpak run --command=/app/lib/eddyflow/bin/eddyflow_fcc "$APP_ID" --version
+          flatpak run --command=sh "$APP_ID" -c 'test -x /app/lib/eddyflow/eddyflow && test -e /app/lib/eddyflow/bin/7z && command -v 7za && test -d /app/lib/eddyflow/docs && test -d /app/lib/eddyflow/file-templates'
+
+      # --clobber replaces a bundle of the same name when a release is rebuilt.
+      - name: Attach the bundle to release ${{ env.TAG }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          command -v gh >/dev/null || { dnf install -y gh || apt-get install -y gh; }
+          gh release upload "$TAG" "eddyflow_${TAG}_linux_x86_64.flatpak" --clobber --repo "$GITHUB_REPOSITORY"

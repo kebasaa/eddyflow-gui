@@ -2433,6 +2433,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#moving-windows-and-tilt-angle-uncertainty-innflux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Moving windows and tilt-angle uncertainty (innFLUX)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4403,6 +4414,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#moving-windows-and-tilt-angle-uncertainty-innflux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Moving windows and tilt-angle uncertainty (innFLUX)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4455,6 +4477,29 @@
 <p class="admonition-title">Note</p>
 <p>As of engine v8.1.0, the planar fit and time lag optimization pre-passes (Advanced Mode step 1) can be parallelised across multiple CPU cores. In the interface, tick <strong>Parallelise the planar fit and time lag pre-passes</strong> (see <a href="raw-processing-options.html#parallelise-the-planar-fit-and-time-lag-pre-passes">Advanced settings: processing options</a>); on the command line use the <code>-j</code> / <code>--jobs</code> option (see <a href="command-line.html#top">Command Line</a>). The planar-fit coefficients are identical to those of a serial run, and this can substantially speed up step 1 for large datasets.</p>
 </div>
+<h2 id="moving-windows-and-tilt-angle-uncertainty-innflux">Moving windows and tilt-angle uncertainty (innFLUX)<a class="headerlink" href="#moving-windows-and-tilt-angle-uncertainty-innflux" title="Permanent link">&para;</a></h2>
+<p><strong>Origin:</strong> innFLUX, <a href="references.html#Striednig2020">Striednig et al. (2020)</a>, Sect. 2.3.1 and Fig. 1 (<code>innFLUX_step0.m</code>), on the planar fit of <a href="references.html#Wilczak">Wilczak et al. (2001)</a>. Both options are <strong>off by default</strong>. They are set under <strong>innFLUX extras</strong> in the Planar Fit Settings.</p>
+<p><strong>Moving windows</strong> (<code>pf_mw_num</code>, <code>pf_mw_width</code>; interface <strong>Moving windows</strong>, <strong>Window width</strong>):</p>
+<ul>
+<li>They replace the sectors with N overlapping windows, centred every 360/N degrees.</li>
+<li>Each window is fitted to every period whose wind direction lies within half the width of its centre.</li>
+<li>A period is rotated with the window centred nearest its own wind direction.</li>
+<li>innFLUX fits 360 windows of 30 degrees, one per degree. EddyFlow allows up to 360.</li>
+<li>Because the windows overlap, neighbouring directions share most of their data. The tilt then changes smoothly with wind direction instead of jumping at sector boundaries.</li>
+</ul>
+<p><strong>Tilt-angle uncertainty</strong> (<code>pf_boot_n</code>, <code>pf_boot_seed</code>; interface <strong>Bootstrap resamples</strong>, <strong>Bootstrap seed</strong>):</p>
+<ul>
+<li>Each sector's or window's periods are resampled with replacement, and the plane is fitted again to each resample.</li>
+<li>The standard deviations of the pitch and roll angles over the resamples are written to the planar-fit file. innFLUX uses 1000 resamples.</li>
+<li>The rotation itself does not change.</li>
+<li>The seed is applied per sector, so the same seed always gives the same uncertainties.</li>
+</ul>
+<p><strong>Reusing the file.</strong> When either option is used, it is recorded in the planar-fit file:</p>
+<ul>
+<li>moving windows as a <code>Moving_window_sectors:</code> line, followed by one row per window with its plane coefficients, tilt uncertainties and rotation matrix;</li>
+<li>the bootstrap as a <code>Bootstrap:</code> line and a table after the rotation matrices.</li>
+</ul>
+<p>A reused file (<strong>Planar fit file available</strong>) is applied with the windows it holds, whatever the project's own settings say; the run log notes any difference. With both options off, the file is written exactly as before.</p>
 
 
 

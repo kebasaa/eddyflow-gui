@@ -112,6 +112,13 @@ void RichTextCheckBox::setText(const QString& text)
     label->setText(text);
 }
 
+void RichTextCheckBox::setWordWrap(bool on)
+{
+    //> Wrapped, the label may be given less than its one-line width, and the
+    //> row grows a line instead of the page growing sideways.
+    label->setWordWrap(on);
+}
+
 // NOTE: never used
 QString RichTextCheckBox::plainText() const
 {

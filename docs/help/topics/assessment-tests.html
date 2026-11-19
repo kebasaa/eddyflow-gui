@@ -4831,6 +4831,7 @@
 </ol>
 <p>If the sample file is incomplete, the message is "The spectral assessment template is incomplete. Please, re-install the software."</p>
 <h3 id="scientific-test">Scientific test<a class="headerlink" href="#scientific-test" title="Permanent link">&para;</a></h3>
+<p>The file always holds each gas's own fit. A gas corrected with another gas's transfer function (<a href="spectral-corrections.html#taking-a-gass-transfer-function-from-another-gas-on-the-same-analyser">Taking a gas's transfer function from another gas on the same analyser</a>) takes it when the fluxes are corrected, so its own implausible fit stays in the file to be seen.</p>
 <p>Each gas is judged by its block name, not by its position in the file. Before, the first monthly block was always read as CO2 and the second as CH4, whatever their headers said, and nothing past the second block was examined.</p>
 <h4 id="water-vapor-primary-hygrometer-and-any-additional-hygrometer-block">Water vapor (primary hygrometer and any additional hygrometer block)<a class="headerlink" href="#water-vapor-primary-hygrometer-and-any-additional-hygrometer-block" title="Permanent link">&para;</a></h4>
 <p>If the primary hygrometer is measured, its nine-class table is checked; for an additional hygrometer the same four checks run on its named block. If the primary hygrometer is not measured the line reads "H2O: not in this project's raw data — skipped".</p>

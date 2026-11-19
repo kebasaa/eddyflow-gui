@@ -260,6 +260,11 @@ public:
     void setScreenSpectroMethod(int n);
     void setScreenSpectroWater(int n);
     void setScreenCovmaxDebaseline(int n);
+    void setScreenCovmaxSmoothLen(int n);
+    void setScreenCovmaxPeakSign(int n);
+    void setScreenOutThetaFlux(int n);
+    void setScreenOutLodNoiseStats(int n);
+    void setScreenCumCov(const CumCovSettings& c);
     void setScreenTlagBorrowMethod(int n);
     void setScreenTlagBorrowSnr(double d);
     void setScreenTlagBorrowNoise(int n);
@@ -465,6 +470,7 @@ public:
     void setPlanarFitItemPerSector(int i);
     void setPlanarFitWmax(double d);
     void setPlanarFitUmin(double d);
+    void setPlanarFitExtras(int mwNum, double mwWidth, int bootN, int bootSeed);
     void setPlanarFitFile(const QString& p);
     void setPlanarFitPolicy(int i);
     void setPlanarFitSubset(int n);
@@ -478,6 +484,7 @@ public:
     void setSpectraFile(const QString& p);
     void setSpectraFluxRunMode(int n);
     void setSpectraAutomaticConfig(int n);
+    void setSpectraAutoSource(int n);
     void setSpectraKeepParentFluxnetFile(int n);
     void setSpectraMinSmpl(int l);
     void setSpectraHorst(int n);
@@ -758,6 +765,11 @@ public:
     int screenSpectroMethod() const { return ec_project_state_.screenSetting.spectro_meth; }
     int screenSpectroWater() const { return ec_project_state_.screenSetting.spectro_water; }
     int screenCovmaxDebaseline() const { return ec_project_state_.screenSetting.covmax_debaseline; }
+    int screenCovmaxSmoothLen() const { return ec_project_state_.screenSetting.covmax_smooth_len; }
+    int screenCovmaxPeakSign() const { return ec_project_state_.screenSetting.covmax_peak_sign; }
+    int screenOutThetaFlux() const { return ec_project_state_.screenSetting.out_theta_flux; }
+    int screenOutLodNoiseStats() const { return ec_project_state_.screenSetting.out_lod_noise_stats; }
+    const CumCovSettings& screenCumCov() const { return ec_project_state_.screenSetting.cumcov; }
     int screenTlagBorrowMethod() const { return ec_project_state_.screenSetting.tlag_borrow_meth; }
     double screenTlagBorrowSnr() const { return ec_project_state_.screenSetting.tlag_borrow_snr; }
     int screenTlagBorrowNoise() const { return ec_project_state_.screenSetting.tlag_borrow_noise; }
@@ -963,6 +975,10 @@ public:
     int planarFitItemPerSector() const { return ec_project_state_.screenTilt.min_num_per_sec; }
     double planarFitWmax() const { return ec_project_state_.screenTilt.w_max; }
     double planarFitUmin() const { return ec_project_state_.screenTilt.u_min; }
+    int planarFitMwNum() const { return ec_project_state_.screenTilt.mw_num; }
+    double planarFitMwWidth() const { return ec_project_state_.screenTilt.mw_width; }
+    int planarFitBootN() const { return ec_project_state_.screenTilt.boot_n; }
+    int planarFitBootSeed() const { return ec_project_state_.screenTilt.boot_seed; }
     const QString& planarFitFile() const { return ec_project_state_.screenTilt.file; }
     int planarFitFixPolicy() const { return ec_project_state_.screenTilt.fix_policy; }
     int planarFitSubset() const { return ec_project_state_.screenTilt.subset; }
@@ -971,6 +987,7 @@ public:
     int spectraMode() const { return ec_project_state_.spectraSettings.sa_mode; }
     int spectraFluxRunMode() const { return ec_project_state_.spectraSettings.flux_run_mode; }
     int spectraAutomaticConfig() const { return ec_project_state_.spectraSettings.automatic_spectra_config; }
+    int spectraAutoSource() const { return ec_project_state_.spectraSettings.sa_auto_source; }
     int spectraKeepParentFluxnetFile() const { return ec_project_state_.spectraSettings.keep_parent_fluxnet_file; }
     const QString& spectraStartDate() const { return ec_project_state_.spectraSettings.start_sa_date; }
     const QString& spectraEndDate() const { return ec_project_state_.spectraSettings.end_sa_date; }

@@ -4429,12 +4429,11 @@
 <p>With a purely analytic spectral correction method (or none), and without ensemble-averaged spectra or cospectra outputs, RP also corrects the fluxes and the run ends there. Otherwise RP writes an intermediate FLUXNET file, <code>eddyflow_OutputID_fluxnet_yyyy-mm-ddThhmmss_adv.csv</code>, plus the binned and full cospectra, and FCC continues from them.</p>
 <h2 id="re-running-only-the-flux-correction">Re-running only the flux correction<a class="headerlink" href="#re-running-only-the-flux-correction" title="Permanent link">&para;</a></h2>
 <p>When only flux-correction settings changed since the last run, RP would compute the same intermediate results again. EddyFlow can then skip it and re-run only FCC on the results the previous run left in the output folder. Examples of such settings are the spectral assessment limits and periods, the low-frequency correction, the footprint model, the quality flagging scheme and the result files.</p>
-<p>Every time you start a run in Advanced mode, the <strong>Advanced run</strong> dialog asks how to treat the previous run in the output folder. If date subsets are set, the same dialog also shows them. In its <strong>Previous run</strong> section:</p>
+<p>When you start a run in Advanced mode and the output folder holds results of an earlier run, the <strong>Advanced run</strong> dialog asks how to treat them. If date subsets are set, the same dialog also shows them. When the output folder holds no earlier run, the run starts straight away as a full run (after the date check, if date subsets are set). In the dialog's <strong>Previous run</strong> section:</p>
 <ul>
 <li><strong>Flux correction only (reuse the raw-processing results)</strong> is selected when it is possible. A note reminds you that EddyFlow compares the settings, not the contents of the metadata, biomet or raw data files. Use this option only if those files are unchanged since the previous run.</li>
 <li><strong>Full re-run (raw processing and flux correction)</strong> processes the raw data again.</li>
 <li>When <strong>Flux correction only</strong> is not possible, it is greyed out and the dialog lists the reasons. It names any setting that requires raw processing again, and explains how to keep the raw-processing results next time.</li>
-<li>When the output folder holds no previous run, both choices are greyed out and the run is a full run.</li>
 </ul>
 <p>The buttons decide what happens to the files the chosen run makes obsolete:</p>
 <ul>

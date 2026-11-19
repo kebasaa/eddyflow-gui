@@ -68,6 +68,12 @@ public:
     bool queryEcProjectImport(const QString &filename);
     bool queryDlProjectImport();
 
+    //> Developer's tool: with EDDYFLOW_LAYOUT_REPORT=<file> set, show the
+    //> Advanced Settings at the screen width in EDDYFLOW_LAYOUT_WIDTH (default
+    //> 1536), write which pages would scroll sideways and why, and quit.
+    //> Nothing happens without the variable. See layoutreport.h.
+    void scheduleLayoutReport();
+
 protected:
     void closeEvent(QCloseEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
@@ -234,6 +240,11 @@ private:
     void displayExitMsg2(Process::ExitStatus exitReason);
     bool okToStopRun();
     int testBeforeRunningPassed(int step);
+    //> The planar fit, time lag and spectral assessment files an Advanced
+    //> run will read, checked before it starts. When one is gone, a window
+    //> offers a similar file found nearby and lets another be chosen; the
+    //> project is saved with any path that changed. False stops the run.
+    bool resolveMissingInputFiles();
     //> Room on the output disk, before a run: refuse when the engine would
     //> stop at once, and warn when the raw datasets will not fit. `fromRaw`
     //> is false for a run that only recomputes fluxes from a previous one.

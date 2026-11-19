@@ -155,6 +155,12 @@ private:
 
     ClickLabel* itemPerSectorLabel;
     QSpinBox* itemPerSectorSpin;
+    //> innFLUX extras (Striednig et al. 2020), both off.
+    QSpinBox* mwNumSpin;
+    QDoubleSpinBox* mwWidthSpin;
+    QSpinBox* bootSpin;
+    QSpinBox* bootSeedSpin;
+    bool extrasRefreshing_ = false;
     ClickLabel* maxAvgWLabel;
     QDoubleSpinBox* maxAvgWSpin;
     ClickLabel* minAvgULabel;

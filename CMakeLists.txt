@@ -15,7 +15,7 @@ cmake_minimum_required(VERSION 3.21)
 set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "macOS architectures to build for")
 
 # The version also lives in src/defs.h (APP_VERSION, APP_VERSION_STR). Bump both.
-project(EddyFlow VERSION 8.1.10 LANGUAGES CXX)
+project(EddyFlow VERSION 8.2.0 LANGUAGES CXX)
 
 if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Debug or Release" FORCE)
@@ -106,6 +106,7 @@ set(EDDYFLOW_HEADERS
     src/clicklabel.h
     src/detlimsettingsdialog.h
     src/langfordsettingsdialog.h
+    src/cumcovsettingsdialog.h
     src/configstate.h
     src/customcombomodel.h
     src/customheader.h
@@ -139,6 +140,9 @@ set(EDDYFLOW_HEADERS
     src/ini_file.h
     src/gas_metadata.h
     src/infomessage.h
+    src/inputfilecheck.h
+    src/inputfilesdialog.h
+    src/layoutreport.h
     src/irga_delegate.h
     src/irga_desc.h
     src/irga_model.h
@@ -173,6 +177,8 @@ set(EDDYFLOW_HEADERS
     src/table_delegate_utils.h
     src/timelagsettingsdialog.h
     src/tlagdonordialog.h
+    src/sasourcedialog.h
+    src/spectralassessmentfile.h
     src/tooltipfilter.h
     src/variable_delegate.h
     src/variable_desc.h
@@ -246,6 +252,7 @@ set(EDDYFLOW_SOURCES
     src/clicklabel.cpp
     src/detlimsettingsdialog.cpp
     src/langfordsettingsdialog.cpp
+    src/cumcovsettingsdialog.cpp
     src/customcombomodel.cpp
     src/customheader.cpp
     src/customsplashscreen.cpp
@@ -272,6 +279,9 @@ set(EDDYFLOW_SOURCES
     src/ini_file.cpp
     src/gas_metadata.cpp
     src/infomessage.cpp
+    src/inputfilecheck.cpp
+    src/inputfilesdialog.cpp
+    src/layoutreport.cpp
     src/irga_delegate.cpp
     src/irga_desc.cpp
     src/irga_model.cpp
@@ -303,6 +313,8 @@ set(EDDYFLOW_SOURCES
     src/stringutils.cpp
     src/timelagsettingsdialog.cpp
     src/tlagdonordialog.cpp
+    src/sasourcedialog.cpp
+    src/spectralassessmentfile.cpp
     src/tooltipfilter.cpp
     src/variable_delegate.cpp
     src/variable_desc.cpp

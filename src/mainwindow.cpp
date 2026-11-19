@@ -77,6 +77,11 @@
 #include "eddyuhimport.h"
 #include "globalsettings.h"
 #include "infomessage.h"
+#include "inputfilecheck.h"
+#include "inputfilesdialog.h"
+#include "layoutreport.h"
+
+#include <cstdlib>
 #include "mainwidget.h"
 #include "mymenu.h"
 #include "outputspace.h"
@@ -3738,6 +3743,128 @@ int MainWindow::testBeforeRunningPassed(int step)
     }
 }
 
+void MainWindow::scheduleLayoutReport()
+{
+    const QString path = qEnvironmentVariable("EDDYFLOW_LAYOUT_REPORT");
+    if (path.isEmpty()) { return; }
+    bool ok = false;
+    int screenWidth = qEnvironmentVariableIntValue("EDDYFLOW_LAYOUT_WIDTH", &ok);
+    if (!ok || screenWidth < 640) { screenWidth = 1536; }
+
+    //> After the project has loaded and the window has been laid out once.
+    QTimer::singleShot(2000, this, [this, path, screenWidth]()
+    {
+        changePage(Defs::CurrPage::AdvancedSettings, false);
+        //> The window frame takes about 16 logical px of the screen's width.
+        showNormal();
+        resize(screenWidth - 16, std::max(height(), 900));
+        const bool written = LayoutReport::write(path, this,
+            mainWidget_->advancedPage()->advancedSettingPages());
+        qInfo().noquote() << (written ? "Layout report written to" : "Could not write")
+                          << path;
+        //> A dialog's own event loop would swallow a plain exit(), and the
+        //> report has nothing left to save: leave at once.
+        std::_Exit(written ? 0 : 1);
+    });
+}
+
+bool MainWindow::resolveMissingInputFiles()
+{
+    using Kind = InputFilesDialog::Kind;
+    InputFilesDialog::Line lines[InputFilesDialog::KindCount];
+
+    //> When each file is read: the same conditions testBeforeRunningPassed
+    //> applies when it asks for one to be loaded.
+    lines[Kind::PlanarFit].applies = ecProject_->screenRotMethod() >= 3
+                                     && ecProject_->planarFitMode() == 0;
+    lines[Kind::PlanarFit].saved = ecProject_->planarFitFile();
+
+    const int tlagMeth = ecProject_->screenTlagMeth();
+    lines[Kind::Timelag].applies = (tlagMeth == 4 || tlagMeth == 5)
+                                   && ecProject_->timelagOptMode() == 0;
+    lines[Kind::Timelag].saved = ecProject_->timelagOptFile();
+
+    lines[Kind::SpectralAssessment].applies = ecProject_->generalHfMethod() > 1
+                                              && ecProject_->generalHfMethod() < 5
+                                              && ecProject_->spectraMode() == 0;
+    lines[Kind::SpectralAssessment].saved = ecProject_->spectraFile();
+
+    //> Missing: used, named, local and not there. An empty path is the
+    //> "Load a ... file" message's business; a remote one the engine fetches.
+    bool anyMissing = false;
+    for (auto& line : lines)
+    {
+        if (!line.applies || line.saved.trimmed().isEmpty()) { continue; }
+        if (RemoteSource::isRemote(line.saved)) { continue; }
+        if (QFileInfo(line.saved).isFile()) { continue; }
+        anyMissing = true;
+    }
+    if (!anyMissing) { return true; }
+
+    //> A similar file for each missing one: the same name with another
+    //> timestamp, nearby. A PWB table is never offered the summary written
+    //> beside it, nor a plain time lag file a PWB one.
+    const QString paddings[InputFilesDialog::KindCount] = {
+        QLatin1String(InputFileCheck::PlanarFitPadding),
+        QLatin1String(tlagMeth == 5 ? InputFileCheck::PwbTimelagPadding
+                                    : InputFileCheck::TimelagOptPadding),
+        QLatin1String(InputFileCheck::SpectralAssessmentPadding)
+    };
+    const QString excludes[InputFilesDialog::KindCount] = {
+        QString(),
+        tlagMeth == 5 ? QStringLiteral("_pwb_timelag_opt_") : QStringLiteral("_pwb_"),
+        QString()
+    };
+    for (int k = 0; k < InputFilesDialog::KindCount; ++k)
+    {
+        auto& line = lines[k];
+        if (!line.applies || line.saved.trimmed().isEmpty()) { continue; }
+        if (RemoteSource::isRemote(line.saved) || QFileInfo(line.saved).isFile()) { continue; }
+        const auto dirs = InputFileCheck::searchDirs(line.saved,
+                                                     ecProject_->generalOutPath(),
+                                                     ecProject_->generalFileName());
+        line.suggestion = InputFileCheck::findSimilar(
+            InputFileCheck::similarPattern(line.saved, paddings[k]), dirs, excludes[k]);
+    }
+
+    InputFilesDialog dialog(this, lines);
+    if (dialog.exec() != QDialog::Accepted) { return false; }
+
+    //> Written only now, every line settled: a run cancelled halfway leaves
+    //> the project as it was.
+    bool anyChanged = false;
+    if (dialog.changed(Kind::PlanarFit))
+    {
+        ecProject_->setPlanarFitFile(RemoteSource::cleanPath(dialog.path(Kind::PlanarFit)));
+        anyChanged = true;
+    }
+    if (dialog.changed(Kind::Timelag))
+    {
+        ecProject_->setTimelagOptFile(RemoteSource::cleanPath(dialog.path(Kind::Timelag)));
+        anyChanged = true;
+    }
+    if (dialog.changed(Kind::SpectralAssessment))
+    {
+        ecProject_->setSpectraFile(RemoteSource::cleanPath(dialog.path(Kind::SpectralAssessment)));
+        anyChanged = true;
+    }
+    if (!anyChanged) { return true; }
+
+    for (int k = 0; k < InputFilesDialog::KindCount; ++k)
+    {
+        const auto kind = static_cast<Kind>(k);
+        if (dialog.changed(kind))
+        {
+            qInfo().noquote() << "Input file replaced:" << lines[k].saved
+                              << "->" << dialog.path(kind);
+        }
+    }
+    //> The Spectral page's field and the Planar Fit / Time Lag dialogs
+    //> (refreshed on show) read the new paths from the project.
+    ecProject_->announceProjectChanged();
+    return fileSaveSilently();
+}
+
 bool MainWindow::confirmOutputSpace(bool fromRaw)
 {
     const auto outDir = ecProject_->generalOutPath();
@@ -3872,10 +3999,27 @@ bool MainWindow::showDatesRangeDialog(Defs::CurrRunMode mode, bool withDates)
           && GlobalSettings::getAppPersistentSettings(Defs::CONFGROUP_WINDOW,
                                                       Defs::CONF_WIN_DATES_CHECK_MSG,
                                                       true).toBool();
-    //> An Advanced run always asks how to treat the previous run; the
-    //> preference above only decides whether the dates are asked too.
+    //> An Advanced run asks how to treat a previous run whenever the output
+    //> folder holds one; the preference above only decides whether the
+    //> dates are asked too.
     const bool advanced = mode == Defs::CurrRunMode::Advanced;
     if (!showDates && !advanced) { return true; }
+
+    pendingRerun_ = PendingRerun();
+    PreviousRun::Scan scan;
+    if (advanced)
+    {
+        bool cancelled = false;
+        scan = scanPreviousRun(&cancelled);
+        if (cancelled)
+        {
+            showStatusTip(tr("Canceled..."));
+            return false;
+        }
+    }
+    //> Nothing to ask about: no earlier run, and no dates to check.
+    const bool askPreviousRun = advanced && scan.found();
+    if (!showDates && !askPreviousRun) { return true; }
 
     DetectDateRangeDialog detectDateRangeDialog(this, ecProject_, dlProject_);
 
@@ -3911,23 +4055,11 @@ bool MainWindow::showDatesRangeDialog(Defs::CurrRunMode mode, bool withDates)
         }
     }
 
-    pendingRerun_ = PendingRerun();
-    PreviousRun::Scan scan;
-    if (advanced)
-    {
-        bool cancelled = false;
-        scan = scanPreviousRun(&cancelled);
-        if (cancelled)
-        {
-            showStatusTip(tr("Canceled..."));
-            return false;
-        }
-        detectDateRangeDialog.showPreviousRun(scan);
-    }
+    if (askPreviousRun) { detectDateRangeDialog.showPreviousRun(scan); }
 
     if (detectDateRangeDialog.exec() != QDialog::Accepted) { return false; }
 
-    if (advanced)
+    if (askPreviousRun)
     {
         const bool correctionOnly = detectDateRangeDialog.runKind()
                                     == DetectDateRangeDialog::RunKind::CorrectionOnly;
@@ -4333,6 +4465,14 @@ void MainWindow::getRunAdvanced()
             return;
         }
     }
+
+    //> Before anything reads the project for the run: a planar fit, time lag
+    //> or spectral assessment file that is gone made the engine stop.
+    if (currentStatus() == Defs::CurrStatus::Ready && !resolveMissingInputFiles())
+    {
+        return;
+    }
+
     emit updateMetadataReadRequest();
 
     // detect date range and verify date subset intersection

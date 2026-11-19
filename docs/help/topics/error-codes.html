@@ -4544,7 +4544,7 @@
 <li>When processing <code>.ghg</code> files, the EddyFlow interface loads the first file in the folder when you select the raw data folder. It uses the metadata for that file to set up processing. When data processing starts, the processing engine uses that information for subsequent files. Data processing proceeds until the file format or structure changes (i.e., different number of variables or variables in different order), at which point there is a mismatch between the metadata and the data file and EddyFlow fails to process that file. The solution is to processes files with different data format or structures separately by putting the raw data files into a separate folder.</li>
 </ol>
 <h2 id="numbered-warnings-and-fatal-errors-in-the-run-log">Numbered warnings and fatal errors in the run log<a class="headerlink" href="#numbered-warnings-and-fatal-errors-in-the-run-log" title="Permanent link">&para;</a></h2>
-<p>The engine writes numbered messages to the run log, in the form <code>Warning(116)&gt;</code> for a warning (the run goes on) and <code>Fatal error(120)&gt;</code> for an error that stops the run. The lines above the message name the file, period or setting concerned. The messages below were added with mixed acquisition rates and with shared-link inputs.</p>
+<p>The engine writes numbered messages to the run log, in the form <code>Warning(116)&gt;</code> for a warning (the run goes on) and <code>Fatal error(120)&gt;</code> for an error that stops the run. The lines above the message name the file, period or setting concerned. The messages below were added with the per-gas spectral assessment, mixed acquisition rates and shared-link inputs.</p>
 <table>
 <thead>
 <tr>
@@ -4555,6 +4555,18 @@
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><strong>Warning(110)</strong></td>
+<td>"The spectral assessment succeeded for some gases and not for others. The assessment file was written and covers only the gases that were fitted. The gases listed below have no fit and take none from another gas on the same analyser, so they are corrected with the analytical method instead..." The gases are named on the line after it.</td>
+<td>The assessment was made in this run, and some gases could not be fitted: too few valid spectra in their classes, or flux limits that left too few. A gas that takes a tube-mate's transfer function is not counted: it gets an <code>Info&gt;</code> line naming the gas it takes it from.</td>
+<td>Check the gas's flux limits and the assessment period, or let the gas take a tube-mate's transfer function under <strong>Spectral Corrections &gt; Gas Sources...</strong>. The spectral corrections readiness report in the output's spectral analysis sub-directory lists which gas got which.</td>
+</tr>
+<tr>
+<td><strong>Warning(111)</strong></td>
+<td>"The spectral assessment file that was read has no transfer function for the gases listed below, and no other gas on the same analyser provides one. They are corrected with the analytical method instead..."</td>
+<td>The spectral assessment file selected for this run has no fit for those gases, for example because it was made before they were added, or they could not be fitted then.</td>
+<td>Let the gas take a tube-mate's transfer function under <strong>Spectral Corrections &gt; Gas Sources...</strong>, or make a new assessment file that includes it.</td>
+</tr>
 <tr>
 <td><strong>Warning(116)</strong></td>
 <td>"The acquisition frequency changes within this averaging period. Its files cannot be joined into one time series, so the period is skipped. The next period starts with the file named above, at its own frequency."</td>

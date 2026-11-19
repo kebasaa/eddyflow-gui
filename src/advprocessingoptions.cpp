@@ -31,12 +31,14 @@
 #include <QComboBox>
 #include <QDebug>
 #include <QDoubleSpinBox>
+#include <QHBoxLayout>
 #include <QIcon>
 #include <QPixmap>
 #include <QSize>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScrollArea>
+#include <QSignalBlocker>
 #include <QSpinBox>
 #include <QStackedWidget>
 #include <QStyle>
@@ -46,6 +48,7 @@
 #include <QDesktopServices>
 
 #include "cecsettingsdialog.h"
+#include "cumcovsettingsdialog.h"
 #include "clicklabel.h"
 #include "configstate.h"
 #include "customcombomodel.h"
@@ -92,9 +95,9 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     uOffsetSpin->setValue(0.0);
     uOffsetSpin->setAccelerated(true);
     uOffsetSpin->setSuffix(tr("  [m/s]", "Velocity"));
-#if defined(Q_OS_WIN)
-    uOffsetSpin->setMinimumWidth(uOffsetSpin->sizeHint().width() * 1.3);
-#elif defined (Q_OS_MACOS)
+//> No 1.3x widening on Windows: the natural width shows the value
+//> and its unit, and the three together set how wide the page is.
+#if defined (Q_OS_MACOS)
     uOffsetSpin->setMinimumWidth(102);
 #endif
     uOffsetSpin->setToolTip(windOffsetLabel->toolTip());
@@ -108,9 +111,9 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     vOffsetSpin->setValue(0.0);
     vOffsetSpin->setAccelerated(true);
     vOffsetSpin->setSuffix(tr("  [m/s]", "Velocity"));
-#if defined(Q_OS_WIN)
-    vOffsetSpin->setMinimumWidth(vOffsetSpin->sizeHint().width() * 1.3);
-#elif defined(Q_OS_MACOS)
+//> No 1.3x widening on Windows: the natural width shows the value
+//> and its unit, and the three together set how wide the page is.
+#if defined(Q_OS_MACOS)
     vOffsetSpin->setMinimumWidth(102);
 #endif
     vOffsetSpin->setToolTip(windOffsetLabel->toolTip());
@@ -124,9 +127,9 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     wOffsetSpin->setValue(0.0);
     wOffsetSpin->setAccelerated(true);
     wOffsetSpin->setSuffix(tr("  [m/s]", "Velocity"));
-#if defined(Q_OS_WIN)
-    wOffsetSpin->setMinimumWidth(wOffsetSpin->sizeHint().width() * 1.3);
-#elif defined(Q_OS_MACOS)
+//> No 1.3x widening on Windows: the natural width shows the value
+//> and its unit, and the three together set how wide the page is.
+#if defined(Q_OS_MACOS)
     wOffsetSpin->setMinimumWidth(102);
 #endif
     wOffsetSpin->setToolTip(windOffsetLabel->toolTip());
@@ -401,6 +404,14 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     timeLagMethodCombo->addItem(tr("Covariance maximization"));
     timeLagMethodCombo->addItem(tr("Automatic time lag optimization"));
     timeLagMethodCombo->addItem(tr("Pre-whitening block-bootstrap (Vitale et al. 2024)"));
+    timeLagMethodCombo->addItem(tr("Cumulated covariance (innFLUX, Striednig et al. 2020)"));
+    timeLagMethodCombo->setItemData(5, tr("<b>Cumulated covariance:</b> each gas's "
+        "absolute cross-covariance functions are summed over every period that passes "
+        "the filters, per date segment, and the lag at the peak of the sum is used "
+        "for the whole segment, optionally corrected for a drifting clock. For weak "
+        "fluxes whose single-period peaks are noise. Needs a pre-pass over the run."
+        "<br><br><i>Source:</i> innFLUX, Striednig et al. (2020), after Park et al. "
+        "(2013); clock drift after innFLUX v1.2.0 (unpublished)."), Qt::ToolTipRole);
     timeLagMethodCombo->setItemData(0, tr("<b>Constant:</b> EddyFlow will apply constant time lags for all flux averaging intervals, using the <b><i>Nominal time lag</i></b> stored inside the GHG files or in the <b><i>Alternative metadata file</i></b> (for files other than GHG). While it can speed up the computation, this method is not recommended for physically displaced sensors or closed/enclosed path gas analysers. It can be used for closed/enclosed analysers if flow rate in the sampling line is strictly controlled and the sampling tube is actively heated to keep relative humidity low and constant."), Qt::ToolTipRole);
     timeLagMethodCombo->setItemData(1, tr("<b>Covariance maximization with default:</b> Similar to the <i>Covariance maximization</i>, this calculates the most likely time lag based on the circular correlation procedure. However, if a maximum of the covariance is not attained within the window (but at one of its ends), the time lag is set to the <b><i>Nominal time lag</i></b> value stored inside the GHG files or in the <b><i>Alternative metadata file</i></b> (for files other than GHG), for each variable. Recommended in most situations."), Qt::ToolTipRole);
     timeLagMethodCombo->setItemData(2, tr("<b>Covariance maximization:</b> Calculates the most likely time lag within a plausible window, based on the circular correlation procedure. The window is defined by the <i>Minimum time lags</i> and <i>Maximum time lags</i> stored inside the GHG files or in the <i>Alternative metadata file</i> (for files other than GHG), for each variable."), Qt::ToolTipRole);
@@ -488,6 +499,41 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
         "<i>Covariance maximization with default</i> stops falling back to the nominal "
         "lag. For a weak flux that safety net is worth replacing rather than simply "
         "losing."));
+
+    //> Smoothed covariance peak search, after innFLUX. Both controls off by
+    //> default; off, the lag is chosen exactly as before.
+    const auto innfluxPeakCredit = tr("<br><br><i>Source:</i> innFLUX, Striednig et al. "
+        "(2020), Atmos. Meas. Tech. 13, 1447-1465 (code: find_covariance_peak.m, "
+        "innFLUX v1.2.0, University of Innsbruck); smoothing before the peak search "
+        "after Taipale et al. (2010).");
+    covmaxSmoothLabel = new ClickLabel(tr("Peak smoothing :"));
+    covmaxSmoothSpin = new QSpinBox;
+    covmaxSmoothSpin->setRange(0, 999);
+    covmaxSmoothSpin->setSpecialValueText(tr("Off"));
+    covmaxSmoothSpin->setSuffix(tr(" [rows]", "Number of samples"));
+    covmaxSmoothSpin->setToolTip(tr("<b>Peak smoothing:</b> Smooth the cross-covariance "
+        "with a normalised Hamming window of this many rows, run forwards and backwards "
+        "so the peak does not move, before the time lag is taken from it. innFLUX uses "
+        "15 rows. Off (0) by default, which is the search EddyFlow has always made. "
+        "Ignored under stochastic detrending.") + innfluxPeakCredit);
+    covmaxPeakSignLabel = new ClickLabel(tr("Peak sign :"));
+    covmaxPeakSignCombo = new QComboBox;
+    covmaxPeakSignCombo->addItem(tr("Largest absolute covariance"));
+    covmaxPeakSignCombo->addItem(tr("Largest positive covariance"));
+    covmaxPeakSignCombo->addItem(tr("Decided by the derivative (innFLUX)"));
+    covmaxPeakSignCombo->setItemData(0, tr("<b>Largest absolute covariance:</b> "
+        "EddyFlow's default."), Qt::ToolTipRole);
+    covmaxPeakSignCombo->setItemData(1, QString(tr("<b>Largest positive covariance:</b> "
+        "Only a positive peak can be chosen. innFLUX uses this on summed absolute "
+        "cross-covariances.") + innfluxPeakCredit), Qt::ToolTipRole);
+    covmaxPeakSignCombo->setItemData(2, QString(tr("<b>Decided by the derivative:</b> "
+        "The cross-covariance's first difference, smoothed over 100 rows, rises to its "
+        "maximum before it falls to its minimum around a positive peak. If it does, the "
+        "largest covariance is taken, otherwise the most negative one.")
+        + innfluxPeakCredit), Qt::ToolTipRole);
+    covmaxPeakSignCombo->setToolTip(tr("<b>Peak sign:</b> Which extremum of the "
+        "(smoothed) cross-covariance is the time lag. The default, the largest absolute "
+        "value, is the search EddyFlow has always made.") + innfluxPeakCredit);
 
     tlagBorrowCheckBox = new RichTextCheckBox;
     tlagBorrowCheckBox->setText(tr("Borrow a tube-mate's lag below the detection limit"));
@@ -760,12 +806,34 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
     settingsLayout->addWidget(timeLagCheckBox, 13, 0);
     settingsLayout->addWidget(timeLagMethodLabel, 13, 1, Qt::AlignRight);
     settingsLayout->addWidget(timeLagMethodCombo, 13, 2);
-    settingsLayout->addWidget(tlSettingsButton, 13, 3);
-    //> Beside the settings button, in a column of its own, so no row below
-    //> moves.
-    settingsLayout->addWidget(tlPreassessButton, 13, 4);
+    //> The two time-lag buttons stacked in the settings button's column. The
+    //> assessment button used to have a column of its own beside it, which
+    //> alone made the page about 210 px wider than a 1920 px laptop screen at
+    //> 125 % leaves room for.
+    {
+        auto tlButtons = new QVBoxLayout;
+        tlButtons->setContentsMargins(0, 0, 0, 0);
+        tlButtons->setSpacing(2);
+        tlButtons->addWidget(tlSettingsButton);
+        tlButtons->addWidget(tlPreassessButton);
+        settingsLayout->addLayout(tlButtons, 13, 3);
+    }
     //> Indented under the method it modifies, in the combo's own column.
-    settingsLayout->addWidget(covmaxDebaselineCheckBox, 14, 2, 1, 2);
+    {
+        //> The innFLUX peak options share row 14 with the baseline box, so no
+        //> row below moves.
+        auto covmaxBox = new QVBoxLayout;
+        covmaxBox->setContentsMargins(0, 0, 0, 0);
+        covmaxBox->addWidget(covmaxDebaselineCheckBox);
+        auto peakBox = new QHBoxLayout;
+        peakBox->addWidget(covmaxSmoothLabel);
+        peakBox->addWidget(covmaxSmoothSpin);
+        peakBox->addWidget(covmaxPeakSignLabel);
+        peakBox->addWidget(covmaxPeakSignCombo);
+        peakBox->addStretch();
+        covmaxBox->addLayout(peakBox);
+        settingsLayout->addLayout(covmaxBox, 14, 2, 1, 2);
+    }
     settingsLayout->addWidget(tlagBorrowCheckBox, 15, 2, 1, 2);
     settingsLayout->addWidget(tlagBorrowSnrLabel, 16, 1, Qt::AlignRight);
     settingsLayout->addWidget(tlagBorrowSnrSpin, 16, 2);
@@ -837,6 +905,13 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
 
     auto settingsGroupLayout = new QHBoxLayout;
     settingsGroupLayout->addWidget(WidgetUtils::getContainerScrollArea(this, settingsLayout));
+    //> Long option labels wrap rather than set the page's width: on a
+    //> 1920 px screen at 125 % they made it scroll sideways. Only now, with
+    //> the layout on its widget, are the boxes children to be found.
+    for (auto box : findChildren<RichTextCheckBox*>())
+    {
+        box->setWordWrap(true);
+    }
 
     auto settingsGroupTitle = new QLabel(tr("Raw Processing Options"));
     settingsGroupTitle->setProperty("groupTitle2", true);
@@ -997,6 +1072,18 @@ AdvProcessingOptions::AdvProcessingOptions(QWidget *parent,
             {
                 ecProject_->setScreenCovmaxDebaseline(
                     covmaxDebaselineCheckBox->isChecked() ? 1 : 0);
+            });
+    //> On the user's edit only: refresh() sets these with signals blocked.
+    connect(covmaxSmoothSpin, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [=](int n)
+            {
+                //> One row is no smoothing; it is stored as off.
+                ecProject_->setScreenCovmaxSmoothLen(n < 2 ? 0 : n);
+            });
+    connect(covmaxPeakSignCombo, QOverload<int>::of(&QComboBox::activated),
+            this, [=](int n)
+            {
+                ecProject_->setScreenCovmaxPeakSign(n);
             });
     //> Straight into the application preferences. Unlike every other control
     //> on this page this one is not part of the project, so it neither dirties
@@ -1160,6 +1247,9 @@ AdvProcessingOptions::~AdvProcessingOptions()
     if (pwbTlDialog_)
         delete pwbTlDialog_;
 
+    if (cumCovDialog_)
+        delete cumCovDialog_;
+
     if (tlPreassessDialog_)
         delete tlPreassessDialog_;
 
@@ -1241,7 +1331,7 @@ void AdvProcessingOptions::updateTlSettingsButton(bool b)
 {
     int n = timeLagMethodCombo->currentIndex();
     if (b)
-        tlSettingsButton->setEnabled(n == 3 || n == 4);
+        tlSettingsButton->setEnabled(n == 3 || n == 4 || n == 5);
     else
         tlSettingsButton->setEnabled(false);
 }
@@ -1287,7 +1377,7 @@ void AdvProcessingOptions::updateTlagMeth_2(int n)
     ecProject_->setScreenTlagMeth(n + 1);
 
     // timelag optimization button
-    tlSettingsButton->setEnabled(n == 3 || n == 4);
+    tlSettingsButton->setEnabled(n == 3 || n == 4 || n == 5);
     updateCovmaxDebaselineAvailability();
 }
 
@@ -1382,6 +1472,10 @@ void AdvProcessingOptions::updateCovmaxDebaselineAvailability()
 {
     const auto meth = ecProject_->screenTlagMeth();
     covmaxDebaselineCheckBox->setEnabled(meth == 2 || meth == 3);
+    covmaxSmoothLabel->setEnabled(meth == 2 || meth == 3);
+    covmaxSmoothSpin->setEnabled(meth == 2 || meth == 3);
+    covmaxPeakSignLabel->setEnabled(meth == 2 || meth == 3);
+    covmaxPeakSignCombo->setEnabled(meth == 2 || meth == 3);
 }
 
 void AdvProcessingOptions::onClickDetrendCombo(int newDetrendMethod)
@@ -1664,9 +1758,16 @@ void AdvProcessingOptions::refresh()
     {
         timeLagMethodCombo->setCurrentIndex(0);
     }
-    tlSettingsButton->setEnabled(ecProject_->screenTlagMeth() == 4 || ecProject_->screenTlagMeth() == 5);
+    tlSettingsButton->setEnabled(ecProject_->screenTlagMeth() == 4 || ecProject_->screenTlagMeth() == 5
+                                 || ecProject_->screenTlagMeth() == 6);
     tlPreassessButton->setEnabled(ecProject_->screenTlagMeth() != 0);
     covmaxDebaselineCheckBox->setChecked(ecProject_->screenCovmaxDebaseline());
+    {
+        const QSignalBlocker b1(covmaxSmoothSpin);
+        const QSignalBlocker b2(covmaxPeakSignCombo);
+        covmaxSmoothSpin->setValue(ecProject_->screenCovmaxSmoothLen());
+        covmaxPeakSignCombo->setCurrentIndex(ecProject_->screenCovmaxPeakSign());
+    }
     parallelPrepassCheckBox->setChecked(configState_->general.parallelPrepass);
     tlagBorrowCheckBox->setChecked(ecProject_->screenTlagBorrowMethod());
     tlagBorrowSnrSpin->setValue(ecProject_->screenTlagBorrowSnr());
@@ -1823,6 +1924,18 @@ void AdvProcessingOptions::createCecSettingsDialog()
 
 void AdvProcessingOptions::showTlSettingsDialog()
 {
+    if (ecProject_->screenTlagMeth() == 6)
+    {
+        if (!cumCovDialog_)
+        {
+            cumCovDialog_ = new CumCovSettingsDialog(this, ecProject_);
+        }
+        cumCovDialog_->refresh();
+        cumCovDialog_->show();
+        cumCovDialog_->raise();
+        cumCovDialog_->activateWindow();
+        return;
+    }
     if (ecProject_->screenTlagMeth() == 5)
     {
         pwbTlDialog_->refresh();

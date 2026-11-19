@@ -104,6 +104,7 @@ void validateReferences(QVector<GasRecord>& gases,
         if (gas.cellRef > cells.size() || gas.cellRef < 0) { gas.cellRef = 0; }
     }
     validateTlagDonors(gases);
+    validateSaSources(gases);
 }
 
 bool isTlagDonorFor(const QVector<GasRecord>& gases, int gasIndex,
@@ -134,6 +135,44 @@ void validateTlagDonors(QVector<GasRecord>& gases)
         if (donor != 0 && !isTlagDonorFor(gases, i, donor - 1))
         {
             gases[i].tlagDonor = 0;
+        }
+    }
+}
+
+bool isSaSourceFor(const QVector<GasRecord>& gases, int gasIndex,
+                   int sourceIndex)
+{
+    if (gasIndex < 0 || gasIndex >= gases.size()) { return false; }
+    if (sourceIndex < 0 || sourceIndex >= gases.size()) { return false; }
+    if (gasIndex == sourceIndex) { return false; }
+
+    const auto& gas = gases.at(gasIndex);
+    const auto& source = gases.at(sourceIndex);
+    //> Water on neither side: its cut-off depends on humidity through wall
+    //> sorption, which no passive gas has, and the engine reads it from an
+    //> RH regression rather than from a month class.
+    if (gas.slug == kH2o || source.slug == kH2o) { return false; }
+    if (gas.rawColumn <= 0 || source.rawColumn <= 0) { return false; }
+    //> The fit measures the analyser's tube, cell and response; another
+    //> analyser has others, and "other" names none.
+    return isRealInstrument(gas.instrumentId)
+        && source.instrumentId == gas.instrumentId;
+}
+
+void validateSaSources(QVector<GasRecord>& gases)
+{
+    for (int i = 0; i < gases.size(); ++i)
+    {
+        //> Back to automatic, which re-resolves on every run, rather than to
+        //> some other record. "Own" names no record and stays.
+        const int source = gases.at(i).saSource;
+        if (source > 0 && !isSaSourceFor(gases, i, source - 1))
+        {
+            gases[i].saSource = 0;
+        }
+        else if (source < 0 && source != kSaSourceOwn)
+        {
+            gases[i].saSource = 0;
         }
     }
 }

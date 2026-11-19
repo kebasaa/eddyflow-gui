@@ -28,6 +28,8 @@
 #include <QDoubleSpinBox>
 #include <QFileDialog>
 #include <QGridLayout>
+#include <QGroupBox>
+#include <QFormLayout>
 #include <QHBoxLayout>
 #include <QCheckBox>
 #include <QComboBox>
@@ -189,6 +191,52 @@ PlanarFitSettingsDialog::PlanarFitSettingsDialog(QWidget* parent, EcProject *ecP
     fixPolicyCombo->addItem(tr("Use double rotations"));
     fixPolicyCombo->setToolTip(fixPolicyLabel->toolTip());
 
+    //> Extras after innFLUX (Striednig et al. 2020), both off by default.
+    //> Stored in the planar-fit file when used, so reusing the file gives the
+    //> same rotation without these settings.
+    {
+        const auto credit = tr("<br><br><i>Source:</i> innFLUX, Striednig et al. "
+            "(2020), Atmos. Meas. Tech. 13, 1447-1465, Sect. 2.3.1 and Fig. 1, after "
+            "the planar fit of Wilczak et al. (2001).");
+        mwNumSpin = new QSpinBox;
+        mwNumSpin->setRange(0, 360);
+        mwNumSpin->setSpecialValueText(tr("Off (use the sectors)"));
+        mwNumSpin->setToolTip(tr("<b>Moving windows:</b> instead of the sectors on "
+            "the right, fit this many overlapping windows, centred every 360/N "
+            "degrees, each taking every period whose wind direction is within half "
+            "the width of its centre. A period is then rotated with the window "
+            "centred nearest its wind direction. innFLUX uses 360 windows of 30 "
+            "degrees. Off by default. Written into the planar-fit file.") + credit);
+        mwWidthSpin = new QDoubleSpinBox;
+        mwWidthSpin->setRange(1.0, 360.0);
+        mwWidthSpin->setDecimals(1);
+        mwWidthSpin->setSuffix(tr(" [deg]"));
+        mwWidthSpin->setToolTip(tr("<b>Window width:</b> innFLUX: 30 degrees.") + credit);
+        bootSpin = new QSpinBox;
+        bootSpin->setRange(0, 100000);
+        bootSpin->setSpecialValueText(tr("Off"));
+        bootSpin->setToolTip(tr("<b>Bootstrap resamples:</b> resample each sector's "
+            "periods this many times with replacement and report the standard "
+            "deviation of the pitch and roll angles in the planar-fit file. innFLUX "
+            "uses 1000. Off by default; the rotation itself does not change.") + credit);
+        bootSeedSpin = new QSpinBox;
+        bootSeedSpin->setRange(-2147483647, 2147483647);
+        bootSeedSpin->setToolTip(tr("<b>Bootstrap seed:</b> the same seed gives the "
+            "same uncertainties.") + credit);
+        const auto store = [=]()
+        {
+            if (extrasRefreshing_) { return; }
+            ecProject_->setPlanarFitExtras(mwNumSpin->value(), mwWidthSpin->value(),
+                                           bootSpin->value(), bootSeedSpin->value());
+            mwWidthSpin->setEnabled(mwNumSpin->value() > 0);
+            bootSeedSpin->setEnabled(bootSpin->value() > 0);
+        };
+        connect(mwNumSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, store);
+        connect(mwWidthSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, store);
+        connect(bootSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, store);
+        connect(bootSeedSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, store);
+    }
+
     auto propertiesLayout = new QGridLayout;
     propertiesLayout->addLayout(existingFileLayout, 0, 0, 1, -1);
     propertiesLayout->addWidget(nonExistingRadio, 1, 0);
@@ -204,7 +252,17 @@ PlanarFitSettingsDialog::PlanarFitSettingsDialog(QWidget* parent, EcProject *ecP
     propertiesLayout->addWidget(minAvgUSpin, 5, 2, 1, 1);
     propertiesLayout->addWidget(fixPolicyLabel, 6, 0, Qt::AlignRight);
     propertiesLayout->addWidget(fixPolicyCombo, 6, 1);
-    propertiesLayout->setRowStretch(7, 1);
+    {
+        auto extrasBox = new QGroupBox(tr("innFLUX extras"));
+        auto extrasForm = new QFormLayout;
+        extrasForm->addRow(tr("Moving windows :"), mwNumSpin);
+        extrasForm->addRow(tr("Window width :"), mwWidthSpin);
+        extrasForm->addRow(tr("Bootstrap resamples :"), bootSpin);
+        extrasForm->addRow(tr("Bootstrap seed :"), bootSeedSpin);
+        extrasBox->setLayout(extrasForm);
+        propertiesLayout->addWidget(extrasBox, 7, 0, 1, -1);
+    }
+    propertiesLayout->setRowStretch(8, 1);
     propertiesLayout->setVerticalSpacing(3);
     propertiesLayout->setRowMinimumHeight(2, 10);
     propertiesLayout->setContentsMargins(3, 3, 3, 3);
@@ -430,6 +488,15 @@ void PlanarFitSettingsDialog::refresh()
     nonExistingRadio->setChecked(ecProject_->planarFitMode());
 
     fileBrowse->setPath(ecProject_->planarFitFile());
+
+    extrasRefreshing_ = true;
+    mwNumSpin->setValue(ecProject_->planarFitMwNum());
+    mwWidthSpin->setValue(ecProject_->planarFitMwWidth());
+    bootSpin->setValue(ecProject_->planarFitBootN());
+    bootSeedSpin->setValue(ecProject_->planarFitBootSeed());
+    mwWidthSpin->setEnabled(ecProject_->planarFitMwNum() > 0);
+    bootSeedSpin->setEnabled(ecProject_->planarFitBootN() > 0);
+    extrasRefreshing_ = false;
 
     subsetCheckBox->setChecked(ecProject_->planarFitSubset());
     if (ecProject_->planarFitSubset())

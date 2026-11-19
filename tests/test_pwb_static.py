@@ -26,9 +26,11 @@ class PwbGuiStaticIntegrationTests(unittest.TestCase):
 
     def test_settings_button_branches_between_existing_and_pwb_dialogs(self):
         source = read("src/advprocessingoptions.cpp")
-        self.assertIn("tlSettingsButton->setEnabled(n == 3 || n == 4);", source)
+        # Method 6, the cumulated covariance after innFLUX, has its own
+        # settings dialog behind the same button.
+        self.assertIn("tlSettingsButton->setEnabled(n == 3 || n == 4 || n == 5);", source)
         self.assertIn(
-            "tlSettingsButton->setEnabled(ecProject_->screenTlagMeth() == 4 || ecProject_->screenTlagMeth() == 5);",
+            "tlSettingsButton->setEnabled(ecProject_->screenTlagMeth() == 4 || ecProject_->screenTlagMeth() == 5",
             source,
         )
         self.assertIn("if (ecProject_->screenTlagMeth() == 5)", source)

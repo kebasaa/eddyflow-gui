@@ -53,8 +53,8 @@ class QStringLiteral;
 /// \brief Contains global string literals
 namespace Defs
 {
-    const auto APP_VERSION = 0x08010A;
-    const auto APP_VERSION_STR = QStringLiteral("8.1.10");
+    const auto APP_VERSION = 0x080200;
+    const auto APP_VERSION_STR = QStringLiteral("8.2.0");
     const auto APP_STAGE_STR = QStringLiteral(""); // -rc1
 
     //> 5.0.0 is the record format: gases, cell measurements and diagnostics
@@ -227,7 +227,7 @@ namespace Defs
     //> and gas analysers one shared counter, so two sonics leave room for six
     //> analysers, not eight.
     const int MAX_INSTRUMENTS = 8;
-    const int MAX_GASES = 64;
+    const int MAX_GASES = 128;
     //> Not an engine limit. The engine declares MaxGasesPerInstrument but never
     //> reads it - no array is sized by it and no loop bounded by it - so this
     //> only ever gated the interface. One analyser may carry the project's full

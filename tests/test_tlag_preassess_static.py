@@ -42,9 +42,16 @@ STATS = GUI_ROOT / "src" / "lagstats.cpp"
 
 class TheButtonSitsBesideTheTimeLagSettings(unittest.TestCase):
 
-    def test_it_is_on_the_time_lag_row_in_a_column_of_its_own(self):
-        self.assertIn("settingsLayout->addWidget(tlPreassessButton, 13, 4);", read(ADV))
-        self.assertIn('tr("Timelag preliminary assessment...")', read(ADV))
+    def test_it_is_on_the_time_lag_row_under_the_settings_button(self):
+        #> Stacked under the settings button in its column, not in a column
+        #> of its own: that column made the page too wide for a laptop.
+        src = read(ADV)
+        block = src[src.index("auto tlButtons = new QVBoxLayout;"):]
+        block = block[:block.index("settingsLayout->addLayout(tlButtons, 13, 3);")]
+        self.assertLess(block.index("tlButtons->addWidget(tlSettingsButton);"),
+                        block.index("tlButtons->addWidget(tlPreassessButton);"))
+        self.assertNotIn("tlPreassessButton, 13, 4", src)
+        self.assertIn('tr("Timelag preliminary assessment...")', src)
 
     def test_it_follows_the_time_lag_checkbox(self):
         self.assertIn("tlPreassessButton, &QPushButton::setEnabled);", read(ADV))

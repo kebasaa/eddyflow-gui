@@ -192,6 +192,11 @@ namespace EcIni
     const auto INI_SPEC_SETTINGS_52    = QStringLiteral("flux_run_mode");
     const auto INI_SPEC_SETTINGS_53    = QStringLiteral("automatic_spectra_config");
     const auto INI_SPEC_SETTINGS_54    = QStringLiteral("keep_parent_fluxnet_file");
+    //> Whether a gas left on automatic takes the best-resolved tube-mate's
+    //> spectral transfer function when its own looks implausible. Which gas
+    //> each one takes it from is the per-gas gas_<i>_sa_source, composed
+    //> where the other gas_<i>_sa_* keys are.
+    const auto INI_SPEC_SETTINGS_55    = QStringLiteral("sa_auto_source");
 
     const auto INIGROUP_SCREEN_GENERAL = QStringLiteral("RawProcess_General");
     const auto INI_SCREEN_GENERAL_4    = QStringLiteral("data_path");
@@ -350,6 +355,33 @@ namespace EcIni
     //> departure from the chord across the search window, not the largest
     //> absolute covariance.
     const auto INI_SCREEN_SETTINGS_107  = QStringLiteral("covmax_debaseline");
+    //> Smoothed covariance peak search after innFLUX (Striednig et al. 2020,
+    //> find_covariance_peak.m): Hamming window length in rows (0 off) and
+    //> the sign rule (0 largest |cov|, 1 largest cov, 2 innFLUX's derivative
+    //> rule). Both off by default. RP only, RawProcess_Settings.
+    const auto INI_SCREEN_SETTINGS_125  = QStringLiteral("covmax_smooth_len");
+    const auto INI_SCREEN_SETTINGS_126  = QStringLiteral("covmax_peak_sign");
+    //> Optional FLUXNET-file outputs after innFLUX (Striednig et al. 2020),
+    //> each off by default: the potential and virtual potential temperature
+    //> fluxes, and the far-lag noise mean, SD and flux signal-to-noise ratio
+    //> of the Langford limit of detection. RP only, RawProcess_Settings.
+    const auto INI_SCREEN_SETTINGS_127  = QStringLiteral("out_theta_flux");
+    const auto INI_SCREEN_SETTINGS_128  = QStringLiteral("out_lod_noise_stats");
+    //> Cumulated-covariance time lag (tlag_meth 6) and its clock-drift
+    //> correction after innFLUX (Striednig et al. 2020; driftfix of innFLUX
+    //> v1.2.0, unpublished), and the per-period cross-covariance output.
+    const auto INI_SCREEN_SETTINGS_129  = QStringLiteral("tlag_cum_filter_len");
+    const auto INI_SCREEN_SETTINGS_130  = QStringLiteral("tlag_cum_min_ustar");
+    const auto INI_SCREEN_SETTINGS_131  = QStringLiteral("tlag_cum_min_compl_sonic");
+    const auto INI_SCREEN_SETTINGS_132  = QStringLiteral("tlag_cum_min_compl_gas");
+    const auto INI_SCREEN_SETTINGS_133  = QStringLiteral("tlag_cum_max_sst");
+    const auto INI_SCREEN_SETTINGS_134  = QStringLiteral("tlag_cum_segments");
+    const auto INI_SCREEN_SETTINGS_135  = QStringLiteral("tlag_drift_meth");
+    const auto INI_SCREEN_SETTINGS_136  = QStringLiteral("tlag_drift_span_d");
+    const auto INI_SCREEN_SETTINGS_137  = QStringLiteral("tlag_drift_jump_thr");
+    const auto INI_SCREEN_SETTINGS_138  = QStringLiteral("tlag_drift_max_s");
+    const auto INI_SCREEN_SETTINGS_139  = QStringLiteral("out_ccf_max_lag_s");
+    const auto INI_SCREEN_SETTINGS_140  = QStringLiteral("out_ccf_decim");
     //> Nemitz et al. (2018) conditional lag borrowing. Needs detlim_meth on,
     //> since there is nothing to compare a covariance against otherwise.
     const auto INI_SCREEN_SETTINGS_108  = QStringLiteral("tlag_borrow_meth");
@@ -503,6 +535,13 @@ namespace EcIni
     const auto INI_SCREEN_TILT_12     = QStringLiteral("pf_start_time");
     const auto INI_SCREEN_TILT_13     = QStringLiteral("pf_end_time");
     const auto INI_SCREEN_TILT_14     = QStringLiteral("rot_pf_assessment_only");
+    //> Planar-fit extras after innFLUX (Striednig et al. 2020), both off:
+    //> moving windows (count, width in degrees) and the bootstrap of the tilt
+    //> angles (resamples, seed). Stored in the planar-fit file when used.
+    const auto INI_SCREEN_TILT_15     = QStringLiteral("pf_mw_num");
+    const auto INI_SCREEN_TILT_16     = QStringLiteral("pf_mw_width");
+    const auto INI_SCREEN_TILT_17     = QStringLiteral("pf_boot_n");
+    const auto INI_SCREEN_TILT_18     = QStringLiteral("pf_boot_seed");
 
     const auto INIGROUP_TIMELAG_OPT = QStringLiteral("RawProcess_TimelagOptimization_Settings");
     const auto INI_TIMELAG_OPT_0    = QStringLiteral("to_start_date");

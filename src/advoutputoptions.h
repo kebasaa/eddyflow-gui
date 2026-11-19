@@ -46,6 +46,8 @@ class ClickLabel;
 struct ConfigState;
 class EcProject;
 class RichTextCheckBox;
+class QSpinBox;
+class QDoubleSpinBox;
 
 class AdvOutputOptions : public QWidget
 {
@@ -136,6 +138,7 @@ private:
         RichTextCheckBox* spectra = nullptr;
         RichTextCheckBox* cospectra = nullptr;
         RichTextCheckBox* raw = nullptr;
+        RichTextCheckBox* ccf = nullptr;    //< cross-covariance functions
     };
 
     void rebuildGasRows();
@@ -145,6 +148,7 @@ private:
     void onGasSpectraToggled(int gasIndex, bool checked);
     void onGasCospectraToggled(int gasIndex, bool checked);
     void onGasRawToggled(int gasIndex, bool checked);
+    void onGasCcfToggled(int gasIndex, bool checked);
     bool gasSpectraFor(int gasIndex) const;
     bool gasCospectraFor(int gasIndex) const;
     bool gasRawFor(int gasIndex) const;
@@ -201,6 +205,9 @@ private:
     QLabel* spectralAssessmentCreationWarningIcon;
     QCheckBox* timelagAssessmentOnlyCheckBox;
     QCheckBox* planarFitAssessmentOnlyCheckBox;
+    //> automatic_spectra_config: what an on-the-fly spectral assessment
+    //> recommends is written into the output project.
+    QCheckBox* automaticSpectraConfigCheckBox;
 
     QCheckBox* outBinSpectraCheckBox;
     QLabel* outBinSpectraRequiredIcon;
@@ -227,6 +234,15 @@ private:
     QCheckBox* outFullCospectraAll;
     QGroupBox* fluxnetGroupBox;
     QCheckBox* fluxnetBiometCheckBox;
+    //> Optional innFLUX-style columns (Striednig et al. 2020), both off.
+    RichTextCheckBox* outThetaFluxCheckBox;
+    RichTextCheckBox* outLodNoiseCheckBox;
+    //> Per-period cross-covariance functions (innFLUX), by gas. Off. One box
+    //> per gas, in this grid, built with the page's other per-gas boxes.
+    QGridLayout* ccfGasGrid_ = nullptr;
+    QDoubleSpinBox* ccfMaxLagSpin;
+    QSpinBox* ccfDecimSpin;
+    bool ccfRefreshing_ = false;
     QCheckBox* fluxnetErrLabelCheckBox;
     QCheckBox* outDetailsCheckBox;
     QCheckBox* outMdCheckBox;

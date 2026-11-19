@@ -47,6 +47,9 @@ public:
 
     struct Scan
     {
+        /// Whether the output folder holds anything of an earlier run.
+        bool found() const { return !allOutputs.isEmpty() || !recordFile.isEmpty(); }
+
         /// Whether flux correction alone can be run, reusing raw processing.
         bool correctionOnly = false;
         /// Why it cannot, one readable sentence each; empty when it can.
