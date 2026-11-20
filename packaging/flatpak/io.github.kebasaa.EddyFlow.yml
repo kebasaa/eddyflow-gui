@@ -19,7 +19,12 @@
 # eddyflow-gui/packaging/flatpak.
 app-id: io.github.kebasaa.EddyFlow
 runtime: org.kde.Platform
-runtime-version: '6.8'
+# A supported runtime, and the image in linux-flatpak.yml with the same
+# number. KDE 6.8 went end-of-life: the kde-6.8 image then tried to update its
+# preinstalled SDK at build time, which fails inside the container ("Invalid
+# cross-device link") and stopped every build. 6.11 is also the Qt the GUI is
+# developed against.
+runtime-version: '6.11'
 sdk: org.kde.Sdk
 command: eddyflow
 finish-args:

@@ -31,7 +31,11 @@ jobs:
   flatpak:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.8
+      # The same KDE version as runtime-version in the manifest. An image whose
+      # runtime has gone end-of-life fails before building anything: it tries
+      # to update its own SDK, which the container cannot ("Invalid
+      # cross-device link"), as kde-6.8 did for v8.2.0.
+      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11
       options: --privileged
     timeout-minutes: 90
     env:
@@ -52,6 +56,19 @@ jobs:
           repository: kebasaa/eddyflow-engine
           ref: ${{ env.ENGINE_REF }}
           path: eddyflow-engine
+
+      # The packaging of this workflow's own commit, over the tagged
+      # checkout's. For a release they are the same commit and nothing
+      # changes; run by hand for an older tag, the tag's sources are built with
+      # the current packaging - so a release whose packaging stopped working
+      # (v8.2.0, on an end-of-life runtime) is rebuilt without moving its tag.
+      - name: Check out this workflow's packaging
+        uses: actions/checkout@v7
+        with:
+          path: packaging-current
+          sparse-checkout: packaging/flatpak
+      - name: Use this workflow's packaging for ${{ env.TAG }}
+        run: cp -R packaging-current/packaging/flatpak/. eddyflow-gui/packaging/flatpak/
 
       - name: Build the Flatpak bundle
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6

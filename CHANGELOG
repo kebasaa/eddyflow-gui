@@ -5,7 +5,7 @@ Unreleased
 	          matching the engine.
 	- New: A Flatpak of EddyFlow (GUI and engine) for Linux. The workflow
 	       .github/workflows/linux-flatpak.yml builds it on every release
-	       from packaging/flatpak/io.github.kebasaa.EddyFlow.yml (KDE 6.8
+	       from packaging/flatpak/io.github.kebasaa.EddyFlow.yml (KDE 6.11
 	       runtime; QuaZIP, 7-Zip, the engine and the GUI built from
 	       source). It checks that the engine and 7-Zip run inside the
 	       sandbox and attaches the .flatpak bundle to the release beside
@@ -136,6 +136,15 @@ Unreleased
 	       Its settings go to a folder beside the report, never to the
 	       user's own. Without the variable nothing happens.
 	       Pinned by tests/test_advanced_page_widths_static.py.
+	- Fixed: The Flatpak build failed before compiling anything, for v8.2.0:
+	         the KDE 6.8 runtime it was built against had gone end-of-life,
+	         and the kde-6.8 build image then tried to update its own SDK,
+	         which fails inside the container ("Invalid cross-device link").
+	         It is built against KDE 6.11 (Qt 6.11) in the kde-6.11 image.
+	         The workflow also takes its packaging from its own commit, so
+	         running it by hand for an older tag rebuilds that tag's sources
+	         with packaging that works, without moving the tag.
+	         Pinned by tests/test_flatpak_static.py.
 
 8.2.0 (2026-11-11)
 

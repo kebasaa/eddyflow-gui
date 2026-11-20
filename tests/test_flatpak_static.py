@@ -44,8 +44,9 @@ class TheManifest(unittest.TestCase):
         self.assertIn(f"apps/{app_id}.png", self.m)
 
     def test_qt_new_enough(self):
-        """CMakeLists asks for Qt 6.7; the KDE 6.8 runtime carries Qt 6.8."""
-        self.assertIn("runtime-version: '6.8'", self.m)
+        """CMakeLists asks for Qt 6.7; the KDE 6.11 runtime carries Qt 6.11.
+        KDE 6.8 went end-of-life and its image could no longer build."""
+        self.assertIn("runtime-version: '6.11'", self.m)
         self.assertIn("find_package(Qt6 6.7", read(GUI_ROOT / "CMakeLists.txt"))
 
 
@@ -54,8 +55,19 @@ class TheWorkflow(unittest.TestCase):
         self.w = read(WORKFLOW)
 
     def test_same_kde_image_as_the_runtime(self):
-        self.assertIn("flatpak-github-actions:kde-6.8", self.w)
+        import re
+        version = re.search(r"runtime-version: '([0-9.]+)'", read(MANIFEST)).group(1)
+        self.assertIn(f"flatpak-github-actions:kde-{version}\n", self.w,
+                      "the image must carry the runtime the manifest names")
         self.assertIn("options: --privileged", self.w)
+
+    def test_an_older_tag_is_built_with_the_current_packaging(self):
+        """So a release whose packaging stopped working can be rebuilt by hand
+        without moving its tag. The copy comes before the build."""
+        copy = self.w.index("cp -R packaging-current/packaging/flatpak/. "
+                            "eddyflow-gui/packaging/flatpak/")
+        self.assertLess(self.w.index("path: packaging-current"), copy)
+        self.assertLess(copy, self.w.index("flatpak/flatpak-github-actions/flatpak-builder@"))
 
     def test_engine_and_7zip_checked_inside_the_sandbox(self):
         self.assertIn("--command=/app/lib/eddyflow/bin/eddyflow_rp", self.w)
