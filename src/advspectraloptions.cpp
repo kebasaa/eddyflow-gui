@@ -1191,6 +1191,9 @@ AdvSpectralOptions::AdvSpectralOptions(QWidget *parent,
             [=](double d){ ecProject_->setSpectraMaxLE(d); });
     connect(vmFlagsCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setSpectraUseVmFlags(checked); });
+    //> clicked, not toggled: only the user's own tick warns, never a refresh.
+    connect(vmFlagsCheckBox, &QCheckBox::clicked,
+            this, &AdvSpectralOptions::warnVmFlagsInPreprocessing);
     connect(lowQualityCheckBox, &QCheckBox::toggled, [=](bool checked)
             { ecProject_->setSpectraUseFokenLow(checked); });
     connect(moderateQualityCheckBox, &QCheckBox::toggled, [=](bool checked)
@@ -1698,11 +1701,8 @@ void AdvSpectralOptions::refreshSpectralAssessmentCreationMode()
         {
             ecProject_->setGeneralFullSpectraAvail(0);
         }
-        //> Mandatory in pre-processing: ticked and locked below.
-        if (!ecProject_->spectraUseVmFlags())
-        {
-            ecProject_->setSpectraUseVmFlags(1);
-        }
+        //> The Vickers and Mahrt filter is left as it is: choosing the run mode
+        //> switched it off (AdvOutputOptions), and the user may tick it back.
         if (ecProject_->spectraUseFokenMid())
         {
             ecProject_->setSpectraUseFokenMid(0);
@@ -1727,7 +1727,7 @@ void AdvSpectralOptions::refreshSpectralAssessmentCreationMode()
         binnedSpectraNonExistingRadio->setChecked(true);
         fullSpectraExistingRadio->setChecked(false);
         fullSpectraNonExistingRadio->setChecked(true);
-        vmFlagsCheckBox->setChecked(true);
+        vmFlagsCheckBox->setChecked(ecProject_->spectraUseVmFlags());
         moderateQualityCheckBox->setChecked(false);
 
         hfMethodCheck->setEnabled(false);
@@ -1742,7 +1742,7 @@ void AdvSpectralOptions::refreshSpectralAssessmentCreationMode()
         fullSpectraExistingRadio->setEnabled(isFratini());
         fullSpectraNonExistingRadio->setEnabled(isFratini());
         fullSpectraDirBrowse->setEnabled(false);
-        vmFlagsCheckBox->setEnabled(false);
+        vmFlagsCheckBox->setEnabled(true);
         moderateQualityCheckBox->setEnabled(false);
         lowQualityCheckBox->setEnabled(true);
 
@@ -2115,6 +2115,28 @@ void AdvSpectralOptions::setHfMethod(int hfMethComboIndex)
 int AdvSpectralOptions::hfComboIndexFromProjectMethod() const
 {
     return hfRowForMethod(ecProject_->generalHfMethod());
+}
+
+/// A pre-processing run switches the Vickers and Mahrt filter off; the user
+/// may tick it back, but is told what it can cost the assessment.
+void AdvSpectralOptions::warnVmFlagsInPreprocessing(bool checked)
+{
+    if (!checked || ecProject_->spectraFluxRunMode() != 1)
+    {
+        return;
+    }
+
+    WidgetUtils::warning(this,
+                         tr("Pre-processing run"),
+                         tr("With this filter on, the spectral assessment may fail."),
+                         tr("(Co)spectra that a Vickers and Mahrt (1997) test "
+                            "flagged are left out of the assessment, and too few "
+                            "may remain for valid ensemble averages and for "
+                            "fitting the transfer functions. Only the tests "
+                            "switched on under Advanced Settings > Statistical "
+                            "Analysis (spike count/removal, drop-outs, skewness "
+                            "& kurtosis, discontinuities) can flag a period. "
+                            "A pre-processing run leaves the filter off by default."));
 }
 
 void AdvSpectralOptions::updateHfMethod_1(bool b)

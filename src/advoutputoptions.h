@@ -160,7 +160,6 @@ private:
     bool canCreatePlanarFitAssessmentOnly() const;
     bool canCreateSpectralAssessment() const;
     bool validateSpectralAssessmentCreationRequest();
-    void suggestVickersMahrtTests();
     int estimatedSpectralAssessmentIntervals() const;
     int currentSpectralMethodIndex() const;
     bool isSpectralAssessmentCreationMode() const;

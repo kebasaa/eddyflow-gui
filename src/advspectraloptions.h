@@ -103,6 +103,7 @@ private slots:
     void onClickHfMethLabel();
     void updateHfMethod_1(bool b);
     void updateHfMethod_2(int n);
+    void warnVmFlagsInPreprocessing(bool checked);
 
     void onClickHorstLabel();
     void updateHorst_1(bool b);

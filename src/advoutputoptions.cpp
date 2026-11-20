@@ -1480,47 +1480,12 @@ void AdvOutputOptions::updateSpectralAssessmentCreationMode(bool checked)
     {
         ecProject_->setSpectraFluxRunMode(1);
         clearAssessmentOnlyCheckBoxes();
+        //> Off when the mode is chosen, and only then: the requirements below
+        //> are applied again on every refresh, and the user may tick the
+        //> filter back on (Spectral Corrections warns about it).
+        ecProject_->setSpectraUseVmFlags(0);
         applySpectralAssessmentCreationRequirements();
     });
-
-    //> Out here: inside, QuietWarnings would send it to the log instead.
-    suggestVickersMahrtTests();
-}
-
-/// Pre-processing filters (co)spectra by the Vickers and Mahrt (1997) test
-/// results, but only a test that ran can flag a period: one that did not run
-/// flags 9, which the engine's filter lets through (cospectra_qaqc.f90). The
-/// tests stay the user's choice; this only says which ones the filter reads.
-void AdvOutputOptions::suggestVickersMahrtTests()
-{
-    const struct { int on; QString name; } tests[] = {
-        { ecProject_->screenTestSr(), tr("Spike count/removal") },
-        { ecProject_->screenTestDo(), tr("Drop-outs") },
-        { ecProject_->screenTestSk(), tr("Skewness &amp; kurtosis") },
-        { ecProject_->screenTestDs(), tr("Discontinuities") },
-    };
-
-    bool allOn = true;
-    QString list;
-    for (const auto& test : tests)
-    {
-        allOn = allOn && test.on;
-        list += QStringLiteral("<li>%1 %2</li>")
-                    .arg(test.name, test.on ? tr("(on)") : tr("<b>(off)</b>"));
-    }
-    if (allOn)
-    {
-        return;
-    }
-
-    WidgetUtils::information(this,
-                             tr("Pre-processing run"),
-                             tr("<p>(Co)spectra are now filtered according to the "
-                                "Vickers and Mahrt (1997) test results, but only "
-                                "the tests that are run can remove any.</p>"),
-                             tr("<p>Consider switching on these tests under "
-                                "<i>Advanced Settings &gt; Statistical Analysis</i>:"
-                                "</p><ul>%1</ul>").arg(list));
 }
 
 void AdvOutputOptions::updateProductionRunMode(bool checked)
@@ -1713,12 +1678,6 @@ void AdvOutputOptions::applySpectralAssessmentCreationRequirements()
     if (!ecProject_->screenOutFullCospectraTs())
     {
         ecProject_->setScreenOutFullCospectraTs(1);
-    }
-    //> The assessment is built from (co)spectra that passed the Vickers and
-    //> Mahrt (1997) tests, so the filter is on and stays on.
-    if (!ecProject_->spectraUseVmFlags())
-    {
-        ecProject_->setSpectraUseVmFlags(1);
     }
     if (ecProject_->spectraUseFokenMid())
     {
