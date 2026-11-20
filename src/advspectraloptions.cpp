@@ -1698,9 +1698,10 @@ void AdvSpectralOptions::refreshSpectralAssessmentCreationMode()
         {
             ecProject_->setGeneralFullSpectraAvail(0);
         }
-        if (ecProject_->spectraUseVmFlags())
+        //> Mandatory in pre-processing: ticked and locked below.
+        if (!ecProject_->spectraUseVmFlags())
         {
-            ecProject_->setSpectraUseVmFlags(0);
+            ecProject_->setSpectraUseVmFlags(1);
         }
         if (ecProject_->spectraUseFokenMid())
         {
@@ -1726,7 +1727,7 @@ void AdvSpectralOptions::refreshSpectralAssessmentCreationMode()
         binnedSpectraNonExistingRadio->setChecked(true);
         fullSpectraExistingRadio->setChecked(false);
         fullSpectraNonExistingRadio->setChecked(true);
-        vmFlagsCheckBox->setChecked(false);
+        vmFlagsCheckBox->setChecked(true);
         moderateQualityCheckBox->setChecked(false);
 
         hfMethodCheck->setEnabled(false);

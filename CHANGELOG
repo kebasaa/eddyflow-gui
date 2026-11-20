@@ -3,6 +3,12 @@ Unreleased
     GUI:
 	- Change: Up to 128 gases per project (Defs::MAX_GASES 64 -> 128),
 	          matching the engine.
+	- Change: A pre-processing run now switches "Filter (co)spectra according
+	          to Vickers and Mahrt (1997) test results" on and locks it, where
+	          it used to switch it off. Selecting pre-processing while any of
+	          the tests the filter reads (spike count/removal, drop-outs,
+	          skewness & kurtosis, discontinuities) is off opens a note
+	          suggesting them; the tests themselves are left as they are.
 	- New: A Flatpak of EddyFlow (GUI and engine) for Linux. The workflow
 	       .github/workflows/linux-flatpak.yml builds it on every release
 	       from packaging/flatpak/io.github.kebasaa.EddyFlow.yml (KDE 6.11
